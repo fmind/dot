@@ -1,25 +1,25 @@
 ---
 name: acp
-description: "ACP editor-agent sessions, capability negotiation, streamed updates, and permission handling."
+description: "ACP editor-agent sessions, capability negotiation, streaming, and permission handling."
 ---
 
 # Agent Client Protocol
 
-Use ACP for integration between an editor or other client and an agent process. Here ACP means Agent Client Protocol; confirm the intended specification when another product uses the same acronym.
+Connect an editor or client frontend to an agent process via Agent Client Protocol (confirm the spec when another product reuses the `ACP` acronym).
 
 ## Python implementation
 
-1. **Inspect versions and the SDK**: inspect the peers' protocol versions and the installed SDK. Use the official `agentclientprotocol/python-sdk` distribution `agent-client-protocol`; add it with `uv add agent-client-protocol` only when the project needs it.
-1. **Start from official SDK examples**: start from the SDK's matching client and echo-agent examples. Implement the required role through its async bases and generated `acp.schema` models rather than hand-writing JSON-RPC envelopes.
-1. **Negotiate before prompting**: negotiate capabilities and establish a session before prompting. Handle streamed session updates, tool calls, permission requests, and cancellation according to the negotiated schema. A client permission response must reflect the user's existing authority; never automatically approve a broader operation.
-1. **Keep stdio clean and processes bounded**: keep stdout protocol-only for stdio and diagnostics on stderr. Launch only an approved executable with explicit arguments, working directory, and environment; tear down the process on completion, cancellation, and failure.
-1. **Test a local deterministic client/agent exchange**: include denied permissions, cancellation, and unexpected subprocess exit. Test only advertised optional capabilities.
+1. **Pin the SDK**: inspect peer protocol versions and add `uv add agent-client-protocol` (`agentclientprotocol/python-sdk`) when needed.
+1. **Use SDK bases and schemas**: adapt official client/echo-agent examples using async base classes and generated `acp.schema` models rather than raw JSON-RPC dicts.
+1. **Negotiate capabilities first**: open a session before prompting; handle streamed updates, tool calls, cancellations, and permission prompts bounded strictly by the user's granted authority.
+1. **Isolate stdio and subprocesses**: reserve stdout for protocol frames (logs to stderr); spawn only approved executables with explicit argv, cwd, and env, tearing them down on completion, cancel, or error.
+1. **Test deterministically**: cover normal turns, denied permissions, cancellation, unexpected child exit, and only advertised optional capabilities.
 
 ## Boundaries
 
-- **Default to stdio**: start with stdio unless both peers require a documented remote transport. The Python SDK's remote transport extras have their own maturity and security requirements; verify the locked release before exposing a service.
-- **ACP sessions are not A2A tasks**: they do not turn an MCP tool server into an editor agent. Choose an adapter only for a demonstrated interoperability requirement.
-- **Inspect official skills before installing**: inspect the maintainer's current repository and distribution before installing anything. Contributor `AGENTS.md` is not a consumer skill package; fall back to the official SDK examples and docs when no applicable package is established.
+- **Default to stdio**: adopt remote transport extras only when both peers require them and the locked SDK's security posture is verified.
+- **Keep protocols distinct**: ACP neither replaces A2A tasks nor wraps MCP tool servers into editor agents without a real interop need.
+- **Skip contributor files**: `agentclientprotocol` contributor `AGENTS.md` is not a consumer skill—use SDK docs and examples unless an official consumer skill ships.
 
 ## Documentation
 

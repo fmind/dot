@@ -5,30 +5,30 @@ description: "LangGraph state, persistence, streaming, interrupts, and durable e
 
 # LangGraph
 
-Own the topology only when the workflow is more than "loop until done": classification before routing, parallel fan-out, or deterministic steps between model calls. [langchain](langchain.md)'s `create_agent` already returns a compiled graph that drops into a `StateGraph` as a node with its middleware intact; confirm it does not already cover the need before `uv add langgraph`.
+Hand-write `StateGraph` topology only beyond a tool loop (pre-routing classification, parallel fan-out, deterministic steps between LLM calls); [langchain](langchain.md)'s `create_agent` already compiles a graph usable as a `StateGraph` node with middleware intact.
 
 ## Workflow
 
-1. **Choose persistence deliberately**: `InMemorySaver` is for tests only; `langgraph-checkpoint-sqlite`, `-postgres`, and `-mongodb` install separately. Postgres requires `.setup()` to create or migrate its schema (not a method on every checkpointer) and a `thread_id` under 255 characters; isolate threads per user and prove resume across a real process restart.
-1. **Set durability per run, not at compile**: `durability="sync"` for high-value writes, `"async"` for the default trade-off, and `"exit"` only when losing intermediate state to a process crash is acceptable.
-1. **Interrupt for review**: `interrupt()` and `Command(resume=...)` from `langgraph.types` on the same thread; resuming re-runs the node from its start, so make preceding writes idempotent.
-1. **Configure failure behavior on `add_node`**: `retry_policy=RetryPolicy(...)`, `timeout=TimeoutPolicy(run_timeout=..., idle_timeout=...)`, and `error_handler=` instead of try/except in every node. Timeouts need async nodes (a sync node raises `ValueError`) and raise `NodeTimeoutError`, which the default retry policy retries; a handler receives the failure only through a parameter typed `NodeError` and returns a recovery `Command`.
-1. **Drain workers on shutdown**: pass `control=RunControl()` (`langgraph.runtime`) and call `request_drain()` on SIGTERM; the run stops after the current superstep, raises `GraphDrained`, and resumes from its checkpoint with `invoke(None, config)`.
-1. **Stream with `stream_mode`**: the typed `stream_events(..., version="v3")` API is experimental and emits `LangChainBetaWarning`; adopt it only with a test of its event shape against the locked release.
+1. **Choose persistence**: keep `InMemorySaver` to tests; install `langgraph-checkpoint-sqlite`, `-postgres` (call `.setup()` for schema migrations; keep `thread_id` <255 chars), or `-mongodb`. Isolate threads per user and test resume across a process restart.
+1. **Set durability per run**: `durability="sync"` for critical writes, `"async"` by default, `"exit"` only when crash loss of intermediate steps is acceptable.
+1. **Interrupt safely**: pair `interrupt()` with `Command(resume=...)` (`langgraph.types`) on the same thread; resuming replays the node from start, so keep prior side effects idempotent.
+1. **Declare node policies on `add_node`**: use `retry_policy=RetryPolicy(...)`, `timeout=TimeoutPolicy(run_timeout=..., idle_timeout=...)` (async nodes only—sync raises `ValueError`; raises retriable `NodeTimeoutError`), and `error_handler=` (parameter typed `NodeError` returning a `Command`) instead of per-node `try/except`.
+1. **Drain on shutdown**: pass `control=RunControl()` (`langgraph.runtime`), call `request_drain()` on SIGTERM (stops after the superstep with `GraphDrained`), and resume via `invoke(None, config)`.
+1. **Stream with `stream_mode`**: `stream_events(..., version="v3")` emits `LangChainBetaWarning`; pin and test event shapes before adopting.
 
 ## Gotchas
 
-- **Never wrap `interrupt()` in a broad `except`**: it pauses by raising, and a bare handler swallows the pause.
-- **Interrupt matching is strictly index-based**: resume values match by position within the node, so a conditionally skipped or reordered `interrupt()` silently receives another call's answer; keep the calls unconditional and in a fixed order.
-- **Checkpoints persist state and outlive deployments**: prompts, tool outputs, and any credential placed in state reach the store, so keep state minimal with access and retention controls; treat a state schema change as a migration rehearsed on a copy of real checkpoints.
+- **Never catch `interrupt()` broadly**: bare `except` blocks swallow the pause exception.
+- **Keep `interrupt()` order fixed**: resume answers match by call index inside a node, so conditional or reordered `interrupt()` calls misroute values.
+- **Treat checkpoints as durable data**: prompts, outputs, and anything in state persist across deploys—keep secrets out of state, enforce access/retention, and rehearse state-schema migrations on copied checkpoints.
 
 ## Official Skills
 
-Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`langgraph-fundamentals`, `langgraph-persistence`, `langgraph-human-in-the-loop`; `langgraph-cli` only for that deployment workflow). Apply the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) before a project-scoped installation.
+Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`langgraph-fundamentals`, `langgraph-persistence`, `langgraph-human-in-the-loop`, plus `langgraph-cli` when needed); vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md).
 
 ## Documentation
 
 - [Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api) · [Checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers) · [Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) · [Fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) · [Event streaming](https://docs.langchain.com/oss/python/langgraph/event-streaming)
 - Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langgraph/releases)
-- Live reference: the docs MCP endpoint `https://docs.langchain.com/mcp` answers for the current version.
-- Companion skills: [python-async](../../python-stack/references/python-async/GUIDE.md) (cancellation and shutdown), [observability](../../python-stack/references/observability.md) (traces).
+- Live docs MCP: `https://docs.langchain.com/mcp`.
+- Companion skills: [python-async](../../python-stack/references/python-async/GUIDE.md), [observability](../../python-stack/references/observability.md).

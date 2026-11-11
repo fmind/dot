@@ -1,10 +1,10 @@
 # Standalone Tailwind for Python Web Applications
 
-Use the upstream standalone `tailwindcss` executable through the project's locked mise toolchain. Preserve an existing asset build; a new Python web project does not need a Node package graph just to compile CSS. [web-frontend](../SKILL.md) owns this workflow; Django or Litestar owns serving and collecting the output.
+Compile Tailwind via the standalone `tailwindcss` binary in `mise.toml` without adding a Node dependency graph ([web-frontend](../SKILL.md) owns CSS authoring; Django/Litestar owns static serving).
 
 ## Workflow
 
-1. **Inspect the toolchain and build**: `tailwindcss --help`, the lock, template locations, static-file serving, and the production build. The workstation does not install Tailwind globally: declare `github:tailwindlabs/tailwindcss` in the project's `mise.toml` with the platform's official standalone asset, selecting the glibc Linux asset (the musl one needs `/lib/ld-musl-*`) and the native macOS asset:
+1. **Pin standalone `tailwindcss` in the project** (not installed globally; pick glibc on Linux since musl needs `/lib/ld-musl-*`):
    ```toml
    # Docs: https://mise.jdx.dev/dev-tools/backends/github.html
    [tools."github:tailwindlabs/tailwindcss"]
@@ -15,16 +15,16 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
    linux-x64 = { asset_pattern = "tailwindcss-linux-x64" }
    macos-arm64 = { asset_pattern = "tailwindcss-macos-arm64" }
    ```
-1. **Choose one input and one generated output**: for example `assets/styles.css` and `static/css/app.css`. Create the output directory and exclude generated CSS from source formatting. Commit or build it in CI according to the project's existing artifact policy.
-1. **Register source roots explicitly**: for that example layout, adapt:
+1. **Pick one input and output** (e.g., `assets/styles.css` → `static/css/app.css`), exclude generated CSS from formatters, and follow the repo's artifact policy.
+1. **Declare explicit `@source` roots** (resolved relative to the stylesheet):
    ```css
    /* Docs: https://tailwindcss.com/docs/detecting-classes-in-source-files */
    @import "tailwindcss" source(none);
    @source "../templates";
    @source "../src";
    ```
-1. **Keep complete class names**: write them whole in templates and Python strings. Map a condition to `text-red-600` or `text-green-600`; `text-{{ color }}-600` cannot be discovered. Use `@source inline(...)` only for a bounded set that cannot live in source. Run `tailwindcss canonicalize --css assets/styles.css <classes>` on generated class lists to replace arbitrary values with theme utilities (`bg-[#fff]` becomes `bg-white`).
-1. **Reuse the existing build and watch**: wire compilation into the existing build and development watch, adapting paths rather than creating another asset subsystem:
+1. **Write whole class names**: map conditions to complete literals (`text-red-600`, never `text-{{ color }}-600`); reserve `@source inline(...)` for bounded dynamic sets, and normalize arbitrary utilities with `tailwindcss canonicalize --css assets/styles.css <classes>`.
+1. **Wire build and watch tasks** (run `build:css` before `collectstatic` or packaging; use `--watch=always` only under a closed-stdin supervisor and stop task-owned watchers when done):
    ```toml
    # Docs: https://mise.jdx.dev/tasks/
    [tasks."build:css"]
@@ -33,14 +33,12 @@ Use the upstream standalone `tailwindcss` executable through the project's locke
    [tasks."watch:css"]
    run = "tailwindcss -i assets/styles.css -o static/css/app.css --watch"
    ```
-1. **Build CSS before packaging**: make the production build depend on `build:css` before Django `collectstatic` or application packaging. Use `--watch=always` only for an intentional supervisor whose stdin closes; stop task-owned watchers after verification.
-1. **Prove source selection in production**: verify a clean production build includes a class used only in a nested template, a conditional class, and a class in Python-generated markup. Delete a class from the fixture and rebuild to check source selection. Inspect the rendered page and its CSS response with [chrome-devtools](../../chrome-devtools/SKILL.md), including keyboard and responsive states.
+1. **Verify source scanning and live CSS**: confirm clean `--minify` output includes classes from nested templates, conditionals, and Python strings (and drops a removed fixture class), then inspect styles and responsive/keyboard states with [chrome-devtools](../../chrome-devtools/SKILL.md).
 
 ## Gotchas
 
-- **Source paths are relative to the stylesheet**: default discovery otherwise starts at the process working directory. Explicit roots make repository-root and CI builds agree.
-- **Register sources Tailwind cannot infer**: Tailwind scans text, not Python or Jinja semantics. Ignored files and dependencies require deliberate source registration.
-- **Respect the site's established identity**: resolve design tokens before editing colors; for Fmind apps, import the pinned `~/.agents/themes/tailwind/fmind.css` `@theme` file (and `daisyui/fmind.css` with daisyUI), listed in [fmind-visuals renderers](../../fmind-visuals/references/renderers.md#pinned-files), rather than defaulting to generic Tailwind palettes, and use [fmind-visuals](../../fmind-visuals/SKILL.md) for published Fmind artifacts.
+- **Explicit roots prevent cwd drift**: `source(none)` + `@source` keeps root and CI invocations identical; register gitignored or external template paths explicitly since Tailwind scans raw text, not Python/Jinja ASTs.
+- **Apply brand tokens**: for Fmind apps, import `~/.agents/themes/tailwind/fmind.css` (and `daisyui/fmind.css` when using daisyUI) per [renderers](../../fmind-visuals/references/renderers.md#pinned-files), and follow [fmind-visuals](../../fmind-visuals/SKILL.md) for published assets.
 
 ## Documentation
 

@@ -1,24 +1,24 @@
 ---
 name: continuation
-description: "Resume, compact, or fork an agy or Claude Code session, or save and copy a handoff prompt before /clear."
+description: "Resume, compact, or fork agy and Claude Code sessions, or copy a handoff prompt before /clear."
 ---
 
 # Continuation
 
-Let the next session continue without the user re-explaining. Prefer the host's native session tools, which keep the full history; write a handoff prompt only when the conversation itself will not carry over. The [agy skill](../../agy/SKILL.md) owns other session features.
+Prefer native host resume or compaction; write a handoff only when conversation history will not carry over. [agy](../../agy/SKILL.md) owns other agy session features.
 
 ## Choose the path
 
-- **Same conversation later**: `agy -c` resumes the most recent conversation, `agy --conversation <id>` a specific one, and `/resume` picks one inside the session. No handoff is needed.
-- **Long session**: `/compact [message]` summarizes the conversation to free context, then answers `message` if given; `/context` shows usage.
-- **Alternative approach**: `/fork` copies the conversation history, not the checkout or a Git branch; use [git-worktree](../../git-delivery/references/git-worktree/GUIDE.md) for competing edits.
-- **Claude Code**: `claude -c` continues the most recent conversation in the current directory, `claude --resume <id-or-name>` (`-r`) a specific one or opens a picker, `/compact [instructions]` summarizes, and `/rewind` restores an earlier checkpoint of the conversation or code; add `--fork-session` to resume under a new session ID. Verified on Claude Code 2.1.319.
-- **Fresh start**: write and copy a handoff with the workflow below, then `/clear`, which clears the conversation and starts a new one. Paste the handoff, or its pointer line, as the first prompt.
+- **Same agy session**: `agy -c` (latest), `agy --conversation <id>`, or `/resume` in-session.
+- **Long agy session**: `/compact [message]` summarizes context and answers `message`; `/context` shows usage.
+- **Branching**: `/fork` clones conversation history only; pair with [git-worktree](../../git-delivery/references/git-worktree/GUIDE.md) for parallel edits.
+- **Claude Code** (verified 2.1.319): `claude -c` (latest in cwd), `claude --resume <id-or-name>` (`-r`, or picker), `/compact [instructions]`, `/rewind` (conversation/code checkpoint), and `--fork-session` (new session ID).
+- **Fresh start**: save and copy a handoff below, run `/clear`, and paste the prompt or pointer line.
 
 ## Handoff workflow
 
-1. **Freeze the state**: `git status --short --branch`, `git rev-parse --short HEAD`, staged versus unstaged work, worktrees, and anything still running: background commands (`/tasks`), servers, and subagents. Stop nothing; record what is running, its handle or PID, and how to check on it.
-1. **Write the continuation** with the sections the parent [skill](../SKILL.md) lists. When space is short, keep in this order: objective and authority, the user's latest corrections and rejected approaches (quoted when the wording matters), current state with proof and the next step as an imperative, failed approaches, then the paths, logs, and running-work handles the next session needs, citing paths and lines instead of pasting code. Omit tool narration, passing logs, and anything the repository or AGENTS.md already states. Write it for a reader without this conversation; never include secrets or private passages. End with this fixed block, because the receiving session will not have this guide loaded:
+1. **Freeze state**: record `git status --short --branch`, `git rev-parse --short HEAD`, staged vs unstaged paths, worktrees, and live `/tasks`, servers, or subagents with handles/PIDs (stop nothing).
+1. **Write** using the [parent sections](../SKILL.md), prioritizing: objective and authority, user corrections and rejected approaches (quoted when exact wording matters), current state with proof and imperative next step, failed approaches, and needed `path:line`/log/task handles. Omit tool narration, passing logs, repo/`AGENTS.md` rules, secrets, and private text. Append verbatim:
 
    ```markdown
    ## Resume
@@ -26,22 +26,20 @@ Let the next session continue without the user re-explaining. Prefer the host's 
    Read this whole file. Compare `git status --short --branch` and `git rev-parse --short HEAD` with the recorded state and report any drift before acting. Reuse recorded proof only while its inputs are unchanged, start at the next step, and keep the recorded authority boundaries. Delete this file once the work lands; it is task-owned scratch.
    ```
 
-1. **Save** where the parent [skill](../SKILL.md) saves prompts, as `<YYYY-MM-DD>-handoff-<slug>.md`. Never overwrite an existing handoff; add a suffix.
-1. **Copy** the file itself with [clipboard](../../clipboard/SKILL.md), which avoids quoting the content into a shell command. When the user asks for a pointer, or the prompt exceeds about 8,000 characters, copy one line instead: `Continue from <absolute path>: read it fully, verify the recorded state, then do the next step.`
+1. **Save** as `<YYYY-MM-DD>-handoff-<slug>.md` in the [parent inbox](../SKILL.md), adding a suffix instead of overwriting.
+1. **Copy** via [clipboard](../../clipboard/SKILL.md) without shell-quoting content; if requested or over ~8,000 chars, copy `Continue from <absolute path>: read it fully, verify the recorded state, then do the next step.` instead:
 
    ```bash
    python -I ~/.agents/skills/clipboard/scripts/copy.py < "$handoff"
    ```
 
-1. **Confirm**: the saved path, what was copied (full prompt or pointer), and anything still running that the user should know about before clearing.
+1. **Confirm** saved path, copied form (full vs pointer), and any background work that may need restarting after `/clear`.
 
 ## Gotchas
 
-- **Authority does not grow**: a handoff records approvals already given; it never turns a proposal into an authorized action.
-- **Record staged selections exactly**: the next session must not restage or commit unrelated work.
-- **Flag running work for restart**: a background command started by this conversation may stop with it; say whether it must be restarted.
+- **Authority never expands**: record only existing approvals, exact staged selections, and whether conversation-bound background tasks stop on `/clear`.
 
 ## Documentation
 
-- [Antigravity conversations](https://antigravity.google/docs/cli/conversations/) · `agy --help` for resume flags
-- [Claude Code sessions](https://code.claude.com/docs/en/sessions) · [checkpointing](https://code.claude.com/docs/en/checkpointing) · `claude --help` for resume flags
+- [Antigravity conversations](https://antigravity.google/docs/cli/conversations/) · `agy --help`
+- [Claude Code sessions](https://code.claude.com/docs/en/sessions) · [checkpointing](https://code.claude.com/docs/en/checkpointing) · `claude --help`

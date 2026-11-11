@@ -7,24 +7,24 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Git Delivery
 
-Deliver only the authorized changes while preserving the index, branch intent, and enabled hooks. Branching, pushing, and release publication are separate modes of the same workflow.
+Deliver only authorized changes while preserving the index, branch state, and enabled hooks across branching, commits, pushes, and releases.
 
 ## Workflow
 
-1. **Resolve delivery authority and target branch**: take both from the request; inspect the current branch and unmerged work before switching. Never overwrite an existing branch or move unrelated commits. History investigation is read-only: fetch missing objects into an isolated clone and bisect in a disposable worktree; pulling into the working tree or rewriting history needs authority.
-1. **Match work to the request**: a commit-only request preserves the staged selection and stops after committing. A delivery request includes staging and pushing only its intended changes; neither implies release publication.
-1. **Follow requested branch and release modes**: if the user requests a branch or PR, follow [git-worktree](references/git-worktree/GUIDE.md) and [pull-request](../gh/references/pull-request.md). A later release instruction selects the release mode; use the repository's native release task where present.
-1. **Verify the delivery**: the exact commit, remote destination, and requested publication level. Keep published tags immutable and preserve enabled hooks.
+1. **Confirm authority and target branch**: inspect the active branch and unmerged work before switching; never overwrite existing branches or move unrelated commits. History investigation stays read-only (fetch into an isolated clone and bisect in a disposable worktree); pulling or rewriting history requires authority.
+1. **Match the requested boundary**: commit-only requests keep the staged selection and stop at `git commit`; delivery requests stage and push only intended changes without publishing a release.
+1. **Select branch, PR, or release mode**: follow [git-worktree](references/git-worktree/GUIDE.md) and [pull-request](../gh/references/pull-request.md) when requested; for releases, prefer the repository's native release task over manual steps.
+1. **Verify delivery**: confirm the exact SHA, remote ref, and publication level while keeping published tags immutable and hooks enabled.
 
 ## Commit messages
 
-- **Write one Conventional Commits subject**: `<type>(<scope>): <description>` with type `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`, `build`, `style`, or `revert`; imperative, under 72 characters, `!` after the type or scope for a breaking change, and no AI attribution or co-author trailers.
-- **Commit only the staged selection**: never auto-stage unrelated changes; on a hook failure or an empty index, report it and do not amend.
+- **Write one Conventional Commits subject**: `<type>(<scope>): <description>` using `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`, `build`, `style`, or `revert` — imperative, `<72` chars, `!` before `:` for breaking changes, and zero AI attribution or `Co-authored-by` trailers.
+- **Commit only staged changes**: never auto-stage unrelated files; report hook failures or empty indexes without amending.
 
 ## Task guides
 

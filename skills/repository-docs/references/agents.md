@@ -1,24 +1,19 @@
 # AGENTS.md Guidance
 
-Keep each instruction layer focused: the global persona owns durable personal preferences, project instructions own repository invariants, and skills own reusable procedures. Lead every rule with a bold summary, `**<2–6 word rule>**: <detail>`, stating the rule rather than its topic, so reading only the bold conveys every rule; reference entries (workflows, paths, fields) may lead with their name, and link lists need none.
+Split instructions cleanly: global persona for personal defaults, project `AGENTS.md` for repo invariants, and skills for reusable procedures. Lead rules with `**<2–6 word rule>**: <detail>` stating the rule (reference lists may lead with path/name).
 
 ## Global persona
 
-1. **Ground preferences**: use explicit requests, repeated corrections, and a bounded sample of user-authored prompts; distinguish these from assistant suggestions, stale plans, or one-off project choices. Do not copy private transcripts into shared files.
-1. **Keep frequent decisions close**: communication, initiative, engineering taste, scope, authorization, and completion standards belong in the persona; tool inventories and authoring recipes belong with their owning skills.
-1. **Resolve friction**: check whether blanket rules cause unnecessary questions, redundant research, speculative abstractions, or unsafe automation. Preserve the underlying intent with a concrete decision rule.
-1. **Offload without losing meaning**: map each removed requirement to an existing skill, move uncovered guidance to its owner, and repair inbound references. Retain only useful routing cues; never require loading the whole catalog.
-1. **Review behavior**: walk through a small fix in a dirty tree, an advice-only request, a broad review, an authorized release, a blocked check, and a stop request. Verify each yields a clear next action; prose review and package checks do not establish live host compliance.
+1. **Ground in real corrections**: derive rules from explicit user requests and repeated corrections, never assistant suggestions or private transcript dumps.
+1. **Keep cross-cutting standards**: communication, autonomy, security, taste, and done criteria belong here; tool manuals belong in skills.
+1. **Eliminate friction**: replace rigid blanket rules that cause needless questions or unsafe shortcuts with concrete decision criteria, and move procedures to owning skills with routing cues.
+1. **Dry-run scenarios**: verify small fixes on dirty trees, read-only reviews, authorized releases, blocked gates, and stop requests each yield an unambiguous action.
 
 ## Project instructions
 
-Give an agent the repository-specific information required to change the project correctly without copying global defaults.
+Give agents only what differs from global defaults, keeping one body in `AGENTS.md` (with host symlinks/bridges, never copies):
 
-1. **Inspect the contract**: read ancestor and local instructions, manifests, mise tasks, hooks, CI, and the relevant source tree; identify rules that differ from global defaults.
-1. **State identity and scope**: give a short project purpose, supported stack, and links to human setup documentation; explain which subtree a nested instruction file governs.
-1. **Document verified commands**: setup, focused checks, complete gate, build, and watch using actual task names; separate workstation checks and consequential release or deploy operations.
-1. **Record local invariants**: architecture seams, generated-file ownership, source versus deployed paths, private-data constraints, and non-obvious validation requirements.
-1. **Map the layout**: list important top-level paths with one sentence each; link multi-step workflows to `.agents/skills/<name>/SKILL.md` or the relevant shared skill.
-1. **Verify and trim**: run safe documented commands and link or format checks; remove stale advice, copied global rules, and commands the repository does not provide.
-
-Keep one instruction body in `AGENTS.md` and use host bridges instead of copies. Distinguish hard invariants from recommendations, use repository-relative or `~`-relative paths, preserve the repository's Markdown style, and never include credentials or transient session state.
+1. **State scope & stack**: 1-sentence purpose, stack, link to `README.md` setup, and subtree scope for nested `AGENTS.md`.
+1. **List verified commands**: install, focused check/test, full gate, build, and watch (`mise` task names), separating local gates from deploy/release commands.
+1. **Capture local invariants**: architecture seams, generated files/locks, source vs deployed paths, privacy rules, and top-level layout (linking workflows to `.agents/skills/` or global skills).
+1. **Verify & prune**: test safe commands, run link/format checks, and delete copied global rules or nonexistent tasks.

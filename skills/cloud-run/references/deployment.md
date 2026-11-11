@@ -1,6 +1,6 @@
 # Cloud Run Deployment Commands
 
-1. **Pin and install image tools**: write their exact latest stable versions to the Python project's `mise.toml`, generate its lock entries, and install them before any image scan or registry write. Upgrade both pins deliberately through [upgrade-tools](../../upgrade-tools/SKILL.md).
+1. **Pin and install image tools**: pin exact stable versions in `mise.toml`, lock, and install before scanning or pushing ([upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades).
 
    ```bash
    mise use --pin cosign trivy
@@ -10,7 +10,7 @@
    trivy --version
    ```
 
-1. **Validate locally**: set the Cloud Run project's `build:image` task to `--platform linux/amd64`, including on ARM development hosts, then run its complete gate and scan the local image archive before any registry write.
+1. **Validate locally**: set `build:image` to `--platform linux/amd64` (even on ARM hosts), then run the full gate and local archive scan:
 
    ```bash
    uv sync --locked
@@ -18,7 +18,7 @@
    mise run check:image
    ```
 
-1. **Build and push after authorization**: use the full Artifact Registry image repository without a tag in `IMAGE_REPOSITORY`. BuildKit writes the registry digest to metadata; validate it before creating the deployable reference.
+1. **Build and push after authorization**: pass tagless `IMAGE_REPOSITORY` and capture BuildKit's validated `@sha256:` digest:
 
    ```bash
    set -euo pipefail
@@ -34,14 +34,14 @@
    printf '%s\n' "$IMAGE" >tmp/image-ref.txt
    ```
 
-1. **Scan, sign, and attest the same digest**: run the [cosign release sequence](../../docker/references/cosign.md#release-sequence) on `$IMAGE`, whose public-disclosure rule governs publication authority even for a private image; use the authorized workflow or developer identity. Cloud Run images are single-platform, so scan with `--platform linux/amd64`:
+1. **Scan, sign, and attest `$IMAGE`**: run the [cosign release sequence](../../docker/references/cosign.md#release-sequence) (public transparency-log disclosure applies even to private registries):
 
    ```bash
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 "$IMAGE"
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
    ```
 
-1. **Deploy privately**: plain configuration uses `--set-env-vars`; secrets use Secret Manager references so values never enter the image or command history. The Python web starter requires `HOST=0.0.0.0`, `ENVIRONMENT=production`, and a `DATABASE_URL` secret accessible to its runtime identity. Adapt these names to the application; Cloud Run supplies `PORT`. Environment secrets resolve at instance startup, so pin explicit [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) instead of `latest` and record them with the image digest; rotation adds a version and redeploys. Mount a secret as a volume only when it must rotate without a redeploy.
+1. **Deploy privately**: pass config via `--set-env-vars` (`PORT` is injected by Cloud Run; the Python web starter expects `HOST=0.0.0.0`, `ENVIRONMENT=production`, and `DATABASE_URL`) and pin explicit [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) rather than `latest` (mount secret volumes only when live rotation without redeploy is required):
 
    ```bash
    gcloud run deploy <slug> --project=<project> --image="$IMAGE" --region=<region> \
@@ -51,9 +51,9 @@
      --invoker-iam-check --no-allow-unauthenticated
    ```
 
-   Treat private invocation as a postcondition, not a successful deploy exit code. Run the `Verify private invocation` checks in [deploy.yml](../templates/deploy.yml) after imperative or declarative deployment, using [verify-private.py](../templates/verify-private.py) at `.github/scripts/verify-private.py`: the Invoker IAM check must be enabled, and service/project IAM policies must contain neither `allUsers` nor `allAuthenticatedUsers`. Reject those principals even in conditional bindings or custom roles. A failed policy read, unknown setting, or remaining grant fails verification; gcloud can otherwise turn a failed IAM removal into a warning. Resolve inherited organization/folder access during bootstrap; these service/project checks are not a general IAM policy evaluator. Verify an unauthenticated request is denied before exposing sensitive traffic.
+   Always enforce private invocation as a postcondition (`gcloud` can downgrade failed IAM removals to warnings): run `Verify private invocation` from [deploy.yml](../templates/deploy.yml) with [verify-private.py](../templates/verify-private.py) (`.github/scripts/verify-private.py`) to confirm Invoker IAM is enabled and neither service nor project IAM contains `allUsers` or `allAuthenticatedUsers` (even conditional/custom-role bindings), and verify an unauthenticated HTTP request is rejected.
 
-1. **Seed a runtime secret when authorized**: receive the value as an environment variable from the project's secret store or a scoped launcher, and validate it in memory before starting the cloud writer; a failed pipeline can still create an invalid secret version. Require a non-empty, single-line string, preserve its bytes, and keep plaintext off disk, arguments, and logs. Pin the version it creates in the next deployment.
+1. **Seed a runtime secret when authorized**: supply `API_KEY` from the secret store or scoped launcher and validate in memory before piping to `gcloud` so failed pipelines never write empty/multiline secret versions; pin the new version on next deploy.
 
    ```bash
    (
@@ -65,7 +65,7 @@
    )
    ```
 
-1. **Expose deployment as an on-demand task**: keep it out of hooks because it mutates a live service and can spend money.
+1. **Expose `deploy` as an on-demand task** (never in hooks):
 
    ```toml
    [tasks.deploy]
@@ -80,5 +80,5 @@
    '''
    ```
 
-1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` and [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`; commit both. The [github-actions CD template](../../github-actions/references/ci-cd/templates/cd.yml) uses the same filename and the federation condition pins `cd.yml@`, so a project that also publishes to PyPI or GHCR merges both jobs into one `cd.yml`. The helper uses only Python's standard library. Replace the template's `<version>` secret pin, set `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, the full `GCP_ARTIFACT_IMAGE` repository path, and `CLOUDRUN_SERVICE`, then set `ENABLE_DEPLOY_CLOUDRUN=true`. Preserve its read-only `mise run all` gate and clean-tree check on the tagged revision; the cloud job must depend on their success and obtains cloud credentials only afterwards. Keep build outputs in action outputs and scans/signing as direct named steps per [github-actions](../../github-actions/references/ci-cd/GUIDE.md); short input-validation sequences are sufficient.
-1. **Roll out through a candidate**: the template deploys with `no_traffic` and the `candidate` tag, checks private IAM, confirms the tagged revision runs the verified digest, runs the project's `test:candidate` task against `CANDIDATE_URL`, then promotes that exact revision with `update-traffic --to-revisions <revision>=100 --remove-tags candidate`; a failed or cancelled run removes the tag. Define `test:candidate` to request the health and readiness routes with an identity token from an allowed invoker; the CD identity needs `run.routes.invoke` on the service to run it. `--no-traffic` fails on a service that does not exist yet, so create the service once with the manual deploy above before the first CD run. Keep `gcloud_version` and the setup-gcloud `version` pin equal.
+1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` (merge jobs if also using the [github-actions CD template](../../github-actions/references/ci-cd/templates/cd.yml), since WIF pins `cd.yml@`) and stdlib-only [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`. Pin `<version>`, configure `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, `CLOUDRUN_SERVICE`, and `ENABLE_DEPLOY_CLOUDRUN=true`, and keep the uncredentialed `validate` gate ahead of `deploy-cloud-run` ([github-actions](../../github-actions/references/ci-cd/GUIDE.md)).
+1. **Roll out through a candidate**: create the service once manually first (`--no-traffic` fails on nonexistent services), keep `gcloud_version` equal to `setup-gcloud` `version`, and define `test:candidate` to probe `/health` and `/ready` on `CANDIDATE_URL` with an invoker ID token (`run.routes.invoke`) before CD runs `update-traffic --to-revisions <revision>=100 --remove-tags candidate` (or strips `candidate` on failure/cancellation).

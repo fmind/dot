@@ -7,28 +7,28 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Scheduled Jobs
 
-Run an existing bounded command through the native user scheduler and prove its outcome. [python-script](../python-stack/references/python-script/GUIDE.md) owns program code, and [mise](../mise/SKILL.md) owns task commands.
+Schedule bounded commands via native user schedulers and verify triggered runs ([python-script](../python-stack/references/python-script/GUIDE.md) owns scripts; [mise](../mise/SKILL.md) owns tasks).
 
 ## Workflow
 
-1. **Choose the native owner**: [Linux user timers](references/linux.md) or [macOS LaunchAgents](references/macos.md); keep an existing project scheduler unless migration is requested, and leave harness-native agent schedules to the host skill.
-1. **Keep definitions in the owning repository**: call an existing bounded command by absolute path with locked dependencies and one writer lock; enable it only after the user approves its recurring effects and schedule.
-1. **Prove a scheduler-triggered run**: a manual run, valid unit, or enabled timer is partial evidence; check the real triggered run and its application result.
+1. **Pick the native scheduler**: [Linux user timers](references/linux.md) or [macOS LaunchAgents](references/macos.md) (keep existing project schedulers unless migrating; host skills own harness-native schedules).
+1. **Version definitions in the owning repo**: invoke an absolute executable path with locked dependencies and a single-writer lock; enable only after the user approves the schedule and recurring effects.
+1. **Prove a real timer-triggered run** and its application outcome (manual runs or enabled units alone are partial proof).
 
 ## Owner conventions
 
-- **Workstation units live in fmind/dot**: put them in `dot_config/systemd/user/`, enable timers through a managed `timers.target.wants` symlink, and add each unit's hash to `run_onchange_after_systemd-user-reload.sh.tmpl`, which runs `systemctl --user daemon-reload` on apply.
-- **Never restart the agy daemon from apply**: it may host this remote-control session; the reload hook only prints the restart command.
+- **`fmind/dot` user units**: store in `dot_config/systemd/user/`, enable via `timers.target.wants` symlinks, and register unit hashes in `run_onchange_after_systemd-user-reload.sh.tmpl` (`systemctl --user daemon-reload` on apply).
+- **Never restart the `agy` daemon during apply**: it may host the active Remote Control session, so the reload hook only prints the restart command.
 
 ## Gotchas
 
-- **Stay in user space**: do not enable system services or lingering merely to keep a laptop job alive; explain when the requested availability exceeds a user session.
-- **Never blindly replay a timed-out mutation**: decide whether a missed run is skipped or coalesced, and resume only from current state.
+- **Stay in user space**: never use `sudo`, system units, or `loginctl enable-linger` unasked; note if requested availability exceeds logged-in sessions.
+- **Handle missed or timed-out runs explicitly**: choose skip vs coalesce deliberately and reconcile current state before re-running mutations.
 
 ## Documentation
 

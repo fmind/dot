@@ -34,7 +34,9 @@ def git(root: Path, *args: str, stdin: bytes | None = None, empty_ok: bool = Fal
 
 
 def split(output: bytes) -> list[str]:
-    return [item.decode("utf-8", "surrogateescape") for item in output.split(b"\0") if item]
+    if not output:
+        return []
+    return [item.decode("utf-8", "surrogateescape") for item in output.removesuffix(b"\0").split(b"\0")]
 
 
 def candidate_paths(root: Path) -> tuple[list[str], set[str]]:
@@ -46,10 +48,11 @@ def candidate_paths(root: Path) -> tuple[list[str], set[str]]:
 
 
 def global_excludes(root: Path) -> Path | None:
-    configured = git(root, "config", "--path", "--get", "core.excludesFile", empty_ok=True).decode().strip()
-    if configured:
+    raw = git(root, "config", "--path", "--get", "core.excludesFile", empty_ok=True)
+    if raw:
+        configured = raw.decode("utf-8", "surrogateescape").strip()
         # All Git probes run from root, including resolution of relative excludes files.
-        return root / Path(configured).expanduser()
+        return root / Path(configured).expanduser() if configured else None
     base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     return base / "git/ignore"
 
@@ -63,6 +66,8 @@ def patterns(path: Path) -> list[tuple[int, str]]:
 
 def attribute(root: Path, paths: list[str], extra: Path | None) -> dict[tuple[str, int], list[str]]:
     """Map (source, line) to the paths whose ignore decision that pattern owns."""
+    if not paths:
+        return {}
     config = ["-c", f"core.excludesFile={extra}"] if extra else []
     stdin = b"\0".join(item.encode("utf-8", "surrogateescape") for item in paths)
     fields = split(
@@ -82,7 +87,10 @@ def audit(root: Path, files: list[Path]) -> dict[str, Any]:
     global_patterns = {line for _, line in patterns(global_file)} if global_file and global_file.is_file() else set()
     # --exclude-standard skips tool-written .gitignore files inside ignored caches and environments.
     listed = split(git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.gitignore"))
-    targets = [path.resolve() for path in files] or [(root / item).resolve() for item in listed]
+    targets = [path.resolve() for path in files] or [
+        resolved for item in listed if (resolved := (root / item).resolve()).is_file()
+    ]
+    gitignore_hits = attribute(root, paths, None) if any(t.name == ".gitignore" for t in targets) else {}
     reports = []
     for target in targets:
         # Other files such as .ignore are audited as the excludes file, so a
@@ -90,7 +98,7 @@ def audit(root: Path, files: list[Path]) -> dict[str, Any]:
         # emulation has two limits: excludes patterns anchor to the repository
         # root, and a negation cannot override .gitignore as it does in search.
         gitignore = target.name == ".gitignore"
-        hits = attribute(root, paths, None if gitignore else target)
+        hits = gitignore_hits if gitignore else attribute(root, paths, target)
         warnings = []
         if not gitignore and target.is_relative_to(root) and target.parent != root:
             warnings.append(

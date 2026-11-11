@@ -5,28 +5,17 @@ description: "Extract structured facts from text with LangExtract and source-gro
 
 # LangExtract
 
-Use Google LangExtract for source-grounded text extraction; [pydantic](pydantic.md) owns output contracts and [agent-evaluation](../../agent-evaluation/SKILL.md) owns measured extraction quality.
+Source-grounded structured extraction with Google LangExtract; [pydantic](pydantic.md) owns schemas and [agent-evaluation](../../agent-evaluation/SKILL.md) owns precision/recall evaluation.
 
 ## Workflow
 
-1. **Inspect the installed API first**: use upstream `langextract-usage` if the project installed it, otherwise the installed package source. Add `langextract` with `uv add langextract`, plus provider extras only when needed.
-1. **Ground examples in literal spans**: define extraction classes and attributes, then construct `lx.data.ExampleData` with literal source spans in `Extraction.extraction_text`. Pass `prompt_validation_level=PromptValidationLevel.ERROR` (from `langextract.prompt_validation`) and `prompt_validation_strict=True` to `lx.extract`; fix mismatched examples rather than lowering the level.
-1. **Configure the provider; never auto-fetch URLs**: configure the provider and model explicitly for the approved data destination and budget; for GCP Agent Platform pass `language_model_params={"vertexai": True, "project": ..., "location": "global"}` per [model-providers](../../model-providers/SKILL.md). LangExtract 1.7 treats every string as literal text (`fetch_urls` defaults to False); do not rely on URL fetching. When remote input is required and authorized, fetch it through the project's bounded, destination-validated HTTP client before extraction; LangExtract's built-in fetching does not establish an SSRF boundary.
-1. **Bound extraction and surface omissions**: call `lx.extract` with explicit `max_char_buffer`, `max_workers`, and `extraction_passes=1`. When incomplete extraction is a failure, pass `resolver_params={"suppress_parse_errors": False}`: the default logs a warning and omits malformed chunks. If partial extraction is intentional, track and report omitted chunks explicitly.
-1. **Verify every span's alignment**: check every extraction's `char_interval` against the original text and read its `alignment_status`. Report missing intervals and non-`MATCH_EXACT` statuses separately instead of silently counting them as grounded success; deduplicate repeated spans deliberately.
-1. **Inspect and test before adding passes**: save annotated documents with `lx.io.save_annotated_documents` and inspect `lx.visualize` output locally. Test empty text, repeated entities, overlapping spans, and provider failures; compare held-out precision/recall before increasing passes.
+1. **Inspect API & install**: consult installed `langextract-usage` or `.venv/` source; install `uv add langextract` (plus provider extras only when needed).
+1. **Literal span examples**: build `lx.data.ExampleData` with verbatim `Extraction.extraction_text` spans, and pass `prompt_validation_level=PromptValidationLevel.ERROR` (`langextract.prompt_validation`) + `prompt_validation_strict=True` to `lx.extract` (fix examples rather than relaxing validation).
+1. **Explicit provider, no URL auto-fetch**: set approved provider/model (`language_model_params={"vertexai": True, "project": ..., "location": "global"}` per [model-providers](../../model-providers/SKILL.md)). Keep `fetch_urls=False` (LangExtract `1.7` default; built-in fetching has no SSRF guard — fetch authorized remote text beforehand via a bounded HTTP client).
+1. **Bound & surface parse errors**: set `max_char_buffer`, `max_workers`, `extraction_passes=1`, and `resolver_params={"suppress_parse_errors": False}` when dropped chunks are errors (default warns and drops malformed chunks).
+1. **Check alignment & test**: verify `char_interval` and `alignment_status` (report missing/`!= MATCH_EXACT` separately and deduplicate spans); inspect via `lx.io.save_annotated_documents` + `lx.visualize`, and measure held-out precision/recall before raising `extraction_passes`.
 
-## Gotchas
+## Gotchas & Upstream Skill
 
-- **Alignment proves provenance, not truth**: source alignment establishes where text came from, not whether an inferred attribute is true.
-- **Validate examples and outputs separately**: example validation and runtime output validation are separate checks. Successful parsing does not prove all expected entities were found.
-- **Apply source privacy to artifacts**: JSONL and visualization artifacts retain source text; apply the source's privacy and retention rules. Increased passes and workers change cost and rate-limit behavior.
-
-## Official Skills
-
-Upstream: [google/langextract](https://github.com/google/langextract/tree/main/skills/langextract-usage), skill `langextract-usage`, with provider, resolver, and prompt-validation references. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to review and install only the needed project-scoped selection.
-
-## Documentation
-
-- [Official project and API examples](https://github.com/google/langextract) · [Usage skill](https://github.com/google/langextract/tree/main/skills/langextract-usage)
-- Releases: [LangExtract](https://github.com/google/langextract/releases)
+- **Alignment != factual truth** (proves span provenance only); example validation != recall completeness; JSONL/HTML outputs retain source text (apply source privacy rules).
+- Upstream: [google/langextract](https://github.com/google/langextract) ([langextract-usage](https://github.com/google/langextract/tree/main/skills/langextract-usage), install per [vendor-skills](../../agent-project/references/vendor-skills.md)) · [Releases](https://github.com/google/langextract/releases).

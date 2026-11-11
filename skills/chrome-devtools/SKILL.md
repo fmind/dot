@@ -7,52 +7,49 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Chrome DevTools
 
-Use Chrome DevTools MCP or its CLI for live browser diagnostics. [playwright](../playwright/SKILL.md) owns repeatable end-to-end journeys; [web-frontend](../web-frontend/SKILL.md) owns platform implementation guidance.
+Live Chrome diagnostics via DevTools MCP or its CLI ([playwright](../playwright/SKILL.md) owns repeatable E2E journeys; [web-frontend](../web-frontend/SKILL.md) owns UI implementation).
 
 ## Setup
 
-Require Node.js LTS, `npm`/`npx`, and supported Chrome. dot deploys no DevTools MCP server: reuse a connected one, use the CLI below when none is connected, and add the server with [mcp-setup](../mcp-setup/SKILL.md) only when a harness needs it. The launch command below uses a reviewed package pin; recheck installed help before updating it.
+Requires Node.js LTS, `npm`/`npx`, and Chrome. Reuse an active MCP server if connected, default to the CLI below when none is configured (`dot` deploys none), or register MCP via [mcp-setup](../agent-harnesses/references/mcp-setup.md):
 
 ```bash
 npx --yes chrome-devtools-mcp@1.12.0 --isolated --headless --no-usage-statistics --no-performance-crux --redact-network-headers
 ```
 
-The MCP client starts that process over stdio. Use a dedicated browser profile. Keep remote debugging on loopback; browser content, network bodies, cookies, screenshots, and traces may expose private data. The two opt-out flags disable MCP usage statistics and CrUX URL lookups respectively. `--redact-network-headers` replaces every header outside DevTools' allowlist with `<redacted>`, including `Cookie`, `Set-Cookie`, `Authorization`, `ETag`, and `Content-Length`; omit it only from a session that must read those headers.
+Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, screenshots, and traces may hold sensitive data). `--no-usage-statistics` and `--no-performance-crux` disable telemetry and CrUX URL lookups; `--redact-network-headers` masks non-allowlisted headers (`Cookie`, `Set-Cookie`, `Authorization`, `ETag`, `Content-Length`) unless deliberately omitted.
 
 ## CLI without MCP
 
-The same package exposes the `chrome-devtools` shell command, a client to a persistent background daemon. It is the default path when no DevTools MCP is connected.
-
-1. **Resolve the command**: run `npm exec --yes --package=chrome-devtools-mcp@1.12.0 -- chrome-devtools <command>`; read `chrome-devtools --help` and `start --help` for the installed commands and flags.
-1. **Check before starting**: inspect `status` first; do not stop or repurpose another task's daemon.
-1. **Start the task's session explicitly**: `start --workspace="$PWD" --no-usage-statistics --no-performance-crux`. Otherwise the first tool call starts the daemon automatically with unrestricted file access.
-1. **Clean up**: close task-owned pages and `stop` only a daemon created for this task.
+1. **Run via pinned package**: `npm exec --yes --package=chrome-devtools-mcp@1.12.0 -- chrome-devtools <command>` (check `--help` and `start --help`).
+1. **Respect running daemons**: check `status` first; never stop or hijack another task's daemon.
+1. **Start scoped**: `start --workspace="$PWD" --no-usage-statistics --no-performance-crux` (auto-start on first tool call grants unrestricted file access).
+1. **Tear down**: close task-owned pages and `stop` only daemons started by this task.
 
 ## Workflow
 
-1. **Identify the target**: list pages and select the intended page ID. Take a fresh snapshot before using element UIDs; navigation and rerenders invalidate them.
-1. **Inspect console and network**: list bounded console messages and failed-request metadata, then fetch only the relevant request IDs and bodies.
-1. **Trace performance**: `performance_start_trace` and `performance_stop_trace` take a `filePath`; save large traces as files instead of returning their raw contents.
-1. **Audit accessibility**: `lighthouse_audit` covers accessibility, SEO, and best practices; it reloads the page unless `mode` is `snapshot`, and it excludes performance, which needs a trace.
-1. **Analyze memory**: `take_heapsnapshot` is on by default, while `compare_heapsnapshots` and the other analysis tools need `--memoryDebugging` on the MCP server.
-1. **Close task-owned pages**: after verifying the fix.
+1. **Select target and snapshot**: pick the page ID and take a fresh snapshot before using element UIDs (navigation/rerenders invalidate them).
+1. **Console and network**: list bounded console logs and failed requests first, fetching only needed request IDs/bodies.
+1. **Performance and Lighthouse**: pass `filePath` to `performance_start_trace` / `performance_stop_trace` instead of dumping raw traces; `lighthouse_audit` checks a11y, SEO, and best practices (reloads unless `mode="snapshot"`; excludes performance).
+1. **Memory**: `take_heapsnapshot` is enabled by default; `compare_heapsnapshots` and deeper analysis require `--memoryDebugging` on MCP.
+1. **Clean up**: close task-owned pages after verification.
 
 ## Gotchas
 
-- **Pin the browser mode**: set headed or headless explicitly for reproducibility; the CLI defaults to headless and enables `--memoryDebugging`, which need not match a separately configured MCP connection.
-- **Save artifacts inside allowed roots**: MCP file tools write only under the OS temp directory, the client's MCP roots, and `--workspace` directories; other paths fail with `is not within any of the configured workspace roots`. Add `--workspace=<dir>` to the launch command for the authorized artifact directory, or save to the temp directory and move the file.
+- **Explicit browser mode**: pass headed/headless explicitly (the CLI defaults to headless + `--memoryDebugging`, which may differ from an MCP config).
+- **Workspace write roots**: MCP file tools write only inside temp dirs, client MCP roots, or `--workspace=<dir>` (`is not within any of the configured workspace roots` otherwise).
 
 ## Official Skills
 
-Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills), including `chrome-devtools-cli` for the CLI. Use `DISABLE_TELEMETRY=1 skills add ChromeDevTools/chrome-devtools-mcp --list`, then follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) for the required guidance. Select task-specific entries such as `a11y-debugging` or `memory-leak-debugging`; preview the same-name `chrome-devtools` entry (also in `github/awesome-copilot`) instead of installing it ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
+Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills) (`DISABLE_TELEMETRY=1 skills add ChromeDevTools/chrome-devtools-mcp --list`). Select specific skills (`chrome-devtools-cli`, `a11y-debugging`, `memory-leak-debugging`) under [vendor-skill policy](../agent-project/references/vendor-skills.md); preview—never install—same-name `chrome-devtools` ([name collisions](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 
 - [Chrome DevTools for agents](https://github.com/ChromeDevTools/chrome-devtools-mcp) · [Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md) · [CLI](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md)
 - Releases: [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp/releases)
-- Companion skills: [mcp-setup](../mcp-setup/SKILL.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [performance](../python-stack/references/performance.md).
+- Companion skills: [mcp-setup](../agent-harnesses/references/mcp-setup.md), [playwright](../playwright/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [performance](../python-stack/references/performance.md).

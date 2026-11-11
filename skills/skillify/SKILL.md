@@ -1,6 +1,6 @@
 ---
 name: skillify
-description: "Capture workflows as skills or guides, or move AGENTS.md procedures to skills."
+description: "Capture workflows as skills or guides, or extract AGENTS.md procedures."
 license: MIT
 metadata:
   kind: task
@@ -12,33 +12,32 @@ metadata:
 
 # Skillify
 
-Capture what this session learned as a skill the next session can run without the conversation. Use the host's native authoring tools for package mechanics; this skill owns workflow extraction, personal conventions, and the [catalog package rules](references/package-rules.md). [lesson-learned](../lesson-learned/SKILL.md) decides whether a lesson belongs in a skill at all.
+Capture session lessons as reusable skills or guides. This skill owns workflow extraction, catalog conventions, and [package rules](references/package-rules.md); [lesson-learned](../lesson-learned/SKILL.md) decides whether a lesson belongs in a skill at all.
 
 ## Workflow
 
-1. **Extract from the session**: the goal, the user's trigger phrases, the exact commands that worked (with flags), the user's corrections, the decisions and why, the dead ends, and the tools required; drop session-specific paths, one-off values, and secrets.
-1. **Apply the admission rule** in [package rules](references/package-rules.md#categories-and-scope) before choosing an owner or scope.
-1. **Check the catalog**: list names with descriptions via `rg -m1 '^description:' ~/.agents/skills/*/SKILL.md .agents/skills/*/SKILL.md` (preview `gh skill list` also scans every host directory, without descriptions), then read any neighbor with an overlapping description; extend it when the workflow is the same, write a new skill only for a distinct trigger, and link neighbors instead of copying them.
-1. **Choose the scope**:
-   - **Global** (reusable, tool-generic): `~/.agents/skills/<name>/`, the `skills/` directory of the dot repository, whose `dot-skills` skill owns registration (link declaration) and `mise run check:skills`. Installation or tooling changes also need their affected tests.
-   - **Local** (repository-specific commands, data, or conventions): `.agents/skills/<name>/` in the project, which agy reads natively; add the `.claude/skills -> ../.agents/skills` link only when the repository is also used with Claude Code, per [agent-project](../agent-project/SKILL.md). In the dot repository, local skills also register through `dot-skills`.
-1. **Write from the template**: copy [skill.md](templates/skill.md) and apply the size and output-efficiency rules in [package rules](references/package-rules.md); long configs and examples go to `references/`.
-1. **Validate**: frontmatter `name` equals the directory, every link resolves, every resource is reachable from its owner, and `mise run check:skills` passes for a global skill. In another repository, the preview `gh skill publish --dry-run .agents/skills` checks the Agent Skills specification without publishing and exits 1 on errors.
-1. **Test behavior**: follow the [adoption check](references/adoption-check.md) for substantial additions or routing changes: a natural trigger, a neighboring task, and an observable outcome in an isolated fixture. Keep paid or external effects within scope and report unavailable host validation separately.
-1. **Report**: the path, the description, and the scope.
+1. **Extract from the session**: goal, trigger phrases, verified commands with flags, user corrections, decisions with reasons, dead ends, and required tools; strip session paths, one-off values, and secrets.
+1. **Apply the admission rule** in [package rules](references/package-rules.md#categories-and-scope) before picking an owner or scope.
+1. **Check neighbors**: run `rg -m1 '^description:' ~/.agents/skills/*/SKILL.md .agents/skills/*/SKILL.md` (`gh skill list` scans host directories without descriptions) and inspect overlapping skills; extend an existing owner for the same workflow, create a new skill only for a distinct trigger, and link neighbors instead of copying.
+1. **Choose scope**:
+   - **Global** (reusable, tool-generic): `skills/<name>/` in `fmind/dot` (`~/.agents/skills/<name>/`), registered and checked via `dot-skills` (`mise run check:skills` + affected install tests).
+   - **Local** (repo-specific commands or conventions): `.agents/skills/<name>/` (read natively by agy; add `.claude/skills -> ../.agents/skills` only when Claude Code is used per [agent-project](../agent-project/SKILL.md); also registered via `dot-skills` inside `fmind/dot`).
+1. **Author from [skill.md](templates/skill.md)**: apply [package rules](references/package-rules.md); move long configs and examples to `references/`.
+1. **Validate**: frontmatter `name` matches directory, links resolve, resources are reachable, and `mise run check:skills` passes (or `gh skill publish --dry-run .agents/skills` in external repos).
+1. **Exercise behavior**: run the [adoption check](references/adoption-check.md) on substantial additions or routing edits (natural trigger, neighboring task, observable outcome in an isolated fixture); report unavailable host checks separately.
+1. **Report**: path, description, and scope.
 
 ## Extracting from AGENTS.md
 
-Keep durable preferences in the global persona and repository invariants in project `AGENTS.md`. Move procedures into the existing owning skill where possible; create a global or local skill only for a distinct reusable workflow. Leave a routing cue and re-run [repository-docs](../repository-docs/SKILL.md).
+Keep personal defaults in global `AGENTS.md` and repo invariants in project `AGENTS.md`. Move procedures into their owning skill (new skill only for a distinct workflow), leave a routing cue, and sync via [repository-docs](../repository-docs/SKILL.md).
 
 ## Gotchas
 
-- **Descriptions route, bodies instruct**: the description decides when the skill loads; the body decides what happens. Do not summarize the workflow in the description.
-- **Keep dates current**: set `created` and `updated` to today; bump `updated` on every later edit.
-- **Follow vendor policy for third-party content**: when the workflow came from an external skill, follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) instead of retyping it.
-- **Promote or publish per portability**: promoting a guide to a package or publishing one standalone follows [portability](references/portability.md).
+- **Descriptions route, bodies instruct**: state triggers in `description`, never a workflow summary.
+- **Keep dates current**: set `created` and `updated` on creation; bump `updated` on every edit.
+- **Vendor external skills cleanly**: follow [vendor-skills](../agent-project/references/vendor-skills.md) instead of retyping upstream skills.
+- **Follow [portability](references/portability.md)** when promoting a guide or publishing standalone.
 
 ## Documentation
 
-- [Agent Skills specification](https://agentskills.io/specification)
-- [Catalog and usage review](references/catalog-review.md): measure discovery cost and bounded activation evidence before adding or retiring global entries.
+- [Agent Skills specification](https://agentskills.io/specification) · [Catalog and usage review](references/catalog-review.md)

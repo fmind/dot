@@ -5,30 +5,28 @@ description: "Local Git hooks aligned with repository tasks."
 
 # Lefthook
 
-Thin git hooks that delegate every command to a `mise run` task so hooks and CI run identical checks; lefthook decides _when_, [mise](../../mise/SKILL.md) owns _what_.
+Thin Git hooks delegating every check to `mise run <task>` so local hooks and CI never drift; Lefthook owns _when_, [mise](../../mise/SKILL.md) owns _what_.
 
 ## Workflow
 
-1. **Install**: pin `lefthook` in the repository's mise `[tools]`, Python projects included ([Python stack](../../python-stack/references/foundation/GUIDE.md)); never duplicate it in a package manager's dev dependencies.
-1. **Configure**: copy `lefthook.yml` to the repository root from the [Python](../../python-stack/references/foundation/templates/lefthook.yml) or [OpenTofu](../../infra-as-code/templates/lefthook.yml) template; another stack keeps the shared jobs and swaps in its own formatters. The templates call the `check:local` and `check:network` tasks from the [task conventions](../../mise/references/task-conventions.md#conventions); a repository whose checks all run offline (no `check:network`) runs `mise run check` in pre-commit and drops the `check:network` job.
-1. **Activate**: `lefthook install`, wired into `mise run install`.
+1. **Pin**: declare `lefthook` in `mise.toml` `[tools]` ([Python stack](../../python-stack/references/foundation/GUIDE.md) included), never in language dev dependencies.
+1. **Configure**: copy `lefthook.yml` from the [Python](../../python-stack/references/foundation/templates/lefthook.yml) or [OpenTofu](../../infra-as-code/templates/lefthook.yml) template, calling `check:local` and `check:network` ([task conventions](../../mise/references/task-conventions.md#conventions)); if all checks are offline, run `mise run check` in `pre-commit` and omit `check:network`.
+1. **Activate**: wire `lefthook install` into `mise run install`.
 
 ## Principles
 
-- **pre-commit** (fast, offline): format staged files, then `check:local`, including the working-tree secret scan.
-- **pre-push** (slower): the test suite and `check:network` in parallel; vulnerability and misconfiguration databases need the network, so an offline commit still works.
-- **post-commit** (optional): rebuild and reinstall a Python application from the repository's own package, guarded to commits that touch a build input; git ignores its exit status, so it never blocks a commit.
-- **Delegate, don't duplicate**: every job runs `mise run <task>`; never inline tool commands. Name each job for what it does (`format Python`, `check`, `test`); the `run` line already names the task.
-- **Staged formatters, whole-tree checks**: formatters take `{staged_files}` and restage fixes with `stage_fixed: true`; `check` and `test` take no files. The same formatter task serves hooks and `mise run format` ([argument forwarding](../../mise/references/task-conventions.md#conventions)).
+- **pre-commit** (fast, offline): format `{staged_files}` (`stage_fixed: true`), then `check:local` (including `check:leaks`).
+- **pre-push** (parallel): `test` plus `check:network` (online vulnerability/misconfiguration DBs).
+- **post-commit** (optional): rebuild/reinstall local CLI packages when build inputs changed (non-blocking).
+- **Delegate only**: every job runs `mise run <task>` with descriptive `name` (`format Python`, `check`, `test`); formatters accept `{staged_files}` via [argument forwarding](../../mise/references/task-conventions.md#conventions) while `check` and `test` inspect the full tree.
 
 ## Gotchas
 
-- **Use a `jobs` list**: jobs run sequentially in list order, so formatters precede checks; the legacy `commands` map needs `parallel: false` and a `priority` on every command to get the same order.
-- **Formatters see only staged hunks**: during pre-commit lefthook hides the unstaged hunks of partially staged files and restores them afterwards, so formatters only see what is being committed.
-- **Avoid `--no-verify`**: fix the failure instead — [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md) heals hook failures.
+- **Prefer `jobs` over legacy `commands`**: `jobs` run sequentially in list order so formatters finish before checks.
+- **Partial staging hides unstaged hunks**: Lefthook stashes unstaged hunks during `pre-commit` and restores them afterwards.
+- **Never pass `--no-verify`**: heal hook failures per [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md).
 
 ## Documentation
 
-- [Lefthook](https://lefthook.dev) · [Configuration reference](https://github.com/evilmartians/lefthook/tree/master/docs/configuration)
-- Releases: [Lefthook](https://github.com/evilmartians/lefthook/releases) · [changelog](https://github.com/evilmartians/lefthook/blob/master/CHANGELOG.md)
-- Companion skills: [mise](../../mise/SKILL.md) (task owner), [github-actions](ci-cd/GUIDE.md) (CI runs the same tasks), [betterleaks](../../code-security/references/betterleaks.md) (`check:leaks`).
+- [Lefthook](https://lefthook.dev) · [Config reference](https://github.com/evilmartians/lefthook/tree/master/docs/configuration) · [releases](https://github.com/evilmartians/lefthook/releases) · [changelog](https://github.com/evilmartians/lefthook/blob/master/CHANGELOG.md)
+- Companion skills: [mise](../../mise/SKILL.md), [ci-cd](ci-cd/GUIDE.md), [betterleaks](../../code-security/references/betterleaks.md).

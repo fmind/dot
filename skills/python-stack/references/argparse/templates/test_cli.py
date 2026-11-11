@@ -44,7 +44,16 @@ def test_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(capsys, "--version") == (0, f"{__version__}\n", "")
 
 
-@pytest.mark.parametrize("args", [[], ["--unknown-option"], ["greet", "--name"], ["gret"], ["greet", "--nam", "Ada"]])
+@pytest.mark.parametrize(
+    "args",
+    [
+        [],
+        ["--unknown-option"],
+        ["greet", "--name"],
+        ["gret"],  # typos: ignore-line
+        ["greet", "--nam", "Ada"],  # typos: ignore-line
+    ],
+)
 def test_usage_errors(capsys: pytest.CaptureFixture[str], args: list[str]) -> None:
     code, out, err = run(capsys, *args)
     assert code == 2

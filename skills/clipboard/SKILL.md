@@ -7,17 +7,17 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/clipboard
   created: "2026-10-03"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Clipboard
 
-Treat `/clipboard` without arguments as “copy the interesting output I requested in the preceding exchange.” Arguments can select a particular result or format.
+`/clipboard` copies the latest requested deliverable; optional arguments select a specific output or format.
 
 ## Workflow
 
-1. **Select the latest requested deliverable**: a draft, prompt, command, code snippet, table, or test result. Omit assistant preambles, progress updates, tool logs, and offers to continue unless they are the requested output. Preserve the deliverable verbatim; do not regenerate it or rerun a test. For code or commands, omit the surrounding Markdown fence unless the user requested Markdown. If several outputs are equally plausible, ask which one; never guess unavailable conversation content.
-1. **Pipe the text to the helper**: pass the selected UTF-8 text to [scripts/copy.py](scripts/copy.py) on stdin using `python -I`. Use the tool's structured stdin when available, or a single-quoted heredoc with a delimiter absent from the text; never interpolate the content into shell commands or command-line arguments. The helper bounds its stdin read and rejects deliverables above 1 MiB; use a file for larger content. It strips exactly one final newline, the one a heredoc always adds; pass `--keep-final-newline` when the deliverable must end with one, such as a whole file.
+1. **Select the deliverable verbatim**: draft, prompt, command, snippet, table, or test output—without assistant preambles, tool logs, or surrounding code fences (unless Markdown was requested). Never regenerate or guess missing context; ask if multiple outputs fit.
+1. **Pipe UTF-8 stdin to [scripts/copy.py](scripts/copy.py)** via `python -I` and structured stdin or a single-quoted heredoc (never shell interpolation or argv). Payloads >1 MiB belong in a file; pass `--keep-final-newline` when a trailing newline is part of the deliverable:
 
    ```bash
    python -I ~/.agents/skills/clipboard/scripts/copy.py <<'CLIPBOARD_PAYLOAD'
@@ -25,13 +25,13 @@ Treat `/clipboard` without arguments as “copy the interesting output I request
    CLIPBOARD_PAYLOAD
    ```
 
-1. **Confirm briefly what was copied**: do not repeat the payload. The helper checks the clipboard byte for byte and reports success only after verification. If it fails, report the cause, including the native tool's diagnostic it prints, and the relevant recovery from [platform behavior](references/platforms.md); do not claim that the clipboard was updated successfully.
+1. **Confirm without repeating the payload**: `copy.py` verifies the clipboard byte-for-byte. On failure, report the native diagnostic and recovery from [platform behavior](references/platforms.md) without claiming success.
 
 ## Boundaries
 
-- **Install a missing backend only with consent**: the one matching the display server (`xclip` or `wl-clipboard`); never sudo.
-- **Avoid OSC 52 in tool output**: do not emit OSC 52 escape sequences through tool output; captured output may never reach the user's terminal.
-- **Copying does not authorize pasting**: invocation authorizes replacing the current clipboard; it does not authorize pasting into an application or sending the content elsewhere.
+- **Install backends only with consent**: `xclip` or `wl-clipboard` matching the session; never `sudo`.
+- **No OSC 52 in tool output**: captured stdout may never reach the user's terminal.
+- **Copy ≠ paste**: replacing the clipboard never authorizes pasting or sending elsewhere.
 
 ## Documentation
 

@@ -1,40 +1,27 @@
 # AGENTS.md (Project)
 
-Context and rules for AI agents working in this repository. Humans should start with `README.md`.
+Rules for coding agents in `<slug>` (<1-2 sentences on what this project does>). Humans start at `README.md`.
 
-## Project overview
+## Tasks (`mise.toml`)
 
-- **Name**: <slug>
-- **Description**: <1-2 sentences on what this project does.>
-- **Language**: Python <python_major_minor>+ (`pyproject.toml`), managed with `uv`.
+Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `uv`):
 
-## Setup & core commands
+- `mise run install` — `uv sync --locked` (malware-checked) + git hooks.
+- `mise run format` — `ruff` (imports + format) and `dprint`.
+- `mise run check` — `check:local` (`ruff`, `ty`, `deptry`, `dprint`, `betterleaks`, `validate-pyproject`) + `check:network` (`uv audit`).
+- `mise run test` — offline `pytest` (`pytest-socket` loopback-only, 60s timeout, 85% branch coverage).
+- `mise run build` — `uv build --clear` + strict Zensical API docs (`mise run serve:docs` previews).
+- `mise run watch` — continuous test/app watcher.
+- **Fast inner loop**: `uv run --locked pytest -q <path>::<test>`, `uv run --locked pytest -q -x -l --lf`, `uv run --locked ruff check <path>`, `uv run --locked ty check <path>`; finish with full `mise` gates.
 
-All work goes through `mise` (see `mise.toml`); git hooks and CI call the same tasks.
+## Done & Conventions
 
-- Install: `mise run install` — sync the virtualenv (`uv sync --locked`, refusing known malware) and install git hooks.
-- Format: `mise run format` — `ruff` (import sort + format) and `dprint`.
-- Check: `mise run check` — `check:local` (`ruff` lint, `ty` types, `deptry` dependencies, `dprint check`, `betterleaks`, `pyproject` validation; pre-commit) and `check:network` (`uv audit`; pre-push).
-- Test: `mise run test` — offline `pytest` suite (pytest-socket blocks non-loopback connections; pytest-timeout fails a test hung past 60 s) with an 85% branch-coverage gate.
-- Focus: `uv run --locked pytest -q <path>::<test>` for one test, `uv run --locked pytest -q -x -l --lf` to rerun the last failures with locals, and `uv run --locked ruff check <path>` or `uv run --locked ty check <path>` for one file; finish with the full tasks.
-- Build: `mise run build` — `build:package` (`uv build --clear`: wheel + sdist) and `build:docs` (strict Zensical build with the generated API reference); `mise run serve:docs` previews the docs.
-- Watch: `mise run watch` — re-run offline tests on source changes; application profiles may supply their development command.
+- Done requires clean `mise run format`, `check`, `test`, and `build` locally, plus tests for changed behavior. Fix root causes — never weaken assertions, add skips/`xfail`s, loosen types, or suppress lints to force green.
+- Chain specific exceptions (`raise ... from err`); never swallow errors or log secrets.
+- Validate external inputs/settings at boundaries, document defaults and precedence, declare only used dependencies, use modern Python annotations (`list[str]`, `X | Y`, `Annotated`), and write Conventional Commits without attribution.
 
-## Definition of done
+## Layout
 
-A change is complete only when, locally, `mise run format` is clean, `mise run check` reports no findings, `mise run test` is green, `mise run build` succeeds, and new or changed behavior has a test. Fix root causes — never weaken an assertion, add a skip/`xfail`, loosen a type, or suppress a lint error to force a green result.
-
-## Conventions & idioms
-
-- **Never swallow errors**: raise specific exceptions and chain with `raise ... from err`; never use a bare `except` or silently swallow errors.
-- **Validate and document configuration**: add typed validation when the application needs it; document defaults and override precedence, and never commit secrets.
-- **Use modern type annotations**: `list[str]`, `X | Y`, `typing.Annotated`; keep `ty check` clean and validate external input at boundaries.
-- **Add only dependencies in use**: framework, database, and logging choices belong to the selected application profile.
-- **Use Conventional Commits without attribution**: `feat:`, `fix:`, `refactor:`, `chore:`; no attribution in commit messages.
-
-## Repository layout
-
-- `src/<package>/__init__.py` — package exports and `__version__`; business logic lives in cohesive modules.
-- `tests/` — deterministic offline behavior tests; add integration fixtures only when the project needs them.
-- `pyproject.toml` — dependencies and Ruff/ty/pytest configuration; `mise.toml` — tasks and pinned tools; `lefthook.yml` — hooks; `dprint.json` — markup/config formatting.
-- Application profiles add their own entry points, configuration, and project-specific instructions.
+- `src/<package>/`: package exports (`__init__.py`, `__version__`) and cohesive domain modules.
+- `tests/`: deterministic offline tests (`@pytest.mark.integration` opt-in only when needed).
+- `pyproject.toml`, `mise.toml`, `lefthook.yml`, `dprint.json`: single sources of truth for config and pins.

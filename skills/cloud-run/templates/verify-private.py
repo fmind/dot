@@ -11,10 +11,15 @@ from pathlib import Path
 def verify_private(root: Path, service_name: str) -> None:
     """Reject disabled Invoker IAM checks and every broad service/project grant."""
     service = json.loads((root / "service.json").read_text(encoding="utf-8"))
+    if not isinstance(service, dict) or not isinstance(service.get("metadata"), dict):
+        raise TypeError("Invalid service response")
     metadata = service["metadata"]
+    annotations = metadata.get("annotations")
+    if annotations is not None and not isinstance(annotations, dict):
+        raise TypeError("Invalid service annotations")
     if (
         metadata["name"] != service_name
-        or metadata.get("annotations", {}).get("run.googleapis.com/invoker-iam-disabled", "false") != "false"
+        or (annotations or {}).get("run.googleapis.com/invoker-iam-disabled", "false") != "false"
     ):
         raise SystemExit("Cloud Run Invoker IAM check is not confirmed enabled")
     for filename in ("service-iam.json", "project-iam.json"):
@@ -22,6 +27,8 @@ def verify_private(root: Path, service_name: str) -> None:
         if not isinstance(policy, dict) or "error" in policy or not isinstance(policy.get("bindings", []), list):
             raise SystemExit("Invalid invocation policy response")
         for binding in policy.get("bindings", []):
+            if not isinstance(binding, dict):
+                raise TypeError("Invalid IAM binding")
             members = binding["members"]
             if not isinstance(members, list) or any(not isinstance(member, str) for member in members):
                 raise SystemExit("Invalid IAM members")

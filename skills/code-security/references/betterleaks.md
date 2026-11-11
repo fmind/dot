@@ -5,7 +5,7 @@ description: "Scan the working tree and history for secrets; handle confirmed ex
 
 # Betterleaks
 
-Find credentials before they reach a remote and the ones that already did; each scope answers a different question, and [code-review](code-review/GUIDE.md) orders the pass.
+Scan working trees and Git history for secrets; [code-review](code-review/GUIDE.md) orders the full audit.
 
 ## Commands
 
@@ -17,28 +17,24 @@ betterleaks git --unsafe-auto-load-config --redact=100 --report-format sarif --r
 betterleaks stdin --redact < <file> # outgoing text: PR bodies, prompts and diffs for another AI command; fail closed
 ```
 
-Since 1.10, betterleaks reads a target's `.betterleaks.toml` only with `--config <file>` or `--unsafe-auto-load-config`; without either, allowlists and custom rules are silently ignored. Use `--unsafe-auto-load-config` only on the project's own checkout (pass `--config` when the file must exist), never on untrusted targets. `--no-banner` removes decoration; keep `--verbose --redact=100` so finding locations remain actionable without revealing secret values. Full scans retain their scope; never pass `--validation` in hooks or CI so candidate secrets never leave the machine.
-
-These commands target Betterleaks 1.x (locked at 1.10.0). The 2.0 release candidates are out (rc.7 on 2026-11-04) and the migration waits for 2.0.0 final: then change every flag together in this guide, the [Python](../../python-stack/references/foundation/templates/mise.toml) and [OpenTofu](../../infra-as-code/templates/mise.toml) starter tasks, and [scanners](skill-security-review/references/scanners.md), and re-check the code-review Gate and the repository's `check:leaks` tasks.
+Since 1.10, `.betterleaks.toml` loads only with `--config <file>` or `--unsafe-auto-load-config` (trusted checkouts only, never untrusted targets; `--unsafe-auto-load-config` also auto-loads a legacy `.gitleaks.toml`, so prefer explicit `--config .betterleaks.toml` once `.betterleaks.toml` is committed). Keep `--verbose --redact=100 --no-banner` and never pass `--validation` in hooks/CI so candidate secrets stay local. Commands target Betterleaks 1.x (locked 1.10.0; 2.0.0-rc.7 shipped 2026-11-04—on 2.0.0 final, migrate flags together across this guide, [Python](../../python-stack/references/foundation/templates/mise.toml) and [OpenTofu](../../infra-as-code/templates/mise.toml) starters, [scanners](skill-security-review/references/scanners.md), and repo `check:leaks` tasks).
 
 ## Mise Task
 
-Expose two scopes per [mise](../../mise/SKILL.md): copy `check:leaks` and `check:leaks:full` from the Python or OpenTofu starter linked above. The gate scans the working tree, including staged, untracked, and gitignored files such as a local `.env` (allowlist those paths in `.betterleaks.toml` when they legitimately hold values), so the [lefthook](../../github-actions/references/lefthook.md) pre-commit `check:local` run scans every commit before it exists; the scheduled job audits the full history.
+Wire `check:leaks` (working tree, including untracked/gitignored `.env` unless allowlisted in `.betterleaks.toml`, run pre-commit via [lefthook](../../github-actions/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
 
 ## When a Secret Is Found
 
-1. **Contain confirmed exposure**: treat an exposed credential as compromised even after the commit disappears. Prepare rotation and execute it only within the established credential and service authority; a scanning request alone does not authorize rotation. Move the value out of the source per [code-review](code-review/GUIDE.md), and rewrite history only when asked.
-1. **Allowlist true false positives**: use an inline `betterleaks:allow` comment, a scoped rule in `.betterleaks.toml`, or a fingerprint in `.betterleaksignore`, each with a reason.
+1. **Contain exposure**: treat leaked credentials as compromised even if deleted; prepare rotation (execute only with credential/service approval), externalize the secret per [code-review](code-review/GUIDE.md), and rewrite history only on request.
+1. **Allowlist false positives**: document the reason via inline `betterleaks:allow`, a narrow `.betterleaks.toml` rule, or `.betterleaksignore`.
 
 ## Gotchas
 
-- **Policy is part of the evidence**: inspect effective configuration, ignore files, baselines, and inline `betterleaks:allow` or `gitleaks:allow` comments. For an untrusted candidate, run from a trusted directory with reviewed `--config` and `--gitleaks-ignore-path` files and `--ignore-gitleaks-allow`; do not let the candidate suppress its own findings. Redaction protects output, not scan completeness.
-- **Fetch full history for audits**: the scheduled `security.yml` job needs `fetch-depth: 0` per [github-actions](../../github-actions/references/ci-cd/GUIDE.md); a shallow clone silently narrows `check:leaks:full`.
-- **Rescan after bypassed hooks**: a commit made with `--no-verify` or outside the hooks is caught only by the weekly full-history audit; run `check:leaks:full` after importing foreign history.
-- **Always `--redact` shared logs**: never print a found secret in CI output or an uploaded report.
+- **Audit suppressions**: inspect `.betterleaks.toml`, ignore files, and `betterleaks:allow` / `gitleaks:allow` comments; scan untrusted code from outside with trusted `--config`, `--gitleaks-ignore-path`, and `--ignore-gitleaks-allow`.
+- **Full history needs `fetch-depth: 0`** in `security.yml` ([github-actions](../../github-actions/references/ci-cd/GUIDE.md)) and a fresh `check:leaks:full` after `--no-verify` or foreign history imports.
+- **Always `--redact`** CI logs and shared reports.
 
 ## Documentation
 
-- [betterleaks](https://github.com/betterleaks/betterleaks)
-- Releases: [betterleaks](https://github.com/betterleaks/betterleaks/releases)
-- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (its `secret` scanner stays disabled; keep one secret scanner per repository).
+- [betterleaks](https://github.com/betterleaks/betterleaks) · [releases](https://github.com/betterleaks/betterleaks/releases)
+- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (keep Trivy's `secret` scanner disabled).

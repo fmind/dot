@@ -1,30 +1,14 @@
 # README Assets
 
-Use when creating or changing a README logo, illustration, or badge; the reader journey and acceptance review live in [README guidance](readme.md).
+Create or update README logos, illustrations, and badges ([README guidance](readme.md) owns page flow).
 
 ## Visual identity
 
-- **Default to a project-owned SVG logo** in a stable asset path such as `docs/assets/logo.svg`. Reuse an established mark; new marks should be simple and recognizable at small sizes. Keep editable vector sources, a `viewBox`, and explicit display dimensions; around 96–128 pixels is a starting point for a standalone mark, not a fixed rule for wordmarks.
-- **Make the logo portable**: use self-contained SVG paths/shapes with no scripts, remote resources, or required installed fonts. Outline lettering when needed. Include meaningful image alt text and keep the name and purpose as real text outside the image. SVG syntax validation does not replace visual inspection.
-- **Check light and dark themes**: prefer one mark that works on both, or use GitHub's supported `picture` pattern with a fallback. Verify at narrow/mobile and desktop widths without tiny text or horizontal scrolling. A large banner must earn its space by explaining the product.
-- **Illustrate concepts with SVG**: place a hero illustration of how the project works under the opening, then one illustration per key concept (a loop, a before/after, a mapping, a boundary) where it replaces paragraphs. Follow the [SVG guide](../../diagrams-as-code/references/svg/GUIDE.md): hand-authored, branded, an opaque light card, a full text equivalent, and a link to the full-size file. Keep [Mermaid](../../diagrams-as-code/references/mermaid.md) for contributor, architecture, and reference docs.
-- **Respect brand and project identity**: use the customer's brand for a customer project; otherwise follow [fmind-visuals](../../fmind-visuals/SKILL.md) and `~/.agents/DESIGN.md` unless the project specifies another. Retain a distinct project symbol; do not reuse another project's mascot. GitHub controls README text fonts; apply brand typography to owned assets and sites.
-
-Use relative repository assets by default so branches and local previews stay coherent. When package registries or documentation exports require absolute URLs, verify their renderer and asset availability; do not point an unreleased README at an asset that exists only locally.
+- **Self-contained SVG logo** (`docs/assets/logo.svg`, ~96–128 px mark with `viewBox` and explicit dimensions): pure vector paths/shapes, outlined lettering, no scripts, remote loads, or system-font dependencies; keep project name/purpose as real text outside the image.
+- **Theme & viewport**: support light and dark GitHub themes (single mark or `<picture>` fallback) and mobile/desktop widths without tiny text or horizontal scroll.
+- **Concept SVGs**: hero diagram below the opening plus 1 SVG per core mechanism per the [SVG guide](../../diagrams-as-code/references/svg/GUIDE.md) (opaque light card, full text equivalent, link to raw SVG); reserve [Mermaid](../../diagrams-as-code/references/mermaid.md) for contributor/reference docs.
+- **Brand & URLs**: follow customer branding or [fmind-visuals](../../fmind-visuals/SKILL.md) + `~/.agents/DESIGN.md`; use relative paths by default (verify absolute URLs when publishing to PyPI/docs sites, and never link local-only assets from a published README).
 
 ## Badges with evidence
 
-Use one compact row, usually three or four badges. Each badge answers a decision question, has descriptive alt text, and links to the underlying evidence. Keep styles consistent.
-
-| Badge           | Include when                                               | Link to                                   |
-| --------------- | ---------------------------------------------------------- | ----------------------------------------- |
-| CI              | The named workflow exists; scope it to the intended branch | That workflow's runs                      |
-| Release/package | A release or package actually exists                       | Releases or the package registry          |
-| Compatibility   | Supported runtimes/platforms are declared and checked      | Package metadata or support documentation |
-| License         | The license has been chosen and is present                 | The actual license file                   |
-
-Coverage, docs builds, downloads, and other badges are optional when they add useful evidence. CI green is not a security certification or proof of production readiness. Omit novelty badges, duplicate signals, unverified claims, and popularity widgets that crowd out the first useful action. Never invent counts or imply adoption from stars.
-
-Private repositories remain private. Prefer local assets and authenticated GitHub links; omit third-party badges that require private metadata or tokens. Do not create public resources merely to make a badge work. Before a first release, use honest development status and the verified source-install route; add release badges after publication.
-
-See [reference patterns](readme.md#reference-patterns) for example READMEs.
+Use one row of 3–4 consistent badges, each with alt text and an evidence link: **CI** (branch-scoped workflow runs), **Release/package** (only once published), **Compatibility** (checked runtime metadata), and **License** (`LICENSE`). Omit novelty/vanity badges, unverified claims, and third-party badges on private repos. See [reference patterns](readme.md#reference-patterns).

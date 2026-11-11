@@ -1,49 +1,46 @@
 ---
 name: bootstrap
-description: "Create a new repository: location, visibility, stack composition, shared layer, validation, and first push."
+description: "Create a new repository: location, visibility, stack composition, shared layer, checks, and first push."
 ---
 
 # Repository Bootstrap
 
-Bootstrap a repository by composing the selected foundation and application owner, then adding the shared repository layer; [full-review](../../full-review/SKILL.md) owns the recurring refresh afterwards.
+Compose the selected foundation and application owner, then add the shared repository layer; [full-review](../../full-review/SKILL.md) owns recurring upkeep afterwards.
 
 ## Workflow
 
-1. **Decide the basics**: slug (lowercase, hyphens), owner, visibility, purpose, and parent directory. Default to private visibility; public resources require explicit user instruction. Default to `~/fmind` for personal `fmind` repositories; ask only for consequential details not established by the task.
-1. **Choose template ownership**: a one-off repository needs no new template. Reusable templates default to [Copier](copier.md); existing Cookiecutter/Cruft projects stay on [their workflow](cookiecutter.md) unless migration is requested.
-1. **Compose the selected stack**; finish its application profile before validation. Reuse the shared `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and project `AGENTS.md` where supplied:
-   - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md) owns the minimal package and quality defaults.
-   - Python CLI: the Python foundation, then [argparse](../../python-stack/references/argparse/GUIDE.md) for application scaffolding and [cli-contracts](../../python-stack/references/cli-contracts.md) for command behavior.
-   - Litestar web app: the Python foundation, then [litestar](../../python-web/references/litestar/GUIDE.md) for the application, optional database integration, settings, and request tests.
-   - Django web application: [django](../../python-web/references/django/GUIDE.md)
-   - Python agent with the agents CLI: [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md), then [google-adk](../../agent-frameworks/references/google-adk.md) for SDK code
-   - Documentation or course site: [documentation-site](../../documentation-site/SKILL.md); infrastructure: [infra-as-code](../../infra-as-code/SKILL.md)
-1. **Add the shared layer**, skipping what the foundation or application owner already produced:
-   - `LICENSE` and manifest field: [project-license](project-license/GUIDE.md)
-   - `.ignore` for Neovim search (data fixtures, snapshots, generated data, minified assets; never Python sources, which Ruff and ty would then skip) without altering Git tracking: [update-ignores](../../full-review/references/update-ignores/GUIDE.md)
-   - `dprint.json`: [dprint](../../dprint/SKILL.md); hooks installed: [lefthook](../../github-actions/references/lefthook.md)
-   - `trivy.yaml` plus the `check:*` scan tasks: [code-security](../../code-security/references/code-review/GUIDE.md)
-   - `.github/workflows/ci.yml` and `security.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md)
-   - `AGENTS.md`, `.agents/skills/`, and, only when the repository is also used with Claude Code, the `.claude/skills` bridge: [agent-project](../../agent-project/SKILL.md); `README.md` and documentation: [repository-docs](../../repository-docs/SKILL.md)
-1. **Make the project approachable**: apply the [README standard](../../repository-docs/references/readme.md) and its starter: a project-owned SVG logo, clear audience and outcome, useful badges backed by existing resources, and a verified first result. Keep private or unpublished resources private; omit unavailable badges and links until publication is authorized. Link detailed reference material instead of expanding the landing page.
-1. **Pin the toolchain** through [mise](../../mise/SKILL.md): replace scaffold selectors with exact versions, seeded from the workstation's locked versions for required tools, resolve project-only tools explicitly, and retain project-owned lockfiles; the project owns these pins afterwards. The new repository must install without the personal dotfiles checkout.
-1. **Validate locally**: `mise run install` and `mise run all`; for Python packages also qualify the installed wheel and any command/module entry points through the selected stack. Before the first commit, `check:leaks` scans the working tree.
-1. **Publish only within existing authorization**: when the user requested the initial commit and GitHub creation/push, create the remote after that commit (`chore: initial commit`, see [commit messages](../../git-delivery/SKILL.md#commit-messages)), then apply [repository](../../gh/references/repository/GUIDE.md):
+1. **Decide basics**: slug (lowercase, hyphens), owner, visibility (private unless public is explicitly requested), purpose, and parent directory (`~/fmind` for personal `fmind` repos). Ask only for consequential unknowns.
+1. **Choose template ownership**: one-off repos need no template. Reusable templates default to [Copier](copier.md); existing Cookiecutter/Cruft projects stay on [their workflow](cookiecutter.md) unless migration is requested.
+1. **Compose the stack** and finish its application profile before validation, reusing supplied `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and `AGENTS.md`:
+   - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md).
+   - Python CLI: Python foundation + [argparse](../../python-stack/references/argparse/GUIDE.md) + [cli-contracts](../../python-stack/references/cli-contracts.md).
+   - Litestar web app: Python foundation + [litestar](../../python-web/references/litestar/GUIDE.md).
+   - Django web app: [django](../../python-web/references/django/GUIDE.md).
+   - Python agent (`agents` CLI): [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md), then [google-adk](../../agent-frameworks/references/google-adk.md).
+   - Docs/course site: [documentation-site](../../documentation-site/SKILL.md); infrastructure: [infra-as-code](../../infra-as-code/SKILL.md).
+1. **Add the shared layer**, skipping files already produced by the stack owner:
+   - `LICENSE` + manifest field: [project-license](project-license/GUIDE.md).
+   - `.ignore` for Neovim search (fixtures, snapshots, generated data, minified assets; never Python sources, which Ruff and `ty` would skip): [update-ignores](../../full-review/references/update-ignores/GUIDE.md).
+   - `dprint.json`: [dprint](../../mise/references/dprint.md); hooks: [lefthook](../../github-actions/references/lefthook.md).
+   - Security checks: `check:leaks` + `check:vuln` + `check:actions` for pure-Python repos; add `trivy.yaml` + `check:scan` when the repo ships containers, IaC, or non-`uv` lockfiles per [code-security](../../code-security/references/code-review/GUIDE.md).
+   - `.github/workflows/{ci,security}.yml`: [github-actions](../../github-actions/references/ci-cd/GUIDE.md); `.github/dependabot.yml`: [dependabot](../../github-actions/references/dependabot.md).
+   - `AGENTS.md`, `.agents/skills/`, and `.claude/skills` (only when Claude Code is used): [agent-project](../../agent-project/SKILL.md); `README.md` and docs: [repository-docs](../../repository-docs/SKILL.md).
+1. **Apply the [README standard](../../repository-docs/references/readme.md)**: SVG logo, clear audience/outcome, badges backed by live resources (omit unpublished ones), and a verified quickstart; link deep references instead of bloating `README.md`.
+1. **Pin tools via [mise](../../mise/SKILL.md)**: replace scaffold selectors with exact versions (seeded from workstation locks where shared), resolve project-only tools, and commit project lockfiles so the repo installs without `fmind/dot`.
+1. **Validate locally**: `mise run install` and `mise run all` (including `check:leaks` before first commit); for Python packages, qualify the built wheel and entry points.
+1. **Publish only when authorized**: commit (`chore: initial commit`, per [commit messages](../../git-delivery/SKILL.md#commit-messages)), create the remote, then apply [repository](../../gh/references/repository/GUIDE.md):
 
    ```bash
    gh repo create <owner>/<slug> --private --source . --push
    ```
 
-1. **Ship when authorized**: a first `v0.1.0` through [release](../../git-delivery/references/release/GUIDE.md) once CI is green; a deploy target through [cloud-run](../../cloud-run/SKILL.md) when the project serves traffic.
-1. **Done when**:
-   - `mise run all` is green locally; check CI for the resulting commit when a first push was authorized.
-   - `README.md` passes the README standard's acceptance review: recognizable identity, clear purpose, visible result, reproducible quickstart, honest limits, and working navigation; `AGENTS.md` says how agents work in it.
-   - No scaffold placeholder (any `<name>` such as `<slug>`, `<package>`, or `<holder>`, or `TODO`) remains in the delivered files; report pending publication separately.
+1. **Ship when authorized**: `v0.1.0` via [release](../../git-delivery/references/release/GUIDE.md) once CI is green; deploy via [cloud-run](../../cloud-run/SKILL.md) when serving traffic.
+1. **Done when**: `mise run all` (and CI if pushed) passes, `README.md` and `AGENTS.md` meet acceptance criteria, and zero `<slug>`/`<package>`/`<holder>`/`TODO` placeholders remain (report pending publication separately).
 
 ## Gotchas
 
-- **Keep the composed `AGENTS.md`**: merge the application owner's instructions into the foundation; agent-project's generic template must not overwrite the result.
-- **Never scaffold real secrets**: `.env.example` documents names only.
+- **Keep composed `AGENTS.md`**: merge application instructions into the foundation; never overwrite with `agent-project`'s generic template.
+- **Never scaffold real secrets**: `.env.example` lists variable names only.
 
 ## Documentation
 

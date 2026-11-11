@@ -12,11 +12,7 @@ metadata:
 
 # Python Web Applications
 
-Build the requested application in its existing framework. For new ordinary APIs use Litestar; choose Django for integrated ORM/admin/auth, or Gradio/NiceGUI for an appropriate Python interface. Browser UIs follow [web-frontend](../web-frontend/SKILL.md) and the persona's Chrome check ([chrome-devtools](../chrome-devtools/SKILL.md)).
-
-## Workflow
-
-Read only the matching guide and its required resources.
+Keep an existing project's framework. Default to Litestar for new APIs/services, Django for integrated ORM/admin/auth, or Gradio/NiceGUI for Python UIs. Browser UIs follow [web-frontend](../web-frontend/SKILL.md) and live Chrome verification ([chrome-devtools](../chrome-devtools/SKILL.md)). Read only the matching guide and its required resources.
 
 ## Task guides
 

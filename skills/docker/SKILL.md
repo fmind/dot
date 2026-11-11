@@ -7,30 +7,30 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/docker
   created: "2026-09-16"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Docker and Container Runtime Management
 
-Use `docker`, `docker compose`, and `lazydocker` to manage container execution, services, and local debugging. The [containerize](references/containerize/GUIDE.md) guide builds, publishes, and signs Python images; [trivy](../code-security/references/trivy/GUIDE.md) scans them for vulnerabilities.
+Manage local containers and Compose stacks with `docker`, `docker compose`, and `lazydocker`. [containerize](references/containerize/GUIDE.md) builds and signs Python images; [trivy](../code-security/references/trivy/GUIDE.md) scans them.
 
-On Linux, Docker and Compose are host prerequisites. On macOS, the global mise config installs Colima, Lima, and the Docker CLI with Compose and Buildx ([Colima](references/colima.md)). Nothing here starts a daemon or VM. Inspect `docker context ls` before choosing a runtime and pass `docker --context <context>` on consequential commands; do not change the persistent default just to run a task. Container runs execute project code; reuse authority for the requested workload and resolve missing scope before running untrusted images or consequential workloads. Preserve existing volumes and containers.
+Never auto-start a daemon or VM, mutate the default context, or touch existing containers/volumes without scope: inspect `docker context ls`, pass `docker --context <context>` explicitly, and confirm authority before running untrusted images or consequential workloads.
 
 ## Runtime Selection
 
-- **Linux**: use the existing Docker-compatible engine; host daemon installation is outside user-space mise setup.
-- **macOS**: use Colima instead of Docker Desktop; read [colima](references/colima.md) for its context, socket, memory, and mount behavior.
+- **Linux**: host-installed Docker-compatible engine and Compose (outside user-space `mise`).
+- **macOS**: Colima instead of Docker Desktop (`colima`, `lima`, `docker-cli`, `docker-compose`, `docker-buildx` in global macOS `mise`); see [colima](references/colima.md).
 
 ## Workflow
 
-1. **Verify daemon health and storage budget**: confirm the daemon is responsive and check storage footprint before launching workloads. Run `dot doctor --headroom` before large pulls or builds.
+1. **Check daemon and disk headroom**: run `dot doctor --headroom` before large pulls or builds, then inspect daemon state:
 
    ```bash
    docker info --format 'Server={{.ServerVersion}} Driver={{.Driver}} Containers={{.Containers}} Images={{.Images}}'
    docker system df
    ```
 
-1. **Manage Compose stacks**: resolve the Compose file and project name first. Use a unique name for a new disposable stack; reuse an existing project's name only when operating that stack is in scope. `up --wait` exits non-zero when a service fails to start or stays unhealthy, while `up -d` succeeds once containers start; a one-shot service that exits 0 also fails `--wait` unless another service depends on it with `condition: service_completed_successfully`.
+1. **Operate Compose stacks**: pick a unique `-p <project>` for disposable stacks (`up --wait` fails on unhealthy services or 0-exit one-shot containers unless a dependent declares `condition: service_completed_successfully`, whereas `up -d` exits 0 once started):
 
    ```bash
    docker --context <context> compose -p <project> -f <compose-file> up --wait --wait-timeout 120
@@ -39,12 +39,12 @@ On Linux, Docker and Compose are host prerequisites. On macOS, the global mise c
    docker --context <context> compose -p <project> -f <compose-file> down
    ```
 
-1. **Clean up task resources**: use `docker run --rm <existing-image-or-approved-digest> <command>` for ephemeral runs, and follow [resource cleanup](references/resource-cleanup.md) for task-created volumes, networks, images, and builders.
+1. **Clean up task artifacts**: run one-off containers with `docker run --rm <existing-image-or-approved-digest> <command>` and remove task-owned volumes, networks, images, and builders per [resource cleanup](references/resource-cleanup.md).
 
 ## Gotchas
 
-- **The Linux engine comes from the distro**: Docker and Buildx can lag upstream (Debian ships Buildx 0.13), so check `docker buildx version` before using a newer build flag such as `--check`.
-- **Exit 137 is SIGKILL, not proof of OOM**: check `.State.OOMKilled` and the memory limit first; on macOS, Colima's VM budget also applies.
+- **Distro Buildx lags upstream**: Debian ships Buildx 0.13; check `docker buildx version` before passing newer flags like `--check`.
+- **Exit 137 != guaranteed OOM**: inspect `.State.OOMKilled` and container/Colima VM memory limits before assuming OOM.
 
 ## Task guides
 
@@ -58,7 +58,5 @@ On Linux, Docker and Compose are host prerequisites. On macOS, the global mise c
 
 ## Documentation
 
-- [Docker Documentation](https://docs.docker.com/) · [Docker Compose Reference](https://docs.docker.com/compose/)
-- [Lazydocker](https://github.com/jesseduffield/lazydocker)
-- Releases: [Docker Engine](https://docs.docker.com/engine/release-notes/)
-- Companion skills: [cloud-run](../cloud-run/SKILL.md) (deployment), [trivy](../code-security/references/trivy/GUIDE.md) (scanning), [airflow](../airflow/SKILL.md) (local Airflow).
+- [Docker docs](https://docs.docker.com/) · [Compose](https://docs.docker.com/compose/) · [Lazydocker](https://github.com/jesseduffield/lazydocker) · [Engine releases](https://docs.docker.com/engine/release-notes/)
+- Companion skills: [cloud-run](../cloud-run/SKILL.md), [trivy](../code-security/references/trivy/GUIDE.md), [airflow](../airflow/SKILL.md).

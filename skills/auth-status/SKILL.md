@@ -7,35 +7,35 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Auth Status
 
-Answer "am I logged in, until when, and what must I run?" with read-only probes, then hand the user the exact interactive command. `dot doctor --deep` owns the workstation probes; this skill adds the remaining connectors, scope coverage, and recovery. [dot-cli authentication](../dot-cli/references/authentication.md) owns login policy, scopes, and account overrides; each connector skill owns its provider's account selection.
+Check login state, scopes, and expiry with read-only probes, then give the user the exact interactive re-login command. `dot doctor --deep` probes core workstation auth; [dot-cli authentication](../dot-cli/references/authentication.md) owns policy and scopes; each connector skill owns account selection.
 
 ## Workflow
 
-1. **Run the workstation probes**: `dot doctor --deep --json` checks GitHub, the gcloud CLI, ADC, and Workspace with bounded probes and never prints tokens. Read only the auth group; `condition` distinguishes `unauthenticated` from `broken` (state unknown) and flags `insecure` when gh keeps its token in plaintext `hosts.yml`.
+1. **Run core workstation probes** (checks GitHub, gcloud, ADC, and Workspace without exposing tokens; `condition` separates `unauthenticated`, `broken`, and `insecure` plaintext `hosts.yml`):
 
    ```bash
    dot doctor --deep --json | jq -c '.checks[] | select(.group == "auth") | {name, status, condition, details}'
    ```
 
-1. **Check scope coverage**: compare granted scopes with the configured policy (`dot config show`, keys `auth.github.scopes`, `auth.workspace.scopes`, and `auth.gcp.adc_scopes`). GitHub lists them in `gh auth status --active --hostname github.com` (the token is masked); Workspace in `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. A missing scope needs a new login even when the probe passes; a scope beyond the policy is a one-off grant still held, so report it with its removal command: `dot setup github` for scopes in `auth.github.remove_scopes`, `gh auth refresh -h github.com --remove-scopes <scopes>` for other GitHub scopes, and `dot login workspace --force` for Workspace.
-1. **Probe other named connectors**: only those the task or user names, each read-only with its exit status checked:
+1. **Compare granted scopes against policy** (`dot config show` keys `auth.github.scopes`, `auth.workspace.scopes`, `auth.gcp.adc_scopes`): inspect `gh auth status --active --hostname github.com` and `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. Missing scopes require re-login; excess scopes are leftover one-off grants—report removal via `dot setup github` (for `auth.github.remove_scopes`), `gh auth refresh -h github.com --remove-scopes <scopes>`, or `dot login workspace --force`.
+1. **Probe other requested connectors** (read-only, checking both exit code and output):
 
-   | Provider     | Probe                                                                                       | Recovery                                                 |
-   | ------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-   | Colab        | `colab --auth adc sessions` (allocates no VM; inspect stderr before trusting an empty list) | `dot login colab`                                        |
-   | Hugging Face | `hf auth whoami`                                                                            | `hf auth login`                                          |
-   | Kaggle       | `kaggle competitions list --page-size 1 >/dev/null`                                         | `kaggle auth login`                                      |
-   | AWS SSO      | `aws sts get-caller-identity --profile <profile> --no-cli-pager`                            | `aws sso login --profile <profile>`                      |
-   | Databricks   | `databricks auth profiles` (validates each profile)                                         | `databricks auth login --host <url> --profile <profile>` |
-   | Atlassian    | `acli auth status`; API-token Jira: `acli jira auth status`                                 | `acli auth login`                                        |
+   | Provider     | Probe                                                                                     | Recovery                                                 |
+   | ------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+   | Colab        | `colab --auth adc sessions` (no VM allocated; check stderr before trusting an empty list) | `dot login colab`                                        |
+   | Hugging Face | `hf auth whoami`                                                                          | `hf auth login`                                          |
+   | Kaggle       | `kaggle competitions list --page-size 1 >/dev/null`                                       | `kaggle auth login`                                      |
+   | AWS SSO      | `aws sts get-caller-identity --profile <profile> --no-cli-pager`                          | `aws sso login --profile <profile>`                      |
+   | Databricks   | `databricks auth profiles` (validates each profile)                                       | `databricks auth login --host <url> --profile <profile>` |
+   | Atlassian    | `acli auth status`; API-token Jira: `acli jira auth status`                               | `acli auth login`                                        |
 
-1. **Report only provider-exposed expiry**: AWS SSO sessions: `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json` (client registrations in the same cache expire separately; never print the file). Otherwise write "unknown"; never infer expiry from file dates.
-1. **Check environment overrides**: environment credentials win over stored logins, and gws also reads `GOOGLE_WORKSPACE_CLI_*` from a `.env` in the working directory or a parent. Report presence only, never values:
+1. **Report only provider-exposed expiry**: for AWS SSO, read `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json` without printing cache files (client registrations expire separately); otherwise report `"unknown"`—never infer from mtimes.
+1. **Detect env overrides** (presence only, never values; note `gws` also loads `GOOGLE_WORKSPACE_CLI_*` from ancestor `.env` files):
 
    ```bash
    for name in GH_TOKEN GITHUB_TOKEN GOOGLE_APPLICATION_CREDENTIALS CLOUDSDK_AUTH_ACCESS_TOKEN_FILE \
@@ -46,13 +46,13 @@ Answer "am I logged in, until when, and what must I run?" with read-only probes,
    done
    ```
 
-1. **Report and hand off**: for each provider, give the account (no token), status, scope gaps, expiry, and next action. Browser logins are interactive: give each as `! <command>` for the user to run in the session, preferring `dot login` or `dot login github|workspace|gcp|colab` over native commands, since a native ADC login drops the configured Colab and BigQuery scopes ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)). When the user says they logged in, re-run only the failed probes.
+1. **Report and hand off**: list account, status, scope gaps, expiry, and interactive `! <command>` per provider—preferring `dot login` or `dot login github|workspace|gcp|colab` over raw native commands, since raw `gcloud auth application-default login` drops Colab and BigQuery scopes ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)). Re-probe only failed items after login.
 
 ## Gotchas
 
-- **Never print secrets**: no `print-access-token`, `gh auth token`, `gws auth export`, `databricks auth token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, or `--show-token` in a transcript; dot's probes capture token output internally.
-- **Exit 0 is not proof**: `gh auth status --json` and Colab can succeed while reporting a failure; read the state and stderr.
-- **Probing is read-only**: logging in, switching accounts, adding scopes, or editing `dot` configuration needs the user.
+- **Never print secrets**: forbid `print-access-token`, `gh auth token`, `gws auth export`, `databricks auth token`, `hf auth token`, `kaggle auth print-access-token`, `kaggle config view`, `aws configure export-credentials`, and `--show-token`.
+- **Exit 0 is not proof**: `gh auth status --json` and `colab` can exit 0 on auth failure—inspect JSON fields and stderr.
+- **Strictly read-only**: logging in, switching accounts, changing scopes, or editing `dot` config requires user action.
 
 ## Documentation
 

@@ -5,26 +5,24 @@ description: "Prepare, publish when requested, or verify versioned releases."
 
 # Release
 
-Prepare or verify a versioned release with Conventional Commits, git-cliff, annotated tags, and GitHub release evidence. Use the repository's release task when it owns this lifecycle.
+Prepare, publish, or verify versioned releases using Conventional Commits, `git-cliff`, signed tags, and GitHub release attestations; prefer the repository's own release task when present.
 
 ## Workflow
 
-1. **Resolve the mode**: preparation, authorized publication, or read-only verification. Record repository, candidate `git` commit, intended version, and the system that creates the release.
-1. **Prepare**: inspect a clean candidate and absent tag, run the required gate, and follow [publish.md](references/publish.md) for manifest/changelog changes. Read [versioning](references/versioning.md) before overriding git-cliff.
-1. **Publish only when requested**: use the authorized commit/tag/push path and one release owner; a tag-triggered workflow must not compete with `gh release create`.
-1. **Reconcile**: follow [verify.md](references/verify.md) for the peeled tag commit, exact-commit CI/CD, release state, and delivered version; use [asset checks](references/verify-assets.md) for expected checksums and provenance.
-1. **Report**: release URL, version, commit, verified artifacts, and any unresolved proof; keep local qualification, remote publication, and deployment distinct.
+1. **Select mode**: preparation, authorized publication, or read-only verification; record repo, candidate SHA, target version, and release owner (CLI vs CI workflow).
+1. **Prepare**: verify a clean candidate and absent tag, run the full gate, and follow [publish.md](references/publish.md) (check [versioning](references/versioning.md) before overriding `git-cliff`).
+1. **Publish only on request**: use one owner — never run manual `gh release create` against a tag-triggered release workflow.
+1. **Verify**: reconcile the peeled tag SHA, exact-commit CI/CD, release state, and [asset attestations](references/verify-assets.md) per [verify.md](references/verify.md).
+1. **Report**: URL, version, SHA, verified artifacts, and any unproven boundary (local gate vs remote release vs deploy).
 
 ## Gotchas
 
-- **Keep published tags immutable**: never move a published tag or silently replace assets to repair failed proof.
-- **Qualify the exact candidate**: preserve unrelated edits and qualify the exact materialized candidate; do not use a clean HEAD worktree as proof of uncommitted changes.
-- **Authority follows the request**: an explicit release request authorizes its stated publication steps; verifying an existing release grants no repair or republishing authority.
-- **Keep semver conventions**: retain the `v` tag prefix and the repository's configured git-cliff behavior; explicit version constants still need inspection.
+- **Published tags are immutable**: never move a published tag or overwrite assets to mask a failed check.
+- **Qualify the exact candidate**: preserve unrelated dirty edits and gate the materialized release commit, not an earlier `HEAD`.
+- **Verification is read-only**: auditing a release grants zero authority to retag or re-upload.
+- **Keep `vX.Y.Z` tags and inspect static versions**: retain the `v` prefix and check non-VCS version constants alongside `git-cliff`.
 
 ## Documentation
 
-- [git-cliff](https://git-cliff.org) · [gh release manual](https://cli.github.com/manual/gh_release)
-- [GitHub release integrity](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity)
-- Releases: [git-cliff](https://github.com/orhun/git-cliff/releases) · [changelog](https://github.com/orhun/git-cliff/blob/main/CHANGELOG.md)
-- Companion skills: [commit messages](../../SKILL.md#commit-messages), [pull-request](../../../gh/references/pull-request.md) (merge first), [mise](../../../mise/SKILL.md) (the gate).
+- [git-cliff](https://git-cliff.org) · [gh release manual](https://cli.github.com/manual/gh_release) · [GitHub release integrity](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity) · [git-cliff releases](https://github.com/orhun/git-cliff/releases) · [changelog](https://github.com/orhun/git-cliff/blob/main/CHANGELOG.md)
+- Companion skills: [commit messages](../../SKILL.md#commit-messages), [pull-request](../../../gh/references/pull-request.md), [mise](../../../mise/SKILL.md).

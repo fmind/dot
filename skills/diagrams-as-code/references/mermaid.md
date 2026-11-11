@@ -5,30 +5,29 @@ description: "Technical-doc diagrams in Markdown and GitHub: syntax, validation,
 
 # Mermaid Diagram Standard
 
-Mermaid is the default format for technical documentation because the same editable text renders in GitHub Markdown and documentation renderers with Mermaid support. Keep the source portable, reviewable, and close to the prose it explains. [Diagrams as code](../SKILL.md) owns the choice between Mermaid, [SVG](svg/GUIDE.md), [D2](d2.md), or no diagram.
+Default technical-doc diagram format: one portable source renders in GitHub Markdown and Mermaid-enabled docs. [Diagrams as code](../SKILL.md) owns choosing Mermaid, [SVG](svg/GUIDE.md), [D2](d2.md), or prose.
 
 ## Workflow
 
-1. **Write portable source**: a fenced `mermaid` block when the diagram belongs to one Markdown document, a `.mmd` file when it is reused or rendered independently.
-1. **Configure in frontmatter**: put configuration in Mermaid frontmatter, never in `%%{init: ...}%%` directives or renderer-specific fence options; apply the Fmind frontmatter from [renderers](../../fmind-visuals/references/renderers.md) when the work represents Médéric or `www.fmind.dev`.
-1. **Validate and render** with `mmdc`, declared in the project because the workstation does not install it globally: `mise use --pin npm:@mermaid-js/mermaid-cli`.
+1. **Write portable source**: inline `mermaid` fence for a single page, or `.mmd` when reused or exported standalone.
+1. **Configure via frontmatter**: never use `%%{init: ...}%%` or renderer-specific fence flags; apply the Fmind frontmatter from [renderers](../../fmind-visuals/references/renderers.md) for Médéric or `www.fmind.dev`.
+1. **Validate and render** with project-pinned `mmdc` (`mise use --pin npm:@mermaid-js/mermaid-cli`; not installed globally):
 
    ```bash
    mmdc -i diagram.mmd -o diagram.svg -b transparent
    ```
 
-1. **Inspect the render**: clipping, line crossings, contrast, spelling, label density, and mobile or slide readability.
-1. **Ship the source**: keep the Mermaid text; add SVG only when the target cannot render Mermaid and PNG only when a platform requires raster output, and add `accTitle` and `accDescr` or surrounding prose so the conclusion survives without the image.
+1. **Inspect the render**: check clipping, crossings, contrast, spelling, label density, and mobile/slide legibility.
+1. **Ship source first**: add SVG/PNG exports only when the target lacks Mermaid rendering, and include `accTitle`/`accDescr` or surrounding prose stating the conclusion.
 
 ## Gotchas
 
-- **Point `mmdc` at system Chrome**: `mmdc` fails with `Could not find chrome-headless-shell` because the Puppeteer browser download is disabled; interactive Fish exports `PUPPETEER_EXECUTABLE_PATH`, other shells set it: `PUPPETEER_EXECUTABLE_PATH="$(command -v google-chrome || command -v chromium)" mmdc -i diagram.mmd -o diagram.svg`. Chromium is the fallback where Google Chrome is not installed; on macOS use `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
-- **Review rejected Puppeteer dependencies**: the npm install can reject `chromium-bidi` because Chromium's `chrome-devtools-npm` account publishes it without trusted-publisher evidence. Review that exact version, then exempt only it in the tool's options: `"npm:@mermaid-js/mermaid-cli" = { version = "<exact>", trust_policy_excludes = ["chromium-bidi@<version>"] }`.
-- **Set one renderer-stable font stack**: use root-level `config.fontFamily`; late-loading web fonts change label measurements after layout and clip inside fixed bounds. `mmdc` 12 embeds its bundled fonts (about 170 KB) into SVGs that keep the default font; pass `--no-font-embed` when the page supplies the font.
-- **Pin the layout and look**: Mermaid 12 (local `mmdc`, Zensical 0.0.73+) defaults to ELK and the `neo` look (drop shadows, heavier arrows), while renderers still on Mermaid 11 use dagre and `classic`; set root-level `config.layout: dagre` and `config.look: classic` so previews match them. ELK also ignores `flowchart.diagramPadding`.
-- **Use plain SVG labels in exports**: set root-level `config.htmlLabels: false` when an exported SVG leaves the browser (document import, ImageMagick, librsvg); default labels sit in `<foreignObject>`, which those renderers drop, leaving empty boxes. Omit the deprecated `flowchart.htmlLabels`.
-- **Keep shared source portable**: keep remote images, custom JavaScript, click callbacks, and renderer plugins out of shared source.
-- **Read at a glance**: self-explanatory labels instead of IDs, the source's own terms, separate views instead of shrunken labels (left-to-right for processes, top-to-bottom for hierarchies), and no metrics, components, or links the evidence does not show.
+- **Point `mmdc` at system Chrome**: Puppeteer downloads are disabled (`Could not find chrome-headless-shell`). Interactive Fish sets `PUPPETEER_EXECUTABLE_PATH`; elsewhere pass `PUPPETEER_EXECUTABLE_PATH="$(command -v google-chrome || command -v chromium)" mmdc -i diagram.mmd -o diagram.svg` (macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
+- **Exempt reviewed `chromium-bidi` pins**: `chrome-devtools-npm` publishes `chromium-bidi` without trusted-publisher provenance; review the exact version and scope `"npm:@mermaid-js/mermaid-cli" = { version = "<exact>", trust_policy_excludes = ["chromium-bidi@<version>"] }`.
+- **Set a stable font stack**: declare root `config.fontFamily` so late web fonts do not clip labels; pass `--no-font-embed` when the host page provides fonts (`mmdc` 12 embeds ~170 KB of default fonts).
+- **Pin layout and look across Mermaid 11/12**: Mermaid 12 (`mmdc`, Zensical 0.0.73+) defaults to ELK (ignoring `flowchart.diagramPadding`) and `neo`; set root `config.layout: dagre` and `config.look: classic` to match Mermaid 11 renderers.
+- **Disable HTML labels for non-browser SVG consumers**: set root `config.htmlLabels: false` (omit deprecated `flowchart.htmlLabels`) before importing into docs, ImageMagick, or librsvg, which drop `<foreignObject>` text.
+- **Keep source portable and grounded**: no remote images, JS callbacks, renderer plugins, cryptic IDs, or unverified components/metrics; split crowded diagrams (`LR` for processes, `TD` for hierarchies).
 
 ## Documentation
 

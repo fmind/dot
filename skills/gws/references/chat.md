@@ -1,8 +1,6 @@
 # Google Chat content and threads
 
-Default to a short opening sentence, a few parallel bullets and one relevant link. Replace document headings with bold labels and tables with labeled bullets or a linked Sheet. Use blank lines between sections and bare triple-backtick code fences without a language label. Do not send a Markdown document unchanged and expect every feature to render.
-
-Choose one syntax for the entire text body:
+Lead with one sentence, a few bullets, and a link—replacing headings with bold labels, tables with bullets or a Sheet link, and language-tagged fences with bare ` ``` ` fences. Pick one syntax per message:
 
 | Element     | Native Chat (default)          | Markdown mode                  |
 | ----------- | ------------------------------ | ------------------------------ |
@@ -13,21 +11,17 @@ Choose one syntax for the entire text body:
 | Bullets     | `- Item`                       | `- Item`                       |
 | Inline code | Single backticks               | Single backticks               |
 
-Set `markupSyntax` on every text request: when omitted, the project's Chat app setting decides, and a project without one defaults to Markdown, which renders native `*bold*` as italics. `MARKUP_SYNTAX_MARKDOWN` selects Markdown (CommonMark with Chat extensions); `MARKUP_SYNTAX_CHAT` selects native Chat, the default here; `chat_body.py` sets the field for either syntax. Do not set `formattedText`: it is output-only. Text messages use this markup; card text uses a separate HTML subset, and card capabilities depend on authentication. Author user-authenticated messages as text unless the current API explicitly supports the requested card operation.
+Always set `markupSyntax` (`MARKUP_SYNTAX_CHAT` default vs `MARKUP_SYNTAX_MARKDOWN`), since omitting it falls back to Markdown when no Chat app is configured and turns `*bold*` into italics. Never set output-only `formattedText`; author user-authenticated messages as text (cards use separate HTML rules):
 
 ```bash
-# Authored native Chat text (default), or explicitly selected Markdown:
 uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py message.txt > body.json
-uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py \
-  message.md --syntax markdown > body.json
+uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py message.md --syntax markdown > body.json
 ```
 
-The helper is not a complete markup parser: review images, HTML, nested/escaped delimiters and any unsupported syntax yourself. Native mentions use `<users/ID>`; Markdown mentions use the documented `chat-user` element. Resolve the intended identity rather than guessing display names, and never add an all-space mention unless requested. The helper preserves mentions already in the authored text, so include their notification effect in the content review.
+Audit nested/escaped delimiters, images, and mentions (`<users/ID>` in native Chat, `chat-user` in Markdown; resolve user IDs explicitly and never mention `@all` unasked).
 
 ## Reply to an existing thread
 
-Resolve the destination space and exact `thread.name` from a previous message. They are different from `message.name`. Build the body with `--thread spaces/SPACE/threads/THREAD`, set `parent` to that same space in params, and set `messageReplyOption` to `REPLY_MESSAGE_OR_FAIL`. This avoids accidentally starting a new thread if the reference is wrong. A thread key is an alternative app-defined identity, not a substitute for an observed thread name.
-
-Use the file-based request workflow for preview and authorized sending. Keep a stable `requestId` when retries may be needed. Read the returned message with `gws chat spaces messages get --params '{"name":"spaces/SPACE/messages/MESSAGE"}'`; inspect `text`, `formattedText`, `thread` and `markupSyntax` as returned. API state confirms accepted content and location; inspect Chat UI when claiming rendered appearance. Do not send a test message just to verify a skill change without explicit sending authority.
+Observe `thread.name` (`spaces/SPACE/threads/THREAD`, distinct from `message.name` and app thread keys), pass `--thread spaces/SPACE/threads/THREAD` to `chat_body.py`, and set `parent` + `messageReplyOption: "REPLY_MESSAGE_OR_FAIL"` in `--params` so bad references fail closed instead of opening a new thread. Preview via `--dry-run`, keep a stable `requestId` for retries, and verify authorized sends with `gws chat spaces messages get --params '{"name":"spaces/SPACE/messages/MESSAGE"}'` (`text`, `formattedText`, `thread`, `markupSyntax`)—never send test messages without explicit approval.
 
 Sources: [Message formatting](https://developers.google.com/workspace/chat/format-messages), [Message resource](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages), [Create and reply](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create).

@@ -7,29 +7,29 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terms-review
   created: "2026-09-15"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Terms Review
 
-Assess whether a defined use of a product or service fits its applicable terms and the user's requirements. Produce a dated, clause-backed decision with conditions and gaps; never turn missing evidence into permission or present a terms review as legal certification. Choosing a license for the user's own repository belongs to [project-license](../project-scaffolding/references/project-license/GUIDE.md).
+Assess whether an intended use of a product, service, or artifact fits its governing terms and user constraints. Deliver a dated, clause-backed decision—never treat silence as permission or present the review as legal advice. [project-license](../project-scaffolding/references/project-license/GUIDE.md) owns choosing a repository license.
 
 ## Workflow
 
-1. **Define the context**: identify the product, provider, version, plan, contracting entity, jurisdictions, intended activities, audience, scale, and data flows. Ask only for missing facts that could change the decision, keep gathering sources meanwhile, and record assumptions.
-1. **Set acceptance criteria**: turn the user's constraints into checkable requirements, including internal policy and applicable regulatory obligations when requested. Separate contractual permission, legal requirements, and operational evidence. Do not infer compliance from a certification badge or a vendor's marketing claim.
-1. **Collect authoritative evidence**: browse current official sources and inspect the applicable signed agreement when available. Follow incorporated documents: terms of service, license/EULA, order form, service-specific terms, acceptable-use policy, privacy notice, data processing agreement (DPA), subprocessors, and relevant model, dataset, or dependency licenses. Record each document's title, URL or private reference, version/effective date, retrieval date, scope, and clause identifiers. Verify the license of the exact release or artifact being used.
-1. **Resolve applicability**: distinguish consumer, business, API, free, paid, trial, and preview terms. Check incorporation, stated precedence, amendments, renewal, and change-notice provisions; establish which version governs the planned use instead of assuming the latest public page controls an existing contract. If an agreement is unavailable or documents conflict without clear precedence, mark the affected conclusions unresolved; never reconstruct a missing document from search snippets or memory.
-1. **Map requirements to clauses**: use the relevant items of the [assessment checklist](references/assessment.md). For each requirement, record the applicable clause, a short quotation or faithful paraphrase, its practical effect, evidence of fulfillment, and any remaining action. Clearly label direct text, interpretation, and unverified claims. Silence is not a grant; a proposed setting or process is not proof that an obligation is met.
-1. **Decide and report**: give the scoped verdict and cover the [assessment](references/assessment.md) output contract. Rank blockers before lesser risks. Make conditional use concrete with an owner, action, and verification criterion for each unmet obligation; identify changes of plan, configuration, or use that could resolve a conflict. For consequential legal ambiguity, prepare the precise question and clauses for qualified counsel or the authorized contract owner.
-1. **Verify the conclusion**: confirm that every material requirement has evidence or an explicit gap, links support the claims, and dates and product scope match. A blocker or material unknown prevents a supported verdict. State when to re-review: changed terms, plan, version, data, jurisdiction, distribution, or intended use. Ground jurisdiction-specific claims in official legislation or regulator guidance, or state the gap; a terms review alone does not establish regulatory compliance, enforceability, or operational compliance.
+1. **Define context**: product, provider, exact version/artifact, plan, contracting entity, jurisdictions, activities, audience, scale, and data flows; ask only decision-changing unknowns while gathering sources, and record assumptions.
+1. **Set criteria**: turn user, policy, and requested regulatory constraints into checkable requirements, keeping contractual grants, legal duties, and operational proof distinct (ignore badges and marketing claims).
+1. **Collect primary texts**: inspect the signed agreement if any and all incorporated documents—ToS, EULA/license, order form, service terms, AUP, privacy notice, DPA, subprocessors, and exact-release model/dataset/dependency licenses—recording title, URL or private ID, effective date, retrieval date, scope, and clause IDs.
+1. **Resolve precedence**: separate consumer, business, API, free, paid, trial, and preview terms; check incorporation, precedence, amendments, renewal, and notice rules rather than assuming the latest public page governs an existing contract. Mark unavailable or irreconcilable texts unresolved; never reconstruct clauses from snippets or memory.
+1. **Map clauses**: walk relevant [assessment](references/assessment.md) items, recording clause, brief quote or paraphrase, effect, operational proof, and remaining actions while distinguishing literal text, interpretation, and unverified claims.
+1. **Decide and report**: follow the [assessment](references/assessment.md) output contract, ranking blockers first, assigning owner/action/verification to each condition, noting plan or config changes that resolve conflicts, and drafting exact counsel/vendor questions for consequential ambiguity.
+1. **Audit the verdict**: confirm every material requirement has clause evidence or an explicit gap (blockers or missing facts forbid `Supported`), ground jurisdiction claims in official statutes/regulator guidance, and list re-review triggers (changed terms, plan, version, data, jurisdiction, distribution, or use).
 
 ## Boundaries
 
-- **Review authorizes analysis only**: review authority permits reading and analysis. Accepting terms, purchasing, changing account settings, uploading data, and contacting providers require separate authorization; draft questions locally first.
-- **Keep private context private**: keep private agreement text and business context out of public searches, reports, and repository fixtures; retrieve public documents using product names and public identifiers only.
+- **Analysis only**: accepting terms, buying, changing settings, uploading data, or contacting vendors requires separate approval; draft outreach locally.
+- **Protect private context**: keep contract text and business details out of public searches, shared reports, and repo fixtures; search using public product names only.
 
 ## Companion skills
 
-- [code-security](../code-security/references/code-review/GUIDE.md): verify technical security controls and dependency findings.
-- [full-review](../full-review/SKILL.md#proof-ladder): assess operational launch evidence beyond contractual permission.
+- [code-security](../code-security/references/code-review/GUIDE.md): technical controls and dependency licenses/vulns.
+- [full-review](../full-review/SKILL.md#proof-ladder): operational launch proof beyond contractual permission.

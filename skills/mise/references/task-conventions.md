@@ -2,46 +2,44 @@
 
 ## Subtask Naming
 
-Split a task into `<task>:<x>` when one piece must run alone; each family keys `<x>` off a different noun:
+Split `<task>:<x>` only when parts run independently:
 
-- **`format:<input>`**: the source family formatted — `format:python` for Python; `format:dprint` for JSON, Markdown, TOML, and YAML.
-- **`build:<output>`**: the artifact produced — `build:package`, `build:docs`, or `build:image` (OCI image).
-- **`check:<concern>`**: the property verified, identical across languages so `mise run check:lint` means the same everywhere; the names are fixed:
+- **`format:<input>`**: source family (`format:python`, `format:dprint` for JSON/Markdown/TOML/YAML per [dprint](dprint.md)).
+- **`build:<output>`**: artifact (`build:package`, `build:docs`, `build:image`).
+- **`check:<concern>`**: fixed cross-stack property names:
 
-| Task            | Concern                          | Tool                                                          |
-| --------------- | -------------------------------- | ------------------------------------------------------------- |
-| `check:deps`    | missing or unused dependencies   | `deptry`                                                      |
-| `check:format`  | formatting drift                 | `dprint check` plus the stack formatter's check mode          |
-| `check:lint`    | lint rules                       | `ruff check`                                                  |
-| `check:types`   | static types                     | `ty check`                                                    |
-| `check:vuln`    | dependency CVEs                  | `uv audit`                                                    |
-| `check:leaks`   | working-tree secrets             | [betterleaks](../../code-security/references/betterleaks.md)  |
-| `check:scan`    | IaC and config misconfigurations | [trivy](../../code-security/references/trivy/GUIDE.md)        |
-| `check:actions` | workflow lint and audit          | [jactionlint](../../github-actions/references/jactionlint.md) |
+| Task            | Concern                                 | Tool                                                          |
+| --------------- | --------------------------------------- | ------------------------------------------------------------- |
+| `check:deps`    | missing or unused dependencies          | `deptry`                                                      |
+| `check:format`  | formatting drift                        | `dprint check` plus stack formatter `--check`                 |
+| `check:lint`    | lint rules                              | `ruff check`                                                  |
+| `check:types`   | static types                            | `ty check`                                                    |
+| `check:vuln`    | dependency CVEs                         | `uv audit`                                                    |
+| `check:leaks`   | working-tree secrets                    | [betterleaks](../../code-security/references/betterleaks.md)  |
+| `check:scan`    | dependencies, IaC, images, and licenses | [trivy](../../code-security/references/trivy/GUIDE.md)        |
+| `check:actions` | workflow lint and audit                 | [jactionlint](../../github-actions/references/jactionlint.md) |
 
-Reuse these names for their stated concerns instead of inventing synonyms such as `check:audit` or `check:dprint`. Add a repository-specific name when no existing concern fits, such as `check:docs`, `check:skills`, `check:pkg`, `check:site`, or `check:validate`; preserve established names unless a migration has a concrete benefit. A repository with multiple source families may split a repeated concern (`check:python`, `check:shell`), while a shared concern keeps its common name (`check:format` for the one dprint check). Aliases are best-effort: a repository that already spends `f`, `t`, or `i` keeps them; the task names are the contract.
+Reuse these exact names rather than synonyms (`check:audit`, `check:dprint`); add repo-specific names (`check:docs`, `check:skills`, `check:pkg`, `check:site`, `check:validate`) or source-family splits (`check:python`, `check:shell`) only for distinct concerns, and treat single-letter aliases as best-effort.
 
 ## Conventions
 
-- **Fan checks out in parallel**: `check` depends on `check:local` (offline checks such as `check:deps`, `check:format`, `check:leaks`, `check:lint`, `check:types`) and `check:network` (database downloads: `check:vuln`, `check:scan`); mise runs the subtasks concurrently, and the [lefthook](../../github-actions/references/lefthook.md) hooks, which own job naming and staged-file rules, run `check:local` in pre-commit and `check:network` in pre-push.
-- **Skip unchanged tasks incrementally**: declare `sources` and `outputs` so mise skips a task whose inputs are unchanged (ideal for builds).
-- **Forward arguments without dispatch wrappers**: without `usage`, mise appends CLI args to the last command (`format:dprint` passes `{staged_files}` directly without shell evaluation); verify raw argument behavior with a small local example when adding a wrapper task. When a formatter must run several commands on the same files (`format:python`) or supply a non-root default path, declare `usage = 'arg "[files]..."'` (plus `default=` for one path) and start its script with `eval "set -- $usage_files"`: mise passes variadic arguments as one shell-quoted string. One task then serves both the hook and ordinary formatting; never add per-hook `:files` variants.
+- **Parallelize offline vs network checks**: `check` depends on `check:local` (`check:deps`, `check:format`, `check:leaks`, `check:lint`, `check:types` — run in `pre-commit`) and `check:network` (`check:vuln`, plus `check:scan` when enabled — run in `pre-push`) per [lefthook](../../github-actions/references/lefthook.md).
+- **Declare `sources` and `outputs`** on build tasks so unchanged inputs skip rebuilds.
+- **Forward file arguments cleanly**: without `usage`, mise appends CLI args to the last command (`format:dprint` receives `{staged_files}` directly). Multi-command formatters (`format:python`) or custom default paths declare `usage = 'arg "[files]..."'` (plus `default=`) and begin with `eval "set -- $usage_files"` so one task serves both hooks and `mise run format` without `:files` duplicates.
 
 ## Concise Output
 
-Prefer native output controls for frequently run tasks. Under `[settings.task]`, `quiet = true` suppresses mise's command echoes while preserving child stdout/stderr and task prefixes; `MISE_TASK_QUIET=false mise run <task>` restores execution messages. Quiet also hides the dry run of `mise run -n <task>`, so prefix it with `MISE_TASK_QUIET=false` to print the resolved command. Leave the output style unchanged so parallel diagnostics retain task attribution. Avoid `silent`, discarded stderr, and truncation pipelines that hide failures or change exit status.
+Set `[settings.task]` `quiet = true` to suppress command echoes while keeping child stdout/stderr and task prefixes (`MISE_TASK_QUIET=false` restores echoes and `mise run -n` dry-run output). Never use `silent`, discard stderr, or pipe through truncators that mask exit codes or diagnostics.
 
-Keep test counts, coverage totals and thresholds, warnings, and actionable findings visible. For pytest-cov with a positive `fail_under`, `--cov-report=` hides the per-file table while retaining the total and enforcing the threshold. Expose `report:coverage` to read the saved coverage data without rerunning tests; run tests again if those data are stale. For Betterleaks, `--no-banner` removes decoration; retain `--verbose --redact=100` for finding locations and redacted evidence.
-
-Validate success and intentional failure cases before adopting quieter defaults, including coverage below its threshold and scanner findings. Compare output with the same tokenizer and record exit codes and diagnostic completeness; output-token reductions alone do not prove billing savings.
+Keep test counts, coverage totals/thresholds, warnings, and findings visible: pass `--cov-report=` when `fail_under` is set (add `report:coverage` for full tables) and `--no-banner --verbose --redact=100` on Betterleaks. Verify both passing and failing runs (below-threshold coverage, intentional findings) before adopting quieter flags.
 
 ## Tool Management
 
-The [tool version rules](tool-versions.md#select-exact-versions) own selecting and recording exact pins; [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades.
+[tool-versions.md](tool-versions.md#select-exact-versions) owns pin selection; [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades.
 
 ## Additional task gotchas
 
-- **Fail fast in hooks**: set `run_auto_install = false` under `[settings.task]` so a missing tool errors instead of installing silently.
-- **Keep project config project-local**: never symlink a repository's `mise.toml` into `~/.config/mise/conf.d/`; mise then treats it as global, `mise lock` reports `No tools configured to lock`, and its tasks leak everywhere.
-- **Task `dir`**: pin `[task_config] dir = "{{config_root}}"` when inherited configs could select another project root; verify tasks from both the repository root and a subdirectory.
-- **Keep a TTY with redacted `.env`**: `_.file = { path = ".env", redact = true }` pipes `stdout`/`stderr` through the redactor and sets `stdin` to `Stdio::null()` once `.env` exists; set `raw = true` on interactive login and live TUI tasks so they keep the terminal.
+- **Set `run_auto_install = false`** under `[settings.task]` so missing tools fail fast in hooks.
+- **Never symlink project `mise.toml` into `~/.config/mise/conf.d/`**: mise treats `conf.d` files as global, breaking `mise lock` (`No tools configured to lock`) and leaking tasks globally.
+- **Pin `[task_config] dir = "{{config_root}}"`** when parent configs exist, and test from both repo root and subdirectories.
+- **Set `raw = true` for interactive tasks when redacting `.env`**: `_.file = { path = ".env", redact = true }` pipes output and nulls `stdin` once `.env` exists.

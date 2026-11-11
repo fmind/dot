@@ -5,30 +5,29 @@ description: "Audit and fix .gitignore, .ignore, .dockerignore, and tool exclude
 
 # Update Ignores
 
-Make every ignore list describe the repository as it is: prune patterns that match nothing and belong to no tool in use, and add the ones its stack and tasks need. This edits ignore and exclude configuration only; it never deletes files or untracks them. It is one area of the [full-review](../../SKILL.md) pass.
+Align ignore and exclude configs with the repository's actual stack and tasks—edit ignore rules only, never deleting or untracking files ([full-review](../../SKILL.md)).
 
 ## Workflow
 
-1. **Inventory**: record `git status --short --ignored` as the baseline. List the ignore surfaces: every `.gitignore`, search-only `.ignore` (also `.rgignore`, `.fdignore`), `.dockerignore`, `.chezmoiignore` in a chezmoi source, and tool excludes such as dprint `excludes`, Ruff `extend-exclude`, pytest `norecursedirs`, and coverage `omit`. Detect the stack from manifests (`pyproject.toml`, `uv.lock`, `package.json`, `mise.toml`, `Dockerfile`, `*.tf`, docs configuration) and from what the repository's tasks write (caches, coverage, `dist/`, `site/`, `.terraform/`).
-1. **Measure gitignore-syntax files**: the [audit script](scripts/audit.py) attributes each path (tracked, untracked, and ignored, with ignored directories collapsed) to the pattern that decides it, then prints hits, tracked hits, samples, in-file duplicates, and `.gitignore` lines repeated from the global excludes file. Relative `core.excludesFile` paths resolve from the repository root used by the audit's Git commands. Audit `.ignore` explicitly; its `.gitignore`-shadowed patterns then show as unused, because ripgrep and fd already honor `.gitignore`.
+1. **Inventory**: baseline `git status --short --ignored`; list `.gitignore`, `.ignore`/`.rgignore`/`.fdignore`, `.dockerignore`, `.chezmoiignore`, and tool excludes (dprint `excludes`, Ruff `extend-exclude`, pytest `norecursedirs`, coverage `omit`); infer stack/task outputs from manifests (`pyproject.toml`, `uv.lock`, `package.json`, `mise.toml`, `Dockerfile`, `*.tf`, docs configs).
+1. **Audit gitignore-syntax files**: [audit.py](scripts/audit.py) maps tracked, untracked, and collapsed-ignored paths to their deciding rule (resolving relative `core.excludesFile` from repo root), flagging zero-hit, duplicate, and global-duplicate rules; pass `.ignore` explicitly so `.gitignore`-shadowed rules surface as unused:
 
    ```bash
    python -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py            # every non-ignored .gitignore
    python -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py .ignore --json
    ```
 
-1. **Prune**: unused means "decides no current path", not "useless". Remove a pattern when it is unused and irrelevant to the stack (Node patterns in a Python-only repository, a renamed tool's cache), duplicated, or shadowed by a later pattern. Keep preventive patterns for credentials and state (`.env`, `*.tfstate`, `*.pem`, `.terraform/`) and for outputs the repository's own tasks create, even when absent now.
-1. **Add**: cover what the stack and tasks generate (Python: `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.ty_cache/`, `.coverage*`, `htmlcov/`, `dist/`; docs: `site/`; Node: `node_modules/`), plus repository tool state the user does not track. Personal OS, editor, and agent-host state belongs in the global excludes file (`git config core.excludesFile`, default `~/.config/git/ignore`), not each repository; when dotfiles manage it, edit its source (`chezmoi source-path ~/.config/git/ignore`). Keep a repository copy only when other people clone it without that global file.
-1. **Scope `.ignore` to search noise**: list tracked files with no search value (lockfiles, generated profiles or schemas, snapshots, data fixtures, minified assets, vendored data); never repeat `.gitignore`, and never list source code such as Python fixture modules, because Ruff and ty also skip `.ignore` paths. Start comment-capable files with their documentation URL ([gitignore](https://git-scm.com/docs/gitignore), [ripgrep filtering](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering)).
-1. **Check other exclude syntaxes**: confirm each tool exclude still matches a path with `git ls-files -- ':(glob)<pattern>'` or `fd --glob '<pattern>'`. `.dockerignore` follows Go `filepath.Match` from the context root, not gitignore rules: use `**/` for depth and follow the [containerize](../../../docker/references/containerize/templates/.dockerignore) denylist, which keeps the `README.md` and `LICENSE` the build reads.
-1. **Verify and report**: re-run the audit; `git ls-files -ci --exclude-standard` must list no tracked file newly matched by an ignore rule, and `git status --short --ignored` must match the baseline apart from intended changes. Report removed, added, and kept-but-unused preventive patterns per file with the reason, and every tracked file that matches an ignore rule.
+1. **Prune & add**: drop zero-hit rules from foreign stacks, dead tools, duplicates, or shadowed lines while keeping preventive secret/state/task-output rules (`.env`, `*.tfstate`, `*.pem`, `.terraform/`). Cover stack outputs (Python: `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.ty_cache/`, `.coverage*`, `htmlcov/`, `dist/`; docs: `site/`; Node: `node_modules/`); keep personal OS/editor/harness noise in global `core.excludesFile` (`~/.config/git/ignore` via `chezmoi source-path ~/.config/git/ignore`) unless external cloners need it.
+1. **Keep `.ignore` to search noise**: list only low-signal tracked files (locks, generated schemas, snapshots, data fixtures, minified/vendored assets)—never duplicate `.gitignore` or list Python test/fixture source, which Ruff and ty also skip. Lead comment-capable files with their doc URL ([gitignore](https://git-scm.com/docs/gitignore), [ripgrep filtering](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering)).
+1. **Check non-gitignore excludes**: test globs via `git ls-files -- ':(glob)<pattern>'` or `fd --glob '<pattern>'`; `.dockerignore` uses Go `filepath.Match` (`**/` for depth) per the [containerize](../../../docker/references/containerize/templates/.dockerignore) denylist (preserving build-required `README.md` and `LICENSE`).
+1. **Verify**: rerun `audit.py`, confirm `git ls-files -ci --exclude-standard` adds no newly ignored tracked files and `git status --short --ignored` matches baseline, and report pruned, added, kept-preventive, and tracked-matching rules.
 
 ## Gotchas
 
-- **Mind search-ignore audit limits**: the audit measures `.ignore` as Git's excludes file, below every `.gitignore` and anchored to the repository root. A `!` negation there re-includes gitignored paths for ripgrep and fd, which Git cannot measure, so the audit marks it `n/a`; never prune it for lacking hits. A nested `.ignore` gets a warning because its anchored patterns resolve from the root; check them with `rg --files` or `fd` instead.
-- **Ignore rules never untrack**: a tracked file matching a rule is either intended (`!` exception or vendored fixture) or a stale commit; ask before untracking.
+- **`.ignore` emulation limits**: `audit.py` evaluates `.ignore` as `core.excludesFile` (root-anchored, below `.gitignore`): `!` negations re-including gitignored paths for `rg`/`fd` report `n/a` (never prune for zero hits), and nested `.ignore` files trigger a warning—verify those with `rg --files` or `fd`.
+- **Ask before untracking**: ignore rules never untrack committed files.
 
 ## Documentation
 
 - [gitignore](https://git-scm.com/docs/gitignore) · [git check-ignore](https://git-scm.com/docs/git-check-ignore) · [Docker build context](https://docs.docker.com/build/concepts/context/#dockerignore-files)
-- Companion skills: [project-scaffolding](../../../project-scaffolding/references/bootstrap.md) (initial ignore files).
+- Companion skills: [project-scaffolding](../../../project-scaffolding/references/bootstrap.md).

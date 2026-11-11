@@ -7,20 +7,20 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # GitHub CLI
 
-Use `gh` for authenticated GitHub input and output. This connector owns account selection, request mechanics, and the task guides below for issues, pull requests, and repository settings; [github-actions](../github-actions/SKILL.md) owns workflow authoring and CI/CD policy, and [git-delivery](../git-delivery/SKILL.md) owns commits, pushes, and releases.
+Use `gh` for authenticated GitHub reads and writes. This connector owns account selection, bounded requests, and the guides below; [github-actions](../github-actions/SKILL.md) owns workflows and [git-delivery](../git-delivery/SKILL.md) owns commits, pushes, and releases.
 
 ## Workflow
 
-1. **Resolve the intended host and repository**: from the request and Git remotes, using `gh repo view --json nameWithOwner`; never print raw remote URLs, which can contain credentials. Pass `-R <owner>/<repo>` to repository commands and `--hostname <host>` to API calls when needed; do not silently use an unrelated current checkout.
-1. **Check authentication**: run `gh auth status --active --hostname <host>` when authentication is uncertain. Environment credentials can override stored accounts; never print token values or use `--show-token`. Account changes and additional OAuth scopes need authority; [dot-cli authentication](../dot-cli/references/authentication.md) owns the login policy and its one-off grants.
-1. **Prefer bounded native commands**: prefer the native command with an explicit `--limit` and selected `--json` fields. Read a remote file or directory with `gh repo read-file <path> -R <owner>/<repo> --ref <sha>` or `gh repo read-dir` (preview; pass `""`, not `.`, for the root) instead of cloning or decoding the contents API. For missing capabilities, use `gh api --method GET <endpoint>` with bounded `per_page` and `page` fields. Adding `--field` or `--raw-field` otherwise changes the default method to POST.
-1. **Read failed Actions logs first**: `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed`, saved to a file when large.
-1. **Write from files, then read back**: use `--body-file` or `gh api --input <file>` for an authorized write, re-read the changed fields, and reconcile remote state before retrying an uncertain write.
+1. **Resolve host and repository**: confirm from the request and `gh repo view --json nameWithOwner` (never print raw remote URLs, which may embed credentials). Pass `-R <owner>/<repo>` (`--hostname <host>` on `gh api`) instead of assuming the current checkout.
+1. **Verify auth**: run `gh auth status --active --hostname <host>` when uncertain; env tokens can override stored accounts, and never print tokens or pass `--show-token`. Account switches and extra scopes require authority per [dot-cli authentication](../dot-cli/references/authentication.md).
+1. **Use bounded native reads**: pass explicit `--limit` and `--json` fields. Read remote files with `gh repo read-file <path> -R <owner>/<repo> --ref <sha>` or `gh repo read-dir` (preview; pass `""`, not `.`, for the root) instead of cloning. For API gaps, pass `gh api --method GET <endpoint>` with `per_page` and `page` (`--field`/`--raw-field` otherwise defaults to POST).
+1. **Inspect failed Actions logs first**: `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed` (save large logs to a file).
+1. **Write from files, then read back**: pass `--body-file` or `gh api --input <file>` on authorized writes, re-read modified fields, and reconcile remote state before retrying an uncertain write.
 
 ## Task guides
 
@@ -34,15 +34,14 @@ Use `gh` for authenticated GitHub input and output. This connector owns account 
 
 ## Gotchas
 
-- **Inspect auth state, not exit codes**: `gh auth status --json` can exit zero despite authentication failures; inspect the reported state.
-- **Paginate only bounded collections**: `gh api --paginate` fetches every page; use it only for a bounded, intentionally complete collection. `--slurp` combines page objects, not individual records.
+- **Inspect auth fields, not exit codes**: `gh auth status --json` can exit 0 on failed auth.
+- **Paginate only bounded sets**: `gh api --paginate` fetches all pages; `--slurp` wraps page responses rather than flattening items.
 
 ## Official Skills
 
-Upstream `cli/cli` publishes agent skills, including a same-name `gh`: preview it, never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)). Review and install others only through the pinned [official-skills](references/official-skills.md) procedure.
+Upstream `cli/cli` ships agent skills including a same-name `gh`: preview only and never install under `gh` ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)); follow [official-skills](references/official-skills.md) for pinned installs.
 
 ## Documentation
 
-- [GitHub CLI manual](https://cli.github.com/manual/) · [API command](https://cli.github.com/manual/gh_api)
-- Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [github-actions](../github-actions/SKILL.md) (CI/CD workflows and Dependabot), [git-delivery](../git-delivery/SKILL.md) (commits, pushes, worktrees, and releases).
+- [GitHub CLI manual](https://cli.github.com/manual/) · [gh api](https://cli.github.com/manual/gh_api) · [releases](https://github.com/cli/cli/releases)
+- Companion skills: [github-actions](../github-actions/SKILL.md), [git-delivery](../git-delivery/SKILL.md).

@@ -5,6 +5,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 
 class InputError(ValueError):
@@ -16,49 +17,51 @@ def chip(kind: str, label: str | None) -> str:
     return f"[{kind}: {label}]" if label else f"[{kind}]"
 
 
-def structural_text(elements: list) -> str:
+def structural_text(elements: list[dict[str, Any]]) -> str:
     """Walk document structure without collecting suggested/repeated metadata text."""
-    result = []
+    result: list[str] = []
     for element in elements:
         if "paragraph" in element:
-            for run in element["paragraph"].get("elements", []):
+            for run in (element["paragraph"] or {}).get("elements") or []:
                 if "textRun" in run:
                     result.append(run["textRun"]["content"])
                 elif "inlineObjectElement" in run:
                     result.append("[inline object]")
                 elif "person" in run:
                     # The chip shows the name when present, otherwise the email.
-                    person = run["person"].get("personProperties", {})
+                    person = (run["person"] or {}).get("personProperties") or {}
                     result.append(chip("person", person.get("name") or person.get("email")))
                 elif "richLink" in run:
-                    link = run["richLink"].get("richLinkProperties", {})
+                    link = (run["richLink"] or {}).get("richLinkProperties") or {}
                     result.append(chip("link", link.get("title") or link.get("uri")))
                 elif "dateElement" in run:
-                    date = run["dateElement"].get("dateElementProperties", {})
+                    date = (run["dateElement"] or {}).get("dateElementProperties") or {}
                     result.append(chip("date", date.get("displayText")))
                 elif "dropdown" in run:
-                    dropdown = run["dropdown"].get("dropdownProperties", {})
+                    dropdown = (run["dropdown"] or {}).get("dropdownProperties") or {}
                     result.append(chip("dropdown", dropdown.get("displayValue")))
         elif "table" in element:
-            for row in element["table"].get("tableRows", []):
-                cells = [structural_text(cell.get("content", [])).rstrip("\n") for cell in row.get("tableCells", [])]
+            for row in (element["table"] or {}).get("tableRows") or []:
+                cells = [
+                    structural_text(cell.get("content") or []).rstrip("\n") for cell in (row.get("tableCells") or [])
+                ]
                 result.append("\t".join(cells) + "\n")
         elif "tableOfContents" in element:
-            result.append(structural_text(element["tableOfContents"].get("content", [])))
+            result.append(structural_text((element["tableOfContents"] or {}).get("content") or []))
     return "".join(result)
 
 
-def extract(document: dict) -> dict:
+def extract(document: Any) -> dict[str, Any]:
     if not isinstance(document, dict) or "error" in document:
         raise InputError("Expected a successful documents.get object.")
-    sections = []
+    sections: list[dict[str, Any]] = []
 
-    def add_sections(content: dict, tab_id: str | None, title: str | None) -> None:
-        if "body" not in content:
+    def add_sections(content: dict[str, Any], tab_id: str | None, title: str | None) -> None:
+        if "body" not in content or not isinstance(content["body"], dict):
             raise InputError("Body missing; fetch document content without a metadata-only field mask.")
-        groups = [("body", "body", content["body"])]
+        groups: list[tuple[str, str, dict[str, Any]]] = [("body", "body", content["body"])]
         for kind in ("headers", "footers", "footnotes"):
-            groups.extend((kind, key, value) for key, value in content.get(kind, {}).items())
+            groups.extend((kind, key, value) for key, value in (content.get(kind) or {}).items())
         for kind, section_id, section in groups:
             sections.append(
                 {
@@ -66,15 +69,15 @@ def extract(document: dict) -> dict:
                     "tabTitle": title,
                     "kind": kind,
                     "id": section_id,
-                    "text": structural_text(section.get("content", [])),
+                    "text": structural_text((section or {}).get("content") or []),
                 }
             )
 
-    def visit(tabs: list) -> None:
+    def visit(tabs: list[dict[str, Any]]) -> None:
         for tab in tabs:
             properties = tab["tabProperties"]
             add_sections(tab["documentTab"], properties["tabId"], properties.get("title"))
-            visit(tab.get("childTabs", []))
+            visit(tab.get("childTabs") or [])
 
     if document.get("tabs"):
         visit(document["tabs"])

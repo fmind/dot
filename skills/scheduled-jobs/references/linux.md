@@ -1,8 +1,6 @@
 # Linux User Timers
 
-Check installed `systemctl --version` and `man systemd.timer` / `man systemd.service`; installed documentation owns supported directives. Use `systemctl --user`, without sudo. A user manager may stop at logout; do not silently enable lingering.
-
-Keep the service and timer in the job's source repository and deploy them to `~/.config/systemd/user/` using its existing configuration manager. Adapt this example's paths, timezone, interval, and limit to the job; replace the illustrative command with a real task before validation.
+Verify directives against installed `systemctl --version` and `man systemd.{timer,service}`. Use `systemctl --user` without `sudo` or silent lingering, keeping paired `<name>.service` and `<name>.timer` files in the source repo and deploying to `~/.config/systemd/user/`:
 
 ```ini
 # https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html
@@ -31,16 +29,16 @@ Persistent=true
 WantedBy=timers.target
 ```
 
-For `Type=oneshot`, `TimeoutStartSec` bounds the command; do not substitute `RuntimeMaxSec`, which does not bound oneshot activation. `Persistent=true` catches up a missed calendar trigger when the timer becomes active, rather than replaying each missed occurrence. Omit catch-up when inappropriate. Use the same basename, such as `report.service` and `report.timer`.
+On `Type=oneshot`, bound runtime with `TimeoutStartSec` (`RuntimeMaxSec` does not bound oneshot activation) and keep default `OOMPolicy=stop` (`continue` is for long-lived session daemons). `Persistent=true` coalesces missed triggers into one catch-up run on activation; omit when catch-up is unwanted.
 
-Change an existing unit with a drop-in, `~/.config/systemd/user/<unit>.d/<name>.conf`, never a copied unit. Reset a list setting with an empty assignment before redefining it (`ExecStart=` then the new `ExecStart=`; likewise `OnCalendar=`). After `systemctl --user daemon-reload`, prove the merge with `systemctl --user show <unit> -p DropInPaths -p <Setting>`. Keep the default `OOMPolicy=stop` for jobs so an OOM-killed child fails the run visibly; `continue` suits long-lived session hosts.
+Override existing units via drop-ins (`~/.config/systemd/user/<unit>.d/<name>.conf`), clearing list keys (`ExecStart=`, `OnCalendar=`) with an empty line before reassigning, and verify with `systemctl --user show <unit> -p DropInPaths -p <Setting>`.
 
 ```bash
-# Prove one run in the user manager's environment, not the login shell's; returns the job's exit status:
+# Test inside the user manager's clean environment (returns exit status):
 systemd-run --user --wait --pipe --collect -p WorkingDirectory="$HOME/projects/example" -- "$HOME/.local/bin/mise" run report
 systemd-analyze --user verify report.service report.timer
 systemd-analyze calendar '*-*-* 09:00:00 Europe/Paris'
-# After authorization and deployment of these definitions:
+# After authorization and deployment:
 systemctl --user daemon-reload
 systemctl --user enable --now report.timer
 systemctl --user list-timers --all report.timer
@@ -48,6 +46,4 @@ systemctl --user show report.service -p Result -p ExecMainStatus -p ExecMainStar
 journalctl --user -u report.service -n 50 --no-pager
 ```
 
-Verify the expected application result for the same run. Test missing environment, nonzero exit, timeout, and lock contention with a harmless fixture before relying on unattended operation. A timer does not restart an already-active target service, but separate entry points still need the application's lock.
-
-To stop an authorized job, use `systemctl --user disable --now report.timer`; this does not stop an active service. Inspect it, then use `systemctl --user stop report.service` when cancellation is in scope and reconcile any in-flight effect. Avoid automatic restarts of uncertain writes.
+Test missing env, nonzero exit, timeout, and lock contention on a safe fixture (timers skip already-active target services, but manual invocations still need an app lock). `systemctl --user disable --now report.timer` stops future triggers without killing an active `report.service`; inspect first and run `systemctl --user stop report.service` only within cancellation scope.

@@ -5,7 +5,6 @@ import base64
 import html
 import importlib.util
 import math
-import mimetypes
 import re
 import subprocess
 import sys
@@ -15,7 +14,15 @@ from types import ModuleType
 
 # Reuse the diagrams-as-code Chrome discovery and isolated screenshot; it sits beside this package in the catalog.
 SVG_CHECKER = Path(__file__).resolve().parents[2] / "diagrams-as-code/references/svg/scripts/check_svg.py"
-KINDS = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
+MIME_TYPES = {
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+KINDS = set(MIME_TYPES)
 LIMIT = 15 * 1024 * 1024  # Keep the sheet small enough to send or open anywhere.
 NUMBER = re.compile(r"^v(\d+)", re.IGNORECASE)
 COLUMNS = 3
@@ -62,7 +69,7 @@ def sheet(folder: Path, title: str, items: list[tuple[str, Path]] | None = None)
         )
     figures = []
     for label, path in items:
-        kind = "image/svg+xml" if path.suffix.lower() == ".svg" else mimetypes.guess_type(path.name)[0]
+        kind = MIME_TYPES[path.suffix.lower()]
         source = f"data:{kind};base64,{base64.b64encode(path.read_bytes()).decode()}"
         image = f'<img src="{source}" alt="{html.escape(path.name)}">'
         figures.append(

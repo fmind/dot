@@ -1,8 +1,14 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
-# Skills removed or merged on 2026-11-07 (skill review). List a name only while it is still this
+.config/duckdb/fmind.duckdbrc
+{{- $duckdbDir := joinPath $.chezmoi.destDir ".config/duckdb" }}
+{{- $duckdbInfo := lstat $duckdbDir }}
+{{- if and $duckdbInfo (eq $duckdbInfo.type "dir") (has (output "ls" "-A" $duckdbDir | trim) (list "" "fmind.duckdbrc")) }}
+.config/duckdb
+{{- end }}
+# Skills merged in this release (2026-11-10). List a name only while it is still this
 # checkout's link, so apply never deletes a same-named package installed by another tool.
-{{- range list "agent-usage" "ai-red-team" "cli-development" "course-development" "fact-check" "github-issues" "github-pull-request" "github-repository" "implementation-plan" "production-readiness" "quality-assurance" "repository-history" "repository-review" "smoke" "systematic-debugging" "system-prompts" }}
-{{-   $path := joinPath $.chezmoi.homeDir ".agents/skills" . }}
+{{- range list "dprint" "google-developer" "mcp-setup" }}
+{{-   $path := joinPath $.chezmoi.destDir ".agents/skills" . }}
 {{-   $info := lstat $path }}
 {{-   if and $info (eq $info.type "symlink") }}
 {{-     if eq (output "readlink" $path | trim) (joinPath $.chezmoi.sourceDir "skills" .) }}

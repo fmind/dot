@@ -5,22 +5,22 @@ description: "Google agent scaffolding, lifecycle, and official skill discovery.
 
 # Agents CLI
 
-Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Google Cloud; [google-adk](../google-adk.md) owns Python ADK implementation inside that project.
+Scaffold, run, evaluate, and deploy Google Cloud agents with `agents-cli`; [google-adk](../google-adk.md) owns Python ADK code inside the project.
 
 ## Workflow
 
-1. **Install only the Python CLI**: inspect its current contract before scaffolding. Keep the compatible release pin aligned with the upstream skills you review. Since 1.9.0 its usage telemetry is on by default (command metadata goes to the GCP project and Google); the workstation mise environment sets `AGENTS_CLI_TELEMETRY=0`, so keep it off elsewhere too unless the user opts in. `agents-cli info` shows the state.
+1. **Install the Python CLI with patched overrides**: align the release pin with reviewed upstream skills. While `google-agents-cli==1.13.0` caps `pyopenssl<26.2` (`cryptography<48`) and `litellm<1.97.0` upstream (4 HIGH CVEs), pass `--override` (or `[tool.uv] override-dependencies = ["cryptography>=50.0.0", "litellm>=1.100.4"]` in project `pyproject.toml`) rather than installing unpatched wheels globally. Usage telemetry defaults on since 1.9.0 (sending command metadata to the GCP project and Google); workstation mise sets `AGENTS_CLI_TELEMETRY=0`—keep it off elsewhere unless opted in (`agents-cli info` shows state).
    ```bash
-   uv tool install "google-agents-cli~=1.13.0"
+   uv tool install --override <(printf 'cryptography>=50.0.0\nlitellm>=1.100.4\n') "google-agents-cli==1.13.0"
    agents-cli --version
    agents-cli --help
    ```
-1. **Review official skills before use**: list the bundle and read each selected snapshot without installing it.
+1. **Review official skills before use**: list the bundle and inspect each snapshot without installing.
    ```bash
    DISABLE_TELEMETRY=1 skills add google/agents-cli --list
    DISABLE_TELEMETRY=1 skills use <snapshot> --skill <name>
    ```
-1. **Default to the full ADK scaffold**: Agent Runtime, Gateway-ready image, BigQuery analytics, GitHub Actions, Terraform and `AGENTS.md`. The CLI creates the project directory; `--skip-checks --yes` avoids interactive cloud setup. Rehearse in a fresh temporary directory using [scaffold qualification](references/scaffold-qualification.md) when the CLI version or option set changes.
+1. **Default to the full ADK scaffold** (Agent Runtime, Gateway-ready image, BigQuery analytics, GitHub Actions, Terraform, `AGENTS.md`): `--skip-checks --yes` skips interactive cloud setup. Rehearse in a temp directory per [scaffold qualification](references/scaffold-qualification.md) when the CLI version or flags change.
    ```bash
    agents-cli create <name> --agent adk_python \
      --agent-guidance-filename AGENTS.md --agent-gateway --bq-analytics \
@@ -30,9 +30,9 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
    DISABLE_TELEMETRY=1 skills add <snapshot> --skill <name> -y
    DISABLE_TELEMETRY=1 skills list
    ```
-   Running `skills add` after `cd` keeps the reviewed skill project-scoped; use the immutable reviewed snapshot per the vendor policy. Use `--prototype` only when the user requests the reduced scaffold; `--adk` create quickstart also forces prototype mode. Existing projects retain their accepted architecture: [enhance them in place](references/scaffold-qualification.md#checklist) rather than replacing them with these new-project defaults, and move one to a newer CLI release with `agents-cli scaffold upgrade --dry-run` and a reviewed 3-way merge instead of regenerating it.
-1. **Implement with [google-adk](../google-adk.md) in the generated app**: keep `agent.py`, `fast_api_app.py`, `agents-cli-manifest.yaml`, and the generated tests. Define type-hinted tools with narrow permissions and explicit error contracts; keep prompts and model choices in reviewable source.
-1. **Test offline before a smoke prompt**: run code checks and offline tests. Importing `app.agent` with `GOOGLE_CLOUD_PROJECT` set can create a BigQuery dataset ([cloud effects](references/scaffold-qualification.md#checklist)); mock external clients and isolate credentials, because preparing a full scaffold does not authorize those cloud writes.
+   Running `skills add` inside `<name>` keeps the immutable reviewed snapshot project-scoped. Use `--prototype` only on request (`--adk` quickstart also forces it). Keep existing projects' architecture: [enhance in place](references/scaffold-qualification.md#checklist), and upgrade CLI releases via `agents-cli scaffold upgrade --dry-run` plus a reviewed 3-way merge rather than regenerating.
+1. **Implement with [google-adk](../google-adk.md)**: preserve `agent.py`, `fast_api_app.py`, `agents-cli-manifest.yaml`, and generated tests. Give tools strict types, narrow permissions, and explicit error contracts; keep prompts and model pins in source.
+1. **Test offline first**: importing `app.agent` with `GOOGLE_CLOUD_PROJECT` set can create a BigQuery dataset ([cloud effects](references/scaffold-qualification.md#checklist)), so mock external clients and isolate credentials—scaffolding does not authorize cloud writes.
    ```bash
    agents-cli install --locked
    agents-cli lint
@@ -40,29 +40,26 @@ Use Google’s `agents-cli` to scaffold, run, evaluate, and deploy agents on Goo
    # Explicitly authorized provider smoke test:
    agents-cli run "hello"
    ```
-1. **Evaluate behavior**: run `agents-cli eval run --dataset <versioned-cases.json> --output <results-dir>` for the immutable baseline and the candidate, then diff their `results_<timestamp>.json` files offline with `agents-cli eval compare <baseline.json> <candidate.json>`. `eval run` calls the model and grades through the Eval Service in the GCP project, so it needs the same authorization as a provider smoke test. Since 1.13, `eval run` and `eval grade` exit 1 when any case errored (lower `--qps` for rate limits) or a metric misses a config `thresholds:` entry or `--fail-under METRIC=SCORE`, so gate CI on the exit code.
-1. **Instrument the candidate**: use OpenTelemetry traces and structured logs per [observability](../../../python-stack/references/observability.md). Exclude prompt, completion, secret, and personal data bodies unless a reviewed policy explicitly permits them. Export from `agents-cli run` or `playground` only when authorized, with `--otel-to-cloud`.
-1. **Review deployment first**: from the intended project's directory, preview a target with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run` (add `--no-agent-gateway` for `cloud_run` or `gke`; the gateway flag is Agent Runtime-only), inspect generated infrastructure and IAM (its Terraform requires 1.11 or later; new projects run Agent Runtime agents (since 1.10) and Cloud Run services (since 1.13) under their own Agent Identity principal, so review that principal or pass `--agent-runtime-identity-default service_account` or `--cloud-run-identity-default service_account` at create), check an Agent Runtime or (since 1.12) Cloud Run target with the read-only `agents-cli deploy --dry-run` (APIs, IAM, `actAs`, secrets; exit 1 on a failed check), then run `agents-cli deploy` only with explicit deployment approval; an Agent Runtime deploy of an A2A agent also registers its card in Agent Registry, which lists it in Gemini Enterprise. Verify the deployed agent through `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
+1. **Evaluate behavior**: run `agents-cli eval run --dataset <versioned-cases.json> --output <results-dir>` on baseline and candidate (requires provider/GCP Eval Service authorization), then diff offline with `agents-cli eval compare <baseline.json> <candidate.json>`. Since 1.13, `eval run` and `eval grade` exit 1 on case errors (lower `--qps` on rate limits), config `thresholds:` misses, or `--fail-under METRIC=SCORE`; gate CI on the exit code.
+1. **Instrument**: wire OpenTelemetry traces and structured logs per [observability](../../../python-stack/references/observability.md), omitting prompt, completion, secret, and PII bodies unless policy permits; pass `--otel-to-cloud` on `run` or `playground` only when authorized.
+1. **Preview and gate deployment**: from the project root, preview with `agents-cli scaffold enhance . --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run` (pass `--no-agent-gateway` on `cloud_run`/`gke`). Inspect Terraform (1.11+) and IAM: Agent Runtime (1.10+) and Cloud Run (1.13+) default to an Agent Identity principal unless created with `--agent-runtime-identity-default service_account` or `--cloud-run-identity-default service_account`. Run read-only `agents-cli deploy --dry-run` (Agent Runtime or, since 1.12, Cloud Run: checks APIs, IAM, `actAs`, secrets; exits 1 on failure), deploy only with explicit approval (A2A Agent Runtime deploys also register the card in Agent Registry / Gemini Enterprise), and verify via `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
 
 ## Gotchas
 
-- **Do not run `agents-cli setup`**: it installs skills globally by default. Use `uv tool install` for the Python CLI and the reviewed `skills` commands above for project-scoped skill installation.
-- **Never run `agents-cli login`**: since 1.13 it runs `gcloud auth login --update-adc`, which replaces ADC without the configured scopes and switches gcloud's active account; interactive `create` without `--skip-checks` offers the same login. Use `dot login gcp`.
-- **Extensions ship skills too**: since 1.10, `agents-cli extension add` copies an extension's skills into `.agents/skills/` (`--global`: the shared `~/.agents/skills/`), and `agents-cli install` restores them for every recorded extension. Review them per the vendor policy before adding an extension and never pass `--global`; since 1.13, extensions from `google/agents-cli`, `google/adk-recipes`, and `google/agents-cli-extensions` install without a trust prompt, pinned to a release, so the review is the only gate. Since 1.11, pass a recipe's GitHub URL to `agents-cli create`. Since 1.12, the Python template is `adk_python` (`adk` remains an alias), and projects that record it need agents-cli 1.12 or later to enhance or upgrade.
-- **Fix scaffold quality gaps**: apply the [generated Python profile](references/scaffold-qualification.md#generated-python-profile) to tests, type ignores, and prerelease dependencies before accepting the generated lock.
-- **Preserve scaffold choices**: do not silently change its model, deployment target, session service, or generated layout while implementing a feature.
-- **Full means selected features**: `--deployment-target` accepts `agent_runtime`, `cloud_run`, `gke`, or `none`; `--session-type` belongs to the `cloud_run` and `gke` container targets, so omit it for Agent Runtime, which manages sessions internally ([session selection](references/scaffold-qualification.md#checklist)).
-- **Gateway-ready is not routed**: `--agent-gateway` only adds the gateway's root-CA trust to the image. Routing egress needs an authorized `agents-cli deploy --agent-gateway-egress <gateway>` naming an existing gateway with `governedAccessPath=AGENT_TO_ANYWHERE`. Review deployment flags, IAM, analytics content collection and retention before an authorized deployment.
-- **Use ADC**: use ADC locally and in production per [model-providers](../../../model-providers/SKILL.md), with a narrow runtime service account; use an AI Studio key only when explicitly requested.
-- **Pin a named model**: avoid `-latest`; use a dated snapshot when reproducibility matters and document the reason for the chosen tier per [model-providers](../../../model-providers/SKILL.md#workflow).
-- **Protect public agents**: store secrets in Secret Manager, constrain tools, and add reviewed input and output controls per [threat-model](../../../code-security/references/threat-model.md).
+- **Never run `agents-cli setup`**: it installs skills globally; use `uv tool install --override` and project-scoped `skills add` above.
+- **Never run `agents-cli login`**: since 1.13 it runs `gcloud auth login --update-adc`, dropping configured ADC scopes and switching gcloud's active account (interactive `create` without `--skip-checks` offers it too). Use `dot login gcp`.
+- **Vet extension skills**: `agents-cli extension add` (1.10+) copies skills to `.agents/skills/` (`--global` targets `~/.agents/skills`; never pass it), and `agents-cli install` restores them. Since 1.13, `google/agents-cli`, `google/adk-recipes`, and `google/agents-cli-extensions` skip trust prompts when release-pinned—review per [vendor-skill policy](../../../agent-project/references/vendor-skills.md) first. `agents-cli create` accepts recipe GitHub URLs (1.11+); `adk_python` (1.12+, `adk` alias) requires 1.12+ to enhance or upgrade.
+- **Fix scaffold quality gaps**: apply the [generated Python profile](references/scaffold-qualification.md#generated-python-profile) before accepting the lock, without silently altering chosen model, target, session service, or layout.
+- **Target-specific flags**: `--deployment-target` takes `agent_runtime`, `cloud_run`, `gke`, or `none`; omit `--session-type` on `agent_runtime`, which manages sessions internally ([session selection](references/scaffold-qualification.md#checklist)).
+- **Gateway-ready is not routed**: `--agent-gateway` only adds root-CA trust. Egress routing requires authorized `agents-cli deploy --agent-gateway-egress <gateway>` on a gateway with `governedAccessPath=AGENT_TO_ANYWHERE`; review IAM and analytics collection/retention before deploying.
+- **Auth, models, and security**: use ADC with a narrow runtime SA and pin dated/named models per [model-providers](../../../model-providers/SKILL.md#workflow) (AI Studio keys only on request; avoid `-latest`); store secrets in Secret Manager and harden public agents per [threat-model](../../../code-security/references/threat-model.md).
 
 ## Official Skills
 
-Upstream: `google/agents-cli`, with separate workflow, scaffold, ADK code, evaluation, deployment, publishing, and observability selections. Use the commands above within the shared [vendor-skill policy](../../../agent-project/references/vendor-skills.md).
+Upstream `google/agents-cli` bundles workflow, scaffold, ADK, eval, deploy, publish, and observability skills; install project-scoped per [vendor-skill policy](../../../agent-project/references/vendor-skills.md).
 
 ## Documentation
 
 - [ADK](https://adk.dev/) · [google/agents-cli](https://github.com/google/agents-cli) · [Agent Runtime](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale)
 - Releases: [agents-cli](https://github.com/google/agents-cli/releases)
-- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [observability](../../../python-stack/references/observability.md), [cloud-run](../../../cloud-run/SKILL.md), [Google catalog](../../../google-developer/SKILL.md), [system-prompts](../system-prompts.md).
+- Companion skills: [python-stack](../../../python-stack/references/foundation/GUIDE.md), [observability](../../../python-stack/references/observability.md), [cloud-run](../../../cloud-run/SKILL.md), [google-developer](../../../gcloud/references/google-developer.md), [system-prompts](../system-prompts.md), [model-providers](../../../model-providers/SKILL.md).

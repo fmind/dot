@@ -1,35 +1,33 @@
 # Verify a Published Release
 
-Use after publication, including when a workflow or another person created the release. Verification only reads and downloads public assets into a disposable directory; it never edits a release, moves a tag, or replaces an asset.
+Read-only post-publication audit (never edits releases, moves tags, or re-uploads assets).
 
-1. **Resolve the expected identity**: take it from the approved candidate, not from the latest branch state:
+1. **Pin expected identity** from the approved candidate (not current `main`):
 
    ```bash
    repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
    tag=vX.Y.Z
-   release_sha=$(git rev-parse HEAD)   # from the approved candidate checkout
+   release_sha=$(git rev-parse HEAD)
    ```
 
-1. **Reconcile the remote tag**: an annotated tag lists its tag object and a peeled `^{}` line; compare the peeled commit to `release_sha`, the first line is not the release commit:
+1. **Check the peeled remote tag** (`refs/tags/$tag^{}` must match `release_sha`; the unpeeled line is the tag object):
 
    ```bash
    git ls-remote --exit-code --tags origin "refs/tags/$tag" "refs/tags/$tag^{}"
    ```
 
-1. **Inspect the release state**: tag, draft and prerelease flags, publication time, assets, immutability, URL; `targetCommitish` may only name `main` and does not replace the peeled-tag check:
+1. **Inspect release metadata** (`targetCommitish` may say `main` and never substitutes for the peeled tag check):
 
    ```bash
    gh release view "$tag" -R "$repo" --json tagName,name,isDraft,isPrerelease,isImmutable,publishedAt,targetCommitish,assets,url
    ```
 
-1. **Prove exact-head automation**: every expected workflow at `release_sha` is present, completed, and successful; a green latest-branch run is not proof:
+1. **Confirm exact-commit workflows** all completed green on `release_sha`:
 
    ```bash
    gh run list -R "$repo" --commit "$release_sha" --limit 100 --json workflowName,attempt,headSha,status,conclusion,event,url
    ```
 
-1. **Verify published assets**: check checksums, release attestations, and build provenance per [verify-assets](verify-assets.md); anything missing is a failed proof, not permission to regenerate it.
-1. **Verify the delivered boundary**: run the packaged binary or installation contract and confirm its version; [containerize](../../../../docker/references/containerize/GUIDE.md) covers digest-bound OCI, Cosign, and SBOM checks.
-1. **Report a release receipt**: the highest proven rung of the [proof ladder](../../../../full-review/SKILL.md#proof-ladder), plus:
-   - Expected commit, remote tag object and peeled commit, workflow names and URLs.
-   - Release URL and state, expected versus downloaded assets, checksum and attestation results, packaged version.
+1. **Verify assets and attestations** per [verify-assets](verify-assets.md).
+1. **Smoke-test the shipped artifact** and its reported version ([containerize](../../../../docker/references/containerize/GUIDE.md) for `@sha256:` OCI, Cosign, and SBOM checks).
+1. **Report receipt**: highest proven rung on the [proof ladder](../../../../full-review/SKILL.md#proof-ladder), `release_sha`, tag object + peeled SHA, workflow URLs, release URL/state, asset/checksum/attestation results, and verified artifact version.

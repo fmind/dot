@@ -194,6 +194,7 @@ def render_mermaid_png(mermaid_code: str, out_png: Path, scale: float = 2, max_w
         mmd_file = Path(tmp) / "diagram.mmd"
         mmd_file.write_text(mermaid_code.strip() + "\n", encoding="utf-8")
         env = {**os.environ, "PUPPETEER_EXECUTABLE_PATH": chrome_bin}
+        width = 0
         for _ in range(3):  # the width is known only after a render; padding can need one more pass
             out_png.unlink(missing_ok=True)
             proc = subprocess.run(  # noqa: S603 - fixed CLI command and local temp paths
@@ -316,6 +317,8 @@ def compile_markdown(
             if svg_rel.startswith(NON_LOCAL_PREFIXES):
                 continue  # the dialect check below rejects it as unsupported
             svg_path = (base_dir / svg_rel).resolve()
+            if not svg_path.is_relative_to(base_dir.resolve()):
+                raise ValueError(f"SVG path escapes document directory: {svg_rel}")
             svg_problems = check_svg(svg_path, expected_width=svg_width)
             if svg_problems:
                 raise ValueError("; ".join(svg_problems))
@@ -409,7 +412,11 @@ def run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
     if idx == -1:
         msg = f"gws {' '.join(args[:3])}: expected JSON object on stdout"
         raise RuntimeError(msg)
-    data = json.loads(out[idx:])
+    try:
+        data = json.loads(out[idx:])
+    except json.JSONDecodeError as exc:
+        msg = f"gws {' '.join(args[:3])}: invalid JSON output ({exc})"
+        raise RuntimeError(msg) from exc
     if not isinstance(data, dict):
         msg = f"gws {' '.join(args[:3])}: expected a JSON object"
         raise RuntimeError(msg)
@@ -509,7 +516,9 @@ def _upsert_drive_file(
     fields = "id,name,mimeType,version,modifiedTime,webViewLink"
     # gws rejects --upload paths outside its working directory, so stage the file in the run's gws
     # directory and upload it by bare name from there, like every other gws call of the run.
-    shutil.copyfile(local_path, gws_dir / local_path.name)
+    staged = gws_dir / local_path.name
+    if staged.resolve() != local_path.resolve():
+        shutil.copyfile(local_path, staged)
     upload = ["--upload", local_path.name, "--upload-content-type", content_type]
     if target_id:
         valid_id = _validate_drive_id(target_id, "file ID")
@@ -757,6 +766,8 @@ def main(argv: list[str] | None = None) -> int:
                     if source.name.endswith(".src.md")
                     else f"{source.stem}.gdoc.md"
                 )
+                if out_path.resolve() == source.resolve():
+                    raise ValueError(f"Output path must differ from source Markdown: {out_path}")
                 # One private directory for every gws call of this run: see upload_to_drive.
                 with tempfile.TemporaryDirectory(prefix="draft-doc-") as tmp:
                     gws_dir = Path(tmp)

@@ -1,22 +1,22 @@
 ---
 name: python-stack
-description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest, async, HTTPX, argparse and CLI contracts, observability, LangExtract, debugging, profiling, benchmarks."
+description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest, async, HTTPX, CLIs, and profiling."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Python Stack
 
-Maintain a small typed Python foundation: use the standard library when it fits, and proven packages when they remove real code or risk — never reinvent the wheel or add a low-value dependency. Preserve the existing environment and conventions rather than restarting a scaffold for every feature.
+Maintain a lean, strictly typed Python foundation: stdlib first for plumbing, proven packages only when they remove real code or risk, and existing project conventions preserved in place.
 
 ## Workflow
 
-Read only the matching guide and its required resources. Dataframe code in any profile, scripts included, defaults to [Polars](../python-mlops/references/polars.md). The [cli-contracts](references/cli-contracts.md) guide applies to any CLI, whatever its language. A request to diagnose, debug, or profile authorizes investigation, not fixes: observe read-only, reproduce in an isolated temporary directory, and change product code only when the user also asks for a fix.
+Read only the matching guide and its required resources. Dataframe code defaults to [Polars](../python-mlops/references/polars.md); [cli-contracts](references/cli-contracts.md) applies to CLIs in any language. Requests to diagnose, debug, or profile authorize read-only observation and isolated reproduction — modify product code only when asked for a fix.
 
 ## Task guides
 

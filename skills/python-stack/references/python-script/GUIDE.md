@@ -5,28 +5,16 @@ description: "Standalone single-file utilities with PEP 723 inline metadata run 
 
 # PEP 723 Standalone Python Scripts
 
-Single-file Python CLI scripts with inline dependency metadata (PEP 723) run by `uv run`; uv manages the environment without a `pyproject.toml` or manual virtualenv setup. Stay on the standard library where it is enough: a script with `dependencies = []` starts at once and has nothing to audit. A script that needs reusable modules moves to [foundation](../foundation/GUIDE.md).
+Single-file CLIs with inline `# /// script` metadata executed via `uv run --script`. Prefer `dependencies = []` (instant startup, zero supply chain); promote to [foundation](../foundation/GUIDE.md) past ~200 lines or a second module, and keep agent scratch scripts in `.agents/tmp/`.
 
 ## Workflow
 
-1. **Start from the template**: copy [script.py](templates/script.py); its shebang (`#!/usr/bin/env -S uv run --quiet --script`) and `# /// script` block declare `requires-python` and `dependencies` (empty in the template; add lower bounds as the script needs packages).
-1. **Parse arguments with argparse**: declare each argument with help text, a `metavar`, and a `type` that rejects bad input, and apply the [CLI defaults](../cli-contracts.md#defaults-for-new-clis). The template stays a single command with `-h` / `--help` and a `--version` that works without an input file. Packaged toolboxes use the explicit-group [argparse starter](../argparse/references/bootstrap.md).
-1. **Render values literally**: stdout carries results and stderr carries progress/errors. Write plain text so external paths and names print unchanged; a script that adds Rich must disable markup, highlighting, and emoji conversion on its consoles.
-1. **Handle errors at the boundary**: catch failures around application work, give specific sanitized recovery advice for expected errors, and return exit status 1 (the template raises `SystemExit(1) from error`, which prints no traceback). Keep usage checks in the parser, outside the protected operation. Never print raw exception messages or tracebacks by default, per the [error contract](../cli-contracts.md#defaults-for-new-clis). `--verbose` adds progress only; add opt-in diagnostic tracebacks only with a tested redaction policy.
-1. **Run**: `chmod +x script.py && ./script.py input.txt`, or `uv run script.py input.txt`; uv resolves and caches the dependencies on first run.
-1. **Lock a durable script**: `uv lock --script script.py`, then `uv run --locked --script script.py`; lower bounds alone are not reproducible. Audit it with `uv audit --preview-features audit-command --locked --script script.py`; exit 1 means findings or a missing lock.
-1. **Lint and type-check**: `ruff check script.py`, `uv sync --script script.py`, then `ty check --python "$(uv python find --script script.py)" script.py`; without `--python`, ty cannot resolve the script's dependencies.
-1. **Verify the interface**: run help and version without inputs; check usage errors, stdout/stderr separation, bracket-containing paths, and sanitized failures with verbosity both enabled and disabled. Add JSON and non-interactive cases only when those features exist.
-
-For recurring execution of the finished command, use [scheduled-jobs](../../../scheduled-jobs/SKILL.md); keep scheduling outside the script.
-
-## Gotchas
-
-- **Keep agent scratch scripts together**: they live in `.agents/tmp/`.
-- **Outgrow one file into a project**: past ~200 lines or a second module, switch to a full project.
+1. **Template**: start from [script.py](templates/script.py) (`#!/usr/bin/env -S uv run --quiet --script`, `requires-python`, `dependencies`), adding lower bounds only when needed; multi-command toolboxes use [argparse bootstrap](../argparse/references/bootstrap.md).
+1. **CLI & output**: parse with `argparse` (`metavar`, validating `type`, eager `-h`/`--help` and `--version`) per [CLI defaults](../cli-contracts.md#defaults-for-new-clis). Emit results on stdout and diagnostics on stderr as literal text (if Rich is added, disable markup, highlighting, and emoji on consoles).
+1. **Sanitized errors**: keep usage errors in the parser (exit `2`); catch operational failures, print specific redacted recovery advice to stderr, and `raise SystemExit(1) from error` (no raw exception strings/tracebacks by default; `--verbose` adds progress only).
+1. **Run, lock, & audit**: execute via `chmod +x script.py && ./script.py input.txt` or `uv run script.py input.txt`. Lock durable scripts with `uv lock --script script.py`, run with `uv run --locked --script script.py`, and scan via `uv audit --preview-features audit-command --locked --script script.py` (schedule externally via [scheduled-jobs](../../../scheduled-jobs/SKILL.md)).
+1. **Lint, type-check, & test**: run `ruff check script.py`, `uv sync --script script.py`, and `ty check --python "$(uv python find --script script.py)" script.py`, then test `--help`/`--version` without inputs, exit `2` usage errors, stream separation, bracketed paths, and redacted errors.
 
 ## Documentation
 
-- [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [argparse](https://docs.python.org/3/library/argparse.html)
-- Releases: [uv](https://github.com/astral-sh/uv/releases) · [changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
-- Companion guides: [foundation](../foundation/GUIDE.md) (full projects), [uv](../uv.md) (script and lock modes), [cli-contracts](../cli-contracts.md) (flags, streams, exit codes).
+- [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [argparse](https://docs.python.org/3/library/argparse.html) · [uv releases](https://github.com/astral-sh/uv/releases) ([changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)) · Companions: [foundation](../foundation/GUIDE.md), [uv](../uv.md), [cli-contracts](../cli-contracts.md).

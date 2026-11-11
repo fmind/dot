@@ -5,25 +5,16 @@ description: "Type diagnostics and environment resolution."
 
 # ty
 
-Use ty for Python static typing; [foundation](foundation/GUIDE.md) owns the common project configuration.
+Python static type checking with Astral `ty`; [foundation](foundation/GUIDE.md) owns baseline `[tool.ty]` config.
 
 ## Workflow
 
-1. **Add ty only when missing**: use `uv add --dev "ty>=<latest>,<0.1"` to keep the foundation's pre-1.0 range; plain `uv add` writes an unbounded floor. Run `uv run ty check` through the project environment; narrow a diagnostic with `uv run ty check <path>` before changing code.
-1. **Check the environment before annotations**: for unresolved imports, verify the interpreter, installed dependencies, source roots, and type stubs before changing annotations.
-1. **Adopt ty on legacy code with a baseline**: when an existing project starts gating on ty with many diagnostics, propose a preview baseline (ty 0.0.93+): set `[tool.ty] baseline = "ty-baseline.json"`, run `ty check --update-baseline` once, and commit the file. Entries match by file, rule, and column span, not line, so a new diagnostic shaped like a fixed one can pass: rerun `--update-baseline` after each fix and accept only diffs that delete entries.
+1. **Install bounded pre-1.0 range**: `uv add --dev "ty>=<latest>,<0.1"`, then run `uv run ty check [<path>]`.
+1. **Verify env before editing types**: on `unresolved-import`, check Python version, `.venv` packages, `src/` roots, and PEP 561 stubs first.
+1. **Legacy baseline (`0.0.93+`)**: set `[tool.ty] baseline = "ty-baseline.json"`, run `ty check --update-baseline` once, and commit. Baseline entries match file + rule + column span (not line), so rerun `--update-baseline` after fixes and accept only entry-deleting diffs.
 
-## Gotchas
+## Gotchas & Upstream Skill
 
-- **Know ty's configuration precedence**: ty takes the Python version from `[tool.ty.environment].python-version` (`major.minor` only), else the minimum of `project.requires-python`; a `ty.toml` replaces the whole `[tool.ty]` section.
-- **Suppress with `# ty: ignore[rule-name]` on the offending line**: the foundation sets `blanket-ignore-comment = "error"`, a bare `# type: ignore` hides every ty diagnostic on its line, and mypy codes such as `[assignment]` hide nothing. Warnings, including `unused-ignore-comment`, fail `ty check`; never pass `--exit-zero-on-warning`. Never clear a gate with `--add-ignore` (it writes ignores, then prints `All checks passed!`) or with an `--update-baseline` that adds entries.
-- **Standalone installs skip the LSP configuration**: standalone skill installation does not install Astral's Claude LSP configuration.
-
-## Official Skills
-
-Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins), `plugins/astral/skills/ty`, selection `ty`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) and compare this local guide before installation.
-
-## Documentation
-
-- [ty documentation](https://docs.astral.sh/ty/) · [Skills CLI](https://skills.sh/docs/cli)
-- Releases: [ty](https://github.com/astral-sh/ty/releases)
+- **Config precedence**: `[tool.ty.environment].python-version` (`major.minor`) > `project.requires-python` floor; standalone `ty.toml` overrides the entire `[tool.ty]` table.
+- **Rule-scoped suppressions only**: use `# ty: ignore[rule-name]` (`blanket-ignore-comment = "error"` rejects bare `# type: ignore`, and mypy codes like `[assignment]` do nothing). Warnings (`unused-ignore-comment`) fail `ty check` — never pass `--exit-zero-on-warning` or `--add-ignore`.
+- Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins) (`ty`, per [vendor-skills](../../agent-project/references/vendor-skills.md) · [Skills CLI](https://skills.sh/docs/cli); excludes Claude LSP config) · [ty docs](https://docs.astral.sh/ty/) · [Releases](https://github.com/astral-sh/ty/releases).

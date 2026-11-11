@@ -5,26 +5,18 @@ description: "Set GitHub repo description, homepage, topics, merge policy, and s
 
 # GitHub Repository
 
-Derive a repository's description, homepage, and topics from its codebase and apply the requested fields with `gh repo edit`. For a new solo-maintained repository or an explicitly requested settings pass, use the [settings baseline](references/settings-baseline.md); a metadata-only request does not include merge policy, sidebar features, or security settings.
+Set repository description, homepage, and topics via `gh repo edit` ([gh](../../SKILL.md)). Run the [settings baseline](references/settings-baseline.md) only for new solo-maintained repos or explicit settings passes, never on metadata-only requests.
 
 ## Workflow
 
-Use [gh](../../SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
-
-1. **Extract metadata** from the codebase:
-   - Project metadata: Python `pyproject.toml` (`[project]` name, description, and URLs).
-   - `README.md`: the first paragraphs give a one-line description under ~140 characters.
-   - Homepage: use the configured, verified canonical site; do not infer a live Pages site merely from the repository name.
-   - Topics: 3 to 6 lowercase tags for language, frameworks, tools, or domain (`agent`, `python`, `cli`); letters, numbers, and hyphens only, 50 characters max, 20 per repository.
-1. **Inspect the current state** so the edit stays idempotent; stop when there is no GitHub remote or `gh` is not authenticated. Shell variables do not persist between agent tool calls, so run this step and the edit as one script:
+1. **Derive metadata from code**:
+   - `pyproject.toml` `[project]` name, description, and URLs; `README.md` lead for a single-line description under ~140 chars.
+   - Homepage: verified canonical URL only (never assume a Pages URL from the repo name).
+   - Topics: 3–6 lowercase `[a-z0-9-]` tags (`<=50` chars each, max 20) covering language, stack, or domain.
+1. **Read state and apply in one script** (shell variables do not persist across tool calls; remove old topics only when replacing the full set):
 
    ```bash
    state="$(gh repo view --json nameWithOwner,visibility,description,homepageUrl,repositoryTopics)"
-   ```
-
-1. **Build one scoped edit**: include only the requested metadata flags; add the desired topics and remove obsolete ones only when replacing the set:
-
-   ```bash
    repository="$(jq -r .nameWithOwner <<<"$state")"
    desired_topics=(tag1 tag2 tag3)
    args=(--description "<description>" --homepage "<homepage-url>")
@@ -32,19 +24,18 @@ Use [gh](../../SKILL.md) for account selection, repository identity without prin
    while IFS= read -r topic; do
      [[ " ${desired_topics[*]} " == *" $topic "* ]] || args+=(--remove-topic "$topic")
    done < <(jq -r '(.repositoryTopics // [])[].name' <<<"$state")
+   gh repo edit "$repository" "${args[@]}"
    ```
 
-1. **Apply** once with `gh repo edit "$repository" "${args[@]}"`.
-1. **Verify** with the same `gh repo view --json ...` fields and report the ones that changed.
-1. **Run the settings pass** only when settings are in scope: the [settings baseline](references/settings-baseline.md) script applies merge policy, sidebar features, secret scanning, Dependabot security updates, Actions hardening, immutable releases, and public-repository protection in its own run, then prints a read-back that covers fields `gh repo view` does not expose.
+1. **Verify**: re-read the same `gh repo view --json ...` fields and report changes.
+1. **Apply settings when requested**: run [settings-baseline.md](references/settings-baseline.md) for merge policy, sidebar features, secret scanning, Dependabot security updates, Actions hardening, immutable releases, and branch protection.
 
 ## Gotchas
 
-- **Avoid description truncation**: keep the description single-line and under ~140 characters or the GitHub UI truncates it.
-- **Change visibility only on request**: never pass `--visibility` or `--accept-visibility-change-consequences` unless the user explicitly asks.
+- **Keep descriptions single-line and <140 chars** to avoid GitHub UI truncation.
+- **Never change visibility unasked**: never pass `--visibility` or `--accept-visibility-change-consequences` without explicit instruction.
 
 ## Documentation
 
-- [gh repo edit manual](https://cli.github.com/manual/gh_repo_edit)
-- Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [pull-request](../pull-request.md) (PR titles feed the squash message), [project-license](../../../project-scaffolding/references/project-license/GUIDE.md) (LICENSE), [project-scaffolding](../../../project-scaffolding/references/bootstrap.md) (bootstrap).
+- [gh repo edit manual](https://cli.github.com/manual/gh_repo_edit) · [releases](https://github.com/cli/cli/releases)
+- Companion skills: [pull-request](../pull-request.md), [project-license](../../../project-scaffolding/references/project-license/GUIDE.md), [project-scaffolding](../../../project-scaffolding/references/bootstrap.md).

@@ -7,47 +7,45 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-11"
 ---
 
 # Google Colab CLI
 
-Use `colab` to inspect existing sessions or run work on an accelerator the workstation lacks. The official Colab skill documents every command; this skill owns provider selection, session hygiene, and the spend boundary.
+Inspect sessions or run accelerator workloads with `colab` (this connector owns auth selection, session hygiene, and spend authority; upstream's skill lists full command details).
 
 ## Authentication
 
-Pass the global `--auth adc` or `--auth oauth2` before every subcommand: CLI 0.7.5 defaults to OAuth, so do not rely on implicit defaults or upstream main. ADC reuses credentials from [gcloud](../gcloud/SKILL.md); for user ADC, run `dot login colab`, which requests the configured ADC grant only when it lacks the Colab scopes and verifies session access (`--dry-run` previews the native commands; the [authentication guide](../dot-cli/references/authentication.md#colab-adc) owns its scopes and semantics). Session state lives under `~/.config/colab-cli/`. Examples assume ADC; substitute `oauth2` for an existing OAuth profile.
+Always pass global `--auth adc` or `--auth oauth2` before subcommands (CLI 0.8.0 defaults to OAuth). ADC reuses [gcloud](../gcloud/SKILL.md) credentials; run `dot login colab` (`--dry-run` previews) to ensure Colab ADC scopes and verify session access ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)). State lives in `~/.config/colab-cli/`.
 
 ## Inspect without allocating
 
-Check `colab version` and installed help, then use `colab --auth adc sessions` and `colab --auth adc status`; they synchronize session metadata without allocating or stopping a VM. Check authentication diagnostics before interpreting an empty listing as success.
-
-Use `colab --auth adc usage` for compute-unit rate and balance; if it is unavailable, report a missing capability instead of allocating a VM. `colab pay` opens a purchase page and is not a balance query. Session inspection does not require `new`, `run`, `exec`, or `stop`.
+Check `colab version` and `--help`, then query `colab --auth adc sessions`, `status`, and `usage` (check stderr before trusting empty output; never run `colab pay`, which opens a purchase page, or `new`/`run`/`exec` just to inspect).
 
 ## Run accelerator work
 
-Follow this workflow only when remote execution is in scope; establish the authorized accelerator, duration, and budget before allocation.
+Confirm authorized accelerator, duration, and budget before allocating:
 
-1. **Prefer ephemeral runs for self-persisting scripts**: `colab run` rents a VM, runs the script, and attempts to release it. Save needed artifacts to an authorized durable destination before the script exits; local VM files disappear on release. Use an explicitly managed session when artifacts must be downloaded afterwards. A shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4 --timeout 3600` supports single-file execution per [python-script](../python-stack/references/python-script/GUIDE.md).
+1. **Prefer ephemeral `colab run`** for scripts that persist their own outputs externally (local VM files vanish on release; shebang `#!/usr/bin/env -S colab --auth adc run --gpu T4 --timeout 3600` works per [python-script](../python-stack/references/python-script/GUIDE.md)):
 
    ```bash
    colab --auth adc run --gpu T4 --timeout 3600 train.py
    ```
 
-1. **Keep a session only while iterating**: `colab --auth adc new -s <name> --gpu L4` (or `--tpu v6e1`), then `colab --auth adc exec -s <name> -f snippet.py --timeout 600`. Use `upload`, `download`, `ls`, `status`, and `log` with the same provider; verify and retrieve needed artifacts before stopping.
-1. **Stop what you started and verify release**: `colab --auth adc stop -s <name>`, then refresh `colab --auth adc sessions`; an idle session keeps consuming compute units. CLI 0.7.5's ephemeral cleanup suppresses release errors, so a successful `run` exit or “Session terminated” message is not release proof. Check authentication diagnostics and the backend listing before reporting cleanup complete.
+1. **Manage interactive sessions explicitly**: `colab --auth adc new -s <name> --gpu L4` (`--tpu v6e1`), `exec -s <name> -f snippet.py --timeout 600`, `upload`/`download`/`ls`/`status`/`log`, retrieving artifacts before teardown.
+1. **Stop and verify release**: run `colab --auth adc stop -s <name>` and recheck `colab --auth adc sessions`—ephemeral `run` suppresses release failures, so exit 0 or "Session terminated" does not prove the VM stopped billing.
 
 ## Gotchas
 
-- **Override the 30-second default**: `colab run` and `colab exec` abort code execution after 30 seconds unless `--timeout <seconds>` covers the whole job.
-- **Let Colab pick the kernel client**: google-colab-cli 0.7.5 pins `jupyter-kernel-client==0.9.0`; let Colab select its compatible client instead of adding a conflicting mise `with` override.
-- **Treat allocation side doors as spend**: `colab ssh` creates a VM when no session exists or the `-s` session is missing, and `colab run --keep` skips the release, so both need the same authority as `colab new`; `colab pay` opens the compute-units purchase page.
-- **Keep the client log private**: google-colab-cli 0.7.5 writes short-lived Google access tokens into `~/.config/colab-cli/colab.log` (mode 0644); never read it into context, attach it, or quote it, and count matches instead of printing lines when diagnosing.
-- **Treat the VM as disposable**: keep secrets off the session beyond what the task needs; use `colab drivemount` only when Drive data is required.
+- **Raise the 30s timeout**: `run` and `exec` abort at 30 s unless `--timeout <seconds>` covers the full run.
+- **Keep Colab's kernel client**: CLI 0.8.0 pins `jupyter-kernel-client==0.9.0`; do not override it via mise `with`.
+- **Guard allocation side doors**: `colab ssh` allocates a VM if the session is missing, and `colab run --keep` skips teardown—both require `colab new` spend authority.
+- **Never read `colab.log` into context**: CLI 0.8.0 creates `~/.config/colab-cli/colab.log` (`0600`) with token redaction, but pre-0.8 files (`0644`) and unredacted URLs can still linger; count matches if diagnosing, never print or quote lines.
+- **Disposable VMs**: pass minimal task secrets and run `colab drivemount` only when Drive access is required.
 
 ## Official Skills
 
-Upstream: `googlecolab/google-colab-cli`, the same source `colab skill` prints. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and select only the Colab workflow needed by the project.
+Upstream: `googlecolab/google-colab-cli` (`colab skill`), reviewed and scoped per [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 

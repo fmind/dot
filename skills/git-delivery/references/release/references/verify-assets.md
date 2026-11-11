@@ -1,6 +1,6 @@
 # Verify Release Assets
 
-Download the expected inventory into a fresh temporary directory, verify the repository's checksum manifest, then verify integrity and provenance where the release publishes attestations.
+Download assets into a fresh temp directory and verify the checksum manifest, immutable release attestations, and build provenance:
 
 ```bash
 release_dir=$(mktemp -d)
@@ -14,7 +14,6 @@ gh release verify-asset "$tag" "$release_dir/$asset" -R "$repo"
 gh attestation verify "$release_dir/$asset" --repo "$repo" --signer-workflow "$signer_workflow" --source-ref "refs/tags/$tag" --source-digest "$release_sha"
 ```
 
-- **Release verification needs immutable releases**: `gh release verify` and `gh release verify-asset` apply only to immutable releases with release attestations; generated source archives cannot be verified as uploaded assets.
-- **Verify the checksum manifest first**: check the manifest itself before trusting its entries.
-- **Verify separate build provenance**: run `gh attestation verify` when separate build provenance exists, with the expected signer workflow.
-- **Treat missing proof as failure**: missing assets, checksums, attestations, or signer identity are a failed proof, not permission to regenerate or replace them.
+- **Immutable releases required**: `gh release verify` and `verify-asset` work only on immutable releases (auto-generated source tarballs are excluded).
+- **Verify `checksums.txt` before its entries**, and run `gh attestation verify` with `--signer-workflow` wherever build provenance is emitted.
+- **Fail closed**: missing assets, checksums, or attestations fail verification — never regenerate or replace published artifacts.

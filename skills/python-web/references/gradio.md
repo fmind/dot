@@ -5,26 +5,20 @@ description: "Gradio model demos and interactive interfaces."
 
 # Gradio
 
-Build Gradio apps around Python functions and explicit component events. Use [nicegui](nicegui.md) for an explicitly chosen general GUI and [marimo](../../python-mlops/references/marimo.md) for reactive notebooks; preserve the framework already selected by the project.
+Build Gradio model demos around Python functions and explicit component events; use [nicegui](nicegui.md) for general browser utilities and [marimo](../../python-mlops/references/marimo.md) for reactive notebooks, preserving existing project choices.
 
 ## Workflow
 
-1. **Start from the installed release**: inspect the project dependency model and installed version with `uv run python -c 'from importlib.metadata import version; print(version("gradio"))'`, without importing the framework. For a new packaged app, use `uv add gradio`; preserve PEP 723 metadata for an existing standalone script.
-1. **Choose the API from the official skill below**: prefer a single-screen `Interface` or `ChatInterface` over multi-tab `Blocks` unless distinct workflows require it, and place advanced parameters in a closed `gr.Accordion`.
-1. **Style through supported APIs**: start with themes and layout components, applying a calm light theme from `~/.agents/DESIGN.md` per [web-frontend](../../web-frontend/SKILL.md) unless the project has its own brand. Use `gr.HTML` for bespoke HTML/CSS/JavaScript through `html_template`, `css_template`, and `js_on_load` when the installed version supports them, loading third-party scripts through `head`; `<script>` tags in content never run. Avoid styling through undocumented internal DOM selectors.
-1. **Bind development to loopback**: run locally with `uv run python app.py`, using `demo.launch(server_name="127.0.0.1", share=False)` for local development. Public tunnels, Spaces uploads, and remote predictions have their own exposure, data-transfer, and cost scope.
+1. **Check the locked release**: inspect `uv run python -c 'from importlib.metadata import version; print(version("gradio"))'`; use `uv add gradio` for packages or preserve PEP 723 metadata in scripts.
+1. **Start simple**: prefer single-screen `Interface` / `ChatInterface` over multi-tab `Blocks`, tucking advanced parameters into a closed `gr.Accordion`.
+1. **Style via supported APIs**: apply a calm light theme from `~/.agents/DESIGN.md` ([web-frontend](../../web-frontend/SKILL.md)) unless branded otherwise. Use `gr.HTML` (`html_template`, `css_template`, `js_on_load`, plus `head` for external scripts since inline `<script>` never runs) instead of brittle internal DOM selectors.
+1. **Bind locally**: run `demo.launch(server_name="127.0.0.1", share=False)`. Public `share` tunnels, Spaces uploads, and remote endpoints require explicit authorization.
 
 ## Gotchas
 
-- **Sanitize executable web content**: HTML templates and JavaScript are executable web content. Keep untrusted input escaped or sanitized, and restrict served/downloadable file paths to the intended artifacts.
-- **Hiding endpoints is not authorization**: a Gradio interface can expose callable API endpoints. Hiding a component or API listing does not establish authorization, and `gr.HTML(server_functions=...)` makes each listed function callable from browser JavaScript; validate and authorize inside it.
+- **Sanitize HTML/JS and file paths**: escape untrusted values in templates/JS and restrict served/downloadable paths to intended artifacts.
+- **Hidden UI != auth**: Gradio exposes callable HTTP endpoints and `gr.HTML(server_functions=...)` exposes functions to browser JS — validate and authorize server-side.
 
-## Official Skills
+## Official Skills & Docs
 
-Gradio maintains its [gradio skill](https://github.com/gradio-app/gradio/tree/main/.agents/skills/gradio) (core API, component signatures, events, and examples) in the framework repository; as checked on 2026-10-31, the `huggingface-gradio` copy in huggingface/skills lags it. Discover it with `DISABLE_TELEMETRY=1 skills add gradio-app/gradio --list`; follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) to review an immutable snapshot and install only `gradio` at project scope. Do not run `gradio skills add`: it downloads from the `main` branch without snapshot review.
-
-## Documentation
-
-- [Quickstart](https://www.gradio.app/guides/quickstart) · [Blocks and events](https://www.gradio.app/guides/blocks-and-event-listeners) · [State](https://www.gradio.app/guides/state-in-blocks)
-- [Custom HTML](https://www.gradio.app/guides/custom-HTML-components) · [Queuing](https://www.gradio.app/guides/queuing) · [File access](https://www.gradio.app/guides/file-access)
-- Releases: [Gradio](https://github.com/gradio-app/gradio/releases) · [changelog](https://www.gradio.app/changelog)
+Upstream: [gradio skill](https://github.com/gradio-app/gradio/tree/main/.agents/skills/gradio) (`huggingface/skills` lags it). List with `DISABLE_TELEMETRY=1 skills add gradio-app/gradio --list` and install a reviewed snapshot per [vendor-skills](../../agent-project/references/vendor-skills.md) — never run `gradio skills add` (pulls unreviewed `main`). Docs: [Quickstart](https://www.gradio.app/guides/quickstart) · [Blocks/events](https://www.gradio.app/guides/blocks-and-event-listeners) · [State](https://www.gradio.app/guides/state-in-blocks) · [Custom HTML](https://www.gradio.app/guides/custom-HTML-components) · [Queuing](https://www.gradio.app/guides/queuing) · [File access](https://www.gradio.app/guides/file-access) · [Releases](https://github.com/gradio-app/gradio/releases) ([changelog](https://www.gradio.app/changelog)).

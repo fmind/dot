@@ -1,31 +1,30 @@
 # Migration
 
-Use this reference to move an existing MkDocs, Material for MkDocs, or Hugo site to Zensical. Keep the current production deployment unchanged until the new build is verified; publishing remains a separate authorized step.
+Move MkDocs, Material for MkDocs, or Hugo sites to Zensical without touching production until the new build is verified; publishing requires separate authorization.
 
 ## Inventory first
 
-1. **Record the published surface**: paths, anchors, navigation, assets, canonical URLs, redirects, feeds, and the hosting prefix; save a sitemap or `find site -name '*.html'` listing from the current build.
-1. **Inventory build customizations**: list every plugin, Markdown extension, template override, hook, and CI step; check plugins against the [supported list](https://zensical.org/docs/compatibility/mkdocs/plugins/). Unsupported plugins are silently ignored, so a missing feature is not an error. Compatibility plugins (`nav-weight`, `markdownextradata`, `include-markdown`) keep a migration building; new pages use explicit `nav`, `macros`, and snippets.
+1. **Capture the published surface**: paths, anchors, nav, assets, canonical URLs, redirects, feeds, hosting prefix, and sitemap or `find site -name '*.html'`.
+1. **Audit build customizations**: plugins, Markdown extensions, overrides, hooks, and CI steps against the [supported plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) (unsupported plugins are silently ignored). Compatibility plugins (`nav-weight`, `markdownextradata`, `include-markdown`) bridge migrations; write new content with explicit `nav`, `macros`, and snippets.
 
 ## MkDocs and Material for MkDocs
 
-Zensical reads `mkdocs.yml`, so migration can be gradual and reversible:
+Zensical reads `mkdocs.yml` directly for incremental migration:
 
-1. **Add Zensical beside MkDocs**: `uv add --dev 'zensical>=0.1.0,<0.2'`, then run `uv run zensical build --clean --strict` against the unchanged `mkdocs.yml`.
-1. **Keep Material's look when needed**: set `theme.variant: classic` when custom CSS or JavaScript depends on Material's appearance; switch to `modern` later as a deliberate redesign.
-1. **Compare with the MkDocs output**: representative pages, navigation, search, generated pages (blog, tags, API reference), and redirects.
-1. **Replace unsupported pieces**: `gen-files` with `api-autonav`/`autoapi` or committed generated files; `hooks` with supported plugins or template overrides; `mkdocs gh-deploy` with the [docs.yml](../templates/docs.yml) workflow; `get-deps` with explicit dependencies. Keep `exclude_docs`, `draft_docs`, and `not_in_nav` on Zensical 0.0.70 or later; `remote_branch` and `remote_name` have no equivalent.
-1. **Port template overrides to MiniJinja**: Material 9.6.18+ overrides usually work; replace Python function calls with filters and tests.
-1. **Install the mike fork**: for `mike` versioning, install the `git+https://github.com/squidfunk/mike.git` fork and keep `mkdocs.yml`.
-1. **Switch over; convert only when simpler**: switch local tasks and CI to `zensical`, remove MkDocs packages, then convert to `zensical.toml` only when it simplifies maintenance; `mkdocs.yml` remains supported.
+1. **Build unchanged `mkdocs.yml`**: `uv add --dev 'zensical>=0.1.0,<0.2'` and run `uv run zensical build --clean --strict`.
+1. **Preserve Material styling if needed**: set `theme.variant: classic` when custom CSS/JS expects Material DOM; adopt `modern` separately.
+1. **Diff outputs**: compare pages, nav, search, blog/tags/API pages, and redirects against MkDocs.
+1. **Replace unsupported features**: `gen-files` → `api-autonav`/`autoapi` or committed files; `hooks` → native plugins or overrides; `mkdocs gh-deploy` → [docs.yml](../templates/docs.yml); `get-deps` → explicit deps. `exclude_docs`, `draft_docs`, and `not_in_nav` require Zensical ≥0.0.70; `remote_branch` and `remote_name` have no equivalent.
+1. **Port overrides to MiniJinja**: Material 9.6.18+ templates mostly work; replace Python calls with filters/tests.
+1. **Use the mike fork for versions**: `git+https://github.com/squidfunk/mike.git` with `mkdocs.yml`.
+1. **Cut over**: switch tasks and CI to `zensical`, drop MkDocs deps, and convert `mkdocs.yml` to `zensical.toml` only if simpler.
 
 ## Hugo
 
-1. **Scaffold separately, then move prose**: create a Zensical scaffold in a scratch directory. Move prose into `docs/`, replacing shortcodes and templates with Zensical Markdown (admonitions, tabs, snippets, cards) or explicit generated content.
-1. **Convert front matter selectively**: `title` and `description` carry over; map section `_index.md` to `index.md`, `weight` ordering to `nav`, and `tags` to the `tags` plugin. Convert each Hugo alias URL (`/posts/old/`) to the `.md` source path it would have under `docs_dir` before adding it to `redirect_maps`. Dated posts can move to the `blog` plugin; set `post_url_format` to reproduce the old URLs, because the default `{date}/{slug}` changes them.
-1. **Copy static assets under `docs/`**: fix image references; keep the hosting prefix in `site_url`.
-1. **Compare old and new paths**: include trailing slashes; preserve published addresses or add tested redirects.
-1. **Retire Hugo only after verification**: build strictly and review rendered pages, then retire Hugo configuration, themes, tasks, and CI references once their replacement is verified.
+1. **Scaffold and port content**: scaffold in scratch, then move prose into `docs/`, replacing shortcodes/templates with Zensical Markdown or generated files.
+1. **Map front matter and URLs**: keep `title` and `description`; rename `_index.md` → `index.md`, `weight` → `nav`, `tags` → `tags` plugin. Map Hugo `aliases` (`/posts/old/`) to source `.md` paths in `redirect_maps`, and set `blog` `post_url_format` when default `{date}/{slug}` would alter published URLs.
+1. **Move static assets**: place under `docs/` and keep the hosting prefix in `site_url`.
+1. **Verify paths and retire Hugo**: diff old/new URLs (including trailing slashes), pass `--strict` + visual review, then remove Hugo config, themes, tasks, and CI.
 
 ## Documentation
 

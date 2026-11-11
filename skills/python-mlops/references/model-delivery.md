@@ -5,11 +5,11 @@ description: "Evaluate exact model versions, manage MLflow registry aliases, and
 
 # Evaluate and Deliver Models
 
-Preparing a model does not authorize changing a production alias or deploying a service; preserve existing authorization for the named destination.
+Preparing a model never authorizes changing a production alias or deploying a service; verify destination authority first.
 
-- **Evaluate an explicit version**: resolve `models:/<name>@<alias>` once and record the version; never select the newest version, including through the reserved `@latest` alias. The reference project's promote-before-evaluate and latest-version selection are rejected ([sources](sources.md)); missing metrics or a failed threshold stops promotion.
-- **Promote with a rollback target**: record the current alias, set it to the evaluated version, then read it back; never delete older versions or artifacts during promotion.
-- **Never let drift promote a model**: drift alerts and automated retraining stay within the agreed scope, and every replacement goes through this evaluation and promotion path.
+- **Evaluate an explicit version**: resolve `models:/<name>@<alias>` once and record the version number; never pick `@latest` or promote before evaluating ([sources](sources.md)), and abort promotion on missing metrics or failed thresholds.
+- **Promote with rollback**: record the prior alias version, point the alias to the evaluated version, and read it back; never delete older versions or artifacts during promotion.
+- **Keep drift alerts gated**: drift alerts and scheduled retraining still pass through explicit evaluation and promotion.
 
 Service targets: [python-web](../../python-web/SKILL.md), [containerize](../../docker/references/containerize/GUIDE.md), [cloud-run](../../cloud-run/SKILL.md).
 

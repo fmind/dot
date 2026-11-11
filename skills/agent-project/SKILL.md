@@ -7,33 +7,33 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Set Up Agents on a Project
 
-Author the shared project instruction and skill layer once, then add only required host bridges. [repository-docs](../repository-docs/SKILL.md) owns instruction content; [mcp-setup](../mcp-setup/SKILL.md) owns MCP configuration.
+Author shared project instructions and skills once, adding host bridges only where needed. [repository-docs](../repository-docs/SKILL.md) owns instruction prose; [mcp-setup](../agent-harnesses/references/mcp-setup.md) owns MCP registration.
 
 ## Workflow
 
-1. **Inspect first**: preserve existing AGENTS.md, host files, skills, and user settings; reuse a stack-specific instruction file when one exists.
-1. **Create the shared layer and bridges**: follow [host-setup.md](references/host-setup.md) to start `AGENTS.md` from the [project template](templates/AGENTS.md.template), add `.agents/skills/` and the ignored `.agents/prompts/` inbox for [task-prompts](../task-prompts/SKILL.md), then add the Claude Code skills link, optional configuration, and native custom-agent locations only for hosts the repository is used with.
-1. **Verify discovery**: run `dot agent context --check`, read [host-discovery.md](references/host-discovery.md) for listing commands and native plugin catalogs, and distinguish presence from demonstrated instruction following.
-1. **Install vendor skills deliberately**: follow the shared [vendor-skill policy](references/vendor-skills.md) for source review, project scope, versioning, replacement, and the current `skills` versus preview `gh skill` boundary. Select packages from each tool guide's Official Skills section and recheck the selected source before installation.
-1. **Keep current**: route repository changes through [repository-docs](../repository-docs/SKILL.md), including project-local skill references.
+1. **Inspect first**: preserve existing `AGENTS.md`, host configs, skills, and user settings.
+1. **Create the shared layer**: follow [host-setup.md](references/host-setup.md) using the [project template](templates/AGENTS.md.template), `.agents/skills/`, and gitignored `.agents/prompts/` ([task-prompts](../task-prompts/SKILL.md)); add the Claude skills symlink, host overrides, or custom-agent files only for hosts in use.
+1. **Verify discovery**: run `dot agent context --check` and host listings in [host-discovery.md](references/host-discovery.md); listing proves discovery, not compliance.
+1. **Vet vendor skills**: follow [vendor-skill policy](references/vendor-skills.md) for immutable review, project scope, `skills` vs preview `gh skill`, and each tool guide's Official Skills section.
+1. **Maintain**: sync changes through [repository-docs](../repository-docs/SKILL.md), including local skill references.
 
 ## Task guides
 
 <!-- guides:start -->
 
-- [cross-harness-agents](references/cross-harness-agents.md): Decide when a custom agent role pays off, write native definitions per host, and verify discovery.
+- [cross-harness-agents](references/cross-harness-agents.md): Decide when a custom agent role pays off, write per-host definitions, and verify discovery.
 
 <!-- guides:end -->
 
 ## Gotchas
 
-- **Keep one rule body**: shared rules live in `AGENTS.md`; never add a project `CLAUDE.md` or `CLAUDE.local.md`; Claude Code loads either instead of `AGENTS.md`.
-- **Review repository configuration first**: review a repository's hooks, MCP servers, skills, plugins, and custom-agent definitions before enabling them.
+- **One rule body**: never create project `CLAUDE.md` or `CLAUDE.local.md`—Claude Code loads either instead of `AGENTS.md`.
+- **Vet repo configs before enabling**: review repository hooks, MCP servers, skills, plugins, and custom agents first.
 
 ## Documentation
 

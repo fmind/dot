@@ -5,31 +5,20 @@ description: "NiceGUI dashboards and general browser interfaces."
 
 # NiceGUI
 
-Build browser utilities with Python components and event handlers. Use [gradio](gradio.md) for an explicitly chosen model demo and [marimo](../../python-mlops/references/marimo.md) for reactive notebooks; preserve the existing project's framework.
+Build browser utilities with Python components and event handlers; use [gradio](gradio.md) for model demos and [marimo](../../python-mlops/references/marimo.md) for reactive notebooks, preserving existing project choices.
 
 ## Workflow
 
-1. **Start from the locked release**: inspect the project's locked NiceGUI version and dependency model, preserving packaged or PEP 723 setup. Locate and read its installed agent reference below before using online examples.
-1. **Build from the installed reference**: use that reference for components, page state, callbacks, and tests. Keep computation independently testable and local development bound to `127.0.0.1`.
-1. **Keep the layout Google-simple**: build one focused workspace (`max-w-3xl` for tools, `max-w-6xl` for data views) on the light `~/.agents/DESIGN.md` palette per [web-frontend](../../web-frontend/SKILL.md) unless the project specifies another brand. Expose only essential inputs and one primary action upfront, tuck advanced options into `ui.expansion`, and omit unrequested drawers, header bars, tabs, and KPI cards.
+1. **Read the installed reference (`3.12.0+`)**: preserve packaged or PEP 723 setup and inspect the version-matched `llms.md` before consulting online examples (which track `main`):
+   ```bash
+   uv run python -c 'from importlib.metadata import version; from importlib.util import find_spec; from pathlib import Path; print(version("nicegui")); print(Path(find_spec("nicegui").origin).with_name("llms.md"))'
+   ```
+   (On `<3.12.0`, read installed package source + docs.)
+1. **Isolate logic and bind locally**: keep business logic testable outside UI callbacks and bind dev servers to `127.0.0.1`.
+1. **Keep layout Google-simple**: one focused workspace (`max-w-3xl` tools, `max-w-6xl` data) on `~/.agents/DESIGN.md` light palette ([web-frontend](../../web-frontend/SKILL.md)), essential inputs + one primary action upfront, advanced options in `ui.expansion`, and no unrequested drawers, headers, tabs, or KPI cards.
 
-## Installed reference
+## Gotchas & Upstream Reference
 
-```bash
-uv run python -c 'from importlib.metadata import version; from importlib.util import find_spec; from pathlib import Path; print(version("nicegui")); print(Path(find_spec("nicegui").origin).with_name("llms.md"))'
-```
-
-Releases before 3.12.0 lack `llms.md`; for them, use the official documentation and installed source. The online reference follows upstream development and may describe newer APIs.
-
-## Gotchas
-
-- **Module-level state is shared across users**: choose the page or storage scope deliberately; storage identity does not replace authentication.
-
-## Official Skills
-
-As checked on 2026-10-31, [zauberzeug/nicegui](https://github.com/zauberzeug/nicegui) provides an official [LLM reference](https://github.com/zauberzeug/nicegui/blob/main/nicegui/llms.md), also served at [llms.txt](https://nicegui.io/llms.txt). No reusable application-authoring `SKILL.md` was found in that repository; its `.claude/skills` entries cover upstream maintenance. Use the installed reference above rather than installing those maintenance skills into an application.
-
-## Documentation
-
-- [NiceGUI documentation](https://nicegui.io/documentation) · [Styling](https://nicegui.io/documentation/section_styling_appearance) · [Testing](https://nicegui.io/documentation/section_testing)
-- Releases: [NiceGUI](https://github.com/zauberzeug/nicegui/releases)
+- **Module-level state is shared across all users**: scope state per page or storage, and never treat storage IDs as authentication.
+- Upstream [zauberzeug/nicegui](https://github.com/zauberzeug/nicegui) ships [llms.md](https://github.com/zauberzeug/nicegui/blob/main/nicegui/llms.md) ([llms.txt](https://nicegui.io/llms.txt)); skip its `.claude/skills` (repo maintenance only).
+- Docs: [NiceGUI](https://nicegui.io/documentation) · [Styling](https://nicegui.io/documentation/section_styling_appearance) · [Testing](https://nicegui.io/documentation/section_testing) · [Releases](https://github.com/zauberzeug/nicegui/releases).

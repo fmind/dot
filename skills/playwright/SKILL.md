@@ -7,29 +7,29 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Playwright
 
-Use Playwright for browser automation and end-to-end tests. This skill owns the tool: browsers, commands, and the official skills; [python-testing](../python-stack/references/python-testing/GUIDE.md) owns test design and fixtures.
+Browser automation and E2E testing ([python-testing](../python-stack/references/python-testing/GUIDE.md) owns test structure and fixtures).
 
 ## Workflow
 
-1. **Gather HTTP evidence before a browser**: check status, headers, and bodies with [xh](../xh/SKILL.md); use a browser only for rendering, interaction, session state, or accessibility, driving it through roles and labels and checking state after every action.
-1. **Pin the Python integration**: `uv add --dev playwright pytest-playwright`, then `uv run playwright install chromium`; keep both packages in `uv.lock`. If Linux system libraries are missing, report the administrator-owned prerequisite instead of invoking the privileged `install-deps` command.
-1. **Explore and record**: `uv run playwright codegen --target python-pytest <url>` records a pytest test while a human drives the headed browser; `uv run playwright screenshot <url> <file>` (add `--viewport-size=390,844` or `--full-page` as needed) and `uv run playwright pdf <url> <file>` produce review evidence. For a one-off render check outside a project that locks Playwright, run the same commands through `uvx --from playwright==<version> playwright`, installing chromium first; never add Playwright to an unrelated project.
-1. **Run tests**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`. Inspect a saved trace from the shell with `uv run playwright trace open <trace.zip>` and the subcommands in `uv run playwright trace --help` (errors, actions, requests, console); `trace close` removes the extracted data. `show-trace` opens the GUI viewer for humans. To debug a failing test live, run it alone in the background with `--playwright-debug=cli -s`; when it pauses, attach with `uv run playwright cli attach <session>` from the printed instructions, then stop the background run and delete the `.playwright-cli/` snapshot directory the CLI writes in the working directory.
+1. **Check HTTP first**: inspect status, headers, and bodies with [xh](../xh/SKILL.md); open a browser only for rendering, interaction, session state, or accessibility, targeting roles/labels and asserting state after each step.
+1. **Pin Python packages**: `uv add --dev playwright pytest-playwright` (`uv.lock`), then `uv run playwright install chromium`. Report missing OS libraries instead of running privileged `install-deps`.
+1. **Record and capture**: `uv run playwright codegen --target python-pytest <url>`, `uv run playwright screenshot <url> <file>` (`--viewport-size=390,844`, `--full-page`), and `uv run playwright pdf <url> <file>`. Outside projects that lock Playwright, run `uvx --from playwright==<version> playwright` (installing `chromium` first) instead of polluting `pyproject.toml`.
+1. **Run and debug**: `uv run pytest -q tests/e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure`. Inspect traces in the shell via `uv run playwright trace open <trace.zip>`, `trace --help` subcommands, and `trace close` (`show-trace` opens the GUI). For live CLI debugging, run one test in the background with `--playwright-debug=cli -s`, attach via `uv run playwright cli attach <session>`, then stop the run and remove `.playwright-cli/`.
 
 ## Gotchas
 
-- **Act only within authorized scope**: a test request alone does not authorize private browser-session reuse, cookie transfers, account creation, legal acceptance, or real staging or production targets. Treat login, MFA, and CAPTCHA as explicit authentication boundaries, never bypasses.
-- **Reuse the shared browser cache**: install only required browsers and reuse the default shared cache (`~/.cache/ms-playwright` on Linux). Do not run `playwright uninstall` as task teardown: other projects can need those binaries. Remove task-created temporary profiles and passing-run artifacts, preserve requested evidence and failure traces, and review native browser cleanup separately when disk pressure requires it.
-- **Reinstall browsers after upgrades**: browsers match the Playwright version that installed them; rerun `uv run playwright install chromium` after an upgrade.
+- **Respect authorization boundaries**: testing never authorizes reusing personal browser profiles/cookies, creating accounts, accepting terms, hitting staging/prod unapproved, or bypassing login/MFA/CAPTCHA.
+- **Share `~/.cache/ms-playwright`**: install only needed browsers and never run `playwright uninstall` in teardown (other projects share the cache); clean up only temp profiles and passing-run artifacts.
+- **Reinstall after version bumps**: rerun `uv run playwright install chromium` whenever Playwright upgrades.
 
 ## Official Skills
 
-Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) provides the official browser CLI skill. Select it through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) only for CLI-driven exploration; its commands are not the Python API. Python tests continue to use the documentation below and the project's uv lockfile. `openai/skills` also curates a same-name `playwright` skill that drives `playwright-cli`: preview it, never install it under that name ([policy](../agent-project/references/vendor-skills.md#name-collisions)). The uv-locked package also ships version-matched `playwright-cli`, `playwright-trace`, and JavaScript-only `playwright-component-testing` skills in one directory; `uv run playwright cli --help` prints the `playwright-cli` path. Review each under the same policy before exposing it, including through `uv run playwright trace install-skill`, and check its `allowed-tools`: copies before Playwright 1.64 and playwright-cli 0.1.22 pre-approve all of `npx` (playwright-cli also `npm`); later ones narrow them to `npx playwright`.
+Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) (CLI exploration only, not Python API); review under the [vendor-skill policy](../agent-project/references/vendor-skills.md). Preview—never install—same-name `openai/skills` `playwright` ([name collisions](../agent-project/references/vendor-skills.md#name-collisions)). `uv run playwright` also bundles `playwright-cli` (`uv run playwright cli --help` prints its path), `playwright-trace`, and JS-only `playwright-component-testing`: audit `allowed-tools` before exposing (`playwright <1.64` and `playwright-cli <0.1.22` pre-approve all `npx`/`npm`; newer versions scope to `npx playwright`).
 
 ## Documentation
 

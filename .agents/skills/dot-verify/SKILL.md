@@ -1,30 +1,30 @@
 ---
 name: dot-verify
-description: "Qualify the fmind/dot working tree before a release: review changes, sync docs, run every gate, and smoke-test the dot CLI."
+description: "Qualify fmind/dot before release: review changes, sync docs, run gates, and smoke-test dot."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-verify
   created: "2026-09-24"
-  updated: "2026-11-09"
+  updated: "2026-11-11"
 ---
 
 # Verify Dot
 
-Prove that the current checkout (committed and uncommitted work) is correct, documented, and releasable. This skill sequences the owners; [full-review](../../../skills/full-review/SKILL.md), [repository-docs](../../../skills/repository-docs/SKILL.md), [dot-development](../dot-development/SKILL.md), and [dot-skills](../dot-skills/SKILL.md) own the details. Verification fixes findings in place but never commits, pushes, or releases; [dot-release](../dot-release/SKILL.md) owns that.
+Prove the checkout (committed and uncommitted work) is correct, synced, and releasable. Delegates domain rules to [full-review](../../../skills/full-review/SKILL.md), [repository-docs](../../../skills/repository-docs/SKILL.md), [dot-development](../dot-development/SKILL.md), and [dot-skills](../dot-skills/SKILL.md); fixes findings in place without committing, pushing, or releasing ([dot-release](../dot-release/SKILL.md)).
 
 ## Workflow
 
-1. **Record the baseline**: record `git status --short`, staged and unstaged diffs, untracked files, and `git fetch` state against `origin/main`. Commits already on `main` since the last tag are part of the candidate; preserve unrelated work.
-1. **Review the change set**: list what changed since the last tag (`git diff <tag>`) plus uncommitted work, excluding generated locks. For large sets, fan out read-only reviews by area (dot Python, chezmoi and host config, docs and skills) and verify each finding against code or real local data before fixing. Behavior fixes need regression tests per dot-development.
-1. **Synchronize docs**: check `README.md`, `AGENTS.md`, `dot_agents/AGENTS.md`, `.github/*.md`, `.agents/skills/`, and `skills/` against the code: removed or renamed files, commands and flags (`uv run --frozen --project dot dot <command> --help`), tasks (`mise tasks`), and JSON fields. Bump `updated:` on changed skills; run `mise run format:skills` for guide indexes; follow dot-skills for catalog changes.
-1. **Run the gates**: `mise run format` (isolated when unrelated edits are present), `mise run all`, then the host checks it omits: `mise run check:completions` and `mise run test:starters`. Rerun only what a later fix invalidates.
-1. **Smoke-test the CLI** from the repository root with `uv run --frozen --project dot dot` (`--directory dot` would resolve `.` to `dot/`): `--help` for every top-level command, then read-only commands: `doctor`, `agent doctor`, `agent context --check`, `config show`, `status`, `orphan`, `cache`, `prune --dry-run`, `prune --aggressive --dry-run`, `pull --dry-run`, `trust --dry-run .`, and `agent stats --no-sync`. Every exit code must be 0 or explained.
-1. **Check the workstation** when tools or dotfiles changed: `mise run diff` preview, `dot orphan` for retired targets (report, never delete), and `mise run doctor`. `STALE` for the installed `dot` is expected until release or `mise run deploy`.
-1. **Report**: fixed findings, deliberately left items with reasons, each check and its result, and confirm the tested snapshot equals the candidate (the working tree after the last fix).
+1. **Capture baseline**: record `git status --short`, staged/unstaged diffs, untracked files, and `git fetch` vs `origin/main`. Include commits since the last tag; preserve unrelated work.
+1. **Review changes**: inspect `git diff <tag>` plus uncommitted work (excluding generated locks), fanning out read-only subreviews by area (`dot/`, chezmoi/harnesses, docs/skills) on large sets. Verify every finding against code or live data and add regression tests for behavior fixes.
+1. **Sync docs & metadata**: align `README.md`, `AGENTS.md`, `dot_agents/AGENTS.md`, `.github/*.md`, `.agents/skills/`, and `skills/` with live `--help`, `mise tasks`, and JSON schemas; bump `updated:` on edited skills and run `mise run format:skills`.
+1. **Run gates**: `mise run format` (isolated if unrelated edits exist), `mise run all`, `mise run check:completions`, and `mise run test:starters`; rerun anything invalidated by later fixes.
+1. **Smoke-test `dot`** from repo root via `uv run --frozen --project dot dot` (`--directory dot` would resolve `.` to `dot/`): `--help` on every top-level command, then `doctor`, `agent doctor`, `agent context --check`, `config show`, `status`, `orphan`, `cache`, `prune --dry-run`, `prune --aggressive --dry-run`, `pull --dry-run`, `trust --dry-run .`, and `agent stats --no-sync` (all exit 0 or explained).
+1. **Check workstation** when dotfiles or tools changed: `mise run diff`, `dot orphan` (report only), and `mise run doctor` (installed `dot` showing `STALE` is expected before `deploy`/release).
+1. **Report**: fixed issues, deferred items with reasons, gate results, and confirmation that the verified snapshot matches the final tree.
 
 ## Gotchas
 
-- **Suppress scanner false positives narrowly**: confirm the installed environment's resolved version; record a false positive as a path-scoped `.trivyignore.yaml` entry with a `statement` and `expired_at` (create the file and name it with `ignorefile:` in `trivy.yaml`; neither exists while nothing is ignored), never by lowering severity.
-- **Fix upstream breaks at the source**: an upgraded tool can drop its completion generator or tighten a pinned dependency; fix the source configuration and its skill, not the deployed copy.
+- **Scope scanner suppressions narrowly**: confirm resolved versions first; record confirmed false positives in a path-scoped `.trivyignore.yaml` (`statement` + `expired_at`, wired via `ignorefile:` in `dot_config/trivy/trivy.yaml`), never by lowering severity.
+- **Fix upstream tool breaks at source**: update repo configs and skills rather than deployed copies when an upgraded CLI changes flags or completions.

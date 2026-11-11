@@ -14,15 +14,24 @@ def platform_digests(index_path: Path, platforms: str) -> str:
     expected = set(platforms.split(","))
     found: dict[str, str] = {}
     index = json.loads(index_path.read_text(encoding="utf-8"))
+    if not isinstance(index, dict) or not isinstance(index.get("manifests"), list):
+        raise TypeError("Malformed image index")
     for item in index["manifests"]:
+        if not isinstance(item, dict) or not isinstance(item.get("platform"), dict):
+            raise TypeError("Malformed manifest entry")
         platform = item["platform"]
+        annotations = item.get("annotations")
+        if annotations is not None and not isinstance(annotations, dict):
+            raise TypeError("Malformed manifest annotations")
         if (
             platform == {"architecture": "unknown", "os": "unknown"}
-            and item.get("annotations", {}).get("vnd.docker.reference.type") == "attestation-manifest"
+            and (annotations or {}).get("vnd.docker.reference.type") == "attestation-manifest"
         ):
             continue  # BuildKit provenance is not a runnable platform.
-        name = f"{platform['os']}/{platform['architecture']}"
-        digest = item["digest"]
+        os_name, arch, digest = platform["os"], platform["architecture"], item["digest"]
+        if not isinstance(os_name, str) or not isinstance(arch, str) or not isinstance(digest, str):
+            raise TypeError("Malformed platform fields")
+        name = f"{os_name}/{arch}"
         if name not in expected or name in found or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
             raise SystemExit("Unexpected, duplicate, or malformed platform descriptor")
         found[name] = digest

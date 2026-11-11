@@ -1,26 +1,26 @@
 ---
 name: gcloud
-description: "Use gcloud and firebase for Google Cloud projects, IAM, billing, APIs, and logs."
+description: "Operate Google Cloud and Firebase CLIs; search Google developer docs and google/skills."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-11-09"
+  updated: "2026-11-11"
 ---
 
 # Google Cloud CLI
 
-Use `gcloud` for bounded account, project, IAM, API, billing, logging, and audit operations.
+Operate Google Cloud accounts, projects, IAM, APIs, billing, and logs with `gcloud` and `firebase`.
 
 ## Defaults
 
-Google Cloud is the default cloud for Fmind projects. Resolve the project and region from explicit project configuration, or ask when unset. Prefer Cloud Run for services; use GKE only when the project explicitly adopts Kubernetes. Existing project choices take precedence.
+Google Cloud is the default cloud for Fmind work (existing project choices win). Resolve project and region from explicit config or ask; prefer Cloud Run over GKE unless Kubernetes is explicitly adopted.
 
 ## Workflow
 
-1. **Resolve identity and scope**: inspect the named configuration, account, project, and billing project; never activate another configuration just to make a command work.
+1. **Verify active identity and scope** (never switch configurations silently to force a command through):
 
    ```bash
    gcloud config configurations list --format='table(name,is_active)'
@@ -30,24 +30,32 @@ Google Cloud is the default cloud for Fmind projects. Resolve the project and re
    gcloud projects describe <project-id> --format='json(projectId,projectNumber,lifecycleState)'
    ```
 
-1. **Pin every consequential call**: pass `--configuration`, `--account`, `--project`, and `--billing-project` (plus `--impersonate-service-account` for an approved chain) so terminal defaults cannot redirect the operation.
-1. **Start read-only and bounded**: use supported `--filter` and `--limit` on listings and selected fields in `--format`; for logs, constrain time and resource before projecting message fields. Keep full IAM policies or configuration when required for the review; a limited listing is not an exhaustive audit.
-1. **Authorize mutations**: API enablement, IAM, billing, deletion, and production changes need explicit authority.
+1. **Pin consequential calls**: pass `--configuration`, `--account`, `--project`, and `--billing-project` (plus `--impersonate-service-account` when approved).
+1. **Start read-only and bounded**: combine `--filter`, `--limit`, and field-projected `--format`, scoping log queries by time and resource first (retain full IAM/config payloads when auditing completeness).
+1. **Authorize mutations**: API enablement, IAM, billing, deletions, and production edits require explicit approval.
 
 ## Gotchas
 
-- **`--quiet` is not authority**: it suppresses prompts; it neither makes an operation safe nor approves it.
-- **Overrides replace the account**: `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT`, `CLOUDSDK_AUTH_ACCESS_TOKEN_FILE`, and `--impersonate-service-account` change the effective principal; prove which is active first.
-- **Firebase reuses ADC**: the global `firebase` CLI (firebase-tools) authenticates with gcloud Application Default Credentials, so skip `firebase login`; pass `--project <id>` and `--json`, and treat `deploy` like any mutation.
-- **Linked BigQuery datasets (`type = "LINKED"`) inherit `projectReaders`**: Cloud Logging linked datasets (`google_logging_linked_dataset`) carry a system `specialGroup: projectReaders` ACL and reject dataset-level IAM (`HTTP 400`); project-level `roles/bigquery.dataViewer` or `roles/viewer` grants BigQuery read access to every linked dataset regardless of `roles/logging.viewAccessor`.
-- **Failures are findings**: on an auth, permission, or quota error report the missing principal, denied permission, or exhausted quota; do not switch configurations, broaden IAM, create keys, or move spend to another project.
+- **`--quiet` only suppresses prompts**: never treats an unapproved mutation as safe.
+- **Check principal overrides**: `CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT`, `CLOUDSDK_AUTH_ACCESS_TOKEN_FILE`, and `--impersonate-service-account` replace the active account.
+- **Firebase reuses ADC**: skip `firebase login`, pass `--project <id>` and `--json`, and gate `firebase deploy` like any mutation.
+- **Linked BigQuery datasets (`type = "LINKED"`) inherit `projectReaders`**: `google_logging_linked_dataset` carries `specialGroup: projectReaders` and rejects dataset-level IAM (`HTTP 400`); project `roles/bigquery.dataViewer` or `roles/viewer` grants BigQuery reads regardless of `roles/logging.viewAccessor`.
+- **Failures are findings**: report missing principals, denied permissions, or quota errors directly—never switch configs, widen IAM, mint keys, or shift billing projects unasked.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [google-developer](references/google-developer.md): Find Google developer docs and vendor skills (google/skills) across Cloud, Ads, Analytics, and Identity.
+
+<!-- guides:end -->
 
 ## Official Skills
 
-Upstream: `google/skills` (`skills/cloud`), listed and installed through [Google catalog](../google-developer/SKILL.md); its CLI guardrail skill applies to every `gcloud` call. That skill is also named `gcloud`: preview it and apply its guardrails, but never install it under that name ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
+Upstream: `google/skills` (`skills/cloud`) via [google-developer](references/google-developer.md). Preview—never install—its colliding `gcloud` guardrail skill ([name collisions](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 
 - [gcloud reference](https://docs.cloud.google.com/sdk/gcloud/reference) · [Authenticate for the gcloud CLI](https://docs.cloud.google.com/sdk/docs/authenticate)
 - Releases: [gcloud release notes](https://docs.cloud.google.com/sdk/docs/release-notes)
-- Companion skills: [Google catalog](../google-developer/SKILL.md) (which upstream skill), [cloud-run](../cloud-run/SKILL.md) (deployment), [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure).
+- Companion skills: [cloud-run](../cloud-run/SKILL.md) (deployment), [infra-as-code](../infra-as-code/SKILL.md) (provisioned infrastructure).

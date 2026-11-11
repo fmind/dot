@@ -7,48 +7,47 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Amazon Web Services CLI
 
-Use `aws` for AWS account, IAM, S3, ECS, and CloudWatch operations.
+Operate AWS accounts, IAM, S3, ECS, and CloudWatch with `aws`.
 
 ## Workflow
 
-1. **Resolve identity and profile context**: inspect the active AWS profile, SSO session, and caller identity; never assume role or run commands under ambiguous profiles.
+1. **Verify profile and caller identity**: never assume roles or run under ambiguous profiles:
 
    ```bash
    aws sts get-caller-identity --profile <profile> --output json --no-cli-pager
    aws configure list-profiles
    ```
 
-1. **Authenticate via SSO**: when credentials expire, refresh the session using AWS IAM Identity Center (SSO); avoid long-lived access keys. When Identity Center is unavailable, `aws login` exchanges a console sign-in for short-lived credentials; add `--remote` on a host without a local browser.
+1. **Sign in with short-lived credentials**: prefer IAM Identity Center (`aws sso login`), falling back to `aws login` (`--remote` on headless hosts) instead of static access keys:
 
    ```bash
    aws sso login --profile <profile>
-   # Without Identity Center:
    aws login --profile <profile>
    ```
 
-1. **Pin every consequential call**: pass `--profile <name>` and `--region <region>` explicitly so environment variables or shell defaults cannot redirect operations to the wrong account or region.
-1. **Start read-only with bounded queries**: use `--query` (JMESPath) and `--max-items` to constrain results; describe resources, IAM policies, and CloudWatch metrics before changing anything.
+1. **Pin `--profile` and `--region`** on every consequential call so env vars cannot redirect targets.
+1. **Bound reads first**: combine server-side filters, `--max-items`, and `--query` (JMESPath) before mutating state:
 
    ```bash
    aws s3 ls --profile <profile> --region <region> --no-cli-pager
    aws ecs list-clusters --profile <profile> --region <region> --max-items 20 --output json --no-cli-pager
    ```
 
-1. **Authorize mutations**: resource creation, security group changes, policy updates, and deletions require user authorization; reuse existing authority rather than asking again.
+1. **Authorize mutations**: resource creation, security groups, IAM policies, and deletions require user approval (reusing existing task authority).
 
 ## Gotchas
 
-- **`--query` runs client-side**: select needed fields and pair with supported server-side filters and `--max-items`; `--page-size` only changes request size, not total results. Preserve `NextToken` in projections, report capped results as partial, and resume deliberately when completeness is required. Use `--no-cli-pager --cli-error-format json` for agent calls so service and credential errors return a parseable `Code` and `Message`; avoid debug output around credentials.
-- **Failures are findings**: report authorization (`AccessDeniedException`) or missing role errors directly; do not attempt permission escalation or modify IAM policies without authorization.
+- **`--query` filters client-side**: pair with `--max-items` (`--page-size` only sizes HTTP pages), keep `NextToken` in projections, and flag capped output as partial. Pass `--no-cli-pager --cli-error-format json` for structured `Code`/`Message` diagnostics without credential-leaking `--debug`.
+- **Failures are findings**: report `AccessDeniedException` or missing roles directly instead of escalating IAM permissions.
 
 ## Official Skills
 
-AWS publishes agent skills through the [Agent Toolkit](https://docs.aws.amazon.com/agent-toolkit/latest/userguide/). Review candidates read-only with `aws agent-toolkit list-available-skills` or `search-skills --search-query <topic>`, `get-skill-metadata --skill-name <name>` (version and file list), and `aws agent-toolkit get-skill-file --skill-name <name> --file-path SKILL.md --skill-version <version>`, then install only through the shared [vendor-skill policy](../agent-project/references/vendor-skills.md). Never run `aws configure agent-toolkit --yes`: it installs default skills into every detected agent and configures the AWS MCP server. The workstation sets `AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED=true` to suppress the toolkit prompt.
+Upstream: [AWS Agent Toolkit](https://docs.aws.amazon.com/agent-toolkit/latest/userguide/). Inspect read-only via `aws agent-toolkit list-available-skills` / `search-skills --search-query <topic>`, `get-skill-metadata --skill-name <name>`, and `get-skill-file --skill-name <name> --file-path SKILL.md --skill-version <version>`, installing only under [vendor-skill policy](../agent-project/references/vendor-skills.md). Never run `aws configure agent-toolkit --yes` (bulk-installs skills and MCP across hosts; `AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED=true` suppresses hints).
 
 ## Documentation
 

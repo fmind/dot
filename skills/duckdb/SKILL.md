@@ -7,45 +7,41 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-10-31"
+  updated: "2026-11-11"
 ---
 
 # DuckDB and SQLite
 
-DuckDB is the default engine for local analysis: it reads CSV, Parquet, and JSON directly, attaches SQLite files, and writes any of them back. SQLite stays the embedded store for applications; DuckDB is the tool you point at data.
+Use DuckDB for local analytics across CSV, Parquet, JSON, and attached SQLite files; keep SQLite for embedded application state.
 
 ## Commands
 
 ```bash
-duckdb -no-init -batch -bail -c "SELECT name, score FROM 'people.csv' WHERE score > 80 ORDER BY score DESC, name LIMIT 20"
-duckdb -no-init -batch -bail -json -c "SELECT count(*) AS event_count FROM 'events/*.json'" # aggregate before displaying
-duckdb -no-init -batch -bail lab.duckdb -c "CREATE OR REPLACE TABLE people AS FROM 'people.csv'"
-duckdb -no-init -batch -bail -c "COPY (FROM 'people.csv') TO 'people.parquet'"        # durable derived data
-duckdb -no-init -batch -bail -c "ATTACH 'app.sqlite' AS s (TYPE sqlite, READ_ONLY); SELECT count(*) FROM s.users"
-duckdb -no-init -batch -bail -c "SUMMARIZE FROM 'people.parquet'"                   # column statistics
+duckdb -no-init -light-mode -batch -bail -c "SELECT name, score FROM 'people.csv' WHERE score > 80 ORDER BY score DESC, name LIMIT 20"
+duckdb -no-init -light-mode -batch -bail -json -c "SELECT count(*) AS event_count FROM 'events/*.json'" # aggregate before displaying
+duckdb -no-init -light-mode -batch -bail lab.duckdb -c "CREATE OR REPLACE TABLE people AS FROM 'people.csv'"
+duckdb -no-init -light-mode -batch -bail -c "COPY (FROM 'people.csv') TO 'people.parquet'"        # durable derived data
+duckdb -no-init -light-mode -batch -bail -c "ATTACH 'app.sqlite' AS s (TYPE sqlite, READ_ONLY); SELECT count(*) FROM s.users"
+duckdb -no-init -light-mode -batch -bail -c "SUMMARIZE FROM 'people.parquet'"                   # column statistics
 sqlite3 -init /dev/null -batch -bail -readonly app.sqlite '.schema'
 sqlite3 -init /dev/null -batch -bail -noheader -list -readonly app.sqlite 'PRAGMA integrity_check'
 ```
 
-Both interactive and batch invocations can load `~/.duckdbrc` or `~/.sqliterc`, including executable SQL and dot commands; this workstation ships neither, but other machines may. For reproducible scripts, skip those files (`duckdb -no-init`, `sqlite3 -init /dev/null`), stop on errors with `-batch -bail`, and select output explicitly with `-json`, `-csv`, or `-markdown`; an output-mode flag alone does not suppress initialization. Without an output mode, DuckDB 2.0 detects an agent's environment and renders compact Markdown with a row cap, row count, and result hash, plus JSON errors; keep that for previews and pass an explicit mode (or `-no-agent`) for machine output. SQLite integrity checks return rows: require `ok`, because a successful process exit alone does not establish integrity.
+Always suppress rc files (`duckdb -no-init -light-mode`, `sqlite3 -init /dev/null`; `-light-mode` skips DuckDB 2.0's 5s OSC 11 terminal background probe when `-no-init` bypasses `~/.duckdbrc`) and fail fast (`-batch -bail`). DuckDB 2.0 auto-enables compact agent Markdown previews (capped rows + count + hash + JSON errors); pass explicit `-json`, `-csv`, `-markdown`, or `-no-agent` for machine parsing. Verify `PRAGMA integrity_check` outputs `ok` (exit 0 alone does not prove integrity).
 
 ## Workflow
 
-1. **Look before querying**: `DESCRIBE FROM '<file>'` and `SUMMARIZE` reveal types, nulls, and ranges; fix a wrong inference with `read_csv('<file>', types={'id': 'BIGINT'})`.
-1. **Bound displayed results**: project needed columns, filter rows, and aggregate before returning data. Use an ordered `LIMIT` for a preview and label it as partial; calculate totals over the full filtered set. Export complete results with `COPY` when needed instead of printing every row. Cap exploratory queries over large data with `SET max_execution_time=<ms>`.
-1. **Keep queries in files**: `duckdb -no-init -batch -bail -f analysis.sql` for anything longer than one line, committed next to the data description.
-1. **Persist derived data as Parquet**: keep rebuildable `.duckdb` files out of Git and commit the SQL that produces them; use `-readonly` for inspection of an existing database.
-1. **Export for the reader**: `-markdown` for a report, `-json` for another tool, `COPY ... TO 'out.csv' (HEADER)` for a spreadsheet.
-
-Analysis and export alone do not establish migration or recovery safety for an application schema or persisted format.
+1. **Inspect schema first**: run `DESCRIBE FROM '<file>'` and `SUMMARIZE`; override bad inferences via `read_csv('<file>', types={'id': 'BIGINT'})`.
+1. **Bound output and runtime**: project, filter, and aggregate before printing; mark `LIMIT` previews as partial, compute totals on the full filter, `COPY` large outputs to disk, and guard exploratory scans with `SET max_execution_time=<ms>`.
+1. **Commit `.sql`, not `.duckdb`**: run `duckdb -no-init -light-mode -batch -bail -f analysis.sql`, persist derived datasets as Parquet, gitignore rebuildable `.duckdb` files, and inspect existing DBs with `-readonly`.
+1. **Match export format to consumer**: `-markdown` for prose, `-json` for tools, `COPY ... TO 'out.csv' (HEADER)` for spreadsheets (ad-hoc queries do not prove schema migration safety).
 
 ## Gotchas
 
-- **Keep DuckDB off live SQLite databases**: do not open one while the app writes to it; use a consistent SQLite backup or `sqlite3 -readonly` directly. A plain copy of the main file can omit committed WAL data; use SQLite's backup API or `.backup` for a snapshot. `ATTACH ... (TYPE sqlite)` autoinstalls the `sqlite` extension, which needs network the first time.
-- **Pin storage for 1.x readers**: DuckDB 2.0 writes the v2.0.0 storage format by default (`duckdb_databases()` tags it `storage_version=v2.0.0+`), which 1.x cannot open; create the file with `-storage-version v1.5.6` (or `ATTACH ... (STORAGE_VERSION 'v1.5.6')`) when a 1.x process such as an older Python `duckdb` must read it.
-- **Glob paths quote as strings**: `'events/*.parquet'` works, unquoted paths do not.
-- **Port 1.x SQL deliberately**: DuckDB 2.0 rejects `x -> x + 1` lambdas (write `lambda x: x + 1`), raises on integer `//` and `%` by zero, and makes `~` a partial regex match; check the [migration guide](https://duckdb.org/docs/stable/operations_manual/migration) when reusing 1.x SQL.
-- **Size memory and spill conservatively**: size the budget from available RAM and disk; start conservatively on a shared machine, for example `SET memory_limit='256MB'` and `SET threads=1`, then measure. Many operators spill to disk, but `memory_limit` is not a process-wide hard limit and some allocations or operators can still exhaust memory. Set a task-owned temporary directory and `max_temp_directory_size` when spill volume matters; preserve the workstation's required disk headroom.
+- **Never attach live-written SQLite files**: query a `.backup` snapshot (plain `cp` misses WAL commits) or `sqlite3 -readonly` directly; first-time `ATTACH ... (TYPE sqlite)` needs network to install `sqlite`.
+- **DuckDB 2.0 storage and SQL changes**: files default to `v2.0.0+` (`duckdb_databases()`), unreadable by 1.x—pass `-storage-version v1.5.6` or `ATTACH ... (STORAGE_VERSION 'v1.5.6')` for 1.x readers. In 2.0 SQL, write `lambda x: x + 1` (not `x -> x + 1`), integer `//`/`%` by zero errors, and `~` is a partial regex match ([migration](https://duckdb.org/docs/stable/operations_manual/migration)).
+- **Quote globs as strings**: `'events/*.parquet'`, not bare shell globs.
+- **Cap memory and spill**: start conservative on shared hosts (`SET memory_limit='256MB'`, `SET threads=1`—`memory_limit` is not a hard process cap) and set a task temp dir + `max_temp_directory_size` to protect disk headroom.
 
 ## Task guides
 

@@ -5,36 +5,23 @@ description: "Instrument Python services and agents: structlog logs, OpenTelemet
 
 # Observability
 
-Use one Python telemetry stack for services and agents: `structlog` JSON on stdout, OpenTelemetry traces and metrics over OTLP, and trace context on every related log event. Standard OTLP configuration keeps the application independent of the backend.
+Unified vendor-neutral Python telemetry: `structlog` JSON on stdout, OpenTelemetry traces + metrics over OTLP, and trace correlation on logs.
 
 ## Workflow
 
-1. **Add only the Python packages in use**: `structlog`, OpenTelemetry API and SDK, the OTLP exporter, and explicit instrumentation packages for the service's HTTP framework and clients (`opentelemetry-instrumentation-httpx` has separate `HTTPXClientInstrumentor` and `HTTPX2ClientInstrumentor`: instrument each package in the lock); FastAPI 0.142+ instruments itself ([fastapi](../../python-web/references/fastapi.md)). Lock them with `uv`; avoid a vendor SDK in application code.
-1. **Emit structured logs**: render one JSON object per line to stdout in production. Use `severity`, `message`, and `time` for Cloud Logging while retaining stable event names and machine-readable fields.
-1. **Configure traces and metrics**: use `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and an explicit protocol. FastAPI's native automatic export has its own opt-in and protocol rules ([fastapi](../../python-web/references/fastapi.md)). Keep local development quiet by disabling export when it is not configured; an SDK's default localhost endpoint does not disable telemetry.
-1. **Correlate signals**: a `structlog` processor reads `trace.get_current_span().get_span_context()` and adds `trace_id`, `span_id`, `logging.googleapis.com/trace`, and `logging.googleapis.com/spanId` only when the context is valid.
-1. **Describe agent work**: use current GenAI semantic conventions; model calls carry `gen_ai.operation.name`, provider and request model, and input/output token usage; agent and tool spans carry their stable agent or tool names. Do not record prompt or completion bodies by default. Frameworks capture content by default: set `ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false` for ADK and leave `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` unset unless the project approves capture; Google's `EVENT_ONLY` sample still exports prompts and responses as log events.
-1. **Export through a collector sidecar**: on Google Cloud, use the Google-built OpenTelemetry Collector as a Cloud Run sidecar. Match the exporter and receiver: `grpc` with `http://localhost:4317`, or `http/protobuf` with `http://localhost:4318`. For environment-configured instrumentation set `OTEL_EXPORTER_OTLP_PROTOCOL`. For manually constructed Python exporters choose the matching gRPC or HTTP class. Let the collector authenticate with ADC and forward telemetry to Google Cloud.
-1. **Evaluate separately**: operational telemetry detects failures and drift but does not prove response quality. Link a trace ID to Langfuse or MLflow scores when used, and use [agent-evaluation](../../agent-evaluation/SKILL.md) for repeated comparisons through the project's existing runner.
-1. **Verify all three signals**: send one request, locate its trace, read the correlated log events, confirm the expected metric, then exercise shutdown to prove buffered telemetry flushes within the platform grace period.
+1. **Minimal packages**: lock `structlog`, OTel API/SDK, OTLP exporter, and active HTTP/framework instrumentors (`opentelemetry-instrumentation-httpx` splits `HTTPXClientInstrumentor` and `HTTPX2ClientInstrumentor`; FastAPI `0.142+` has native OTel per [fastapi](../../python-web/references/fastapi.md)). Avoid vendor SDKs in app code.
+1. **Structured stdout logs**: emit one JSON line per event using `severity`, `message`, and `time` (Cloud Logging promotes those exact keys, not `level`/`msg`).
+1. **OTLP config**: set `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_EXPORTER_OTLP_PROTOCOL`; disable export in local dev when unconfigured (SDK defaults otherwise dial `localhost`).
+1. **Trace-log correlation**: inject `trace_id`, `span_id`, `logging.googleapis.com/trace`, and `logging.googleapis.com/spanId` from `trace.get_current_span().get_span_context()` when valid.
+1. **GenAI spans without content leaks**: emit `gen_ai.operation.name`, provider/model, token counts, and stable agent/tool names. Suppress prompt/completion capture (`ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false`, leave `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` unset; note `EVENT_ONLY` still exports bodies as log events).
+1. **Collector sidecar**: on Cloud Run, pair Google-built OTel Collector with matching protocol/port (`grpc` -> `http://localhost:4317`, `http/protobuf` -> `http://localhost:4318`) and ADC export; link trace IDs to Langfuse/MLflow scores for [agent-evaluation](../../agent-evaluation/SKILL.md).
+1. **Verify logs, traces, metrics, and `SIGTERM` flush**:
    ```bash
    gcloud logging read 'trace="projects/<project>/traces/<trace_id>"' --project=<project> --freshness=1h --limit=20 --format='json(timestamp,severity,textPayload,jsonPayload.message,trace,spanId)'
    ```
 
-## Gotchas
+## Gotchas & Upstream Skills
 
-- **Cloud Logging keys are exact**: plain `level` and `msg` are not promoted to severity and message fields.
-- **Sampling follows the parent**: use `parentbased_traceidratio` with a measured production ratio; keep 100% sampling for bounded development only.
-- **Cardinality is a budget**: do not put user IDs, raw URL IDs, prompts, errors, or tool arguments in metric labels.
-- **Telemetry is best effort**: bound exporter queues and timeouts, handle `SIGTERM`, and never block a user request on an unavailable collector.
-- **Privacy starts before export**: redact secrets and personal data in the application, because backend filters cannot retract already-exported spans or logs.
-
-## Official Skills
-
-Upstream: `langfuse/skills`, `mlflow/skills`, `pydantic/skills`, and `grafana/skills`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) and install only the backend selection the project uses. Exclude `mlflow/skills`' same-name `agent-evaluation` from any selection ([name policy](../../agent-project/references/vendor-skills.md#name-collisions)).
-
-## Documentation
-
-- [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [OTLP configuration](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/) · [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/tree/main/docs/gen-ai) · [Cloud Logging structured logs](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google-built OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel)
-- Releases: [OpenTelemetry Python](https://github.com/open-telemetry/opentelemetry-python/releases)
-- Companion skills: [python-stack](foundation/GUIDE.md), [cloud-run](../../cloud-run/SKILL.md), [google-adk](../../agent-frameworks/references/google-adk.md), [gcloud](../../gcloud/SKILL.md), [performance](performance.md).
+- **Sampling, cardinality, & resiliency**: use `parentbased_traceidratio` in prod (100% dev only); never put user IDs, raw URLs, prompts, errors, or tool args in metric labels; bound exporter queues/timeouts so collector outages never block requests; redact secrets/PII in-process before export.
+- Upstream (`langfuse/skills`, `mlflow/skills`, `pydantic/skills`, `grafana/skills`): install per [vendor-skills](../../agent-project/references/vendor-skills.md), excluding `mlflow/skills` `agent-evaluation` ([name collisions](../../agent-project/references/vendor-skills.md#name-collisions)).
+- Docs: [OTel Python](https://opentelemetry.io/docs/languages/python/) · [OTLP](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/) · [GenAI semconv](https://github.com/open-telemetry/semantic-conventions-genai/tree/main/docs/gen-ai) · [Cloud Logging](https://docs.cloud.google.com/logging/docs/structured-logging) · [Google OTel Collector](https://docs.cloud.google.com/stackdriver/docs/instrumentation/google-built-otel) · [Releases](https://github.com/open-telemetry/opentelemetry-python/releases) · Companions: [foundation](foundation/GUIDE.md), [cloud-run](../../cloud-run/SKILL.md), [google-adk](../../agent-frameworks/references/google-adk.md), [gcloud](../../gcloud/SKILL.md), [performance](performance.md).

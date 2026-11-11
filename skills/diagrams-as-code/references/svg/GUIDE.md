@@ -5,16 +5,16 @@ description: "Hand-authored SVG illustrations for READMEs and user docs: composi
 
 # SVG Illustration Standard
 
-User-facing documentation explains ideas with hand-authored SVG illustrations: still diagram as code, readable and diffable, but composed and branded so the picture carries the concept. [Diagrams as code](../../SKILL.md) owns the choice between SVG, Mermaid, D2, or no diagram. [Brain Framework's README](https://github.com/fmind/brain-framework#readme) is the reference: a loop hero, a before/after contrast, a vocabulary mapping.
+Hand-authored, diffable SVG illustrations for user-facing docs ([Brain Framework's README](https://github.com/fmind/brain-framework#readme) shows reference loop, before/after, and vocabulary views). [Diagrams as code](../../SKILL.md) owns format selection.
 
 ## Workflow
 
-1. **Pick the concept**: one idea per illustration (a loop, a before/after, a mapping, a boundary, layers) tied to the section it replaces or reinforces. A README earns a hero illustration under its opening plus one per key concept; split instead of shrinking past 3–7 items per group.
-1. **Apply the brand**: use the customer's brand when the repository or engagement belongs to one (palette, fonts, logo, voice); otherwise Fmind's `~/.agents/DESIGN.md`. Never mix brands in one asset or invent a customer's palette: ask for its guide when none is in the repository.
-1. **Start from the template**: copy [illustration.svg](templates/illustration.svg) to `docs/assets/<concept>.svg` (or the repository's asset folder; in a chezmoi source tree use a dot-prefixed folder such as `.github/assets/` so apply does not deploy it). For a customer brand, swap only the hex values and font names in its `<style>`. Keep its 960px `viewBox` (600px for Google Docs figures; see [draft-doc](../../../draft-doc/SKILL.md)), `role="img"`, `<title>` and `<desc>`, the opaque light card that keeps the art legible on dark themes, and the semantic classes.
-1. **Compose on a grid**: the template's three columns (x=32, 320, and 704 with 64px flow gutters) or an even two- or three-column split; 34px chips stepping by 42; numbered steps on flows; sentence-case column labels; code font only for commands, paths, and fields. Use the real names from the source, synthetic examples, and no invented metrics or components.
-1. **Write the text equivalent**: `<desc>` states the whole mechanism in prose; the Markdown `alt` states the conclusion; the surrounding paragraph still makes the claim without the image.
-1. **Embed**: wrap the image in a link to the SVG so narrow screens can open it full size; use relative paths, or absolute raw URLs only when a registry such as PyPI republishes the README.
+1. **Pick one concept**: loop, before/after, mapping, boundary, or layers—at most 3–7 items per group (split instead of shrinking); READMEs earn a hero plus one SVG per core concept.
+1. **Apply the brand**: use customer branding when applicable (ask if missing; never guess or mix brands), else `~/.agents/DESIGN.md`.
+1. **Copy [illustration.svg](templates/illustration.svg)**: place in `docs/assets/<concept>.svg` (or dot-prefixed `.github/assets/` in chezmoi repos). Swap only `<style>` hex values and font names for customer brands; preserve the 960px `viewBox` (600px for Google Docs per [draft-doc](../../../draft-doc/SKILL.md)), `role="img"`, `<title>`, `<desc>`, opaque light card, and semantic classes.
+1. **Compose on the grid**: columns at `x=32, 320, 704` (64px gutters) or even 2/3-column splits, 34px chips stepping by 42, numbered flow badges, sentence-case headings, code font only for commands/paths/fields, real source names, synthetic examples, and zero invented metrics.
+1. **Provide text equivalents**: full mechanism in `<desc>`, conclusion in `alt`, and standalone claim in surrounding prose.
+1. **Embed wrapped in a full-size link** (relative path, or raw URL only when republished to PyPI/registries):
 
    ```html
    <a href="docs/assets/concept.svg">
@@ -22,7 +22,7 @@ User-facing documentation explains ideas with hand-authored SVG illustrations: s
    </a>
    ```
 
-1. **Check and inspect**: run [check_svg.py](scripts/check_svg.py). It validates structure, accessibility, the 12px type floor, and `<img>`-sandbox hazards, then screenshots each SVG with scripts and network requests blocked, once with brand fonts and once without Google Sans, which most viewers lack. It needs Chrome or Chromium (`CHROME` overrides); otherwise use [playwright](../../../playwright/SKILL.md) with JavaScript disabled and network requests blocked. Inspect both images for overflow, collisions, contrast, and spelling, which no static check proves.
+1. **Validate and inspect**: run [check_svg.py](scripts/check_svg.py) (`CHROME` overrides browser; else use [playwright](../../../playwright/SKILL.md) with JS and network off) to verify XML, a11y, 12px floor, and `<img>`-sandbox safety, then visually inspect both brand-font and fallback-font renders for overflow, collisions, contrast, and typos:
 
    ```bash
    python -I ~/.agents/skills/diagrams-as-code/references/svg/scripts/check_svg.py docs/assets/*.svg --render "$(mktemp -d)"
@@ -30,11 +30,11 @@ User-facing documentation explains ideas with hand-authored SVG illustrations: s
 
 ## Gotchas
 
-- **SVG `<text>` never wraps**: break lines manually and leave about 15% slack inside every box for wider fallback fonts.
-- **Assume an `<img>` sandbox**: GitHub and most sites render SVG through `<img>`, which ignores scripts, external fonts, stylesheets, links, and remote images; avoid `<foreignObject>` and embedded raster or base64 fonts.
-- **Preview isolation is not sanitization**: the renderer blocks scripts and network requests for document rendering only; it is neither OS-level network isolation nor a general SVG sanitizer. Change its Chrome controls together; the script documents why each exists.
-- **Mask lines behind captions**: use a canvas-colored rectangle rather than routing around the text.
-- **Keep type and contrast legible**: keep text at 12px or larger at 960px width and contrast at 4.5:1 on its actual fill; the link to the full-size SVG is the mobile fallback.
+- **SVG `<text>` never wraps**: break lines manually and leave ~15% horizontal slack for wider fallback fonts.
+- **Design for `<img>` sandboxing**: GitHub and docs strip scripts, external fonts/stylesheets, links, and remote images; never use `<foreignObject>`, raster embeds, or base64 fonts.
+- **Preview isolation is not sanitization**: `check_svg.py` blocks scripts and network in Chrome previews, not OS egress; keep its Chrome flags paired.
+- **Mask lines behind captions**: place a canvas-colored `<rect>` under text instead of detouring paths.
+- **Floor and contrast**: ≥12px type at 960px width and ≥4.5:1 contrast against actual fills; the `<a href>` link handles mobile zoom.
 
 ## Documentation
 

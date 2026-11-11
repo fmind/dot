@@ -1,14 +1,14 @@
 # Antigravity Feature Choices
 
-The owner's choices for agy features. For everything else, read the built-in `antigravity-guide` skill, `agy --help`, `agy changelog`, or the [docs sitemap](https://antigravity.google/sitemap.xml).
+Workstation policy for agy features; consult `antigravity-guide`, `agy --help`, `agy changelog`, or the [sitemap](https://antigravity.google/sitemap.xml) for everything else.
 
-- **Credits stay opt-in**: `/credits` and `useG1Credits` spend AI credits after plan quota; leave enabling them to the user. Check plan availability and cost before `/boost` or `/teamwork`.
-- **Auto mode reviews nothing here**: `--mode auto` reviews sandbox escapes with a secondary agent, but explicit allow rules and `toolPermission` win in every mode. The managed baseline sets `always-proceed` and CLI sessions load its `command(*)` grant from `~/.gemini/config/config.json`, so `auto` reviews no commands on this workstation. Open untrusted repositories in a disposable container or VM.
-- **Sandbox per session**: `--sandbox` enables terminal restrictions for one session. It does not replace a disposable container or VM for an untrusted repository; [permissions](https://antigravity.google/docs/permissions?tab=cli) and the [sandbox](https://antigravity.google/docs/sandbox/) are separate controls.
-- **Remote agents run off this machine**: `--remote-agent` (1.5.0+) runs the session's conversations on remote agents in a remote project, with permissions set on the `Remote Agent` tab of `/config` (separate from the managed local settings) and without this machine's skills. Use it only when the user asks for it.
-- **Editor integration goes through ACP**: `agy acp` runs agy as an Agent Client Protocol stdio server (1.5.0+; 1.5.1 offers every account model to every client). Route editor wiring to [acp](../../../../agent-protocols/references/acp.md).
-- **Prefer subagents over `run_workflow`**: use standard subagents (`invoke_subagent` with `Workspace="branch"` or `"share"`) or SDK `asyncio.gather`; use the built-in `run_workflow` tool only when in-session multi-stage chaining is required.
-- **Browser work**: `/browser` runs the built-in sandboxed Chrome subagent; for scripted or audited browser work, use the chrome-devtools or playwright skill.
-- **Schedules have owners**: `/schedule` creates in-session timers or cron jobs, and persistent app or daemon automations live in `~/.gemini/config/sidecars/<id>/sidecar.json`; OS jobs belong in [scheduled-jobs](../../../../scheduled-jobs/SKILL.md). Give `/goal`, `/schedule`, and `/learn` a stop condition and review what they persist.
-- **Session recovery**: [continuation](../../../../task-prompts/references/continuation.md) owns resume, `/compact`, and `/fork`. `/resume` does not undo edits; inspect rewind's offered operation before restoring files.
-- **Rules have their own budget**: 20,000 tokens (`defaultRulesBudget` in `~/.gemini/config/config.json`) and a 24,000-byte per-file cap, separate from skills and MCP. Legacy workflows stopped loading on 2026-10-19; `/migrate-workflows` converts them to skills.
+- **Credits stay opt-in**: `/credits` and `useG1Credits` spend post-quota credits (user-enabled only); check plan/cost before `/boost` or `/teamwork`.
+- **Auto mode reviews nothing here**: `always-proceed` plus `command(*)` in `~/.gemini/config/config.json` override `--mode auto`'s secondary review; isolate untrusted repos in a disposable container/VM.
+- **Per-session `--sandbox`**: restricts terminal commands without replacing a container/VM for untrusted code ([permissions](https://antigravity.google/docs/permissions?tab=cli) vs [sandbox](https://antigravity.google/docs/sandbox/)).
+- **`--remote-agent`** (1.5.0+): runs off-machine under `/config`'s `Remote Agent` permissions without local skills; use only on request.
+- **ACP server**: `agy acp` (1.5.0+; 1.5.1 exposes all account models) wires editors via [acp](../../../../agent-protocols/references/acp.md).
+- **Subagents over `run_workflow`**: prefer `invoke_subagent` (`Workspace="branch"` or `"share"`) or SDK `asyncio.gather`; reserve `run_workflow` for in-session multi-stage chains.
+- **Browser**: `/browser` runs the built-in Chrome subagent; use `chrome-devtools` or `playwright` for scripted/audited runs.
+- **Schedules**: `/schedule` manages session timers/crons and `~/.gemini/config/sidecars/<id>/sidecar.json` holds daemon automations; OS jobs belong in [scheduled-jobs](../../../../scheduled-jobs/SKILL.md). Bound `/goal`, `/schedule`, and `/learn` with stop conditions and review persisted output.
+- **Recovery**: [continuation](../../../../task-prompts/references/continuation.md) owns resume, `/compact`, and `/fork` (`/resume` never reverts files; inspect rewind before restoring).
+- **Rule budgets**: 20,000 tokens (`defaultRulesBudget` in `~/.gemini/config/config.json`) and 24,000 bytes/file, separate from skills/MCP; legacy workflows stopped loading 2026-10-19 (`/migrate-workflows`).

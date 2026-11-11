@@ -5,11 +5,11 @@ description: "Security-only dependency updates: alerts plus grouped fix PRs."
 
 # Dependabot
 
-Run Dependabot for security only: alerts warn about vulnerable dependencies, and security updates open one grouped fix PR per ecosystem. Version updates stay off because weekly bumps are noise; [upgrade-tools](../../upgrade-tools/SKILL.md) owns deliberate upgrades, including the bumps Dependabot cannot make (mise pins, formatter plugins). [code-security](../../code-security/references/code-review/GUIDE.md) adds the config during the security pass.
+Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`open-pull-requests-limit: 0` disables noisy version bumps; [upgrade-tools](../../upgrade-tools/SKILL.md) owns planned upgrades, and [code-security](../../code-security/references/code-review/GUIDE.md) adds `.github/dependabot.yml`).
 
 ## Workflow
 
-1. **Enable alerts and security updates on the repository**: both are free for public and private repositories, and neither needs a token or app. The [settings baseline](../../gh/references/repository/references/settings-baseline.md) runs this for every new repository:
+1. **Enable repository alerts and security updates** (free on public and private repos; included in the [settings baseline](../../gh/references/repository/references/settings-baseline.md)):
 
    ```bash
    gh api -X PUT "repos/$repository/vulnerability-alerts"
@@ -17,7 +17,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
    gh api "repos/$repository/automated-security-fixes" --jq .enabled   # expect true
    ```
 
-1. **Map the ecosystems**: one `updates` entry per ecosystem the GitHub Advisory Database covers, with `directory` for one manifest directory or `directories` for several, using the value Dependabot expects:
+1. **Map advisory-backed ecosystems** (`directory` for one manifest root, `directories` for multiple):
 
    | Manifest                     | `package-ecosystem` |
    | ---------------------------- | ------------------- |
@@ -26,7 +26,7 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
    | `package.json` + lockfile    | `npm`               |
    | `go.mod`                     | `gomod`             |
 
-1. **Write the config**: `open-pull-requests-limit: 0` turns version updates off while security updates keep opening; the `fix(deps)` prefix and the `applies-to: security-updates` group still apply to security PRs, so each ecosystem gets one PR per run instead of one per advisory:
+1. **Write `.github/dependabot.yml`**: `open-pull-requests-limit: 0` disables version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping:
 
    ```yaml
    # Docs: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
@@ -59,31 +59,29 @@ Run Dependabot for security only: alerts warn about vulnerable dependencies, and
            patterns: ["*"]
    ```
 
-1. **Validate**: `jactionlint` checks `.github/dependabot.yml` against the schema and security audits alongside the repository's workflows and actions (see [jactionlint](jactionlint.md)); GitHub re-validates on push and shows errors in the Dependabot tab.
-1. **Review each security PR locally**: it is ready to merge once the gate passes; never merge blindly and never enable auto-merge (unavailable for private repositories on GitHub Free anyway).
+1. **Validate**: run [jactionlint](jactionlint.md) (`--profile pedantic` flags `open-pull-requests-limit: 0` as `dependabot-missing-actions-update`, so set `dependabot-missing-actions-update: off` in `.github/jactionlint.yaml`); GitHub re-validates on push under Insights → Dependency graph → Dependabot.
+1. **Verify security PRs locally before merge** (never enable auto-merge):
 
    ```bash
-   gh pr list --app dependabot    # open Dependabot PRs
+   gh pr list --app dependabot
    gh pr checkout <number>
    mise run check && mise run test
    ```
 
 ## Gotchas
 
-- **Skip ecosystems without advisories**: `docker`, `docker-compose`, `terraform`, and `opentofu` get no security updates, so their entries do nothing once version updates are off; Trivy image scans and [upgrade-tools](../../upgrade-tools/SKILL.md) cover base images and providers.
-- **Keep the config file**: deleting `dependabot.yml` also stops version updates, but security PRs then lose the grouping and Conventional Commit prefix.
-- **Drop version-update options**: `cooldown`, `allow.update-types`, and `schedule.day`/`time` only shape version updates; leave them out so the file states what runs.
-- **Avoid `allow` and `ignore`**: unlike `update-types`, they also filter security updates, so an `ignore` written to hold back a major can silently block its security fix.
-- **Bump every alerted package**: a grouped security PR fixes only what Dependabot could update together; after merging, list the remaining open alerts (`gh api --paginate 'repos/OWNER/REPO/dependabot/alerts?state=open&per_page=100'`; `-f` would switch to POST) and bump the rest by hand.
-- **Directory is per manifest**: a uv project under `dot/` needs `directory: /dot`; Dependabot does not recurse from `/`.
-- **List only graphed workflow directories**: security updates need an alert, and the dependency graph lists Actions only under `.github/workflows`; extra `directories` holding workflow templates stay inert in security-only mode, so refresh their pins with [upgrade-tools](../../upgrade-tools/SKILL.md).
-- **Group the repositories without a config**: grouping for repositories with no `dependabot.yml` is the "Grouped security updates" toggle in the account (`https://github.com/settings/security_analysis`) or organization security settings, next to "Enable all" and "Automatically enable for new repositories".
-- **Route alerts deliberately**: alert email and web delivery live under the account's notification settings (Dependabot alerts), separate from repository watching.
-- **Dismiss alerts on deleted manifests**: when a generated lockfile directory is renamed or removed (such as a superseded mise lock sidecar), its open alerts keep scheduling security jobs that fail with `<directories> not found`. Confirm the current lock resolves a patched version, then dismiss each alert: `gh api -X PATCH repos/OWNER/REPO/dependabot/alerts/N -f state=dismissed -f dismissed_reason=not_used -f dismissed_comment="Manifest removed; current lock resolves PACKAGE VERSION"`. When the dependency graph keeps the deleted manifest and reopens its alerts, turn alerts off and on: `gh api -X DELETE repos/OWNER/REPO/vulnerability-alerts`, then `gh api -X PUT repos/OWNER/REPO/vulnerability-alerts` and `gh api -X PUT repos/OWNER/REPO/automated-security-fixes`, and confirm `gh api repos/OWNER/REPO/automated-security-fixes --jq .enabled` prints `true`; the DELETE also disables the dependency graph and needs admin authority.
-- **No CLI trigger**: forcing an immediate check happens only in the repository's Dependabot tab (Insights, Dependency graph).
+- **Omit ecosystems without advisories**: `docker`, `docker-compose`, `terraform`, and `opentofu` emit no security updates; Trivy and [upgrade-tools](../../upgrade-tools/SKILL.md) cover them.
+- **Keep `dependabot.yml`**: deleting it drops `fix(deps)` prefixes and security PR grouping.
+- **Omit version-only keys**: skip `cooldown`, `allow.update-types`, and `schedule.day`/`time`.
+- **Avoid `allow` and `ignore`**: both filter security updates too and can silently block vulnerability fixes.
+- **Check remaining open alerts after merging**: grouped PRs skip conflicting bumps; inspect `gh api --paginate 'repos/OWNER/REPO/dependabot/alerts?state=open&per_page=100'` (omit `-f`, which switches to POST) and bump leftovers manually.
+- **Set `directory` per manifest**: Dependabot does not recurse (`dot/` needs `directory: /dot`).
+- **Only `.github/workflows` is graphed for Actions**: workflow templates elsewhere get no alerts; update them via [upgrade-tools](../../upgrade-tools/SKILL.md).
+- **Enable account-level grouping for unconfigured repos**: toggle "Grouped security updates" in `https://github.com/settings/security_analysis` or org security settings; configure alert delivery separately under account notification settings.
+- **Clear alerts on removed manifests**: if a deleted lockfile path keeps failing Dependabot jobs (`<directories> not found`), verify the active lock has a patched version and dismiss: `gh api -X PATCH repos/OWNER/REPO/dependabot/alerts/N -f state=dismissed -f dismissed_reason=not_used -f dismissed_comment="Manifest removed; current lock resolves PACKAGE VERSION"`. If the dependency graph reopens them, cycle `gh api -X DELETE repos/OWNER/REPO/vulnerability-alerts` (requires admin authority; briefly disables the graph) followed by `PUT` on `vulnerability-alerts` and `automated-security-fixes`, then confirm `.enabled == true`.
+- **Manual re-checks are web-only**: trigger under Insights → Dependency graph → Dependabot.
 
 ## Documentation
 
-- [Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Configuring security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates)
-- Releases: [Supply chain security changelog](https://github.blog/changelog/label/supply-chain-security/) (Dependabot entries)
-- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md) (security pass), [upgrade-tools](../../upgrade-tools/SKILL.md) (deliberate upgrades), [jactionlint](jactionlint.md) (offline validation), [settings baseline](../../gh/references/repository/references/settings-baseline.md) (repository switches).
+- [Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates) · [changelog](https://github.blog/changelog/label/supply-chain-security/)
+- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../upgrade-tools/SKILL.md), [jactionlint](jactionlint.md), [settings baseline](../../gh/references/repository/references/settings-baseline.md).

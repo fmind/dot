@@ -1,15 +1,15 @@
 ---
 name: cross-harness-agents
-description: "Decide when a custom agent role pays off, write native definitions per host, and verify discovery."
+description: "Decide when a custom agent role pays off, write per-host definitions, and verify discovery."
 ---
 
 # Cross-harness agents
 
-A custom role is a native agent definition: a name, a description, host settings, and a body of instructions. Hosts share no format, so every role is written once per installed host. Prefer the shared persona and skills: a role adds a starting focus, not a capability, and each copy is a maintenance cost.
+Hosts share no custom-agent format, so each role must be maintained per host. Prefer the shared persona plus skills—add a named role only after repeated delegations reuse identical instructions.
 
 ## When a role pays off
 
-Delegation pays off in two cases: read-heavy work that would flood the coordinator's context (search, research) and clean-context second opinions (reviews), which avoid the self-preference of reviewing one's own work. Implementation and decisions stay in the coordinator: parallel writers make conflicting implicit choices, and a subagent's summary is lossy, so the coordinator verifies load-bearing claims against the cited evidence before acting ([Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)). A host's general-purpose subagent with a task prompt that names the skill to load covers most cases; add a named role only after repeated delegations show the same instructions every time.
+Delegate only for context-heavy read/search work or clean-context reviews that avoid self-preference; keep edits and decisions in the coordinator, verifying load-bearing subagent claims against cited evidence ([Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)). A general-purpose subagent prompted with the skill to load suffices in most cases.
 
 ## Native definitions
 
@@ -20,12 +20,10 @@ Delegation pays off in two cases: read-heavy work that would flood the coordinat
 | Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`            |
 | OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agents`; delegation by name   |
 
-Every listed host takes YAML frontmatter plus a Markdown body. Claude's `skills` field injects skills when a parent delegates to the role, not when `claude --agent <role>` runs it as the main session, so preload only skills the role always needs. Name conditional skills in the body by path for the other hosts. Inherit model selection where the host supports it, and always pass task context explicitly: discovery does not imply transcript inheritance or automatic delegation.
-
-Claude's `claude agents` lists background sessions, not definitions. Native invocation syntax varies by version; verify with the installed host.
+All four use YAML frontmatter + Markdown body (Pi uses TypeScript extensions and prompt templates rather than custom-agent role files). Claude's `skills` preloads only on subagent delegation (not `claude --agent <role>`), so preload only always-needed skills and cite conditional skills by path; `claude agents` lists background sessions, not roles. Inherit the model where supported and pass task context explicitly.
 
 ## Permission limits
 
-Antigravity is the exception to host defaults: omitting `tools` leaves a small read, web, and messaging baseline without shell or edit tools, and an explicit list replaces that baseline. A role that must act lists `view_file`, `run_command` (which also covers search through `rg`/`fd`), `write_to_file`, `replace_file_content`, `read_url_content`, `search_web`, and `finish`; without `finish`, `--json-schema` print runs never return `structured_output`. Use only names verified at runtime: Antigravity rejects an unknown name before the session starts, and its `skills` field neither preloads nor filters skills. Other hosts receive no tool allowlist, sandbox, or MCP restriction, so the parent session's runtime policy applies.
+In Antigravity, omitting `tools` leaves a minimal read/web/messaging set without shell or edit, and an explicit list replaces it: include `view_file`, `run_command`, `write_to_file`, `replace_file_content`, `read_url_content`, `search_web`, and `finish` (required for `--json-schema` `structured_output`); unknown tool names fail startup, and `skills` neither preloads nor filters. Other hosts inherit the parent session's permissions.
 
-Instructions are not operating-system access control. For an enforced read-only review, run the host in a read-only mode or add a native restriction to that role. Validate the definition's syntax, native discovery, and a bounded runtime task separately.
+Instructions are not OS access control: enforce read-only reviews via host read-only mode or native role restrictions, and test syntax, discovery, and runtime execution separately.

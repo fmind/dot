@@ -1,26 +1,25 @@
 ---
 name: disk-space
-description: "Audit workstation disk headroom, cache growth and shared tool versions before large downloads or builds."
+description: "Audit disk headroom, cache growth, and shared tool versions before large builds or downloads."
 ---
 
 # Disk Space
 
-Keep the workstation usable without deleting shared resources or historical evidence. Check live state; a previous healthy report does not establish current headroom. This is an on-demand audit, not an installed monitor or cleanup schedule.
+Run an on-demand live headroom audit without deleting shared state or historical records.
 
 ## Workflow
 
-1. **Measure the right filesystem**: `dot doctor --headroom` prints one line for the workspace, home, `/var/tmp`, and an explicit `TMPDIR`; it warns below 20 GiB free and exits 1 below 10 GiB disk or 1 GiB memory. Use it alone for a pre-flight check; plain `dot doctor` applies the same disk thresholds and points to `dot cache` and `dot prune`. On ChromeOS, report Linux capacity separately from host storage, and ask the owner to check ChromeOS Storage management when host headroom is unknown. A full auxiliary read-only mount is not a full Linux disk.
-1. **Classify headroom**: use available bytes, not summed directory sizes. Below 20 GiB available is a warning and below 10 GiB is critical, whatever the disk size; defer large optional downloads or builds until their projected peak (download, extraction, image layers, archives, disposable checkouts) leaves 20 GiB free.
-1. **Find growth with bounded reads**: measure one filesystem at a time (`du -x`) over cache, data, and workspace roots, and record missing paths and permission failures instead of calling them empty. Btrfs/APFS sharing and hardlinks mean directory totals are not reclaimable bytes.
-1. **Inspect native owners independently**: run `dot cache` (it skips uninstalled providers and a stopped Docker engine, and still reports the others when one inspection fails), then `dot cache docker`, `dot cache hf`, or `dot cache uv` to drill into one provider. Inspect the Docker context before probes. Distinguish missing cache directories, missing CLIs, and unavailable daemons from real zero usage.
-1. **Audit tool reuse without upgrading**: compare declarations, locks, backends, and installed versions per [upgrade-tools](../../upgrade-tools/SKILL.md); leave pins unchanged and install or resolve nothing.
-1. **Preview maintenance**: `dot prune --dry-run`, `dot prune --aggressive --dry-run`, and `mise prune --dry-run` are previews; `dot prune` never removes installed mise versions. Mise's tracked configs can omit restored or unvisited projects, virtualenv interpreter links, and running processes, so a prune candidate is not proof that deletion is safe. Preserve knowledge-base data and backups; inspect only their sizes unless content review is authorized. `dot prune uv` fails after 10 seconds while any `uv run` process holds the cache, such as `bf-watch.service`; stop that service for the prune and restart it rather than passing `--force`.
-1. **Report and act within scope**: give the date, available space, largest consumers, version drift, and the next concrete action; mark inaccessible areas and host capacity as unverified. An audit leaves data and pins unchanged. For authorized cleanup, recheck ownership, remove exact disposable targets with native tools, and remeasure without attributing concurrent changes to your cleanup.
+1. **Check filesystem headroom**: `dot doctor --headroom` checks workspace, `$HOME`, `/var/tmp`, and explicit `TMPDIR` in one line, warning below 20 GiB free and exiting 1 below 10 GiB disk or 1 GiB memory (`dot doctor` uses the same disk thresholds). Defer large optional builds or downloads unless projected peak usage leaves ≥20 GiB available (check available bytes, never summed directory sizes; on ChromeOS, ask the user to verify host storage separately, and ignore full read-only auxiliary mounts).
+1. **Locate growth safely**: run bounded single-filesystem `du -x` checks across cache, data, and workspace roots, recording missing or unreadable paths as unverified (CoW/hardlink sharing means `du` totals exceed reclaimable bytes).
+1. **Inspect native caches**: run `dot cache`, then `dot cache docker` (check Docker context first), `dot cache hf`, or `dot cache uv`, distinguishing uninstalled CLIs, stopped daemons, and missing directories from zero usage.
+1. **Audit tool drift read-only**: compare declarations, locks, backends, and installed versions per [upgrade-tools](../../upgrade-tools/SKILL.md) without editing pins or installing.
+1. **Preview cleanup**: run `dot prune --dry-run`, `dot prune --aggressive --dry-run`, and `mise prune --dry-run`. `dot prune` never deletes installed mise versions, and `mise prune` candidates can still back unvisited repos, venv symlinks, or running processes. Never touch knowledge-base data or backups; if `bf-watch.service` or another `uv run` holds the uv cache past `dot prune uv`'s 10s lock timeout, stop and restart that service instead of passing `--force`.
+1. **Report or clean within scope**: report date, free bytes, top consumers, version drift, unverified paths, and next actions; when cleanup is authorized, recheck ownership, remove exact disposable targets via native tools, and remeasure without claiming concurrent changes.
 
 ## Prevention
 
-- **Audit before large downloads**: run this audit before large local builds or model and dataset downloads. Use [scheduled-jobs](../../scheduled-jobs/SKILL.md) only when recurring checks are requested, and prefer an alert at 20 GiB available over automatic deletion.
-- **Reuse shared caches**: reuse compatible shared mise installations and uv/browser caches, keep normal project environments isolated, and use the [docker](../../docker/SKILL.md) skill for Docker ownership and teardown.
+- **Check before heavy jobs**: audit before large builds, images, models, or datasets; use [scheduled-jobs](../../scheduled-jobs/SKILL.md) only on request, preferring a 20 GiB alert over auto-deletion.
+- **Share caches, isolate envs**: reuse mise installs and uv/browser caches, keep project `.venv`s isolated, and follow [docker](../../docker/SKILL.md) for container teardown.
 
 ## References
 

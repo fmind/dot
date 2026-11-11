@@ -7,31 +7,28 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-docs
   created: "2026-09-07"
-  updated: "2026-11-08"
+  updated: "2026-11-10"
 ---
 
 # Repository Documentation
 
-Keep human and agent documentation aligned with the implementation, with one canonical owner for every claim.
+Keep human and agent docs aligned with live code, with one canonical owner per claim.
 
 ## Workflow
 
-1. **Inventory**: locate `README.md`, root and nested `AGENTS.md`, `docs/`, community files such as `.github/SECURITY.md`, generated help, and `.agents/skills/*/SKILL.md`; include any additional catalog declared by the repository.
-1. **Trace behavior**: compare documentation with entry points, source, tests, manifests, mise tasks, hooks, CI, and current `--help`; verify paths, options, versions, examples, and supported behavior.
-1. **Choose the audience**: use [README guidance](references/readme.md) for project identity, proof of value, and the first successful use, adapting its starter for new projects; add [README assets](references/readme-assets.md) for SVG logos, illustrations, and badges. Use [AGENTS guidance](references/agents.md) for commands, constraints, invariants, and layout.
-1. **Update canonical owners**: keep setup and usage in human docs, agent commands and invariants in `AGENTS.md`, and reusable procedures in skills; link instead of copying.
-1. **Verify**: run the repository's documentation gate, `dot agent context --check` after editing `AGENTS.md` or skill metadata, `lychee --include-fragments=full <files>` for links, anchors, and `#:~:text=` fragments (a bare `--include-fragments` checks anchors only; add `--include-verbatim` when URLs in code carry claims, then dismiss placeholder hosts), `dprint check` for markup, and the site build where applicable; inspect rendered pages after layout changes.
-1. **Report**: name what changed, the source evidence and checks, and any external workflow or claim that remains unverified.
+1. **Inventory**: find `README.md`, root/nested `AGENTS.md`, `docs/`, `.github/*.md`, generated help, and `.agents/skills/*/SKILL.md` (plus any repo skill catalog).
+1. **Verify against code**: check entry points, source, tests, manifests, `mise` tasks, hooks, CI, and `--help` for every path, flag, version, and example.
+1. **Route by audience**: [README guidance](references/readme.md) and [README assets](references/readme-assets.md) for human identity, visuals, badges, and quickstart; [AGENTS guidance](references/agents.md) for agent commands, invariants, and layout; skills for reusable workflows (link instead of copying).
+1. **Gate**: run repo doc checks, `dot agent context --check` after instruction/skill edits, `lychee --include-fragments=full <files>` (checks anchors + `#:~:text=`; add `--include-verbatim` when code-block URLs carry claims), `dprint check`, and any site build; inspect rendered layout changes.
+1. **Report**: changed files, verification evidence, and unverified external claims.
 
 ## Gotchas
 
-- **Edit generated documentation at its source**: regenerate it; never hand-edit generated output or rewrite published history as cleanup.
-- **Report each status claim separately**: setup, tests, hosted CI, deployment, and publication are separate claims.
-- **Documentation work authorizes relevant reversible edits**: committing, publishing, or contacting others follows the current task authority.
-- **Preserve conventions; exclude secrets**: preserve repository conventions, public anchors, and the author's voice; never include secrets or transient session state.
-- **Default to portable Markdown**: where no convention exists, number every ordered item `1.` so reordering never needs renumbering, tag code fences with a language, keep each paragraph on one line, use relative or `~`-relative paths in skills and `AGENTS.md`, and start comment-capable configs with their official docs URL below any schema directive.
+- **Regenerate, never hand-edit** generated docs; report local checks, CI, deploy, and publication statuses separately.
+- **Portable Markdown defaults**: `1.` ordered lists, language-tagged fences, one-line paragraphs, relative or `~`-relative paths in skills/`AGENTS.md`, and official docs URL comments atop comment-capable configs (below any schema directive). Preserve public anchors and exclude secrets or session state.
+- **Guard `$` tokens and backticks**: `dprint-plugin-markdown` parses two bare `$` characters on one line (such as `$VAR` or brand `$` tokens outside code spans) as inline `$...$` LaTeX math and mangles adjacent backticks and spaces; wrap `$` tokens in inline code or split lines, and check instruction docs for escaped, unmatched, or adjacent backticks.
 
 ## Documentation
 
 - [GitHub README guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes) · [AGENTS.md](https://agents.md) · [Agent Skills](https://agentskills.io/specification)
-- Companion skills: [agent-project](../agent-project/SKILL.md) (host setup), [skillify](../skillify/SKILL.md) (reusable procedures), [dprint](../dprint/SKILL.md) (formatting), [diagrams-as-code](../diagrams-as-code/SKILL.md) (SVG illustrations and Mermaid).
+- Companions: [agent-project](../agent-project/SKILL.md), [skillify](../skillify/SKILL.md), [dprint](../mise/references/dprint.md), [diagrams-as-code](../diagrams-as-code/SKILL.md).

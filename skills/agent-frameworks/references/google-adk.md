@@ -5,29 +5,28 @@ description: "Google ADK agents, runners, tools, sessions, and evaluation."
 
 # Google ADK
 
-Implement Python ADK behavior within the existing project; [agents-cli](agents-cli/GUIDE.md) owns the generated application, evaluation commands, and deployment lifecycle.
+Implement Python ADK agents inside the project; [agents-cli](agents-cli/GUIDE.md) owns scaffolding, evaluation commands, and deployment.
 
 ## Workflow
 
-1. **Inspect before coding**: the installed SDK and project model, tools, session service, and app entry point. Use [python-stack](../../python-stack/references/foundation/GUIDE.md) for shared project defaults only when needed; preserve the generated layout.
-1. **Choose the official guidance below**: for ADK agents, tool functions, orchestration, callbacks, state, or tests; compare its supported SDK version with the project lock.
-1. **Set the runtime contract**: choose one agent unless the workflow requires orchestration; then build a graph `Workflow` (`google.adk.workflow`), because ADK 2 deprecates `SequentialAgent`, `ParallelAgent`, and `LoopAgent` (a `Workflow` cannot yet be an `LlmAgent` sub-agent). Keep the runner and session service consistent on app, user, and session IDs.
-1. **Wire narrow tools explicitly**: in the generated layout, `app/agent.py` defines `root_agent`; tools have complete type signatures, useful docstrings, bounded I/O, and explicit errors, while business logic stays in independently testable modules and prompts in reviewable source. Enforce authorization and idempotency in the tool boundary rather than relying on model instructions; offline tests inspect agent wiring and call tool functions directly.
-1. **Handle events and state**: consume the runner event stream, distinguish tool calls and errors from a final response, and handle empty or non-text parts. Update state through tool/callback context or service events so the selected session service can persist deltas.
-1. **Test locally**: use a fake model or event stream and cover isolation between two user sessions; run provider smoke calls and repeated evaluations only within their authorized access and cost.
-1. **Evaluate changes**: use the [agents-cli](agents-cli/GUIDE.md) evaluation workflow or the project's own, preserving generated deployment choices; [observability](../../python-stack/references/observability.md) owns traces.
+1. **Inspect first**: check the locked SDK, model, tools, session service, and entry point; apply [python-stack](../../python-stack/references/foundation/GUIDE.md) defaults without altering generated layout.
+1. **Match SDK version**: verify upstream skill assumptions against the locked ADK version.
+1. **Set the runtime contract**: use a single agent unless orchestration is needed; otherwise build a graph `Workflow` (`google.adk.workflow`)—ADK 2 deprecates `SequentialAgent`, `ParallelAgent`, and `LoopAgent` (`Workflow` cannot yet be an `LlmAgent` sub-agent). Align app, user, and session IDs across runner and session service.
+1. **Wire narrow tools**: define `root_agent` in `app/agent.py`; give tools full type hints, clear docstrings, bounded I/O, explicit errors, and code-enforced authorization/idempotency while keeping business logic in testable modules and prompts in source.
+1. **Handle events and state**: consume the runner event stream (separating tool calls, errors, empty/non-text parts, and final responses) and mutate state via tool/callback context or service events so deltas persist.
+1. **Test and evaluate**: test tool functions and two-user session isolation offline with fake models/streams; run live smoke calls and [agents-cli](agents-cli/GUIDE.md) evaluations only within authorized access and budget; wire traces per [observability](../../python-stack/references/observability.md).
 
 ## Gotchas
 
-- **State prefixes set scope**: unprefixed state is session-scoped; `user:` shares across the user's sessions, `app:` across users, and `temp:` is invocation-local. Keep sensitive per-user data out of app state; in-memory session storage does not survive restart.
-- **Callbacks can change control flow**: verify the installed callback signature and return semantics; test both the continue and short-circuit paths.
-- **Framework and generator versions differ**: an SDK can support a Python release the agents-cli scaffold does not; retain the generated constraint until verified compatible.
-- **ADK 2.13 renamed its spans**: telemetry now defaults to OpenTelemetry GenAI semconv 1.44 and drops the `call_llm` span; update trace queries and dashboards, or set `ADK_TELEMETRY_SCHEMA_VERSION_OPT_IN=otel_semconv_1_36` while migrating.
-- **SDK contributor skills have another scope**: repository setup, Git rules, and reflection workflows do not belong in a consumer app merely because Google publishes them.
+- **State prefixes set scope**: unprefixed is session-scoped, `user:` spans a user's sessions, `app:` spans users, and `temp:` is invocation-local. Keep user secrets/PII out of `app:`; in-memory sessions reset on restart.
+- **Callbacks alter control flow**: verify installed signatures and test both continue and short-circuit returns.
+- **Generator vs SDK Python range**: keep the `agents-cli` Python constraint until verified compatible.
+- **ADK 2.13 span rename**: telemetry defaults to OTel GenAI semconv 1.44 and drops `call_llm`; update queries/dashboards or set `ADK_TELEMETRY_SCHEMA_VERSION_OPT_IN=otel_semconv_1_36` during migration.
+- **Skip contributor skills**: do not install upstream repo-maintenance or sample skills into consumer apps.
 
 ## Official Skills
 
-For agents-cli projects, use the ADK implementation selection from `google/agents-cli` through [agents-cli](agents-cli/GUIDE.md). For standalone ADK code, [google/adk-python application skills](https://github.com/google/adk-python/tree/main/.agents/skills) also publishes `adk-agent-builder` for building and `adk-debug` for diagnosing a misbehaving agent, alongside contributor and sample skills. Discover with `DISABLE_TELEMETRY=1 skills add google/adk-python --list`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md), select only the needed skills and their required references, and verify their version assumptions against the locked ADK dependency.
+Use `google/agents-cli` skills via [agents-cli](agents-cli/GUIDE.md), or for standalone ADK discover [google/adk-python skills](https://github.com/google/adk-python/tree/main/.agents/skills) (`adk-agent-builder`, `adk-debug`) with `DISABLE_TELEMETRY=1 skills add google/adk-python --list` per [vendor-skill policy](../../agent-project/references/vendor-skills.md).
 
 ## Documentation
 

@@ -7,27 +7,25 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Kubernetes Cluster and Workload Operations
 
-Use `kubectl`, `helm`, `kustomize`, `kubeconform`, and `stern` for Kubernetes cluster inspection, manifest authoring, Helm releases, and log debugging. [docker](../docker/SKILL.md) manages container runtimes and [infra-as-code](../infra-as-code/SKILL.md) provisions managed cloud clusters.
+Inspect clusters, validate manifests, deploy Helm/Kustomize releases, and read bounded logs with `kubectl`, `helm`, `kustomize`, `kubeconform`, and `stern` ([docker](../docker/SKILL.md) owns container runtimes; [infra-as-code](../infra-as-code/SKILL.md) owns cloud cluster provisioning).
 
-The workstation installs none of these tools globally: declare the ones the project uses, including `k3d` for local clusters, in its `mise.toml` with `mise use --pin <tool>` per [mise](../mise/SKILL.md).
-
-Confirm user authority for cluster mutations and spending, reusing existing authorization. Pin `--context` and `--namespace` (or Helm's `--kube-context`) after resolving the intended cluster.
+None of these tools (or `k3d`) are installed globally: pin required ones in the project's `mise.toml` via `mise use --pin <tool>` ([mise](../mise/SKILL.md)). Confirm authority before mutating clusters or incurring spend, and pass `--context` and `--namespace` (`--kube-context` in Helm) explicitly on every call.
 
 ## Workflow
 
-1. **Verify active context and namespace**: inspect the current cluster context before running any command; never assume terminal defaults point to dev.
+1. **Confirm context and cluster**: never assume default kubeconfig points to dev:
 
    ```bash
    kubectl config get-contexts
    kubectl --context <context> cluster-info
    ```
 
-1. **Lint and validate manifests**: validate schemas against the target cluster's version (kubeconform defaults to `master` schemas) and scan for misconfigurations with [trivy](../code-security/references/trivy/GUIDE.md) and the project's `trivy.yaml` before applying manifests.
+1. **Validate manifests offline**: check target-version schemas (`kubeconform` defaults to `master`) and scan with [trivy](../code-security/references/trivy/GUIDE.md) before applying (prefer offline validation over spinning up [k3d](references/k3d.md) when sufficient):
 
    ```bash
    kubeconform -strict -summary -kubernetes-version <cluster-version> <file-or-directory>
@@ -35,18 +33,16 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
    kustomize build <kustomization-dir> | kubeconform -strict -summary -kubernetes-version <cluster-version> -
    ```
 
-1. **Use a local cluster only when needed**: read [k3d](references/k3d.md) before creating or deleting one; manifest checks often answer the question without it.
-
-1. **Deploy declaratively**: apply configurations using Helm or Kustomize; preview changes before mutating cluster state.
+1. **Preview and deploy declaratively**:
 
    ```bash
    helm upgrade --install <release-name> <chart-path> --kube-context <context> --namespace <namespace> --dry-run=server --hide-secret
    kubectl --context <context> --namespace <namespace> diff -k <kustomization-dir>
    ```
 
-   A diff exit status of 1 means differences; higher values are errors. Review the preview, then apply within the authorized scope; with Helm 4 add `--rollback-on-failure --timeout <duration>`, which replaces the deprecated `--atomic` (as `--force-replace` replaces `--force`). `kubectl diff` masks Secret data unless `--show-secrets` is passed, but ConfigMaps and rendered chart values are not masked; exclude sensitive values from captured output.
+   `kubectl diff` exits `1` on diffs and `>1` on errors; it masks `Secret` data (without `--show-secrets`) but not `ConfigMap`s or rendered values. On authorized Helm 4 applies, pass `--rollback-on-failure --timeout <duration>` (replaces deprecated `--atomic`; `--force-replace` replaces `--force`).
 
-1. **Inspect workloads and bounded logs**: narrow to the relevant workload and time window. Use finite log reads for agents; reserve streaming `stern` for an explicitly interactive investigation. The line limit applies per pod/container, so keep the pod query narrow.
+1. **Read bounded logs and events** (`--tail` applies per container; reserve streaming `stern` for interactive sessions):
 
    ```bash
    stern <pod-query> --context <context> -n <namespace> --since 15m --tail 50 --no-follow
@@ -55,8 +51,8 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
 
 ## Gotchas
 
-- **Pin the context explicitly**: omitted context flags use mutable kubeconfig defaults. Pass the selected context on each call; change the persistent current context only when that change is requested.
-- **Keep Secret payloads out of logs**: avoid running unbounded `kubectl get secret -o yaml`; inspect metadata and key names (`kubectl describe secret <name>` shows sizes, not values) without printing raw base64 payloads to terminal logs.
+- **Never mutate persistent kubeconfig context** unless explicitly asked; pass `--context` per command.
+- **Never dump raw Secret values**: inspect keys/sizes via `kubectl describe secret <name>` instead of `kubectl get secret -o yaml`.
 
 ## Task guides
 
@@ -68,7 +64,5 @@ Confirm user authority for cluster mutations and spending, reusing existing auth
 
 ## Documentation
 
-- [Kubernetes Documentation](https://kubernetes.io/docs/) · [Helm Documentation](https://helm.sh/docs/)
-- [Stern Log Tailer](https://github.com/stern/stern) · [kubeconform](https://github.com/yannh/kubeconform)
-- Releases: [Kubernetes Releases](https://github.com/kubernetes/kubernetes/releases) · [Helm](https://github.com/helm/helm/releases)
-- Companion skills: [docker](../docker/SKILL.md) (container runtimes), [infra-as-code](../infra-as-code/SKILL.md) (provisioning).
+- [Kubernetes](https://kubernetes.io/docs/) · [Helm](https://helm.sh/docs/) · [Stern](https://github.com/stern/stern) · [kubeconform](https://github.com/yannh/kubeconform) · [Kubernetes releases](https://github.com/kubernetes/kubernetes/releases) · [Helm releases](https://github.com/helm/helm/releases)
+- Companion skills: [docker](../docker/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md).

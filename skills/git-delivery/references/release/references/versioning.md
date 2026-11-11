@@ -1,9 +1,7 @@
 # Release Versioning Conventions
 
-- **git-cliff owns the version**: let `git-cliff --bumped-version` decide; override only for a deliberate bump such as the first stable `v1.0.0`.
-- **Keep the `v` tag prefix**: git-cliff and `gh` use `vX.Y.Z`; keep the `v`.
-- **Pre-1.0 follows the same rules**: git-cliff applies the same rules below `v1.0.0`, so a `feat` bumps the minor and a breaking change jumps to `v1.0.0`.
-- **Opt into a tolerant 0.x line**: set `features_always_bump_minor = false` and `breaking_always_bump_major = false` under `[bump]` in `cliff.toml`.
-- **First release starts at `initial_tag`**: with no tag yet, git-cliff starts from the configured `initial_tag` (`v0.1.0` in the global config).
-- **Prove releases from remote state**: a local tag, a green local gate, a draft release, or a latest-branch run proves nothing about the published release; reconcile the remote tag, exact-head workflows, state, and assets.
-- **Global config overrides `pyproject.toml`**: git-cliff finds a project `cliff.toml`, `.cliff.toml`, or `.config/cliff.toml` (also in parent directories) before `~/.config/git-cliff/cliff.toml`, but that global file wins over `[tool.git-cliff]`; pass `--config pyproject.toml` there and confirm the `Using configuration from:` log line.
+- **Let `git-cliff --bumped-version` compute versions**: override only for deliberate milestones like `v1.0.0`, and keep the `v` prefix (`vX.Y.Z`).
+- **Pre-1.0 uses standard SemVer bumps** (`feat` → minor, breaking → `v1.0.0`) unless `[bump]` in `cliff.toml` sets `features_always_bump_minor = false` and `breaking_always_bump_major = false`.
+- **Untagged repos start at `initial_tag`** (`v0.1.0` in global config).
+- **Prove from remote state**: reconcile remote peeled tags, `release_sha` workflows, release flags, and assets rather than local tags or branch runs.
+- **Pass `--config pyproject.toml` when using `[tool.git-cliff]`**: `git-cliff` checks project `cliff.toml` / `.cliff.toml` / `.config/cliff.toml` first, then `~/.config/git-cliff/cliff.toml`, which shadows `[tool.git-cliff]` unless `--config pyproject.toml` is explicit (verify via `Using configuration from:`).

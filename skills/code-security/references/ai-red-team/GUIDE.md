@@ -5,25 +5,25 @@ description: "Red-team AI apps and agents with PyRIT: prompt injection, tool mis
 
 # AI Red Team
 
-Turn a concrete AI attack path into a reproducible assessment and regression test. [threat-model](../threat-model.md) owns architectural analysis, [code-review](../code-review/GUIDE.md) owns source and dependency review, and [agent-evaluation](../../../agent-evaluation/SKILL.md) owns repeated-trial comparisons. PyRIT is the runner, installed in a project-local `uv` environment.
+Turn concrete AI attack paths into reproducible PyRIT assessments and regression tests inside a project-local `uv` environment. [threat-model](../threat-model.md) owns design analysis, [code-review](../code-review/GUIDE.md) owns source/dependency audits, and [agent-evaluation](../../../agent-evaluation/SKILL.md) owns multi-trial comparisons.
 
 ## Workflow
 
-1. **Record the boundary**: fill the [assessment record](templates/assessment.md) with the application revision, model, retrieval sources, actors, tools, and granted authority. Reuse established target, data, action, and cost authorization, and proceed autonomously within it. Keep customer evidence in the assessment project.
-1. **Choose plausible cases**: select from [attack cases](references/attack-cases.md). For each case, name the attacker-controlled surface, required access, protected asset, and forbidden outcome, plus the legitimate action that must still succeed.
-1. **Exercise the real enforcing boundary**: drive the application, not a bare model endpoint, and capture attempted tool calls and resulting state. Use disposable records, synthetic markers, and controlled destinations; never use a real secret as a marker.
-1. **Prepare PyRIT**: follow [PyRIT execution](references/pyrit.md) for the released API, target adapter, local smoke, and campaign limits. Freeze package, prompt, dataset, converter, scorer, and application identities before comparative runs.
-1. **Validate before the campaign**: prove the input reaches the target and that the outcome check catches a deliberately broken control in a fixture. Keep target, evaluator, and security failures separate.
-1. **Verify and retest**: reproduce suspicious results and label them confirmed, refuted, or unresolved. When a fix is authorized, add a deterministic regression, then repeat the original attack, nearby variants, and legitimate tasks under the same budgets.
+1. **Record the boundary**: fill [assessment.md](templates/assessment.md) with app revision, model, retrieval, actors, tools, and granted authority; stay within authorized targets/data/budget and keep customer evidence in-project.
+1. **Select cases** from [attack-cases.md](references/attack-cases.md), pairing each attacker surface, access level, asset, and forbidden outcome with the legitimate action that must still pass.
+1. **Target the real enforcement boundary** (never a bare model endpoint), capturing attempted tool calls and resulting state with disposable records, controlled sinks, and synthetic markers (never real secrets).
+1. **Configure PyRIT** per [pyrit.md](references/pyrit.md), freezing package, prompt, dataset, converter, scorer, and app versions before comparative runs.
+1. **Validate the harness**: confirm inputs reach the target and outcome checks fail on a deliberately broken fixture, separating target, scorer, and security failures.
+1. **Verify and retest**: reproduce hits (`confirmed`, `refuted`, or `unresolved`); on authorized fixes, add a deterministic regression and re-run the attack, variants, and legitimate control cases under identical budgets.
 
 ## Gotchas
 
-- **Autonomy is intentional**: a finding is untrusted content gaining authority beyond the declared contract. Powerful tools or missing per-action prompts are not findings, and an assessment never changes the user's harness permissions.
-- **Judge by state, not by the model**: a refusal followed by a forbidden tool call is a failure, and a model claiming it read a secret is not exfiltration. Record attempted actions, blocked actions, and completed effects separately, as the template's columns do.
-- **Scoring is not containment**: PyRIT generates and scores tests; the environment and application enforce tool, data, and spending limits. A request timeout does not prove a remote run stopped.
+- **Autonomy is intentional**: findings require untrusted input exceeding declared authority—powerful tools or absent per-action prompts are not findings, and assessments never alter harness permissions.
+- **Grade state, not claims**: a refusal followed by a forbidden call fails, while hallucinated secret reads are not exfiltration; log attempted, blocked, and completed actions separately.
+- **Scoring is not containment**: enforce tool, data, and spend caps in the app and environment; client timeouts do not stop remote runs.
 
 ## Documentation
 
 - [PyRIT](https://microsoft.github.io/PyRIT/latest/) · [OWASP Agentic Top 10](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) · [MITRE ATLAS](https://atlas.mitre.org/)
 - Releases: [PyRIT](https://github.com/microsoft/PyRIT/releases)
-- Companion skill: [agent-frameworks](../../../agent-frameworks/SKILL.md) (agent and prompt layering).
+- Companion skill: [agent-frameworks](../../../agent-frameworks/SKILL.md).

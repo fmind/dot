@@ -5,36 +5,35 @@ description: "Author new reusable Copier templates, generate projects, and apply
 
 # Copier
 
-Copier is the default for new project templates we maintain. Keep existing Cookiecutter templates and `.cruft.json` projects on [Cookiecutter/Cruft](cookiecutter.md) unless migration is explicitly requested; the formats and update baselines are not interchangeable. [bootstrap](bootstrap.md) owns the generated project's stack and repository setup.
+Default for new reusable templates; keep existing Cookiecutter templates and `.cruft.json` projects on [Cookiecutter/Cruft](cookiecutter.md) unless migration is requested (formats and baselines are incompatible). [bootstrap](bootstrap.md) owns generated project setup.
 
 ## Workflow
 
-1. **Review before running**: review the template at an immutable Git revision, including `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions before running it. Keep `--trust` off unless those executable features have been reviewed and their effects are authorized. Use Copier 9.19.0 or later: earlier releases have [advisories](https://github.com/copier-org/copier/security/advisories) where untrusted templates run code or bypass trusted prefixes.
-1. **Author questions and defaults in `copier.yml`**: add explicit types and validators where needed. Keep templates deterministic, use `.jinja` for rendered files, and set `_envops: {undefined: jinja2.StrictUndefined}` so a misspelled variable fails rendering instead of rendering empty. Include `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` so generated projects record their answers and template provenance. Keep secrets out of stored answers and generated examples.
-1. **Generate into a fresh disposable directory**: use explicit answers and a reviewed revision:
+1. **Review before running**: inspect `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions at an immutable commit. Keep `--trust` off unless executable features are reviewed and authorized. Require Copier `>=9.19.0` (earlier versions have untrusted-execution/prefix [advisories](https://github.com/copier-org/copier/security/advisories)).
+1. **Author `copier.yml`**: declare types/validators, use `.jinja` suffixes, set `_envops: {undefined: jinja2.StrictUndefined}`, and include `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` for provenance. Never store secrets in answers or examples.
+1. **Generate into a fresh disposable directory**:
 
    ```bash
    copier copy --defaults --vcs-ref <reviewed-commit> --data project_slug=demo ./template ./generated
    ```
 
-1. **Check the rendered output**: paths, contents, executable modes, and recorded provenance. Exercise default and non-default answers, invalid input, and the generated project's native gate before delivering the template.
-1. **Update in an isolated candidate**: run `copier check-update --output-format json` to compare the current and latest template versions, then inspect the clean project's Git state, `.copier-answers.yml`, old and target template revisions, and ownership rules such as `_skip_if_exists`. Work in an isolated candidate; from its root run:
+1. **Verify output**: check paths, contents, modes, and provenance across default, non-default, and invalid answers, then run the generated project's gate.
+1. **Update in an isolated candidate**: run `copier check-update --output-format json`, verify clean Git state, `.copier-answers.yml`, old/target revisions, and `_skip_if_exists`, then run:
 
    ```bash
    copier update --defaults --vcs-ref <reviewed-commit>
    ```
 
-1. **Review the entire update**: diff, answer-file revision, conflict markers, and `.rej` files; resolve conflicts explicitly and run the generated project's gate. Qualify reusable templates with two Git revisions and a local project edit that must survive an update; also exercise an overlapping edit that must surface as a conflict.
+1. **Verify the update**: inspect the diff, answer-file revision, conflict markers, and `.rej` files, then run the project gate. Qualify reusable templates across two Git revisions with both a surviving local edit and an overlapping conflict edit.
 
 ## Gotchas
 
-- **Answers are update state**: commit the generated answers file; never hand-edit it to change configuration or invent a migration baseline. Change one answer without upgrading the template through `copier update --defaults --vcs-ref=:current: --data name=value`; without `--defaults` it fails outside a terminal, and without `:current:` it also upgrades to the latest tag.
-- **Unpinned runs select tagged releases**: without `--vcs-ref`, Copier selects releases using Git tags and PEP 440 ordering; `HEAD` explicitly opts into unreleased changes.
-- **Recopy overwrites**: `copier recopy` bypasses the smart update process and can overwrite project edits. It is not a conflict-resolution shortcut.
-- **Replay must work**: updates can render old and new templates and execute their tasks. Keep external dependencies reproducible; review both revisions, not only the target.
-- **Trust is execution authority**: tasks, migrations, and extensions can run code. Disabling tasks alone does not make an untrusted template safe.
+- **Answers are update state**: commit `.copier-answers.yml`; never hand-edit it. Change one answer without upgrading via `copier update --defaults --vcs-ref=:current: --data name=value` (omitting `--defaults` hangs headless; omitting `:current:` upgrades to the latest tag).
+- **Tag selection**: omitting `--vcs-ref` picks the latest PEP 440 Git tag; pass `HEAD` explicitly for unreleased commits.
+- **`copier recopy` overwrites local edits**: never use it to dodge merge conflicts.
+- **Replay executes both revisions**: updates render old and new templates; review both commits and keep task dependencies reproducible.
+- **`--trust` grants code execution**: disabling tasks alone does not make an untrusted template safe (migrations and Jinja extensions still run).
 
 ## Documentation
 
-- [Creating templates](https://copier.readthedocs.io/en/stable/creating/) · [Configuration](https://copier.readthedocs.io/en/stable/configuring/) · [Updating projects](https://copier.readthedocs.io/en/stable/updating/)
-- Releases: [Copier](https://github.com/copier-org/copier/releases)
+- [Creating templates](https://copier.readthedocs.io/en/stable/creating/) · [Configuration](https://copier.readthedocs.io/en/stable/configuring/) · [Updating projects](https://copier.readthedocs.io/en/stable/updating/) · [Releases](https://github.com/copier-org/copier/releases)

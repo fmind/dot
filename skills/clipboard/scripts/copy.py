@@ -16,10 +16,9 @@ TIMEOUT = 5
 def commands() -> tuple[list[str], list[str]]:
     """Choose the native backend without probing or reading clipboard contents."""
     if sys.platform == "darwin":
-        names = ("pbcopy", "pbpaste")
-        paths = [shutil.which(name) for name in names]
-        if all(paths):
-            return [str(paths[0])], [str(paths[1])]
+        pbcopy, pbpaste = shutil.which("pbcopy"), shutil.which("pbpaste")
+        if pbcopy and pbpaste:
+            return [pbcopy], [pbpaste]
         raise RuntimeError("macOS requires pbcopy and pbpaste in PATH")
     if sys.platform.startswith("linux"):
         xclip = shutil.which("xclip")
@@ -72,6 +71,8 @@ def copy_text(payload: bytes, *, keep_final_newline: bool = False) -> str:
         )
         if written.returncode:
             raise RuntimeError(f"{Path(copy[0]).name} failed (exit {written.returncode}){diagnostics(errors)}")
+        errors.seek(0)
+        errors.truncate()
         read = subprocess.run(  # noqa: S603 - fixed native executable and arguments
             paste,
             stdin=subprocess.DEVNULL,

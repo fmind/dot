@@ -130,8 +130,8 @@ def location(workspace: Mapping[str, object], cwd: object) -> tuple[str, str]:
         root, current = posixpath.normpath(project_dir), posixpath.normpath(current_dir)
         if root.startswith("/") == current.startswith("/"):
             relative = posixpath.relpath(current, root)
-            if relative not in {".", ".."} and not relative.startswith("../"):
-                return name, "/" + clean(relative)
+            if relative not in {".", ".."} and not relative.startswith("../") and (sub := clean(relative)):
+                return name, "/" + sub
     return name, ""
 
 

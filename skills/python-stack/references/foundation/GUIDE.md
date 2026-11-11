@@ -5,58 +5,36 @@ description: "Python package layout, dependency choices, defaults, and project s
 
 # Python Stack Standard
 
-Own the shared Python foundation and select the specialist for the task. Preserve existing project conventions. Load only the relevant owner; specialist skills can use these defaults without restarting the bootstrap workflow.
+Own the shared Python foundation and route to the right specialist while preserving existing project conventions.
 
 ## Defaults
 
-- **Pin Python through mise**: mise owns the interpreter, `.python-version`, and their relation to `requires-python` per the [tool version rules](../../../mise/references/tool-versions.md#workstation-and-projects); uv owns package environments and `uv.lock`. Check a library's minimum interpreter with `uv run --isolated --locked --python <min> pytest` (`--isolated` leaves the project `.venv` untouched).
-- **Start minimal with a `src/` layout**: a `src/<package>/` layout and no runtime dependencies until the application uses them. Distribution slugs may contain hyphens; import names use underscores.
-- **Use the standard library for plumbing, and proven packages instead of reinventing the wheel**: `argparse`, `pathlib`, `tomllib`, `json`, `sqlite3`, `datetime`/`zoneinfo`, `logging`, `asyncio`, `concurrent.futures`, `dataclasses`, `subprocess`, `tempfile`, `hashlib`, `secrets`, and `urllib.request` (for a single simple request with no auth or redirect hazards) cover routine plumbing. Skip low-value wrapper packages that widen the supply chain for little gain, and remove dependencies the standard library has caught up with, but never hand-roll what a trusted stack package solves: Pydantic (`pydantic`, `pydantic-settings`) at validation and settings boundaries, `pyyaml` (`safe_load`) for YAML, `httpx2` (or `httpx` when already in `uv.lock`) with `stamina` for HTTP clients and retries, `structlog` and OpenTelemetry for observability, Polars for dataframes, and the profile's web (Litestar, Django), agent (Google ADK, LangGraph), or ML stack. Prefer one maintained, widely used package over several small ones. Development tools never ship, so they follow the tool list below, not this rule.
-- **Use Ruff, ty, deptry, pytest, and dprint**: Ruff for Python formatting/lint, ty for types, deptry for dependency declarations (missing, unused, transitive, or dev-only imports in shipped code; it treats test code outside a top-level `tests/` as shipped, so extend `[tool.deptry] extend_exclude`, and list packages loaded only by URL, command, or settings string under `per_rule_ignores` `DEP002`), pytest for behavior, and dprint for markup/config. Keep checks warning-free; use deterministic offline tests (the template enforces this with `pytest-socket` and fails hung tests with `pytest-timeout`) and an initial 85% branch-coverage target adapted to the project. The task template keeps test counts and coverage totals visible; `mise run report:coverage` reads per-file detail from the last run without rerunning tests. Rerun tests when saved coverage is stale.
-- **Document APIs with Zensical**: the starter's `build:docs` renders an API reference from docstrings through mkdocstrings and `api-autonav`, never pdoc; [documentation-site](../../../documentation-site/SKILL.md) grows it into a full site.
-- **Validate external input with Pydantic**: use Pydantic/settings when external input or application configuration needs typed validation, and structlog when structured logging is required.
-
-For application templates, set output-appropriate escaping explicitly and prefer `StrictUndefined` in new Jinja templates when missing data is an error; review compatibility before changing existing undefined behavior. [Project-scaffolding](../../../project-scaffolding/SKILL.md) owns project templates and tracked updates: Copier for new templates, with existing Cookiecutter/Cruft workflows preserved.
+- **Interpreter & env**: `mise` owns Python, `.python-version`, and `requires-python` alignment ([tool-versions](../../../mise/references/tool-versions.md#workstation-and-projects)); `uv` owns `.venv` and `uv.lock`. Test minimum Python bounds via `uv run --isolated --locked --python <min> pytest`.
+- **Layout**: `src/<package>/` with `dependencies = []` until earned (hyphenated distribution slugs, underscored import names).
+- **Stdlib for plumbing, proven packages at boundaries**: use `argparse`, `pathlib`, `tomllib`, `json`, `sqlite3`, `datetime`/`zoneinfo`, `logging`, `asyncio`, `concurrent.futures`, `dataclasses`, `subprocess`, `tempfile`, `hashlib`, `secrets`, and `urllib.request` (single simple requests without auth/redirect hazards). Use `pydantic`/`pydantic-settings` for validation/settings, `pyyaml` (`safe_load`) for YAML, `httpx2` (`httpx` if already locked) + `stamina` for HTTP/retries, `structlog` + OpenTelemetry for telemetry, Polars for dataframes, and the chosen web/agent/ML framework.
+- **Quality gate**: Ruff (format/lint), `ty` (types), `deptry` (`known_first_party = ["<package>"]` on `uv_build` `src/` layouts, `extend_exclude` for tests or repo-only task packages outside top-level `tests/`, and `per_rule_ignores` `DEP002` for URL/CLI/settings-only packages), `pytest` (`pytest-socket` offline default, `pytest-timeout`, warnings as errors, 85% initial branch coverage; `mise run report:coverage` inspects the last run), and `dprint` (markup/config).
+- **Docs & templates**: `build:docs` generates API docs via Zensical (`mkdocstrings` + `api-autonav`, never `pdoc`; [documentation-site](../../../documentation-site/SKILL.md)). Set explicit template escaping + `StrictUndefined` on new Jinja templates. [project-scaffolding](../../../project-scaffolding/SKILL.md) owns Copier and Cookiecutter/Cruft templates.
 
 ## Workflow
 
-1. **Choose the owner** from [profiles and owners](#profiles-and-owners). For an existing application's feature or diagnostic, go directly to its specialist.
-1. **Create the foundation only when needed** using [bootstrap](references/bootstrap.md), the shared manifest and tasks below, and the minimal library example. Add the selected specialist's scaffold before final qualification; generated agent and Django projects retain their native layouts.
-1. **Verify the result** through focused behavior tests and the project's canonical gate. Build a new package, install its wheel in a fresh environment, and exercise its public import or command outside the source tree; an editable install alone does not qualify packaging.
-1. **Finish** through [repository-docs](../../../repository-docs/SKILL.md). [project-scaffolding](../../../project-scaffolding/references/bootstrap.md) owns repository-wide setup, CI, licensing, and authorized publication.
+1. **Select the owner** from [profiles and owners](#profiles-and-owners) (go straight to the specialist for existing apps).
+1. **Bootstrap when new** via [bootstrap](references/bootstrap.md) + the specialist profile before final qualification (Django and `agents-cli` keep their native layouts).
+1. **Verify** with focused tests, the project gate, and a fresh-venv wheel install + import/CLI check outside the source tree.
+1. **Finish** via [repository-docs](../../../repository-docs/SKILL.md) and [project-scaffolding](../../../project-scaffolding/references/bootstrap.md).
 
 ## Profiles and owners
 
-Choose the smallest profile that fits the project; its owner supplies application procedures and examples.
+- **Library**: shared foundation, zero runtime deps, no `[project.scripts]`.
+- **CLI**: foundation + [argparse](../argparse/GUIDE.md) (zero runtime deps) + [cli-contracts](../cli-contracts.md).
+- **Web**: [litestar](../../../python-web/references/litestar/GUIDE.md) (typed ASGI default), [django](../../../python-web/references/django/GUIDE.md) (ORM/admin/auth/SSR), [fastapi](../../../python-web/references/fastapi.md) (existing/`agents-cli` scaffolds), [nicegui](../../../python-web/references/nicegui.md) / [gradio](../../../python-web/references/gradio.md) (Python UIs/demos).
+- **Agent, LLM, MCP**: Google ADK first via [agents-cli](../../../agent-frameworks/references/agents-cli/GUIDE.md) + [google-adk](../../../agent-frameworks/references/google-adk.md); else [langgraph](../../../agent-frameworks/references/langgraph.md) / [langchain](../../../agent-frameworks/references/langchain.md) ([agent-frameworks](../../../agent-frameworks/SKILL.md)); tool servers via [MCP](../../../agent-protocols/references/mcp/GUIDE.md).
+- **Data, ML, notebooks**: [polars](../../../python-mlops/references/polars.md), [python-mlops](../../../python-mlops/SKILL.md), [duckdb](../../../duckdb/SKILL.md), [marimo](../../../python-mlops/references/marimo.md).
+- **Single-file script**: [python-script](../python-script/GUIDE.md) (PEP 723).
 
-- **Library**: the shared package foundation, no runtime dependencies by default, and no console entry point.
-- **CLI**: extend the foundation through [argparse](../argparse/GUIDE.md), with no added dependency; [cli-contracts](../cli-contracts.md) owns flags, streams, and exit codes.
-- **Web**: [litestar](../../../python-web/references/litestar/GUIDE.md) extends the foundation for typed ASGI APIs and services; [django](../../../python-web/references/django/GUIDE.md) owns ORM, admin, auth, and server-rendered pages through its own bootstrap; [fastapi](../../../python-web/references/fastapi.md) covers an existing or generated scaffold. Use [nicegui](../../../python-web/references/nicegui.md) or [gradio](../../../python-web/references/gradio.md) for a single-user tool or model demo instead of a service.
-- **Agent, LLM, MCP**: default new agents to Google ADK: start with [agents-cli](../../../agent-frameworks/references/agents-cli/GUIDE.md) and use [google-adk](../../../agent-frameworks/references/google-adk.md) for SDK code, retaining the generator's layout and supported Python range; when ADK does not fit, use [langgraph](../../../agent-frameworks/references/langgraph.md) through [langchain](../../../agent-frameworks/references/langchain.md)'s `create_agent` ([agent-frameworks](../../../agent-frameworks/SKILL.md) owns the order); [MCP implementation](../../../agent-protocols/references/mcp/GUIDE.md) for tool servers.
-- **Data, ML, notebooks**: [polars](../../../python-mlops/references/polars.md) for dataframes; [python-mlops](../../../python-mlops/SKILL.md) for training, experiments, registry, and model delivery; [duckdb](../../../duckdb/SKILL.md) for local queries and exports; [marimo](../../../python-mlops/references/marimo.md) for reactive notebooks. Retain project-selected workload dependencies, keep runtime dependencies separate from development tools, and consult installed source and official docs for dataframe, schema, and chart APIs.
-- **Single-file utility**: [python-script](../python-script/GUIDE.md) for PEP 723 metadata and execution.
+I/O-bound agent/LLM/MCP/web profiles default to `asyncio` ([python-async](../python-async/GUIDE.md)). Cross-cutting owners: [uv](../uv.md), [ruff](../ruff.md), [ty](../ty.md), [pydantic](../pydantic.md), [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [dprint](../../../mise/references/dprint.md), [observability](../observability.md), [api-client](../api-client/GUIDE.md), [python-testing](../python-testing/GUIDE.md), [performance](../performance.md), [code-security](../../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../../upgrade-tools/SKILL.md), and [agent-project](../../../agent-project/SKILL.md) (vendor skills). Rehearse DB migrations (Alembic, Django) on a copy with a restorable backup.
 
-I/O-bound agent, LLM, MCP, and web profiles default to `asyncio`; [python-async](../python-async/GUIDE.md) owns when to stay synchronous, task lifetime, cancellation, deadlines, and shutdown.
+## Foundation resources & Docs
 
-Cross-cutting owners:
-
-- **This skill**: [uv](../uv.md) for dependencies, environments, Python versions, and builds; [ruff](../ruff.md) and [ty](../ty.md) for lint/format and type diagnostics; [pydantic](../pydantic.md) for input validation.
-- **Tasks, hooks, markup/config formatting**: [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [dprint](../../../dprint/SKILL.md).
-- **Persisted schema or data changes**: use the project's migration tool (Alembic, Django migrations), rehearse on a copy, and keep a restorable backup; use installed database/framework documentation for query APIs.
-- **Logging and external HTTP**: [observability](../observability.md), [api-client](../api-client/GUIDE.md).
-- **Tests**: [python-testing](../python-testing/GUIDE.md) for pytest mechanics and Hypothesis property tests.
-- **Profiling and benchmarks**: [performance](../performance.md).
-- **Security scans and dependency upgrades**: [code-security](../../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../../upgrade-tools/SKILL.md).
-
-## Foundation resources
-
-- [pyproject.toml.template](templates/pyproject.toml.template), [mise.toml](templates/mise.toml), and [lefthook.yml](templates/lefthook.yml) define the shared foundation. Preserve supported package ranges; resolve scaffold tool selectors to exact baseline pins before installation.
-- [AGENTS.md](templates/AGENTS.md.template), [gitignore](templates/gitignore), and [ignore](templates/ignore) supply project conventions.
-- [init-library.py](templates/init-library.py) and [test_library.py](templates/test_library.py) supply the minimal library example; application code and tests live with the selected specialist.
-- [zensical.toml](templates/zensical.toml) and [docs-index.md](templates/docs-index.md) supply the API documentation starter.
-
-## Documentation
-
-- [Python](https://docs.python.org/3/) · [Python packaging](https://packaging.python.org/)
-- [agent-project](../../../agent-project/SKILL.md) owns vendor skill discovery and the dated official-source audit; selecting a stack does not install every vendor bundle.
-- Releases: [Python versions](https://devguide.python.org/versions/) · [CPython changelog](https://docs.python.org/3/whatsnew/changelog.html)
+- Shared config: [pyproject.toml.template](templates/pyproject.toml.template), [mise.toml](templates/mise.toml), [lefthook.yml](templates/lefthook.yml), [AGENTS.md](templates/AGENTS.md.template), [gitignore](templates/gitignore), [ignore](templates/ignore).
+- Library & docs starters: [init-library.py](templates/init-library.py), [test_library.py](templates/test_library.py), [zensical.toml](templates/zensical.toml), [docs-index.md](templates/docs-index.md).
+- Docs: [Python](https://docs.python.org/3/) · [Packaging](https://packaging.python.org/) · [Supported versions](https://devguide.python.org/versions/) · [CPython changelog](https://docs.python.org/3/whatsnew/changelog.html).

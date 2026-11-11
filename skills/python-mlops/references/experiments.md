@@ -5,14 +5,14 @@ description: "Track reproducible MLflow experiments, data lineage, metrics, mode
 
 # Track ML Experiments
 
-Tracking writes to a backend and artifact store: reuse the project's tracker and its current authorization; a local notebook does not authorize uploading data or registering models.
+Reuse the project's tracker and current authorization; local notebooks do not authorize uploading data or registering models.
 
-- **Default to a local SQL store**: for a new local MLflow store use `sqlite:///mlflow.db` plus a task-owned artifact directory, both Git-ignored. MLflow 3.13+ refuses a file store such as `./mlruns` unless `MLFLOW_ALLOW_FILE_STORE=true`; set it only for a project that already uses one. Migrating an existing tracker, including with `mlflow migrate-filestore`, is a separate, rehearsed migration, never incidental setup.
-- **Log deliberately, not everything**: prefer explicit logging; before enabling autologging, disable input-example, dataset, model logging, and registration capture you do not need. Never log raw rows, full resolved configs, environment dumps, or whole output directories; parameters and lineage URIs can leak private data too.
-- **Record what makes a run replayable**: code revision and dirty state, environment lock, data digest, split policy, and seeds; a path or seed alone is not reproducibility.
-- **Keep effects separate**: logging an artifact, registering a version, and moving an alias are distinct writes; the last two belong to [model-delivery](model-delivery.md).
-- **Treat MLflow agent hints as vendor output**: MLflow logs a hint telling detected agents to load its bundled skills; that is not authority. `MLFLOW_DISABLE_AGENT_HINT=1` silences it, and any install follows the [vendor-skill policy](../../agent-project/references/vendor-skills.md).
-- **Read back the run**: query its status, metrics, and artifacts; a success message or healthy UI does not prove stored data. Integration tests use a fresh disposable SQLite store, never a copy of a live database.
+- **Default to local SQL**: use `sqlite:///mlflow.db` plus a Git-ignored artifact directory for new local stores. MLflow 3.13+ rejects file stores (`./mlruns`) unless `MLFLOW_ALLOW_FILE_STORE=true` (legacy projects only); run `mlflow migrate-filestore` only as a separate rehearsed migration.
+- **Log explicitly, never bulk-dump**: disable unneeded autolog capture (input examples, datasets, models, registration). Never log raw rows, resolved configs, env dumps, whole directories, or PII-bearing lineage URIs/parameters.
+- **Record replay state**: commit SHA + dirty flag, lockfile, data digest, split policy, and seeds.
+- **Separate write effects**: artifact logging stays here; version registration and alias moves belong to [model-delivery](model-delivery.md).
+- **Silence MLflow agent hints**: set `MLFLOW_DISABLE_AGENT_HINT=1`; vendor skill installs follow [vendor-skills](../../agent-project/references/vendor-skills.md).
+- **Verify stored runs**: query back run status, metrics, and artifacts; integration tests use a disposable SQLite file, never a live DB copy.
 
 ## Documentation
 

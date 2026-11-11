@@ -5,25 +5,20 @@ description: "Existing or explicitly chosen FastAPI services and generated agent
 
 # FastAPI
 
-Use this for an existing or explicitly chosen FastAPI service, including an [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md) scaffold; [litestar](litestar/GUIDE.md) remains the default for new ordinary web apps.
+For existing or explicitly chosen FastAPI services (including [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md) scaffolds); [litestar](litestar/GUIDE.md) is the default for new web apps.
 
 ## Workflow
 
-1. **Use native OpenTelemetry instrumentation**: on FastAPI 0.142+, configure the native OpenTelemetry instrumentation with `FastAPI(telemetry={...})`; do not also add `opentelemetry-instrumentation-fastapi`. Install the SDK and OTLP HTTP exporter through the `opentelemetry` extra when the service avoids the `standard` extras, which also include them. From 0.143, automatic exporter setup is opt-in: set `FASTAPI_OTEL_AUTO_CONFIGURE=true` or `FastAPI(telemetry={"auto_configure": True})`, plus `OTEL_EXPORTER_OTLP_ENDPOINT`. Use `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` (collector port 4318; with `grpc` it exports nothing and only logs a startup warning). Use `"auto_configure": False` when the application owns its exporters. Follow the [native telemetry docs](https://fastapi.tiangolo.com/advanced/opentelemetry/) and [observability](../../python-stack/references/observability.md) for the rest of the stack.
-1. **Test locally and check OpenAPI**: run local request and lifespan tests and inspect the OpenAPI output when the public schema changes. Starlette 1.2+ warns when `TestClient` runs on `httpx`, which `filterwarnings = ["error"]` turns into a test import failure, so declare `httpx2` as the test dependency unless the `standard` extras already install it.
+1. **Native OpenTelemetry (`0.142+`)**: configure `FastAPI(telemetry={...})` instead of `opentelemetry-instrumentation-fastapi` (install `[opentelemetry]` extra if not using `standard`). From `0.143+`, auto-setup is opt-in: set `FASTAPI_OTEL_AUTO_CONFIGURE=true` or `FastAPI(telemetry={"auto_configure": True})` + `OTEL_EXPORTER_OTLP_ENDPOINT` + `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` (port `4318`; `grpc` exports nothing and warns). Set `"auto_configure": False` when the app manages exporters. See [native telemetry](https://fastapi.tiangolo.com/advanced/opentelemetry/) and [observability](../../python-stack/references/observability.md).
+1. **Test requests, lifespan, and OpenAPI**: declare `httpx2` as a test dependency (Starlette `1.2+` warns on `httpx` in `TestClient`, failing `filterwarnings = ["error"]`).
 
 ## Gotchas
 
-- **Read the locked release's bundled skill**: FastAPI 0.133.1+ wheels ship the official skill matched to the installed release; locate it with `uv run python -c 'from importlib.util import find_spec; from pathlib import Path; print(Path(find_spec("fastapi").origin).with_name(".agents") / "skills/fastapi/SKILL.md")'`. Installing the package does not make hosts discover it, and its `fastapi[standard]` advice yields to the cloud-client gotcha below.
-- **Avoid the bundled cloud client**: `fastapi[standard]` pulls `fastapi-cli[standard]`, which installs the `fastapi-cloud-cli` vendor client. Use `fastapi[standard-no-fastapi-cloud-cli]` unless that client is a deliberate choice.
-- **Keep agents-cli scaffolds on FastAPI**: do not convert an agents-cli FastAPI scaffold to Litestar while implementing an agent feature.
-- **Redact exception logs**: FastAPI's native telemetry exception logs include messages and stack traces; redact them in a log processor or set `logs` to `False`.
+- **Bundled wheel skill (`0.133.1+`)**: read the version-matched skill via `uv run python -c 'from importlib.util import find_spec; from pathlib import Path; print(Path(find_spec("fastapi").origin).with_name(".agents") / "skills/fastapi/SKILL.md")'`.
+- **Avoid `fastapi-cloud-cli`**: prefer `fastapi[standard-no-fastapi-cloud-cli]` over `fastapi[standard]` unless the vendor cloud CLI is requested.
+- **Keep `agents-cli` scaffolds on FastAPI**: never rewrite them to Litestar mid-task.
+- **Redact telemetry exceptions**: native telemetry logs include exception messages and tracebacks — redact via a log processor or set `logs` to `False`.
 
-## Official Skills
+## Official Skills & Docs
 
-Upstream: [fastapi/fastapi](https://github.com/fastapi/fastapi). Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) and select the FastAPI application guidance.
-
-## Documentation
-
-- [FastAPI documentation](https://fastapi.tiangolo.com/) · [Skills CLI](https://skills.sh/docs/cli)
-- Releases: [FastAPI release notes](https://fastapi.tiangolo.com/release-notes/) · [GitHub releases](https://github.com/fastapi/fastapi/releases)
+Upstream: [fastapi/fastapi](https://github.com/fastapi/fastapi) (install via [vendor-skills](../../agent-project/references/vendor-skills.md) · [Skills CLI](https://skills.sh/docs/cli)). Docs: [FastAPI](https://fastapi.tiangolo.com/) · [release notes](https://fastapi.tiangolo.com/release-notes/) · [GitHub releases](https://github.com/fastapi/fastapi/releases).

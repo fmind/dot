@@ -7,43 +7,43 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-10"
 ---
 
 # Kaggle CLI
 
-Use `kaggle` for competition, dataset, kernel, and model operations from the shell. The official Kaggle skills document every command and metadata file; this skill owns authentication, download scope, and the authority boundary around submissions and publications.
+Operate Kaggle competitions, datasets, kernels, and models via `kaggle` (auth, download bounds, and authority gates on submissions, remote runs, and publications).
 
 ## Workflow
 
-1. **Resolve the account**: `kaggle auth login` (OAuth) or `KAGGLE_API_TOKEN` in the environment; the legacy `~/.kaggle/kaggle.json` still works. Never run `kaggle auth print-access-token` during ordinary work.
-1. **Read before writing**: use bounded list/file commands and `kaggle competitions submission-limits <slug> --json` to inspect available data and submission limits. Read the competition's current rules separately with `kaggle competitions pages list list <slug> --content --page-name rules` (the repeated `list` is required by the CLI parser); these calls do not authorize accepting them.
-1. **Download into an ignored directory**: accept the competition rules on the website first (the CLI returns 403 otherwise).
+1. **Verify account**: `kaggle auth login` (OAuth), env `KAGGLE_API_TOKEN`, or legacy `~/.kaggle/kaggle.json`; never run `kaggle auth print-access-token`.
+1. **Inspect before downloading**: check bounded listings, `kaggle competitions submission-limits <slug> --json`, and `kaggle competitions pages list list <slug> --content --page-name rules` (double `list` required by the parser; reading rules never authorizes accepting them).
+1. **Download into gitignored `data/`** (accept competition rules in the browser first, else HTTP 403):
 
    ```bash
    kaggle competitions download <slug> -p data/ --unzip
    kaggle datasets download <owner>/<name> -p data/ --unzip
    ```
 
-1. **Track the timeline**: after accepting rules, list the page names with `kaggle competitions pages list list <slug>`, then read the deadlines with `--page-name timeline` (or `description` when no timeline page exists). Offer, or schedule when requested, Google Calendar reminders with [gws](../gws/SKILL.md): one week before the entry and team merger deadline, and on the final submission day.
-1. **Inspect kernels before pushing**: `kaggle kernels init -p <dir>` writes `kernel-metadata.json`. Before an authorized `kaggle kernels push -p <dir>`, inspect the upload directory, target ID, data sources, `is_private`, accelerator, internet access, and run timeout (`--accelerator` overrides the metadata's GPU/TPU settings, `-t` sets the run timeout): pushing uploads code and starts remote execution unless `--no-run` saves the version without running it. Keep `is_private: true` unless public release was explicitly requested, and inspect `kaggle quota` before accelerator use. Verify with `kaggle kernels status <owner>/<slug>` and retrieve artifacts with `kaggle kernels output <owner>/<slug> -p out/`.
-1. **Submit with authority**: a submission counts against the daily limit and shows on the leaderboard, so confirm the competition, file, and message first. `--wait <seconds>` polls until scoring finishes and exits non-zero on a scoring error or timeout, though the submission still counts; otherwise look up the printed ref with `kaggle competitions submission <ref>`.
+1. **Check deadlines**: inspect `kaggle competitions pages list list <slug>` (`--page-name timeline`, else `description`) and offer—or schedule when asked—[gws](../gws/SKILL.md) Calendar reminders one week before entry/merger deadlines and on final submission day.
+1. **Audit kernels before `push`**: `kaggle kernels init -p <dir>` creates `kernel-metadata.json`. Before authorized `kaggle kernels push -p <dir>`, verify upload files, target ID, data sources, `is_private: true` (default private), internet, `--accelerator`, `-t` timeout, `--no-run` (push executes immediately otherwise), and `kaggle quota`; check `kernels status <owner>/<slug>` and `kernels output <owner>/<slug> -p out/`.
+1. **Authorize submissions** (each counts against daily caps and posts to the leaderboard; `--wait` exits non-zero on scoring error/timeout after consuming the slot, or check `competitions submission <ref>`):
 
    ```bash
    kaggle competitions submit <slug> -f submission.csv -m "<message>" --wait 900
    kaggle competitions submissions <slug> --format json --page-size 5
    ```
 
-1. **Publish with authority**: `kaggle datasets create -p <dir>` creates a private dataset unless `--public` is explicitly authorized. `kaggle datasets version -p <dir> -m "<message>"` updates an existing dataset and retains its visibility; it has no `--public` flag, and its `-d/--delete-old-versions` deletes the dataset's history, so pass it only when that deletion was requested. Verify the target dataset's current visibility before uploading a version, and confirm the license and intended audience before either operation.
+1. **Authorize dataset publications**: `kaggle datasets create -p <dir>` defaults to private unless `--public` is approved; `datasets version -p <dir> -m "<message>"` keeps existing visibility (verify first, confirm license/audience, and pass history-destroying `-d/--delete-old-versions` only when requested).
 
 ## Gotchas
 
-- **Use `uv run` for pinned versions**: in a project that pins `kaggle`, call `uv run kaggle` so the pinned version runs instead of the global shim.
-- **Version warnings can reach stdout**: `-W` applies only after import-time authentication, which can already print the out-of-date warning; keep kaggle current and drop leading `Warning:` lines before parsing JSON.
+- **Prefer `uv run kaggle`** when a project pins `kaggle` so the locked version runs over the global shim.
+- **Strip import-time `Warning:` lines** before JSON parsing (`-W` takes effect after import-time auth checks).
 
 ## Official Skills
 
-Upstream: `Kaggle/kaggle-cli` for command guidance and `Kaggle/kaggle-skills` for hackathon judging, agent exams, and Kaggle Benchmarks authoring. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and install only the source relevant to the task.
+Upstream: `Kaggle/kaggle-cli` (CLI commands) and `Kaggle/kaggle-skills` (judging, exams, Kaggle Benchmarks), reviewed per [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 

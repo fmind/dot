@@ -1,59 +1,37 @@
 # Style for Busy Readers
 
-Defaults for text read outside the session; adapt them when the reader or the destination calls for it. Where a guideline is easy to misread, a before and after example follows it.
+Defaults for external readers; adapt when the reader or destination calls for it.
 
 ## Plain, literal language
 
-Write complete sentences with a subject and a verb, everyday words, and the active voice, and keep one idea per short paragraph. Replace arrows, slash chains, stacked parentheses, and coined labels with sentences, and expand each acronym at first use.
+Write active sentences with everyday words and one idea per short paragraph. Replace arrows, slash chains, stacked parentheses, and coined labels with prose, and expand acronyms at first use.
 
-Before:
-
-> Batch → spot VMs ≈ -60% compute (preemptible, w/ retries); SLA risk ↑.
+Before: `Batch → spot VMs ≈ -60% compute (preemptible, w/ retries); SLA risk ↑.`
 
 After:
 
-> Running the nightly batch jobs on spot virtual machines would cut their compute cost by about 60%. Google can reclaim these machines at short notice in exchange for the lower price. The jobs already retry automatically, so a reclaimed machine delays a job by minutes rather than failing it. The main risk is missing the 7:00 report deadline when many machines are reclaimed at once.
+> Running nightly batch jobs on spot virtual machines cuts compute cost by about 60%. Google can reclaim these machines at short notice, delaying retried jobs by minutes rather than failing them. The main risk is missing the 7:00 report deadline if many machines are reclaimed at once.
 
 ## Code formatting
 
-Use code formatting only for a command, path, or value the reader must type or copy. Write names, concepts, products, and settings as plain words, and use no code formatting at all for non-technical readers.
-
-Before:
-
-> The `invoice_export` job now writes to `exports-eu` with `retention_days=30`, so `finance-sync` reads the new path.
-
-After:
-
-> The invoice export now goes to the EU storage bucket and keeps files for 30 days. The finance sync already reads from the new location.
+Use code formatting only for commands, paths, or literal values the reader must copy—never for product names, concepts, or non-technical readers (write "the invoice export writes to the EU bucket for 30 days", not `` `invoice_export` writes to `exports-eu` with `retention_days=30` ``).
 
 ## Terms and metrics
 
-In a formal document, define inline the one or two terms the main text depends on, and list the other terms, units, and metrics this reader may not know in a **Key terms** annex, one line each, and skip those they use daily, such as CVE for a security team. For a metric, give what it measures, its unit, and which direction is better, and its baseline where you use it. Emails, chat messages, and short documents define their one or two terms inline instead.
-
-Before:
-
-> p95 dropped to 400 ms.
-
-After, with this line in Key terms:
-
-> **p95 latency**: the time within which 95% of requests finish, in seconds; lower is better.
-
-And this sentence in the body:
-
-> The p95 latency fell from 1.2 s to 0.4 s after the change. We measured it over 10,000 requests in the week of 6 October.
+Define one or two essential terms inline. In formal documents, put other unfamiliar terms, units, and metrics in a **Key terms** annex (one line each) and skip daily team vocabulary (such as CVE for security). State each metric's meaning, unit, better direction (`**p95 latency**: time within which 95% of requests finish, in seconds; lower is better`), and inline baseline (`fell from 1.2 s to 0.4 s over 10,000 requests in the week of 6 October`). Short documents, emails, and chat define terms inline.
 
 ## Numbers
 
-- **Give every figure its context**: unit, currency, period, region, and price date, such as "€4,200 per month at October 2026 list prices in the europe-west1 region".
-- **Round to what the inputs support**: "about €4,000 to €5,000 per month", not "€4,213.57".
-- **Show conservative ranges for estimates**: name the input that drives the range and show the result at both ends.
-- **Separate percent from percentage points**: "the error rate fell from 4% to 3%, one percentage point or a 25% reduction".
-- **Compare with a baseline**: "30% cheaper than today's spend on the managed service, at today's volume".
-- **Follow the reader's conventions**: in French, write "4 200 €" and use a decimal comma.
+- **Give full context**: unit, currency, period, region, and price date ("€4,200/month at October 2026 list prices in europe-west1").
+- **Round to input precision**: "about €4,000 to €5,000 per month", not "€4,213.57".
+- **Show conservative ranges**: name the driving input and give both ends.
+- **Separate percent from percentage points**: "fell from 4% to 3% (1 percentage point, a 25% reduction)".
+- **Compare against a baseline**: "30% cheaper than today's managed-service spend at current volume".
+- **Match reader locale**: in French, write "4 200 €" and use a decimal comma.
 
 ## Titles, headings, and section summaries
 
-Use simple titles and section names for navigation: the title names the subject in plain words, and headings are short, simple names such as "Context", "Options", "Security", or "Next steps". Put the conclusion in the bold first sentence of the section, where it has room to be precise, never in the title or heading.
+Keep titles and headings short and literal for navigation ("Context", "Options", "Security", "Next steps"). Put the conclusion in the section's bold first sentence, never in the heading.
 
 | Element        | Before                                                                  | After                                                                                 |
 | -------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -61,60 +39,40 @@ Use simple titles and section names for navigation: the title names the subject 
 | Heading        | Moving the jobs keeps all data in the EU but adds two service accounts  | Security                                                                              |
 | First sentence | We reviewed the security of the move.                                   | **Moving the jobs keeps all data in the EU but adds two service accounts to manage.** |
 
-In a formal document, when the reader needs it, put the metadata at the top, one field per line: type, status (draft or final), audience, author, and date.
-
-> Type: Decision memo\
-> Status: Draft\
-> Audience: Engineering and product leads\
-> Author: {name}\
-> Date: 26 October 2026
-
-Close a section that runs past a few paragraphs or mixes several findings with a "Take-home messages" box of one to three sentences; short sections need none.
-
-> **Take-home messages**: from December, the two models cost the same per token, so the pilot's measure of tokens per task decides the cheaper option.
+When a formal document needs metadata at the top, list one field per line: `Type`, `Status` (Draft/Final), `Audience`, `Author`, and `Date`. Close long or multi-finding sections with a 1–3 sentence `**Take-home messages**: ...` box; short sections need none.
 
 ## Examples, tables, and visuals
 
-- **Make abstract claims concrete**: "for example, the invoice job that runs at 2:00 and takes 40 minutes".
-- **Use a table for comparisons**: options or periods in rows, the same criteria in columns, options keeping the user's labels or numbered, and the recommended row marked.
-- **Flag ratings with a color and a word**: Low, Medium, High for risk, or Met, Partial, Not met for requirements, in green, amber, and red. Use the template's badges in HTML, because emoji depend on the reader's fonts, and 🟢 🟡 🔴 in Markdown and chat; never rely on color alone, and keep status marks out of running prose.
-- **Create figures when they communicate faster than text**: use SVG, Mermaid, matplotlib, or another suitable format — a chart for numbers and trends, and a diagram for a flow, an architecture, or a timeline ([diagrams-as-code](../../diagrams-as-code/SKILL.md), or the host's data-visualization skill when it has one). Place a figure in the main text when it carries a key point, or in an annex when it supports detail, and give each a caption that states its conclusion plus a table or text alternative.
-- **Quote third-party figures as a person would**: in a private document for a client team or a small circle, embed a cropped capture of the source's chart with a source line, link, and date; in a public one, redraw it from the published figures or get permission.
-- **Bold for skimming**: bold the take-home message, each section's opening sentence, and about one key phrase in other paragraphs, so the bold text alone tells the argument; more bold defeats it.
-
-Before:
-
-> We compared list prices from both vendors. Argon is cheaper until 30 November, after which the prices are the same, so the choice depends on token use.
-
-After:
-
-> We compared list prices from both vendors. **Argon is cheaper until 30 November**; after that **the prices are the same, so token use decides the cost**.
+- **Ground abstract claims**: "for example, the 2:00 invoice job that runs for 40 minutes".
+- **Compare in tables**: options or periods in rows, shared criteria in columns, user labels preserved, and the recommended row marked.
+- **Pair color with words**: `Low` / `Medium` / `High` or `Met` / `Partial` / `Not met` in green, amber, and red. Use CSS badges in HTML (emoji vary across fonts) and 🟢 🟡 🔴 in Markdown or chat; keep status marks out of running prose.
+- **Draw figures when faster than prose**: use SVG, Mermaid, or matplotlib—charts for trends and numbers, diagrams for flows, architectures, or timelines ([diagrams-as-code](../../diagrams-as-code/SKILL.md)). Put key figures in the body and supporting ones in annexes, each with a conclusion caption plus a table or text alternative.
+- **Cite third-party figures properly**: private team docs may embed a cropped capture with source, link, and date; public docs must redraw from published data or obtain permission.
+- **Bold for skimming**: bold the take-home message, each section's opening sentence, and at most one key phrase per paragraph so the bold text alone carries the argument.
 
 ## Links and sensitivity
 
-Links let the reader check a claim and follow up, so link generously, inline, where the reader needs them: vendor documentation, standards, and primary sources rather than articles about them, plus the internal documents, tickets, and dashboards the user provides. When an internal page exists but you lack its address, write a visible placeholder in plain text, such as {link to the usage dashboard}.
+Link claims inline to primary docs, standards, and user-provided internal pages rather than secondary articles; mark missing internal URLs with plain placeholders like `{link to the usage dashboard}`. Before linking, check reader access and URL exposure:
 
-Before adding a link, ask whether this reader can open it and should see what it reveals:
-
-- **Link only what the reader can access**: a client's wiki suits the client's team, not a vendor or the public; a dead or login-walled link reads as noise.
-- **Read the URL as content**: hostnames, project, customer, or person names, folder paths, and ticket titles disclose information even when the page is locked; describe the source in words instead when the URL says too much.
-- **Never share access by accident**: drop tokens, signed or expiring URLs, and "anyone with the link" shares unless the user meant to grant that access.
-- **Keep our own workspace out**: brain notes, local paths, session or agent links, and private repositories stay out of client and public documents.
+- **Link only accessible pages**: skip client wikis in vendor or public docs; dead or login-walled links read as noise.
+- **Inspect URL text**: hostnames, customer or person names, paths, and ticket slugs leak context even when locked—describe the source in prose instead.
+- **Strip unintended access**: never include tokens, signed/expiring URLs, or link-sharing grants unless authorized.
+- **Exclude session workspace**: keep brain notes, local paths, session/agent links, and private repos out of client and public deliverables.
 
 ## Destination and platform features
 
-A designed document is easier to read and earns trust, so make formal documents beautiful by default: color in headings, the summary card, key-figure tiles, status badges, and framed figures, generous spacing, body text of at least 16 px on screen and 10 pt in print, and a layout that survives phone widths and printing. Use `~/.agents/DESIGN.md` (Fmind Theme) or customer branding if available, and prefer each platform's native features to hand-built imitations, because they render, navigate, and stay editable as the reader expects:
+Design formal documents cleanly by default: colored headings, summary card, key-figure tiles, status badges, framed figures, ≥16 px screen / ≥10 pt print body type, and responsive/print-safe layout. Apply `~/.agents/DESIGN.md` (Fmind Theme) or customer branding, using each platform's native primitives:
 
-- **Standalone HTML**: the [report template](../templates/report.html), self-contained with embedded fonts and images so it renders the same offline and through email gateways.
-- **Markdown**: the [Markdown template](../templates/report.md), adapted to the renderer as its header comment explains.
-- **Zensical sites**: admonitions for take-home boxes and warnings, content tabs for per-option detail, Mermaid diagrams, collapsible blocks for annexes, and the abbreviations glossary as Key terms tooltips ([authoring](../../documentation-site/references/authoring.md)).
-- **GitHub Markdown**: `> [!IMPORTANT]` alerts for the ask, Mermaid diagrams, `<details>` blocks for annexes, and task lists for next steps.
-- **Google Docs**: [draft-doc](../../draft-doc/SKILL.md#format-choice) owns the choice between native Drive Markdown (`.md`) and a converted Google Doc (`.gdoc`), and the [native `.md` dialect rules](../../draft-doc/SKILL.md#native-md-dialect-rules).
-- **Email and chat**: short paragraphs and light formatting that the client shows reliably, with no headings, no external images, and at most one short list; Slack and Chat support only a small Markdown subset.
+- **Standalone HTML**: [report template](../templates/report.html), self-contained with embedded WOFF2 fonts and data-URI images for offline and email-gateway safety.
+- **Markdown**: [Markdown template](../templates/report.md), adapted to the target renderer.
+- **Zensical sites**: admonitions, content tabs, Mermaid fences, collapsible annexes, and glossary tooltips ([authoring](../../documentation-site/references/authoring.md)).
+- **GitHub Markdown**: `> [!IMPORTANT]` alerts, Mermaid fences, `<details>` annexes, and task lists.
+- **Google Docs**: [draft-doc](../../draft-doc/SKILL.md#format-choice) selects native `.md` vs `.gdoc` and enforces [native `.md` dialect rules](../../draft-doc/SKILL.md#native-md-dialect-rules).
+- **Email and chat**: short paragraphs, no headings, no external images, and at most one short list within Slack/Chat Markdown limits.
 
 ## Honest framing
 
-- **State confidence and its basis**: "high confidence: measured on production traffic" or "low confidence: list prices only, no load test yet".
-- **Name what was not checked**: and what result would change the recommendation.
-- **Stay neutral**: describe every option with the same criteria, sources, and tone, report the evidence that favors the option you do not recommend, and say when the evidence is not comparable, such as benchmarks run at different settings.
-- **Avoid unsupported superlatives**: "best", "seamless", "guaranteed", and "secure" need evidence or must go.
+- **Ground confidence**: "high confidence: measured on production traffic" or "low confidence: list prices only, no load test".
+- **State gaps and flip conditions**: name what was not checked and what finding would change the recommendation.
+- **Stay neutral**: apply identical criteria and tone to every option, include counter-evidence, and flag non-comparable benchmarks.
+- **Cut unsupported superlatives**: drop "best", "seamless", "guaranteed", or "secure" without proof.

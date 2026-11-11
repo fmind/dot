@@ -83,7 +83,7 @@ def check(path: Path, width: float) -> list[str]:
         href = element.get("href") or element.get(XLINK) or ""
         if tag in {"image", "use", "feImage"} and href and not href.startswith("#"):
             problems.append(f"<{tag}> loads {href[:60]!r}; inline the shape instead of external or raster content")
-        css = (element.text or "") if tag == "style" else (element.get("style") or "")
+        css = "".join(element.itertext()) if tag == "style" else (element.get("style") or "")
         if tag == "style" and re.search(r"@import|@font-face|url\(\s*['\"]?(https?:|data:)", css, re.IGNORECASE):
             problems.append("<style> imports, embeds fonts, or loads remote URLs; <img> sandboxing drops them")
         sizes = FONT_SIZE.findall(css)
@@ -93,12 +93,12 @@ def check(path: Path, width: float) -> list[str]:
             sizes += [match.group(1)] if match else []
         for value in sizes:
             try:
-                size = float(value)
+                px = float(value)
             except ValueError:
                 problems.append(f"<{tag}> uses invalid font-size {value!r}")
                 continue
-            if size < MIN_FONT_PX:
-                problems.append(f"<{tag}> uses font-size {size:g}px, below {MIN_FONT_PX:g}px")
+            if px < MIN_FONT_PX:
+                problems.append(f"<{tag}> uses font-size {px:g}px, below {MIN_FONT_PX:g}px")
     return problems
 
 

@@ -7,40 +7,38 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-11-09"
+  updated: "2026-11-11"
 ---
 
 # Upgrade Tools
 
-Upgrade one repository's tools and dependencies to their latest stable releases, validating each ecosystem. The [playbook](references/playbook.md) owns the ecosystem commands; [mise](../mise/SKILL.md) owns exact pins.
+Upgrade a single repository's tools and dependencies to latest stable releases in dependency order, gating each layer ([playbook](references/playbook.md) owns commands; [mise](../mise/SKILL.md) owns pin rules).
 
 ## Workflow
 
-1. **Scope to the requested repository**: upgrade only the repository the user named, by default the current one. Each repository owns its pins: never bump another because `fmind/dot` or a sibling changed. A multi-repository upgrade needs the user's explicit list; upgrade each on its own merits with its own candidate, gate, and report, canonicalizing paths and linked worktrees so none is upgraded twice.
-1. **Separate audit from upgrade**: a disk-space or version-reuse check compares current declarations, locks, backends and installed versions without resolving new releases or installing tools. Include restored project directories with mise/runtime files even when `.git` is missing; report recovery gaps and validation limits. Record floating selectors, duplicate installations and justified compatibility exceptions separately.
-1. **Start from a green baseline**: `mise run check` and `mise run test` must be green in a repository before its first bump so regressions are attributable. Preserve dirty work and staged selections through [git-worktree](../git-delivery/references/git-worktree/GUIDE.md); report pre-existing failures separately, since a red baseline leaves the repository unqualified until resolved.
-1. **mise first**: in `fmind/dot` run `mise run upgrade` (or `mise run lock:tool TOOL...` for one fresh release); elsewhere resolve the latest stable releases of the project's own tools and pin them exactly per the [tool version rules](../mise/references/tool-versions.md), keeping incompatible pins with evidence.
-1. **Python dependencies next**: they decide whether the new toolchain builds and tests the project; follow the [playbook](references/playbook.md) for `pyproject.toml` and `uv.lock`, then validate.
-1. **Infrastructure and images after that** (OpenTofu providers, container base images), which consume the language artifacts.
-1. **CI and formatter config last** (GitHub Actions, dprint), the outermost layer and the least likely to cascade.
-1. **Stop the failing repository's upgrade** and diagnose before advancing its next ecosystem. Keep its original working pins if the upgrade cannot be qualified.
-1. **Verify the final candidate**: run the repository gate and relevant runtime smoke checks on a candidate that matches the source; test hook wiring when it changed. `lefthook run pre-commit --all-files` can format and restage unrelated work, so exercise it only in an isolated candidate when the original tree is dirty.
-1. **Commit per ecosystem when requested**: use `chore(deps): upgrade <ecosystem> to latest` with its lockfile (`mise run upgrade` spans several ecosystems at once, so split its commits by lockfile), per [commit messages](../git-delivery/SKILL.md#commit-messages).
-1. **Report and preview cleanup**: list old and new versions, retained exceptions, and gate results, then preview cleanup as in the [playbook](references/playbook.md); deleting installations needs separate authorization.
+1. **Scope to one repository** (default `.`): never bump another repo unless the user gives an explicit list, canonicalizing paths/worktrees and qualifying each independently.
+1. **Separate read-only audits from upgrades**: disk/drift audits inspect declarations, locks, backends, and installed versions (including `.git`-less restored folders) without resolving or installing anything.
+1. **Require a green baseline**: pass `mise run check` and `mise run test` before bumping (isolate dirty trees via [git-worktree](../git-delivery/references/git-worktree/GUIDE.md); stop and report if baseline is red).
+1. **Upgrade in layer order**, stopping to diagnose on any failure and restoring prior pins if unqualified:
+   - **mise**: `mise run upgrade` (or `mise run lock:tool TOOL...`) in `fmind/dot`; exact stable pins per [tool-versions.md](../mise/references/tool-versions.md) elsewhere.
+   - **Python**: `pyproject.toml` and `uv.lock` per [playbook.md](references/playbook.md).
+   - **Infra & images**: OpenTofu providers and OCI base/fixture digests.
+   - **CI & formatters**: GitHub Actions SHAs and `dprint` plugins.
+1. **Verify the final candidate**: pass the full gate and runtime smoke checks (`lefthook run pre-commit --all-files` only in an isolated snapshot if the source tree is dirty).
+1. **Commit per ecosystem on request**: `chore(deps): upgrade <ecosystem> to latest` with its lockfile (split `mise run upgrade` commits by lockfile) per [commit messages](../git-delivery/SKILL.md#commit-messages).
+1. **Report and preview cleanup**: list old → new versions, held exceptions, gate results, and dry-run prune previews ([playbook.md](references/playbook.md)); deleting installs requires separate authority.
 
 ## Gotchas
 
-- **Latest stable only**: no RCs, betas, or pre-releases. Document deliberate exceptions; keep application dependency constraints distinct from fixed mise tool versions.
-- **Lockfiles are the record**: retain `mise.lock`, `uv.lock`, and `.terraform.lock.hcl` when present, and execute non-mise dependencies through their lockfile, full action SHA, or image digest; the [tool version rules](../mise/references/tool-versions.md) own mise tool identity, backend, options, and platform.
-- **Majors are separate changes**: Python upgrades follow declared constraints and `uv lock --upgrade` can cross majors. Inspect the actual version diff and handle breaking upgrades as separate changes.
-- **Justify every held-back pin**: a pin kept below latest carries a comment saying why (a parser ABI, a broken upstream asset); re-pin it deliberately instead of letting a bump carry it forward silently.
-- **Read release notes for changed defaults**: a routine bump can change what a gate checks, such as betterleaks 1.10 ignoring `.betterleaks.toml` without `--config` (see [betterleaks](../code-security/references/betterleaks.md)); scan each upgraded tool's notes for config loading, default rules, and exit codes before trusting the gate.
-- **Check upstream READMEs for successors**: GitHub's `isArchived` flag and `mise registry` both miss tools superseded in place (`actionlint` → `jactionlint`, `gitleaks` → `betterleaks`). Read the upstream README top banner for maintenance-only or successor notices, and keep the successor the owner already chose.
+- **Stable releases only**: skip RCs, betas, and pre-releases; keep `pyproject.toml` ranges distinct from exact `mise.toml` pins.
+- **Keep lockfiles authoritative**: commit `mise.lock`, `uv.lock`, and `.terraform.lock.hcl`, and pin Actions by 40-hex SHA and images by `@sha256:` digest.
+- **Isolate breaking majors**: `uv lock --upgrade` can cross majors within open constraints; review lock diffs and split breaking migrations.
+- **Document held pins**: keep inline comments explaining every below-latest hold (ABI limits, broken upstream assets) and re-verify on each pass.
+- **Check release notes for behavior shifts**: e.g. `betterleaks` 1.10 ignoring `.betterleaks.toml` without `--config` or `--unsafe-auto-load-config` ([betterleaks](../code-security/references/betterleaks.md)).
+- **Check upstream READMEs for in-place successors**: `isArchived` and `mise registry` miss unarchived handoffs (`actionlint` → `jactionlint`, `gitleaks` → `betterleaks`).
 
 ## Documentation
 
-- [mise upgrade](https://mise.jdx.dev/cli/upgrade.html)
-- [uv: upgrading locked versions](https://docs.astral.sh/uv/concepts/projects/sync/#upgrading-locked-package-versions)
-- [OpenTofu lock file](https://opentofu.org/docs/language/files/dependency-lock/) · [dprint config update](https://dprint.dev/config/#updating-plugins-via-cli)
+- [mise upgrade](https://mise.jdx.dev/cli/upgrade.html) · [uv upgrading](https://docs.astral.sh/uv/concepts/projects/sync/#upgrading-locked-package-versions) · [OpenTofu lockfile](https://opentofu.org/docs/language/files/dependency-lock/) · [dprint update](https://dprint.dev/config/#updating-plugins-via-cli)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [uv](https://github.com/astral-sh/uv/releases) · [OpenTofu](https://github.com/opentofu/opentofu/releases) · [dprint](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../mise/SKILL.md) (tool pins and lock), [dependabot](../github-actions/references/dependabot.md) (security-only fix PRs), [full-review](../full-review/SKILL.md) (the pass that calls this skill).
+- Companion skills: [mise](../mise/SKILL.md), [dependabot](../github-actions/references/dependabot.md), [full-review](../full-review/SKILL.md).

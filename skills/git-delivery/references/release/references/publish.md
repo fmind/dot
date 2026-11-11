@@ -1,37 +1,36 @@
 # Prepare and Publish a Release
 
-Use the repository's release task when it owns versioning, tags, or publication. The manual sequence below is a fallback; inspect the release trigger before starting and choose one publication owner.
+Prefer the repository's native release task when defined; use this fallback only after confirming a single publication owner (CLI vs CI workflow).
 
 ## Workflow
 
-1. **Check the preconditions**:
-   - `main` synced with `origin`; unrelated edits stay unstaged and out of the release commit (gate them per the dirty-tree rule).
-   - Identify every required hosted CI workflow and matrix job. Publication must qualify the final release commit, including any version and changelog edits; a green earlier commit, local gate, or CD job does not cover it.
-   - The proposed tag is absent locally and remotely; stop if either copy exists and never move a published tag.
-   - Identify whether publication is triggered by a tag, a branch push, or workflow dispatch. Follow that contract; a workflow-owned release skips the manual `gh release create` step.
-1. **Compute the next version**: from the commit types since the last tag, `feat` → minor, `fix` and others → patch, `!` or `BREAKING CHANGE` → major. A result equal to the latest tag means nothing is releasable; stop:
+1. **Verify preconditions**:
+   - `main` matches `origin/main`; keep unrelated edits unstaged and gate via the [dirty-tree rule](../../../../mise/SKILL.md#gotchas).
+   - List required CI workflows and matrix jobs (the final release commit itself must pass hosted CI).
+   - Confirm the target tag exists neither locally nor on `origin`.
+   - Confirm whether tag push, branch push, or `workflow_dispatch` owns GitHub Release creation.
+1. **Compute the next tag** (`feat` → minor, `fix`/others → patch, `!`/`BREAKING CHANGE` → major; stop if unchanged from latest tag):
 
    ```bash
-   tag=$(git-cliff --bumped-version)
+   tag=$(git-cliff --config pyproject.toml --bumped-version)
    ```
 
-1. **Bump non-VCS-versioned manifests**: for a Python project with a static `version`, `uv version "${tag#v}" --no-sync` rewrites `pyproject.toml` and relocks `uv.lock`; inspect OpenTofu projects for explicit version constants; VCS-versioned projects (`hatch-vcs` or similar) need no separate manifest bump.
-1. **Prepend the changelog for that version**: `--prepend` keeps hand-edited and earlier history that a full `-o` regeneration drops; create a missing `CHANGELOG.md` once with `git-cliff --tag "$tag" -o CHANGELOG.md` instead:
+1. **Bump static manifests**: run `uv version "${tag#v}" --no-sync` for static Python versions (`pyproject.toml` + `uv.lock`) and check OpenTofu version constants; skip for VCS-versioned (`hatch-vcs`) packages.
+1. **Update `CHANGELOG.md`** (`--prepend` preserves prior edits; use `-o CHANGELOG.md` only to initialize a missing file):
 
    ```bash
-   git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
+   git-cliff --config pyproject.toml --unreleased --tag "$tag" --prepend CHANGELOG.md
    ```
 
-1. **Gate the prepared candidate**: run `mise run format` and the full gate (`mise run all`) after all version and changelog edits. When the tree carries unrelated changes, apply the [dirty-tree rule](../../../../mise/SKILL.md#gotchas). Include any resulting task-owned formatting fixes in the release commit.
-
-1. **Commit the release**: the `chore(release)` subject is excluded from the changelog by design:
+1. **Gate the release tree**: run `mise run format` and `mise run all` ([dirty-tree rule](../../../../mise/SKILL.md#gotchas) if needed) and include formatter updates.
+1. **Commit**:
 
    ```bash
-   git add CHANGELOG.md   # plus the manifests bumped above (pyproject.toml, uv.lock), if any
+   git add CHANGELOG.md   # plus bumped manifests (pyproject.toml, uv.lock), if any
    git commit -m "chore(release): $tag"
    ```
 
-1. **Tag and push the exact release commit atomically**:
+1. **Tag and push atomically**:
 
    ```bash
    release_sha=$(git rev-parse HEAD)
@@ -39,25 +38,25 @@ Use the repository's release task when it owns versioning, tags, or publication.
    git push --atomic origin main "refs/tags/$tag"
    ```
 
-1. **Require final-commit CI**: for a CLI-owned release, wait until every required workflow and matrix job at `release_sha` is present, completed, and successful. An empty list or pending run is incomplete proof; inspect jobs through [verification](verify.md), then publish. A workflow-owned release must enforce its own CI dependency for the final tagged commit; follow that contract without creating a competing release.
+1. **Wait for exact-commit CI**: for CLI-owned releases, require every workflow/matrix job on `release_sha` to complete green before publishing ([verify.md](verify.md)):
 
    ```bash
    gh run list --commit "$release_sha" --limit 100 --json workflowName,headSha,status,conclusion,url
    ```
 
-1. **Publish through the selected owner**: for a workflow-owned release, wait for that workflow and follow [verification](verify.md). Only for a CLI-owned release, create a draft with the latest changelog section as notes, written to a temporary file to stay shell-agnostic:
+1. **Publish via the single owner**: if CI owns releases, wait for it and run [verify.md](verify.md). For CLI-owned releases, stage a draft first because immutable releases freeze tags and assets upon publication:
 
    ```bash
    release_tmp=$(mktemp -d)
-   git-cliff --latest --strip all > "$release_tmp/release-notes.md"
+   git-cliff --config pyproject.toml --latest --strip all > "$release_tmp/release-notes.md"
    gh release create "$tag" --verify-tag --draft --title "$tag" --notes-file "$release_tmp/release-notes.md"
    ```
 
-   Upload the reviewed asset inventory, if any, while the release is still a draft; inspect `gh release view "$tag" --json assets` and download the draft assets to compare their names and checksums against the reviewed local inventory before publishing. Skip the upload for a release without assets. Release attestations are checked after publication through [verification](verify.md). Always prepare assets before publication: an earlier release's `isImmutable` does not prove the policy for a new release, and immutable releases cannot accept later asset changes.
+   Upload any release assets to the draft, download and verify their names and SHA-256 checksums via `gh release view "$tag" --json assets`, then publish:
 
    ```bash
    gh release upload "$tag" <asset>...
    gh release edit "$tag" --draft=false
    ```
 
-1. **Verify and report**: use [verification](verify.md), then remove only the temporary notes directory created above after preserving any needed failure evidence.
+1. **Verify and clean up**: run [verify.md](verify.md) and remove `$release_tmp`.

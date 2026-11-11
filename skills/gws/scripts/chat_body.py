@@ -6,10 +6,13 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def build_body(text: str, syntax: str, thread: str | None = None) -> dict:
+def build_body(text: str, syntax: str, thread: str | None = None) -> dict[str, Any]:
     """Preserve authored content and reject common unsupported message layouts."""
+    if syntax not in {"chat", "markdown"}:
+        raise ValueError("Syntax must be 'chat' or 'markdown'.")
     if not text.strip():
         raise ValueError("Message is empty; supply a non-empty UTF-8 text file.")
     # Leave room for JSON and thread metadata below Chat's 32 KB message limit.
@@ -35,7 +38,10 @@ def build_body(text: str, syntax: str, thread: str | None = None) -> dict:
     if fence:
         raise ValueError("Close the triple-backtick code block before preparing the message.")
     # Always name the syntax: without it a project with no Chat app setting renders Markdown.
-    body = {"text": text, "markupSyntax": "MARKUP_SYNTAX_MARKDOWN" if syntax == "markdown" else "MARKUP_SYNTAX_CHAT"}
+    body: dict[str, Any] = {
+        "text": text,
+        "markupSyntax": "MARKUP_SYNTAX_MARKDOWN" if syntax == "markdown" else "MARKUP_SYNTAX_CHAT",
+    }
     if thread:
         if not re.fullmatch(r"spaces/[^/\s]+/threads/[^/\s]+", thread):
             raise ValueError("Thread must be an observed spaces/SPACE/threads/THREAD resource name.")
@@ -43,12 +49,12 @@ def build_body(text: str, syntax: str, thread: str | None = None) -> dict:
     return body
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", help="UTF-8 text file, or - for stdin")
     parser.add_argument("--syntax", choices=("chat", "markdown"), default="chat")
     parser.add_argument("--thread", help="Existing thread resource; also set messageReplyOption in --params")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         text = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
         body = build_body(text, args.syntax, args.thread)

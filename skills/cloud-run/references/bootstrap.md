@@ -1,18 +1,18 @@
 # Cloud Run Project and Identity Setup
 
-Use the approved account/configuration and pass `--project=<project>` on each command per [gcloud](../../gcloud/SKILL.md). Resolve numeric GitHub owner and repository IDs before configuring federation; names can be reclaimed after deletion.
+Pass `--project=<project>` with the approved account per [gcloud](../../gcloud/SKILL.md). Pin numeric GitHub `repository_owner_id` and `repository_id` in federation conditions so renamed/reclaimed accounts cannot impersonate.
 
-1. **Pick the tier**: `gcloud run deploy` for one service; [service.yaml](../templates/service.yaml) via `gcloud run services replace` once settings accumulate; [infra-as-code](../../infra-as-code/SKILL.md) for a fleet.
-1. **Set up the project once**: enable the APIs, create the Artifact Registry repository, and create a dedicated runtime service account (never the default compute SA; grant it only what the app reads).
+1. **Choose the management tier**: `gcloud run deploy` for single services, [service.yaml](../templates/service.yaml) (`gcloud run services replace`) once settings grow, or [infra-as-code](../../infra-as-code/SKILL.md) for fleets.
+1. **Bootstrap APIs, registry, and runtime SA** (never use the default compute SA; grant Secret Manager access only to secrets the app reads):
 
    ```bash
    gcloud services enable --project=<project> run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com \
      iam.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com sts.googleapis.com
    gcloud artifacts repositories create <slug> --project=<project> --repository-format=docker --location=<region>
-   gcloud iam service-accounts create <slug>-runtime --project=<project>   # runtime identity, least privilege
+   gcloud iam service-accounts create <slug>-runtime --project=<project>
    ```
 
-1. **Create the keyless CI identity**: reuse an approved Workload Identity Federation pool/provider, or create a dedicated pair, plus a deployer service account that GitHub Actions impersonates over OIDC, so no key is ever exported.
+1. **Configure keyless GitHub Actions WIF** (no exported service-account keys):
 
    ```bash
    gcloud iam workload-identity-pools create github --project=<project> --location=global
@@ -27,11 +27,9 @@ Use the approved account/configuration and pass `--project=<project>` on each co
      --member="principalSet://iam.googleapis.com/projects/<project_number>/locations/global/workloadIdentityPools/github/attribute.repository_id/<repository_id>"
    ```
 
-   The condition admits only the CD workflow on a `v*` release tag, so anyone who can push such a tag can deploy: protect `v*` with a [tag ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) targeting `refs/tags/v*` that restricts creation, update, and deletion to release maintainers. The [repository](../../gh/references/repository/GUIDE.md) baseline protects only the default branch.
+   Protect `refs/tags/v*` with a GitHub [tag ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) restricting tag create/update/delete to release maintainers ([repository](../../gh/references/repository/GUIDE.md) protects only the default branch).
 
-   Separate bootstrap permissions from routine deployment. Use `roles/run.developer` at the required service/project scope, `roles/artifactregistry.writer` on the image repository when CI pushes, and `roles/iam.serviceAccountUser` on the runtime SA. Changing invocation IAM requires additional permissions; do that through an authorized bootstrap step rather than giving every deployment project-wide administration. Grant the runtime identity Secret Manager access only to the secrets it reads.
-
-   Establish the private-access invariant during bootstrap: enable the Invoker IAM check and remove broad invocation grants, including inherited organization/folder grants. The CD postcondition also reads the service and project policies, so grant its deployer `run.services.getIamPolicy` and `resourcemanager.projects.getIamPolicy` at those scopes. It conservatively rejects any `allUsers` or `allAuthenticatedUsers` binding, including custom roles and conditions; do not weaken this check to hide missing read permissions. Explicit IAM changes need `run.services.setIamPolicy`; keep that authority scoped or perform them through the authorized bootstrap identity. See [Cloud Run public-access controls](https://docs.cloud.google.com/run/docs/authenticating/public).
+   Grant the deployer `roles/run.developer`, `roles/artifactregistry.writer` on the image repo, `roles/iam.serviceAccountUser` on `<slug>-runtime`, `run.routes.invoke` for candidate checks, and `run.services.getIamPolicy` + `resourcemanager.projects.getIamPolicy` so CD's private-IAM check can reject any `allUsers` or `allAuthenticatedUsers` binding (including conditional or custom-role bindings). Keep `run.services.setIamPolicy` and org/folder public-access cleanup in authorized bootstrap rather than routine CD; see [Cloud Run public-access controls](https://docs.cloud.google.com/run/docs/authenticating/public).
 
 ## Documentation
 

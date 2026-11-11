@@ -5,26 +5,26 @@ description: "A2A clients, servers, Agent Cards, task lifecycle, and official gu
 
 # A2A Python SDK
 
-Use the official `a2aproject/a2a-python` distribution `a2a-sdk` and the `a2aproject/a2a-cli` client `a2a`; [MCP implementation](mcp/GUIDE.md) owns MCP tools/resources and [api-client](../../python-stack/references/api-client/GUIDE.md) owns ordinary HTTP clients.
+Use official `a2a-sdk` (`a2aproject/a2a-python`) and the `a2a` CLI (`a2aproject/a2a-cli`); [MCP](mcp/GUIDE.md) owns tools/resources and [api-client](../../python-stack/references/api-client/GUIDE.md) owns plain HTTP clients.
 
 ## Workflow
 
-1. **Inspect the locked SDK and supported protocol version**: install `uv add a2a-sdk` for a client, or `uv add "a2a-sdk[http-server]"` for the HTTP server integration; add other extras only when required. Use `a2a` to inspect remote agent endpoints and validate configuration.
-1. **Choose the transport supported by both peers**: then read that version's official sample. Construct an Agent Card with accurate capabilities, endpoints, security schemes, and advertised protocol skills.
-1. **Implement the executor and handler**: use the SDK's agent executor and request handler, mapping execution to task states and artifacts. Preserve task/context identifiers, persist long-lived state, and implement cancellation of downstream work.
-1. **Use the current client factory**: build the client through the current client factory and card resolver APIs; inspect the locked implementation before adapting samples that use an older client class.
-1. **Verify a local client/server round trip**: use a deterministic executor or the `a2a` CLI (`a2a server --echo` is a deterministic peer for client tests, `--protocol 0.3` a legacy one, and `--proxy` logs live traffic to stderr, so keep that output private) to cover card discovery (`a2a card get`), message exchange (`a2a send`), task completion, invalid input, streaming when advertised (`a2a send --stream`), cancellation (`a2a task cancel`), and unknown task IDs.
-1. **Secure peers and outbound requests**: authenticate peers and authorize every task read/write by caller; enforce timeouts and size limits. Validate advertised endpoints and callback destinations before outbound requests, and test reconnect/retry without duplicate work.
+1. **Pin SDK and protocol version**: `uv add a2a-sdk` (client) or `uv add "a2a-sdk[http-server]"` (HTTP server), adding extras only on demand; inspect remote peers with `a2a`.
+1. **Define transport and Agent Card**: match a mutually supported transport from official samples and declare accurate capabilities, endpoints, security schemes, and protocol skills.
+1. **Implement executor and handler**: map execution to task states and artifacts, preserve task/context IDs, persist durable state, and propagate cancellation downstream.
+1. **Build clients via current factories**: use the locked SDK's client factory and card resolver rather than legacy client classes.
+1. **Test a local round trip**: drive a deterministic executor or `a2a server --echo` (`--protocol 0.3` for legacy, `--proxy` logs live traffic to stderr—keep private) across `a2a card get`, `a2a send`, `a2a send --stream` (if advertised), `a2a task cancel`, invalid inputs, and unknown task IDs.
+1. **Harden peers and egress**: authenticate peers, authorize every task read/write per caller, enforce timeouts/size caps, validate advertised/callback URLs before egress, and test idempotent retries.
 
 ## Gotchas
 
-- **SDK 1.x differs from older examples**: SDK 1.x uses protobuf message types and route builders; older Pydantic models and `A2AStarletteApplication` examples target a different API. Match the `A2A-Version` request header to the peer's supported protocol version and test a mismatch.
-- **`AgentSkill` is not an Agent Skill**: an Agent Card's `AgentSkill` advertises a protocol capability; it is not an Agent Skills `SKILL.md` package or proof of authorization.
-- **In-memory task storage is a local fixture**: it does not prove restart recovery or support multiple server processes. Persist tasks with `DatabaseTaskStore` (`a2a-sdk[postgresql]` or `[sqlite]`) and, for several replicas, the cluster mode added in 1.2 (`a2a.server.cluster`); rehearse restart and concurrent updates.
+- **SDK 1.x API break**: 1.x uses protobuf messages and route builders (not older Pydantic/`A2AStarletteApplication` samples); align `A2A-Version` headers and test version mismatches.
+- **`AgentSkill` != Agent Skill**: Agent Card `AgentSkill` entries advertise protocol capabilities, not `SKILL.md` packages or authorization.
+- **Persist tasks**: in-memory stores fail restarts and multi-worker scaling—use `DatabaseTaskStore` (`a2a-sdk[postgresql]` or `[sqlite]`) plus 1.2 cluster mode (`a2a.server.cluster`) across replicas, testing restart and concurrency.
 
 ## Official Skills
 
-The official [a2aproject/a2a-cli](https://github.com/a2aproject/a2a-cli) repository provides the `a2a-cli` Agent Skill (`skills/a2a-cli/SKILL.md`) to drive and test A2A agents from the command line, installable with `DISABLE_TELEMETRY=1 skills add a2aproject/a2a-cli --skill a2a-cli` or via its agent plugin; `a2a skill` prints the copy bundled with the installed CLI for review without installing. The official [a2aproject/a2a-python](https://github.com/a2aproject/a2a-python) repository contains contributor `mistake-reflection` guidance, not a consumer SDK skill in the inspected tree. Use its SDK docs and samples; do not confuse Agent Card skills with installable authoring guidance.
+[a2aproject/a2a-cli](https://github.com/a2aproject/a2a-cli) ships `a2a-cli` (`skills/a2a-cli/SKILL.md`), printable via `a2a skill` and installable via `DISABLE_TELEMETRY=1 skills add a2aproject/a2a-cli --skill a2a-cli` after review. [a2aproject/a2a-python](https://github.com/a2aproject/a2a-python) ships only contributor `mistake-reflection` guidance—use its SDK docs and samples instead.
 
 ## Documentation
 

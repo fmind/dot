@@ -20,12 +20,12 @@
 | ---- | ---------------------- | ------------- | ----------------------- | ----------------- | ---------------- | ---------------- | -------------------- |
 |      |                        |               |                         |                   |                  |                  |                      |
 
-Use confirmed, refuted, or unresolved for suspected findings. Account separately for blocked actions, target errors, evaluator errors, interrupted trials, and cases not run. State denominators for rates and link to the trial plan when estimating uncertainty.
+Label findings `confirmed`, `refuted`, or `unresolved`, separating blocked actions, target/evaluator errors, interrupted trials, and skipped cases (with rate denominators and trial-plan links).
 
 ## Finding and retest
 
-For each confirmed finding: revision and code location; actor and required access; input-to-action trace; observed impact; contrary evidence considered; minimal reproduction; correction; regression result; original and variant retests; remaining risk and owner.
+Per confirmed finding: revision and `path:line`, actor/access, input-to-action trace, impact, contrary evidence, minimal reproducer, fix, regression + variant retests, residual risk, and owner.
 
 ## Coverage and decision
 
-Record the exercised application boundaries, omitted surfaces, unavailable evidence, and differences from production. State whether the declared criteria were met, failed, or remain inconclusive. Successful local tests do not imply authorization to change production.
+List exercised boundaries, omitted surfaces, missing evidence, production diffs, and verdict (`met`, `failed`, or `inconclusive`; local passes do not authorize production changes).

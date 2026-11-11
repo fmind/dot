@@ -7,34 +7,33 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-11-09"
+  updated: "2026-11-10"
 ---
 
 # Google Workspace CLI
 
-Use `gws` for Google Workspace automation from the shell: authentication, API discovery, bounded reads, and verified writes across Drive, Docs, Sheets, Gmail, Calendar, and Chat. Prefer the CLI for supported operations; use a connected app when the requested native editing operation needs its document context or capabilities.
+Automate Drive, Docs, Sheets, Gmail, Calendar, and Chat via `gws` (use connected apps only when native document context requires them).
 
 ## Workflow
 
-1. **Resolve the profile**: check `gws auth status` for the account and scopes without printing credentials. Set `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` before auth commands to isolate profiles; an existing `GOOGLE_WORKSPACE_CLI_TOKEN` or `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` can override stored credentials, so verify the effective identity without echoing those values. gws also loads unset variables from a `.env` in the working directory or any parent, so a project file can switch accounts: run gws from a directory with no `.env` in its path (such as the scratchpad) and check `user` there before writing. The draft-doc and draft-mail scripts run every gws call from one private temporary directory, so no project `.env` switches their account mid-run.
-1. **Inspect the installed command and live schema**: use `<command> --help` for flags and `schema` for the API contract. Start without recursive reference expansion; inspect a referenced type separately when needed.
+1. **Verify active profile**: inspect `gws auth status` without printing secrets (`GOOGLE_WORKSPACE_CLI_CONFIG_DIR` isolates profiles; `GOOGLE_WORKSPACE_CLI_TOKEN` / `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` override stored logins). Because `gws` auto-loads ancestor `.env` files, run calls from a `.env`-free scratch directory and confirm `user` before writing (`draft-doc` and `draft-mail` isolate `gws` in a private temp dir).
+1. **Check command help and schema** (`--help` for flags, unexpanded `schema` for payloads):
 
    ```bash
    gws schema <service.resource.method>
    gws schema <service.TypeName>
    ```
 
-1. **Start with a bounded read**: pass identifiers, filters, and only the needed fields and date range through `--params`; use `--page-all --page-limit <n>` only when every page is needed. It emits NDJSON with one object per page, not one JSON array; keep `nextPageToken` (and Drive `incompleteSearch`) in `fields`, because reaching `--page-limit` with a remaining token means the result is incomplete.
+1. **Start with bounded reads**: constrain filters, date windows, and `fields` in `--params`. Add `--page-all --page-limit <n>` (emits one JSON page per NDJSON line) only when needed, retaining `nextPageToken` and Drive `incompleteSearch` to detect truncation:
 
    ```bash
    gws drive files list --params '{"pageSize":10,"q":"trashed = false","fields":"nextPageToken,incompleteSearch,files(id,name,mimeType)"}' --format json
    ```
 
-1. **Choose the content path**: read [service recipes](references/services.md) for metadata versus bodies, Docs tabs, Sheets ranges, Gmail MIME/replies, Calendar times, Slides and Drive exports. Prefer a `+helper` listed by `gws <service> --help` when its documented semantics match the request.
-1. **Prepare writes exactly**: resolve the service, stable identifiers or ranges, content, recipients, and sharing effects first. Follow [file-based requests](references/requests.md) to serialize multiline content, separate `--params` from `--json`, and inspect a `--dry-run`. It validates request construction, not permissions or server acceptance. For Chat, follow [formatting and threads](references/chat.md) before composing text.
-1. **Write with authority**: reuse authority already supplied by the user for the intended create or edit; ask only for missing consequential scope, using the one-off grants in [dot-cli authentication](../dot-cli/references/authentication.md). Sending mail or Chat, destructive changes, and permission changes require explicit authority. Prepare the concrete request before asking for missing approval.
-1. **Apply the smallest call**: no broad search followed by an unreviewed batch mutation; keep retries idempotent with stable request identifiers or a read-before-write guard where the API supports them.
-1. **Verify by reading back**: fetch the changed resource and compare the requested fields; for messages and events, separate accepted API state from recipient-visible delivery.
+1. **Select the service path**: follow [service recipes](references/services.md) (or matching `gws <service> --help` `+helper` commands) for Docs tabs, Sheets ranges, Gmail MIME, Calendar times, Slides, and Drive exports.
+1. **Serialize and dry-run writes**: follow [file-based requests](references/requests.md) to separate `--params` from `--json` and inspect `--dry-run` (validates local serialization only); follow [Chat formatting and threads](references/chat.md) for Chat messages.
+1. **Gate consequential writes**: reuse user authority for requested edits, asking before sending mail/Chat, destructive writes, permission changes, or one-off scope grants ([dot-cli authentication](../dot-cli/references/authentication.md)). Keep mutations minimal and idempotent (`requestId` or read-before-write guards).
+1. **Verify by reading back**: fetch the mutated resource and compare fields (API acceptance does not prove external delivery).
 
 ## Task guides
 
@@ -46,10 +45,10 @@ Use `gws` for Google Workspace automation from the shell: authentication, API di
 
 ## Official Skills
 
-Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills), which generates a shared base skill plus one selection per API. Discover with `DISABLE_TELEMETRY=1 skills add googleworkspace/cli --list`. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md) and include the base dependency required by the chosen service.
+Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills) (`DISABLE_TELEMETRY=1 skills add googleworkspace/cli --list`); install selected service skills plus their shared base skill under [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) · [Workspace API reference](https://developers.google.com/workspace)
 - Releases: [Workspace CLI](https://github.com/googleworkspace/cli/releases) · [changelog](https://github.com/googleworkspace/cli/blob/main/CHANGELOG.md)
-- Companion skills: [draft-doc](../draft-doc/SKILL.md) (Google Docs: native `.md` for living docs, `.gdoc` for styled deliverables), [draft-mail](../draft-mail/SKILL.md) (draft-only email and replies), [acli](../acli/SKILL.md) (same authority rules for Atlassian), [gcloud](../gcloud/SKILL.md) (Google Cloud), [mcp-setup](../mcp-setup/SKILL.md) (connected apps).
+- Companion skills: [draft-doc](../draft-doc/SKILL.md) (Google Docs: native `.md` for living docs, `.gdoc` for styled deliverables), [draft-mail](../draft-mail/SKILL.md) (draft-only email and replies), [acli](../acli/SKILL.md) (same authority rules for Atlassian), [gcloud](../gcloud/SKILL.md) (Google Cloud), [mcp-setup](../agent-harnesses/references/mcp-setup.md) (connected apps).

@@ -202,7 +202,12 @@ def _decode_b64url(data: str) -> str:
 
 
 def _find_mime_part(part: dict[str, Any], target_mime: str) -> str | None:
-    """Recursively extract the first decoded body matching target_mime."""
+    """Recursively extract the first decoded inline body matching target_mime, skipping attachments."""
+    if part.get("filename"):
+        return None
+    disposition = _headers_map(part).get("content-disposition") or ""
+    if disposition.lower().startswith("attachment"):
+        return None
     mime_type = str(part.get("mimeType") or "").lower()
     body_data = (part.get("body") or {}).get("data")
     if mime_type == target_mime and isinstance(body_data, str) and body_data:

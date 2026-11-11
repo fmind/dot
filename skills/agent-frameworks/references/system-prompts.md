@@ -5,13 +5,13 @@ description: "Application system prompt layering, rule wording, and validated st
 
 # System Prompts
 
-Layer the instructions of an agent or embedded LLM call so the model sees one rule per concern and the runtime enforces the rest. [model-providers](../../model-providers/SKILL.md#request-contracts) owns per-model request contracts (sampling, prefill, tool choice, stable prefix); [task-prompts](../../task-prompts/SKILL.md) owns handoff prompts for coding agents.
+Layer application prompts so each concern has one rule and code enforces boundaries. [model-providers](../../model-providers/SKILL.md#request-contracts) owns per-model request contracts; [task-prompts](../../task-prompts/SKILL.md) owns coding-agent handoffs.
 
-1. **Layer by stability**: system text and tool definitions first, then per-turn context (date, memory, retrieval), history, and user input; put long documents before the question.
-1. **Write each rule once, with its reason**: one layer owns each rule; state what to do and why, and drop CAPS, MUST, and older-model compensations such as "if in doubt, use the tool", which current Claude and Gemini models over-apply.
-1. **Keep authority in code**: delimit retrieved text, tool results, and memory as data; authorization, spending limits, and destructive-action gates live in tools and runtime code, never only in the prompt.
-1. **Validate structured output in code and fail closed**: request native structured output (ADK `output_schema`, LangChain `response_format`, google-genai `response_schema`), validate it with Pydantic, and reject a missing or invalid field instead of repairing free text. Ask for the decision, a short rationale, and evidence, not written-out reasoning.
-1. **Change only the prompt when comparing**: keep model, tools, retrieval, and effort fixed between baseline and candidate, keep evaluation cases out of the examples, and compare with [agent-evaluation](../../agent-evaluation/SKILL.md).
+1. **Layer by stability**: static system text and tool schemas first, then per-turn context (date, memory, retrieval), history, and user input, placing long documents before the question.
+1. **State each rule once, with its why**: drop CAPS, MUST, and legacy nudges like "if in doubt, use the tool" that current Claude and Gemini models over-trigger.
+1. **Enforce authority in code**: delimit retrieved text, tool outputs, and memory as untrusted data; gate permissions, spend, and destructive actions in runtime/tool code, never prompt-only.
+1. **Validate structured output and fail closed**: use native schemas (ADK `output_schema`, LangChain `response_format`, google-genai `response_schema`) with Pydantic validation; reject invalid payloads instead of repairing prose, and request decision, brief rationale, and evidence rather than chain-of-thought text.
+1. **Isolate prompt changes**: hold model, tools, retrieval, and effort constant, exclude eval cases from examples, and grade with [agent-evaluation](../../agent-evaluation/SKILL.md).
 
 ## Documentation
 

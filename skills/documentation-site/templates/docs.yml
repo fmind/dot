@@ -12,6 +12,9 @@ permissions: {}
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+defaults:
+  run:
+    shell: bash
 jobs:
   build:
     name: Build
@@ -30,19 +33,19 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.11.2
+          version: 2026.11.6
           # Install tools fresh on every deploy; the build itself never reads a CI cache.
           cache: false
       - name: Build site
         run: mise run build:docs
       - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
   deploy:
     name: Deploy
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     needs: build
     runs-on: ubuntu-26.04
     timeout-minutes: 10

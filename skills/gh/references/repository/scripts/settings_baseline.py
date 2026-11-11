@@ -141,7 +141,7 @@ class State:
     environments: dict[str, Record]
     publishes: bool
     other_policies: dict[str, list[Record]]
-    owned_rulesets: list[object]
+    owned_rulesets: list[int]
     report: Record
 
 
@@ -190,7 +190,7 @@ def inspect(repository: str) -> State:
             report["fork_pr_approval_policy"] = approval.get("approval_policy")
     environments: dict[str, Record] = {}
     other_policies: dict[str, list[Record]] = {}
-    owned: list[object] = []
+    owned: list[int] = []
     publishes = False
     if public:
         environments = {
@@ -209,9 +209,12 @@ def inspect(repository: str) -> State:
             report[f"environment.{name}.release_tags_only"] = release_tags and not other_policies[name]
         report["private_vulnerability_reporting"] = get_record(f"{base}/private-vulnerability-reporting").get("enabled")
         rulesets = get_all(f"{base}/rulesets?includes_parents=false&per_page=100")
-        owned = [item.get("id") for item in rulesets if item.get("name") == RULESET_NAME]
-        if not all(isinstance(item, int) for item in owned):
-            raise BaselineError(f"{base}/rulesets: unexpected ruleset id")
+        for item in rulesets:
+            if item.get("name") == RULESET_NAME:
+                ruleset_id = item.get("id")
+                if not isinstance(ruleset_id, int) or isinstance(ruleset_id, bool):
+                    raise BaselineError(f"{base}/rulesets: unexpected ruleset id")
+                owned.append(ruleset_id)
         report["rulesets"] = [{key: item.get(key) for key in ("id", "name", "enforcement")} for item in rulesets]
         branch = repo.get("default_branch")
         if not isinstance(branch, str) or not branch:
@@ -241,9 +244,14 @@ def environment_body(name: str, environment: Record) -> Record:
     for rule in reviewer_rules:
         for item in records(rule.get("reviewers") or [], name):
             reviewer = record(item.get("reviewer"), name)
-            if item.get("type") not in {"User", "Team"} or not isinstance(reviewer.get("id"), int):
+            reviewer_id = reviewer.get("id")
+            if (
+                item.get("type") not in {"User", "Team"}
+                or not isinstance(reviewer_id, int)
+                or isinstance(reviewer_id, bool)
+            ):
                 raise BaselineError(f"environment {name}: unexpected reviewer shape; refusing to drop it")
-            reviewers.append({"type": item["type"], "id": reviewer["id"]})
+            reviewers.append({"type": item["type"], "id": reviewer_id})
     return {
         "wait_timer": (timers[0] if timers else None) or 0,
         "prevent_self_review": (reviewer_rules[0].get("prevent_self_review") if reviewer_rules else None) or False,
@@ -347,7 +355,7 @@ def expectations(state: State, args: argparse.Namespace) -> tuple[Record, list[s
 
 
 def repository_name(value: str) -> str:
-    if not REPOSITORY.fullmatch(value):
+    if not REPOSITORY.fullmatch(value) or value.split("/", 1)[1] in {".", ".."}:
         raise argparse.ArgumentTypeError(f"expected OWNER/REPO, got {value!r}")
     return value
 
@@ -355,7 +363,11 @@ def repository_name(value: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repository", metavar="OWNER/REPO", type=repository_name)
-    parser.add_argument("--check", action="store_true", help="only read back and compare (GET requests only)")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--apply", action="store_true", help="apply baseline settings before reading back (default: GET-only check)"
+    )
+    mode.add_argument("--check", action="store_true", help="only read back and compare (default; GET requests only)")
     parser.add_argument(
         "--disable", action="append", default=[], choices=FEATURES, help="turn a sidebar feature off (repeatable)"
     )
@@ -367,7 +379,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         before = after = inspect(args.repository)
-        if not args.check:
+        if args.apply:
             apply(before, args)
             after = inspect(args.repository)
     except BaselineError as error:
@@ -385,7 +397,7 @@ def main() -> int:
         drift.append(problem)
     drift += leftover_policies(after)
     result: Record = {"repository": args.repository, "state": found, "notes": notes, "drift": drift}
-    if not args.check:
+    if args.apply:
         result["changed"] = {
             key: [before.report.get(key), value] for key, value in found.items() if before.report.get(key) != value
         }

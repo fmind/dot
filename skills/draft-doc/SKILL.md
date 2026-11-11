@@ -7,35 +7,35 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-doc
   created: "2026-10-27"
-  updated: "2026-11-09"
+  updated: "2026-11-11"
 ---
 
 # Draft Doc
 
-Create and update Google Docs deliverables in Google Drive with `gws`, following [stakeholder-writing](../stakeholder-writing/SKILL.md) ([outlines](../stakeholder-writing/references/outlines.md), [style](../stakeholder-writing/references/style.md), [checklist](../stakeholder-writing/references/checklist.md)). [gws](../gws/SKILL.md) owns authentication, Drive queries, and request mechanics.
+Create and update Google Docs deliverables in Drive with `gws`, following [stakeholder-writing](../stakeholder-writing/SKILL.md) ([outlines](../stakeholder-writing/references/outlines.md), [style](../stakeholder-writing/references/style.md), [checklist](../stakeholder-writing/references/checklist.md)). [gws](../gws/SKILL.md) owns auth, Drive queries, and request mechanics.
 
 ## Format Choice
 
-1. **Native Drive Markdown (`.md`, `mimeType: text/markdown`) for living docs**: use it for agent-maintained, frequently updated, or working documents. It opens in the Docs editor (`https://docs.google.com/document/d/<FILE_ID>/edit`) without conversion and updates in place with `drive.files.update --upload`, without `batchUpdate` index math.
-1. **Converted Google Doc (`.gdoc`, `mimeType: application/vnd.google-apps.document`) for polished deliverables**: use it for client or stakeholder documents that need styling, and for multi-tab documents. Editing a `.md` file in Docs turns smart chips into text or links and removes font colors, highlights, and text alignment ([Docs Help 18289341](https://support.google.com/docs/answer/18289341)). Build it through [gws Docs recipes](../gws/references/services.md#docs).
+1. **Native Drive Markdown (`.md`, `mimeType: text/markdown`) for living docs**: agent-maintained, frequently updated, or working documents. Opens directly in Docs (`https://docs.google.com/document/d/<FILE_ID>/edit`) and updates in place via `drive.files.update --upload` without `batchUpdate` index math.
+1. **Converted Google Doc (`.gdoc`, `mimeType: application/vnd.google-apps.document`) for polished deliverables**: client/stakeholder docs needing rich styling or multiple tabs. Editing `.md` in Docs strips font colors, highlights, alignment, and smart chips ([Docs Help 18289341](https://support.google.com/docs/answer/18289341)); build `.gdoc` files with [gws Docs recipes](../gws/references/services.md#docs).
 
 ## Branding
 
-Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) and the Mermaid frontmatter in [fmind-visuals renderers](../fmind-visuals/references/renderers.md#mermaid), or with the customer's brand guide when the deliverable is theirs. Ask for a missing guide; never invent customer colors or mix brands. Keep an opaque white canvas so figures stay legible in dark mode.
+Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) and [fmind-visuals Mermaid frontmatter](../fmind-visuals/references/renderers.md#mermaid), or the customer's brand guide (ask if missing; never invent colors or mix brands). Keep an opaque white canvas for dark-mode legibility.
 
 ## Native `.md` Dialect Rules
 
-[references/dialect.md](references/dialect.md) records what Docs renders, verified live on 2026-10-28; [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py) enforces these rules:
+Verified live on 2026-10-28 ([references/dialect.md](references/dialect.md)) and enforced by [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
 
-1. **No YAML frontmatter or Setext underlines**: `---` or `===` directly under a paragraph line makes it a heading. Put metadata lines below `# Title` and leave a blank line before a horizontal rule.
-1. **No GitHub alerts, raw HTML, or HTML comments**: they render as literal text. Use a bold blockquote (`> **Important — Decision needed by YYYY-MM-DD:** ...`), `## Annex` headings, and `\` for hard line breaks.
-1. **Compile figures to PNG references**: Docs shows fenced `mermaid` blocks as code. Author fenced `mermaid` blocks at column 0 (an indented fence is rejected) or local `![Caption](figure.svg)` links to 600 px wide SVGs in `.src.md`; the compiler renders each one to a PNG at most 600 px wide, because Docs displays PNG pixels at 0.75 pt each and ignores DPI metadata. It then writes `![Caption][fig-N]` in the body, appends `[fig-N]: <data:image/png;base64,...>` definitions, and exports editable sources to `--assets-dir`. Mermaid runs through a pinned `mise exec` Mermaid CLI, so no global install is needed.
-1. **Verified natively**: ATX headings, ordered lists, checklists, GFM tables, footnotes, `$...$` and `$$...$$` equations, and Base64 PNG reference images.
+1. **No YAML frontmatter or Setext underlines**: `---` or `===` directly under a paragraph turns it into a heading. Put metadata lines below `# Title` and leave a blank line before horizontal rules.
+1. **No GitHub alerts, raw HTML, or HTML comments**: all render as literal text. Use bold blockquotes (`> **Important — Decision needed by YYYY-MM-DD:** ...`), `## Annex` headings, and trailing `\` for hard breaks.
+1. **Compile figures to PNG references**: Docs renders `mermaid` fences as code and ignores PNG DPI (displaying pixels at 0.75 pt). Write column-0 `mermaid` fences or local 600 px `![Caption](figure.svg)` links in `.src.md`; the compiler rasterizes each (via pinned `mise exec` Mermaid CLI or headless Chrome) at ≤600 px wide, emits `![Caption][fig-N]` with `[fig-N]: <data:image/png;base64,...>` definitions, and exports editable sources to `--assets-dir`.
+1. **Verified natively**: ATX headings, ordered lists, checklists, GFM tables, footnotes, `$...$` / `$$...$$` equations, and Base64 PNG reference images.
 
 ## Workflow
 
-1. **Confirm account and destination**: check `gws auth status` without printing credentials, and resolve the target Drive folder ID or existing file ID with a bounded `gws drive files list` query.
-1. **Author `.src.md` and `.svg` figures in a scratch folder (`SCRATCH`: the host's scratchpad, else `SCRATCH="$(mktemp -d)"`), then compile, validate, and upload** with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
+1. **Confirm account and destination**: check `gws auth status` without printing credentials, then resolve the target Drive folder ID or file ID via bounded `gws drive files list`.
+1. **Author in scratch (`SCRATCH`: host scratchpad, else `SCRATCH="$(mktemp -d)"`), then compile and upload** with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
 
    ```bash
    # Create or upsert <Title>.md and assets/<doc-slug>/ in a Drive folder
@@ -43,21 +43,21 @@ Style SVG cards and Mermaid diagrams with `~/.agents/DESIGN.md` (Fmind Theme) an
      "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" \
      --drive-folder "<FOLDER_ID>" --doc-name "<Title>.md" --json
 
-   # Update an existing .md in place: keeps its name, URL, revisions, and assets/<slug of its Drive name>/
+   # Update an existing .md in place (preserves name, URL, revisions, and assets/<slug>/)
    uv run --no-project python ~/.agents/skills/draft-doc/scripts/compile_markdown_doc.py \
      "$SCRATCH/report.src.md" -o "$SCRATCH/report.md" \
      --file-id "<FILE_ID>" --json
    ```
 
-   Add `--doc-name` to an update only to rename the document. To compile without uploading, omit the Drive flags and pass `--assets-dir "$SCRATCH/assets/<doc-slug>"`; `--check-only` validates an already compiled `.md` (or one `.svg`) without rendering, so it rejects a `.src.md` that still holds figures.
+   Pass `--doc-name` with `--file-id` only to rename. Omit Drive flags and pass `--assets-dir "$SCRATCH/assets/<doc-slug>"` for local builds; `--check-only` validates an already compiled `.md` or single `.svg` (rejecting uncompiled `.src.md` figures).
 
-1. **Verify by reading back**: `gws docs documents get --params '{"documentId":"<FILE_ID>","includeTabsContent":true}'` works on native `.md` files; confirm headings, `inlineObjects`, footnotes, and tables. Report `drive.docs_url` and `drive.assets_folder_url`.
+1. **Verify by reading back**: run `gws docs documents get --params '{"documentId":"<FILE_ID>","includeTabsContent":true}'` on the native `.md` file; confirm headings, `inlineObjects`, footnotes, and tables, then report `drive.docs_url` and `drive.assets_folder_url`.
 
 ## Gotchas
 
-- **Keep `mimeType: text/markdown` on upload**: `application/vnd.google-apps.document` converts the file into a `.gdoc`, which drops equations to literal `$...$` text.
-- **Never widen sharing without approval**: uploads inherit the parent folder's permissions; ask before calling `drive.permissions.create`.
-- **Download `.md` instead of exporting it**: `drive.files.export` rejects native `.md` files ("Export only supports Docs Editors files"); fetch the source with `drive.files.get` and `alt=media`.
+- **Keep `mimeType: text/markdown` on upload**: `application/vnd.google-apps.document` converts to `.gdoc` and flattens equations into literal `$...$` text.
+- **Never widen sharing unasked**: uploads inherit parent folder permissions; ask before `drive.permissions.create`.
+- **Download `.md` with `alt=media`**: `drive.files.export` fails on native `.md` ("Export only supports Docs Editors files"); use `drive.files.get` with `alt=media`.
 
 ## Documentation
 

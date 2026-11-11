@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="404" viewBox="0 0 960 404" role="img" aria-labelledby="title desc">
 <title id="title">One agent layer for five harnesses</title>
-<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, and host folders such as dot_gemini/ and dot_claude/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; host settings are merged in place. Antigravity, Claude Code, GitHub Copilot, OpenCode and Pi all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
+<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, and host folders such as private_dot_gemini/ and private_dot_claude/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; host settings are merged in place. Antigravity, Claude Code, GitHub Copilot, OpenCode and Pi all receive them. dot agent session sync archives every harness session locally, and dot agent stats turns the archive into usage reports with tokens, API value and actual costs.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
 <style>
@@ -25,7 +25,7 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 <g text-anchor="middle">
 <rect class="tile" x="32" y="64" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="89">dot_agents/AGENTS.md</text><text class="muted" x="212" y="109">one persona every harness loads</text>
 <rect class="tile" x="32" y="138" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="163">skills/</text><text class="muted" x="212" y="183">one shared skill catalog</text>
-<rect class="tile" x="32" y="212" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="237">dot_gemini/ · dot_claude/ · …</text><text class="muted" x="212" y="257">per-host settings, hooks and links</text>
+<rect class="tile" x="32" y="212" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="237">private_dot_gemini/ · …</text><text class="muted" x="212" y="257">per-host settings, hooks and links</text>
 </g>
 
 <!-- Deployment -->

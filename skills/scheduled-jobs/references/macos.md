@@ -1,16 +1,14 @@
 # macOS LaunchAgents
 
-Use a per-user LaunchAgent for a logged-in user. Check the installed `man launchctl` and `man launchd.plist`; Apple's archived guides explain the model but do not establish current CLI behavior. Keep the plist in its source repository and deploy to `~/Library/LaunchAgents/` through its configuration manager.
+Check installed `man launchctl` and `man launchd.plist`, version the plist in its source repo, and deploy to `~/Library/LaunchAgents/`. Generate templated plists via Python `plistlib` with a reverse-DNS `Label` (`dev.example.report`), absolute `WorkingDirectory`, and bounded log paths:
 
-Generate the plist with Python `plistlib` when templating it, so XML values are escaped correctly. Define these fields from the actual job, plus a stable `Label` such as `dev.example.report`, an absolute `WorkingDirectory`, and separate bounded log paths:
+| Field                   | Contract                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `ProgramArguments`      | Literal arg array starting with an absolute executable (`~`, `$HOME`, globs never expand) |
+| `EnvironmentVariables`  | Explicit non-secret env vars only (login shell is not inherited)                          |
+| `StartCalendarInterval` | Explicit `Hour` and `Minute` for daily local-time runs                                    |
 
-| Field                   | Contract                                                                                      |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| `ProgramArguments`      | Array of literal arguments starting with an absolute executable path; no shell command string |
-| `EnvironmentVariables`  | Only required non-secret values; login-shell setup is not inherited                           |
-| `StartCalendarInterval` | Explicit `Hour` and `Minute` values for a daily local-time schedule                           |
-
-Resolve home-relative source values to absolute paths when generating the plist: `~`, `$HOME`, globbing, and shell substitution do not expand in `ProgramArguments`. Keep `KeepAlive` and `RunAtLoad` absent unless their extra executions are part of the requested behavior. Bound the actual command in application code; `ExitTimeOut` is a shutdown grace period, not a job runtime limit.
+Omit `KeepAlive` and `RunAtLoad` unless requested, and enforce runtime timeouts inside the app (`ExitTimeOut` is shutdown grace only).
 
 ```bash
 plutil -lint "$HOME/Library/LaunchAgents/dev.example.report.plist"
@@ -19,10 +17,6 @@ launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/dev.example.repor
 launchctl print "gui/$(id -u)/dev.example.report"
 ```
 
-Inspect an existing label before bootstrap; do not repeatedly unload/reload it to hide a configuration failure. On macOS 13 and later, Background Task Management can block an agent the user switched off under System Settings › General › Login Items & Extensions; check that switch first and ask the user to allow it instead of rewriting the plist. An explicitly authorized manual start uses `launchctl kickstart "gui/$(id -u)/dev.example.report"`; omit `-k`, which would kill a running instance. For updates, account for the active run before bootout and bootstrap.
+Inspect existing labels before `bootstrap` (on macOS 13+, check System Settings › General › Login Items & Extensions if Background Task Management blocks it). Run authorized manual tests with `launchctl kickstart "gui/$(id -u)/dev.example.report"` (omit `-k` unless killing an active run is intended). `StartCalendarInterval` coalesces wake-from-sleep misses, not power-off misses; prove a real scheduled firing rather than treating `plutil` or `kickstart` as complete proof. Stop within scope via `launchctl bootout "gui/$(id -u)/dev.example.report"` after checking in-flight runs, and remove definitions through the source config manager.
 
-Apple documents wake-time catch-up for `StartCalendarInterval`, but not replay of jobs missed while powered off. Verify the deployed OS and login/sleep behavior with a harmless fixture. Do not claim that plist validation or kickstart proves a scheduled wake-up.
-
-Stopping uses `launchctl bootout "gui/$(id -u)/dev.example.report"` within the authorized cancellation scope; it may affect a running process. Prevent future loading by removing only the owned deployed definition through its source configuration manager. Preserve logs and reconcile any uncertain write before rescheduling.
-
-Sources: [Apple LaunchAgents](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) and [scheduling](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html).
+Sources: [Apple LaunchAgents](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) · [Scheduling](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html).

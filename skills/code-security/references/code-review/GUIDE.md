@@ -5,36 +5,31 @@ description: "Assess code and repository security; verify findings and repairs."
 
 # Code and Repository Security Review
 
-Review security-sensitive code and the delivery chain of a uv-managed Python project. For implementation or a specific finding, start with [code review](references/trace-and-verify.md); for a repository audit, use the workflow below. The linked tool skills own scanner commands. Reuse the task's authorization and preserve deliberate autonomy settings; a review does not authorize configuration changes.
+Audit code and delivery controls in a uv-managed Python project. Start at [trace-and-verify.md](references/trace-and-verify.md) for a focused change/finding, or run the full pass below (preserving intentional autonomy; reviews never authorize config mutations).
 
 ## Workflow
 
-For a broad or repeated audit, use [coverage and finding records](references/audit-coverage.md) and, when persistent artifacts are useful, the optional [audit record](templates/audit-record.json). A focused finding review does not need a ledger.
+Track broad or repeated audits with [audit-coverage.md](references/audit-coverage.md) and optional [audit-record.json](templates/audit-record.json).
 
-1. **Review code and controls**: trace attacker-controlled inputs to security decisions with [code review](references/trace-and-verify.md). Check the actual callers and effective configuration; validate suspected findings and search for related defects before reporting coverage.
-1. **Scan for leaks**: run the working-tree gate and the full-history scan per [betterleaks](../betterleaks.md). Treat a confirmed credential exposure as an incident; prepare rotation and perform it only within the established credential and service authority.
-1. **Remove plaintext secrets at rest**: move plaintext credentials to environment variables injected by a secret manager or scoped launcher, or to the encrypted store the project already uses. Never shell out to `/usr/bin/security -w` to read third-party CLI macOS Keychain items (whose partition ACLs block `/usr/bin/security` and trigger modal prompts in background watchers); use the CLI's own token subcommand, environment tokens, or a `0600` file-backed store. Cloud Run receives runtime values from Secret Manager.
-1. **Audit dependency graphs**: run `uv audit --preview-features audit-command --locked` against `uv.lock` without the experimental-command warning, plus `--script <file>` (with `--locked` only when `<file>.lock` exists) for each PEP 723 script, which the project audit skips. Record accepted advisories per the [uv audit triage](../../../python-stack/references/uv.md#gotchas) rule. Audit exact installed `npm:` and `pypi:` tool graphs separately with [installed-tools.md](references/installed-tools.md); do not substitute a newly resolved graph for installed evidence.
-1. **Vet new dependency behavior**: inspect newly introduced dependencies for install hooks, executable model loading, runtime downloads, and sensitive data access. Verify upstream and publisher evidence separately from advisory results; unavailable ownership data is a coverage gap, not evidence of compromise. For uv projects, recommend the preview malware check on dependency-changing commands only (`UV_MALWARE_CHECK=1` with `--preview-features malware-check` on `uv add`, the install task's `uv sync --locked`, and upgrades, as the [Python foundation](../../../python-stack/references/foundation/GUIDE.md) tasks do) per the [uv](../../../python-stack/references/uv.md#workflow) rule; it also sends locked package names and versions to `api.osv.dev` and fails closed offline.
-1. **Scan repository and IaC**: run `check:scan` per [trivy](../trivy/GUIDE.md); report which vulnerability, misconfiguration, secret, and license scanners the effective policy enables. Fix or justify every `HIGH` or `CRITICAL` finding.
-1. **Audit workflows**: run `check:actions` per [jactionlint](../../../github-actions/references/jactionlint.md). Keep permissions least privilege, avoid template injection, pin actions, and set `persist-credentials: false`.
-1. **Automate security fixes**: enable Dependabot alerts and security updates and add the security-only config from [dependabot](../../../github-actions/references/dependabot.md) for the Python lock and GitHub Actions, so the same gates inspect every fix PR.
-1. **Scan, sign, and attest images**: when the project ships a container, build the pinned non-root image per [containerize](../../../docker/references/containerize/GUIDE.md). Scan the exact digest, generate an SBOM, then sign, verify, and attest it per [cosign](../../../docker/references/cosign.md) within the authorized delivery scope.
-1. **Harden runtime and infrastructure**: keep services private, use separate deployer and runtime identities, and use keyless CI per [cloud-run](../../../cloud-run/SKILL.md). Review declarative infrastructure with [infra-as-code](../../../infra-as-code/SKILL.md).
-1. **Threat-model sensitive boundaries**: run [threat-model](../threat-model.md) for authentication, personal data, tool-using agents, or public exposure; scanners cannot establish design safety.
-1. **Test AI systems adversarially**: use [ai-red-team](../ai-red-team/GUIDE.md) for adversarial tests of retrieval, model output, tool authority, and resulting state. PyRIT complements dependency and code checks; it does not replace them.
+1. **Trace code and controls** per [trace-and-verify.md](references/trace-and-verify.md) across callers, config, and variants.
+1. **Scan for leaks**: run working-tree and full-history scans per [betterleaks](../betterleaks.md), treating confirmed leaks as incidents (rotate only within authorized scope).
+1. **Eliminate plaintext secrets**: inject runtime secrets via secret manager (Secret Manager on Cloud Run), scoped launchers, or encrypted stores; never shell out to `/usr/bin/security -w` on third-party macOS Keychain items (partition ACLs block it and pop modal prompts)—use the CLI's token subcommand, env tokens, or `0600` files.
+1. **Audit locks and installed tools**: run `uv audit --preview-features audit-command --locked` plus `--script <file>` (`--locked` if `<file>.lock` exists) for PEP 723 scripts, triaging per [uv audit](../../../python-stack/references/uv.md#gotchas); audit installed `npm:`/`pypi:` graphs in place via [installed-tools.md](references/installed-tools.md).
+1. **Vet new packages**: check install hooks, model loaders, runtime downloads, and publisher provenance; enable `UV_MALWARE_CHECK=1` with `--preview-features malware-check` on dependency-mutating commands (`uv add`, install `uv sync --locked`, upgrades per [Python foundation](../../../python-stack/references/foundation/GUIDE.md) and [uv](../../../python-stack/references/uv.md#workflow); queries `api.osv.dev` and fails closed offline).
+1. **Scan IaC, deps, and licenses**: run `check:scan` per [trivy](../trivy/GUIDE.md), state enabled scanners, and fix or justify `HIGH`/`CRITICAL` findings.
+1. **Audit workflows and Dependabot**: pass `check:actions` ([jactionlint](../../../github-actions/references/jactionlint.md): least privilege, SHA pins, no template injection, `persist-credentials: false`) and enable security-only [dependabot](../../../github-actions/references/dependabot.md) for `uv.lock` and Actions.
+1. **Harden containers and cloud**: build non-root images ([containerize](../../../docker/references/containerize/GUIDE.md)), scan/SBOM/sign/attest digests ([cosign](../../../docker/references/cosign.md)), and enforce private services, split deployer/runtime SAs, and keyless CI ([cloud-run](../../../cloud-run/SKILL.md), [infra-as-code](../../../infra-as-code/SKILL.md)).
+1. **Model threats and red-team AI**: apply [threat-model](../threat-model.md) on auth, PII, agent tools, or public surfaces, and [ai-red-team](../ai-red-team/GUIDE.md) on retrieval, model outputs, and tool authority.
 
 ## Gate
 
-`mise run check` owns the checks shared by hooks and CI (advisory databases may require network access): `check:leaks`, `check:vuln`, `check:scan`, and `check:actions`. Keep full-history and published-image scans in the scheduled `security.yml` per [github-actions](../../../github-actions/references/ci-cd/GUIDE.md).
+`mise run check` runs `check:leaks` plus configured `check:vuln`, `check:scan`, and `check:actions` tasks; scheduled `security.yml` ([github-actions](../../../github-actions/references/ci-cd/GUIDE.md)) runs full-history leak and `check:network` audits, and CD workflows scan built images before promotion.
 
 ## Report
 
-- **State each command's proof boundary**: working tree, history range, lockfile, image digest, IaC tree, workflow set, signature identity, and issuer; a missing tool, database, lockfile, or registry is a coverage gap.
-- **Never overstate scan results**: a suppression is not a fix, and one scanner is not proof for another control.
+- **Bound every claim**: name exact tree, commit range, lockfile, digest, IaC/workflow scope, and signer/issuer; missing tools, DBs, locks, or registries are coverage gaps, and suppressions are not fixes.
 
 ## Documentation
 
-- Method ideas (context building, fp-check, insecure defaults, variant analysis, supply-chain risk) adapted from [Trail of Bits skills at 2be6433](https://github.com/trailofbits/skills/tree/2be6433b39e009cd2b6fd3be1895f6b1faa5af9a) (CC-BY-SA-4.0; no text copied).
-- [OpenSSF Scorecard](https://securityscorecards.dev)
-- Companion skill: [skill-security-review](../skill-security-review/GUIDE.md) for third-party skills.
+- Method ideas adapted from [Trail of Bits skills at `2be6433`](https://github.com/trailofbits/skills/tree/2be6433b39e009cd2b6fd3be1895f6b1faa5af9a) (CC-BY-SA-4.0; no text copied) · [OpenSSF Scorecard](https://securityscorecards.dev)
+- Companion skill: [skill-security-review](../skill-security-review/GUIDE.md).

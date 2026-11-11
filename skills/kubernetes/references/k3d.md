@@ -5,22 +5,24 @@ description: "Create, budget, and tear down disposable local k3d clusters for ru
 
 # Local k3d Clusters
 
-Local k3d clusters need an existing Docker-compatible engine (see [docker](../../docker/SKILL.md)) and `k3d` declared in the project with `mise use --pin k3d`; run `dot doctor --headroom` before creating one. Prefer manifest checks when they can answer the question.
+Requires a running Docker engine ([docker](../../docker/SKILL.md)) and `mise use --pin k3d`; check `dot doctor --headroom` first and prefer offline manifest checks whenever possible.
 
-1. **Create only when needed**: inspect `k3d cluster list`, confirm the resource budget, and choose a unique task-owned name. Keep the current kubeconfig context unchanged and pass `--context k3d-<task-cluster>` afterwards. Pick a `rancher/k3s` tag of the target cluster's minor version; otherwise k3d uses the k3s release it was built with. `--timeout` bounds creation and rolls back a failed create.
+1. **Create with a unique name and pinned k3s tag** (`--kubeconfig-switch-context=false` preserves default kubeconfig; `--timeout` bounds startup and rolls back failures):
 
    ```bash
+   k3d cluster list
    k3d cluster create <task-cluster> --agents 1 --kubeconfig-switch-context=false --image rancher/k3s:<k3s-tag> --timeout 5m
    ```
 
-1. **Tear down promptly**: after runtime tests, stop or delete only the disposable cluster whose successful creation was recorded for this task. A failed create does not authorize deleting a pre-existing cluster with that name.
+   Pass `--context k3d-<task-cluster>` on subsequent commands.
+
+1. **Tear down only task-created clusters** (a failed create never authorizes deleting a pre-existing cluster sharing that name):
 
    ```bash
    k3d cluster stop <task-cluster>
-   # Or delete:
    k3d cluster delete <task-cluster>
    ```
 
 ## Documentation
 
-- [k3d](https://k3d.io/) · Releases: [k3d](https://github.com/k3d-io/k3d/releases)
+- [k3d](https://k3d.io/) · [releases](https://github.com/k3d-io/k3d/releases)

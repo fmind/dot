@@ -6,25 +6,25 @@
    ```bash
    mkdir -p .agents/skills .agents/prompts
    ```
-   Start `AGENTS.md` from the [project template](../templates/AGENTS.md.template) (named `.template` because Claude Code and OpenCode load an `AGENTS.md` beside a file they read); project skills live in `.agents/skills/<name>/SKILL.md` and handover prompts in `.agents/prompts/` (gitignored). Antigravity, Copilot, Cursor, OpenCode, and Pi read `AGENTS.md` and `.agents/skills` natively, as do other hosts that follow the [AGENTS.md standard](https://agents.md) (for example Codex); check such a host's docs for its own files.
-1. **Bridge Claude Code skills only when the repository is also used with Claude Code**: Claude Code 2.1.277+ loads project `AGENTS.md` when no `CLAUDE.md` exists, so add no `CLAUDE.md`; a present one replaces `AGENTS.md` under the default `instructionFiles` mode. Its skills still load only from `.claude/skills`. After checking that the path does not already exist unmanaged:
+   Seed `AGENTS.md` from [AGENTS.md.template](../templates/AGENTS.md.template) (suffixed `.template` so Claude Code and OpenCode do not auto-load it); `.agents/skills/<name>/SKILL.md` holds repo skills and gitignored `.agents/prompts/` holds handoffs. Antigravity, Copilot, Cursor, OpenCode, Pi, and other [AGENTS.md](https://agents.md) hosts (such as Codex) read both natively.
+1. **Bridge Claude Code skills when needed**: Claude Code 2.1.277+ reads `AGENTS.md` when `CLAUDE.md` is absent (never add `CLAUDE.md`, which shadows `AGENTS.md` under default `instructionFiles`), but loads skills only from `.claude/skills`:
    ```bash
    mkdir -p .claude && ln -s ../.agents/skills .claude/skills
    ```
-   When `.claude/` is gitignored (globally or in the repository), un-ignore the tracked link so every clone gets it; a directory rule cannot be re-included, so ignore the contents instead:
+   If `.claude/` is gitignored, ignore its contents instead so the tracked symlink survives:
    ```gitignore
    !.claude/
    .claude/*
    !.claude/skills
    ```
-1. **Add host files only when needed**:
-   - **Antigravity**: workspace settings and MCP file paths follow its current docs and it respects `.gitignore`.
-   - **Claude Code**: `.mcp.json` for project MCP servers (`claude mcp add --scope project`).
-   - **Copilot**: `.github/copilot-instructions.md` only for extra repository-wide Copilot instructions.
-   - **Cursor**: `.cursor/rules` only for Cursor-specific rules. `.cursor/cli.json` owns project permissions and `.cursor/mcp.json` owns project MCP.
-   - **OpenCode**: `opencode.json` or `.jsonc` for project configuration and MCP. See [opencode](../../agent-harnesses/references/opencode/GUIDE.md) for session operation.
-   - **Pi**: `.pi/settings.json` and `.pi/mcp.json` only for Pi-specific overrides; both load after project trust. See [pi](../../agent-harnesses/references/pi.md) for session operation.
-1. **Verify each installed CLI**: start it from the repository root and confirm instructions, skills, and configured MCP servers load, using the listing commands in [host discovery](host-discovery.md).
+1. **Add host files only on demand**:
+   - **Antigravity**: honors `.gitignore`; check current docs for workspace/MCP paths.
+   - **Claude Code**: `.mcp.json` (`claude mcp add --scope project`).
+   - **Copilot**: `.github/copilot-instructions.md` for Copilot-only additions.
+   - **Cursor**: `.cursor/rules`, `.cursor/cli.json` (permissions), `.cursor/mcp.json`.
+   - **OpenCode**: `opencode.json`/`.jsonc` ([opencode](../../agent-harnesses/references/opencode/GUIDE.md)).
+   - **Pi**: `.pi/settings.json` and `.pi/mcp.json`, loaded after trust ([pi](../../agent-harnesses/references/pi.md)).
+1. **Verify**: launch each CLI at the repo root and check loaded instructions, skills, and MCP via [host discovery](host-discovery.md).
 
 ## Layout
 
@@ -41,4 +41,4 @@
 
 ## Custom agents
 
-Native agent definitions differ by host. Add a role only when [cross-harness agents](cross-harness-agents.md) shows it pays off; that guide lists each host's project and personal locations.
+Add native host role files only when [cross-harness agents](cross-harness-agents.md) justifies them.

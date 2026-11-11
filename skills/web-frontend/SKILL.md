@@ -7,32 +7,31 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Web Frontend
 
-Build calm, spacious, Google-simple browser interfaces with native HTML, CSS, and JavaScript. Apply `~/.agents/DESIGN.md` by default unless the project or customer defines its own identity; preserve an existing frontend stack and use Tailwind when the project selects it. [python-web](../python-web/SKILL.md) owns server applications, including server rendering, APIs, and application tests through [litestar](../python-web/references/litestar/GUIDE.md) or [django](../python-web/references/django/GUIDE.md); [playwright](../playwright/SKILL.md) owns browser automation.
+Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Default to `~/.agents/DESIGN.md` unless the project or customer defines its own brand; preserve existing stacks and use Tailwind when selected. [python-web](../python-web/SKILL.md) ([litestar](../python-web/references/litestar/GUIDE.md), [django](../python-web/references/django/GUIDE.md)) owns backend apps and tests; [playwright](../playwright/SKILL.md) owns E2E automation.
 
 ## Workflow
 
-1. **Apply the design system**: for Fmind work, follow `~/.agents/DESIGN.md` for layouts, the single primary action, flat hierarchy, inline states, and omitted chrome; copy its pinned CSS variables, Tailwind `@theme`, or daisyUI file from `~/.agents/themes/`, listed in [fmind-visuals renderers](../fmind-visuals/references/renderers.md#pinned-files).
-1. **Prefer web platform primitives**: use native elements (`<details>`, `<dialog>`, popover API, subgrid, container queries, CSS nesting) over third-party component libraries or custom script wrappers.
-1. **Retrieve platform guidance**: search curated web platform recipes, then fetch a guide's implementation details and browser baselines by identifier:
+1. **Apply the design system**: follow `~/.agents/DESIGN.md` (single primary action, flat hierarchy, inline states, minimal chrome) and copy `~/.agents/themes/` CSS, Tailwind `@theme`, or daisyUI files ([renderers](../fmind-visuals/references/renderers.md#pinned-files)).
+1. **Use native web primitives**: prefer `<details>`, `<dialog>`, Popover API, subgrid, container queries, and CSS nesting over JS wrappers or component libraries.
+1. **Lookup curated platform guidance**:
    ```bash
-   DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.196 search "<topic or platform feature>"
-   DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@0.0.196 retrieve "<guide-id>[,<guide-id>]"
+   DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@1.0.0 search "<topic or platform feature>"
+   DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@1.0.0 retrieve "<guide-id>[,<guide-id>]"
    ```
-1. **Compile Tailwind**: use the [standalone Tailwind workflow](references/tailwind.md) when the project selects Tailwind; preserve an existing asset pipeline. `tailwindcss` owns CSS compilation, while `npx` runs only the guidance and token export CLIs above.
-1. **Open and check in Chrome**: start the app, open it in Chrome with [chrome-devtools](../chrome-devtools/SKILL.md), and exercise the primary flow; verify it works without console or network errors and check layout, visual restraint, responsive viewports, keyboard flow, and accessibility before reporting done. Fix the issues found, recheck the affected flow, and stop: no open-ended visual polishing loops.
+1. **Compile Tailwind**: follow [standalone Tailwind](references/tailwind.md) when Tailwind is used (`tailwindcss` compiles CSS; reserve `npx` for guidance/token CLIs).
+1. **Verify live in Chrome**: exercise the primary flow with [chrome-devtools](../chrome-devtools/SKILL.md), confirming zero console/network errors, clean responsive viewports, keyboard flow, and accessibility; fix defects, recheck, and stop without open-ended polish loops.
 
 ## Gotchas
 
-- **Write copy in the user's terms**: buttons name their action ("Save changes", not "Submit"), one verb carries through the flow (Publish → "Published"), labels use the user's vocabulary, not the system's, and errors state the fix without apologizing.
-- **Show numbers so they compare**: right-align figures with tabular numerals and fixed decimals per metric; color a change by good or bad, not up or down (rising latency is red), with zero change in gray; show a missing value as a dash and a real zero as `0`. Sample data is computed from its rows, and totals add up.
-- **Verify preview guidance against MDN**: Modern Web Guidance is an evolving catalog; always verify API signatures and baseline status against authoritative MDN documentation.
-- **Set the browser target first**: use the project's browserslist or support matrix, else Baseline Widely available; guard newer features from the guidance with `@supports` or progressive enhancement. Tailwind v4 needs Chrome 111, Safari 16.4, and Firefox 128; confirm the target allows them before adopting it.
-- **Keep the pin for cross-references**: retrieved guides cite `npx -y modern-web-guidance@latest retrieve ...`; run those with the pinned version instead. Bump both commands together to the latest stable release after qualifying it.
+- **User-centered copy**: action-named buttons ("Save changes", not "Submit"), consistent verbs (Publish → "Published"), user terms over internal names, and actionable non-apologetic errors.
+- **Comparable numbers**: right-aligned tabular numerals, fixed decimals per metric, semantic delta colors (rising latency is red, zero is gray), dashes for missing values vs `0`, and row-consistent sample totals.
+- **Cross-check against MDN**: confirm API signatures and baseline support on MDN; enforce the project's browser matrix (else Baseline Widely available, guarding newer features with `@supports`). Tailwind v4 requires Chrome ≥111, Safari ≥16.4, and Firefox ≥128.
+- **Pin `modern-web-guidance`**: replace `@latest` in retrieved cross-references with the pinned version, and upgrade both commands together after qualification.
 
 ## Official Skills
 

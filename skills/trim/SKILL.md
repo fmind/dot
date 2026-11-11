@@ -7,38 +7,32 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Trim
 
-Treat `/trim <path>` or "too verbose", "too complex", "simplify this" as a request to remove words, lines, and settings that carry nothing, while every fact, behavior, and the author's voice survive. Trimming is not summarizing: when the text is the deliverable (an article, a talk) and the user did not ask for a length, tighten sentences but keep its substance and length class. Arguments can set a target (`to 300 words`, `-40%`) or a scope. For code, [full-review](../full-review/SKILL.md) owns dead code and abstractions; apply these rules only with tests proving behavior.
+Handle `/trim <path>` or verbosity complaints by cutting words, lines, and settings that carry nothing while keeping every fact, behavior, and the author's voice. For deliverables (articles, talks) without a requested length, tighten sentences without changing length class; for code, [full-review](../full-review/SKILL.md) owns dead code and abstractions (trim code only with behavior tests).
 
 ## Workflow
 
-1. **Measure**: record lines, words, and estimated tokens (characters / 4) before editing; for skill catalogs and instruction files also run `dot agent context --project . --details` (add `--source .` inside the fmind/dot checkout).
-
-   ```bash
-   wc -lwm <path>
-   ```
-
-1. **Map what must survive**: list each claim, rule, number, command, flag, link, warning, and authority boundary. For configuration, capture the effective result so the trim can prove it changed nothing: `mise tasks ls --json --hidden`, `mise ls --current --json`, `mise env --json`, and `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json` for plain data.
-1. **Cut, in this order**:
-   - **Duplication**: the same rule stated twice; keep it at its owner and link from elsewhere.
-   - **Restated defaults**: settings equal to the installed tool's default, after verifying that default in its current docs or `--help` (defaults change between versions).
-   - **Filler**: introductions, hedges, recaps, "note that", tool narration, history ("previously…"), and generic tutorials the reader's tools already know.
-   - **Dead entries**: options for tools, paths, or features that no longer exist (prove absence with `rg` or `fd`).
-   - **Verbose constructions**: lists that can be one sentence, sentences that can be a clause, examples that only repeat the rule.
-1. **Never cut**: facts with their evidence, numbers and dates, exact commands and flags, non-obvious gotchas with their reason, security and authority boundaries, links and citations, required structure (frontmatter, anchored headings, generated-index markers), the documentation URL comment at the top of a configuration, comments explaining a non-default choice, and anything the user asked to keep. Preserve the author's voice and stance; do not rewrite into a different style.
-1. **Prove equivalence**: re-capture the effective configuration and diff it (it must be identical); re-run affected checks and tests; for prose, walk the survival list and confirm each item is still present or deliberately dropped with a reason. Run the repository's formatter and link checks for edited files.
-1. **Report**: before/after lines, words, and tokens with the percentage, the categories removed, and any candidate cut you kept because it seemed necessary. Ask before removing anything ambiguous instead of guessing.
+1. **Measure baseline**: `wc -lwm <path>`, plus `dot agent context --project . --details` (add `--source .` in `fmind/dot`) for instructions and skills.
+1. **Inventory survivors**: list every claim, rule, number, command, flag, link, warning, and authority boundary. For configs, snapshot effective state first (`mise tasks ls --json --hidden`, `mise ls --current --json`, `mise env --json`, `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json`).
+1. **Cut in order**:
+   - **Duplication**: keep once at the canonical owner; link elsewhere.
+   - **Restated defaults**: drop settings matching the installed version's verified default (unless a comment/commit pins them intentionally).
+   - **Filler**: intros, hedges, recaps, "note that", narration, history, and generic tool tutorials.
+   - **Dead entries**: paths/options proven absent with `rg` or `fd`.
+   - **Wordy phrasing**: collapse lists to clauses and drop redundant examples.
+1. **Preserve**: evidence-backed facts, numbers/dates, exact commands/flags, non-obvious gotchas with reasons, security/authority boundaries, links, required frontmatter/anchors/index markers, top-of-config docs URL comments, non-default rationale comments, and author voice.
+1. **Prove equivalence**: diff recaptured effective config (must match), walk the survival list, and run formatters, link checks, and affected tests.
+1. **Report**: before/after lines, words, and `ceil(chars/4)` tokens (`%`), cut categories, and ambiguous candidates held back for approval.
 
 ## Gotchas
 
-- **Short is not simple**: replacing three explicit lines with a clever one-liner or a dense regular expression makes the file harder to maintain; prefer deleting to compressing.
-- **Defaults drift**: a setting equal to today's default can still be intentional pinning; keep it when a comment or commit explains it.
-- **Search before rewording shared phrases**: phrases reused verbatim across files (triggers, error messages, test fixtures) may be matched by tests or other agents; search before rewording.
+- **Delete, don't compress**: never trade readable lines for clever one-liners or dense regexes.
+- **Search shared strings first**: `rg` before rewording triggers, error strings, or test-matched phrases.
 
 ## Documentation
 
-- Companion skills: [repository-docs](../repository-docs/SKILL.md) (documentation ownership), [skillify](../skillify/SKILL.md) (skill size rules), [system-prompts](../agent-frameworks/references/system-prompts.md) (application prompts).
+- Companions: [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/references/system-prompts.md).

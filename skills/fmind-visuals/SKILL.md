@@ -12,15 +12,14 @@ metadata:
 
 # Fmind Visual Communication
 
-Apply the customer's brand when the work belongs to one; otherwise the Fmind design in `~/.agents/DESIGN.md` ([source](https://github.com/fmind/theme/blob/main/DESIGN.md)): readable typography, spacious composition, and evidence-backed claims.
+Apply customer branding when the work belongs to one; otherwise use `~/.agents/DESIGN.md` ([source](https://github.com/fmind/theme/blob/main/DESIGN.md)): legible type, spacious layout, and evidence-backed visuals.
 
 ## Workflow
 
-1. **Select the format**: VHS for reproducible terminal demonstrations, unless the user or an existing project names another. [Diagrams as code](../diagrams-as-code/SKILL.md) owns diagrams and illustrations (Mermaid, SVG, and D2, including Fmind-branded diagrams).
-1. **Apply the brand**: customer or employer work uses that organization's design system, palette, fonts, and logo; ask for its brand guide rather than guessing, and never mix brands. An existing project keeps its identity. Otherwise read `~/.agents/DESIGN.md` for tokens, components, and do's and don'ts, map it with [renderers.md](references/renderers.md), bundle the fonts with their OFL notices, and use the existing reviewed logo. Preserve published assets when the design changes.
-1. **Explore variants** when the look is open (logo, cover, hero illustration) or the user rejects a draft: follow [variants](references/variants.md) instead of iterating on one guess.
-1. **Create**: follow [recording.md](references/recording.md) for VHS demos and keep the tape and synthetic inputs. Fmind diagrams follow diagrams-as-code with the pinned D2 and Mermaid files that [renderers.md](references/renderers.md) lists.
-1. **Verify**: compile success is not visual success. Inspect every rendered frame, image, or diagram for legibility, clipping, font loading, and accessibility, and keep editable sources beside their exports.
+1. **Select the format**: VHS for reproducible terminal demos ([diagrams-as-code](../diagrams-as-code/SKILL.md) owns Mermaid, SVG, and D2 diagrams).
+1. **Apply the brand**: use customer/employer palette, fonts, and logo (ask if missing; never mix brands), preserve existing project identities, or map `~/.agents/DESIGN.md` via [renderers.md](references/renderers.md) with OFL font notices and the reviewed Fmind logo. Keep published assets stable across theme updates.
+1. **Explore variants**: when the look is open (logo, cover, hero) or a draft is rejected, run numbered rounds via [variants](references/variants.md).
+1. **Create and verify**: record VHS demos via [recording.md](references/recording.md) and theme diagrams with [renderers.md](references/renderers.md). Inspect every rendered frame or image for legibility, clipping, fonts, and accessibility, and keep editable sources beside exports.
 
 ## Gotchas
 

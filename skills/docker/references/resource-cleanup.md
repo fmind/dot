@@ -1,13 +1,12 @@
 # Docker Resource Cleanup
 
-Clean up only the Docker resources this task recorded as it created them, on success and failure, in the same Docker context that created them.
+Remove only resources recorded as created by this task, in the originating Docker context, on both success and failure:
 
-- **Keep a free-space floor**: keep at least 20 GiB free during a build (the `dot doctor --headroom` warning level; it fails below 10 GiB) and propose a 5 GiB cache budget for a persistent local builder. Never change a shared daemon or builder policy as an incidental build step.
-- **Compose teardown stays narrow**: `docker compose -p <task-project> -f <file> down`; add `--volumes` only when every volume is task-created test data, and never add `--remove-orphans` or `--rmi all` by default.
-- **Remove by recorded name or ID**: volumes, networks, temporary image tags (`docker image rm` without force), builders (`docker buildx rm <task-builder>`), and archives such as `tmp/image.tar`; when ownership is uncertain, retain and report.
-- **Never prune in teardown**: `docker system prune`, volume prune, and builder prune do not belong in automatic cleanup; reuse a shared builder cache under its budget instead.
-- **Report what remains**: recheck `docker system df` and free space, and never count concurrent disk changes as your own savings.
+- **Respect disk floors**: keep ≥20 GiB free during builds (`dot doctor --headroom` warns <20 GiB and fails <10 GiB; propose a 5 GiB GC cap for persistent local builders without altering shared daemon policies unasked).
+- **Keep Compose teardown narrow**: run `docker compose -p <task-project> -f <file> down` (add `--volumes` only for disposable test volumes; never pass `--remove-orphans` or `--rmi all` by default).
+- **Delete by exact recorded name/ID**: volumes, networks, temp tags (`docker image rm` without `-f`), `docker buildx rm <task-builder>`, and `tmp/image.tar` (keep and report anything with uncertain ownership).
+- **Never run global prunes in teardown**: skip `docker system/volume/builder prune`; recheck `docker system df` and free bytes without attributing concurrent changes to your cleanup.
 
 ## Documentation
 
-- [Compose down](https://docs.docker.com/reference/cli/docker/compose/down/) · [Remove a builder](https://docs.docker.com/reference/cli/docker/buildx/rm/) · [Build cache garbage collection](https://docs.docker.com/build/cache/garbage-collection/)
+- [Compose down](https://docs.docker.com/reference/cli/docker/compose/down/) · [buildx rm](https://docs.docker.com/reference/cli/docker/buildx/rm/) · [Build cache GC](https://docs.docker.com/build/cache/garbage-collection/)

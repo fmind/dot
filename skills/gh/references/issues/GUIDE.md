@@ -5,14 +5,12 @@ description: "Plan, draft, deduplicate, update, link, and close GitHub issues."
 
 # GitHub Issues
 
-Plan, read, and mutate GitHub issues from verified repository and remote state.
+Plan, read, and update GitHub issues from verified repo and remote state via [gh](../../SKILL.md).
 
 ## Workflow
 
-Use [gh](../../SKILL.md) for account selection, repository identity without printing raw remote URLs, bounded API calls, and request serialization when needed.
-
-1. **Confirm the target**: resolve the repository from the explicit URL or `gh repo view --json nameWithOwner,visibility` and state `OWNER/REPO`; never infer another repository from a similarly named checkout.
-1. **Refresh current state** before proposing a change:
+1. **Confirm target**: resolve `OWNER/REPO` from the URL or `gh repo view --json nameWithOwner,visibility`; never infer from a similarly named checkout.
+1. **Refresh remote state**:
 
    ```bash
    gh issue view <number> -R <owner>/<repo> --json number,title,body,state,stateReason,labels,assignees,milestone,url
@@ -20,26 +18,25 @@ Use [gh](../../SKILL.md) for account selection, repository identity without prin
    gh search issues '<problem in plain words>' -R <owner>/<repo> --search-type hybrid --limit 20 --json number,title,state,url
    ```
 
-1. **Load discussion when relevant**: fetch comments separately when decisions, acceptance criteria, or requested replies depend on them; preserve that context before editing. Narrow or paginate a lexical search that reaches its limit, and add the hybrid search (one relevance-ranked page) for differently worded duplicates, before claiming no duplicate exists.
-1. **Deduplicate**: update the existing issue that represents the same outcome; keep reproduction, acceptance criteria, dependencies, decisions, and proof; drop stale logs and duplicate checklists.
-1. **Draft before creating**: for multiple findings or dependency-aware work, apply the [backlog workflow](references/backlog.md), present the reviewable set, and stop unless issue creation is already authorized.
-1. **Apply one bounded mutation** the user authorized. Write substantial bodies to a temporary file and pass `--body-file`; avoid shell interpolation and interactive prompts:
+1. **Check comments and duplicates**: fetch comments when decisions, criteria, or replies depend on them. Narrow/paginate capped lexical searches and run one hybrid search page before declaring no duplicate exists.
+1. **Deduplicate**: update an existing issue sharing the same outcome, retaining reproduction, acceptance criteria, dependencies, decisions, and proof while dropping stale logs and duplicate checklists.
+1. **Draft multi-issue sets**: for multiple findings or dependencies, follow the [backlog workflow](references/backlog.md), present drafts, and stop unless creation is authorized.
+1. **Apply authorized mutations** via `--body-file` (no shell interpolation or prompts):
 
    ```bash
    gh issue create -R <owner>/<repo> --title '<title>' --body-file <body-file>
    gh issue edit <number> -R <owner>/<repo> --body-file <body-file>
    ```
 
-1. **Verify from GitHub**: re-read with `gh issue view --json ...`, compare the intended fields, and report the URL; a zero exit code alone is not proof of final state.
+1. **Read back**: re-read via `gh issue view --json ...`, verify changed fields, and report the URL.
 
 ## Gotchas
 
-- **Green is not closed**: verify the issue's acceptance criteria and requested delivery boundary before `gh issue close`; local passing code is not delivery.
-- **Change coordination fields only when named**: assignments, comment notifications, milestones, and project changes are coordination acts; make them only when the request names them.
+- **Green is not closed**: confirm acceptance criteria and the requested delivery boundary before `gh issue close`.
+- **Touch coordination fields only when asked**: change assignees, milestones, projects, or comment pings only on explicit request.
 
 ## Documentation
 
-- Upstream: `github/awesome-copilot` ships a `github-issues` skill (GitHub MCP tools); preview it and follow the [vendor-skill policy](../../../agent-project/references/vendor-skills.md) before installing.
-- [gh issue manual](https://cli.github.com/manual/gh_issue)
-- Releases: [GitHub CLI](https://github.com/cli/cli/releases)
-- Companion skills: [full-review](../../../full-review/SKILL.md) (verified findings), [pull-request](../pull-request.md) (the PR).
+- Upstream `github/awesome-copilot` ships `github-issues` (MCP-based); follow [vendor-skill policy](../../../agent-project/references/vendor-skills.md) before installing.
+- [gh issue manual](https://cli.github.com/manual/gh_issue) · [releases](https://github.com/cli/cli/releases)
+- Companion skills: [full-review](../../../full-review/SKILL.md), [pull-request](../pull-request.md).

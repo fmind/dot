@@ -114,24 +114,19 @@ def build(workspace: str) -> LocalAgentConfig:
 
 async def main(workspace: str) -> None:
     """Runs one orchestration and prints the typed result."""
-    async with Agent(build(workspace)) as agent:
-        async def run() -> Audit:
-            response = await agent.chat(
-                "Delegate to reader for each top-level package, then have critic refute"
-                " every claim. Report only surviving findings."
-            )
-            payload = await response.structured_output()
-            if response.stop_reason != types.StopReason.UNSPECIFIED:
-                raise RuntimeError(f"audit stopped before completion: {response.stop_reason.value}")
-            result = Audit.model_validate(payload)
-            if response.usage_metadata:
-                print(f"tokens: {response.usage_metadata.total_token_count}", file=sys.stderr)
-            return result
-
-        result = await asyncio.wait_for(run(), timeout=300)
-        print(result.verdict)
-        for finding in result.findings:
-            print(f"- {finding}")
+    async with asyncio.timeout(300), Agent(build(workspace)) as agent:
+        response = await agent.chat(
+            "Delegate to reader for each top-level package, then have critic refute"
+            " every claim. Report only surviving findings."
+        )
+        if response.stop_reason != types.StopReason.UNSPECIFIED:
+            raise RuntimeError(f"audit stopped before completion: {response.stop_reason.value}")
+        result = Audit.model_validate(await response.structured_output())
+        if response.usage_metadata:
+            print(f"tokens: {response.usage_metadata.total_token_count}", file=sys.stderr)
+    print(result.verdict)
+    for finding in result.findings:
+        print(f"- {finding}")
 
 
 if __name__ == "__main__":

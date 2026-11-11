@@ -1,18 +1,17 @@
 # Trusted Scanners
 
-Run secret and license scanners against a candidate snapshot without executing it; the parent [guide](../GUIDE.md) owns the review workflow, the pattern searches, and the decision.
+Scan a candidate snapshot for secrets and licenses without executing it; the [parent guide](../GUIDE.md) owns manual pattern checks and the verdict.
 
 ## Workflow
 
-1. **Stay outside the candidate**: run from a trusted audit directory, not the snapshot root, so the candidate cannot supply configuration through ambient discovery.
-1. **Pass trusted configuration explicitly**: reviewed configuration and ignore files for both tools. Trivy scans licenses only; Betterleaks owns secrets. Do not let candidate config, ignore files, or `betterleaks:allow` / `gitleaks:allow` comments suppress findings. Betterleaks scans nested archives up to `--max-archive-depth` (default 8); keep at least the default. For Trivy, `--config` overrides ambient `TRIVY_CONFIG`, `--ignorefile ''` loads no ignore file, `--license-full` scans source license text, and all severities retain permissive and unknown license detections:
+1. **Run outside `<root>`** with explicit trusted configs/ignorefiles so candidate files or `betterleaks:allow` / `gitleaks:allow` comments cannot suppress hits (keep Betterleaks `--max-archive-depth` >= default 8; Trivy `--config` overrides `TRIVY_CONFIG`, `--ignorefile ''` disables ignorefiles, and `--license-full` + all severities catch permissive/unknown licenses):
 
    ```bash
    betterleaks dir <root> --config <trusted-betterleaks.toml> --gitleaks-ignore-path <trusted-ignorefile> --ignore-gitleaks-allow --redact=100
    trivy --config <trusted-audit-policy.yaml> fs --ignorefile <trusted-ignorefile> --scanners license --license-full --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL <root>
    ```
 
-1. **Record coverage**: each tool's version, the configuration used, skipped paths, and what the scanners cannot see (instruction authority, Unicode payloads, executable behavior); report those as the parent's manual-review evidence, not as scanner passes.
+1. **Record versions, configs, and skipped paths**; instruction authority, Unicode smuggling, and code behavior remain manual-review items.
 
 ## Documentation
 

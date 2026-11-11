@@ -5,7 +5,7 @@ description: "Scan dependencies, IaC, images, and licenses; generate SBOMs."
 
 # Trivy
 
-Scan dependencies, infrastructure as code, licenses, container images, and SBOMs according to the project's `trivy.yaml`; [betterleaks](../betterleaks.md) owns secret scanning, so keep `secret` out of `scan.scanners`. Inspect its enabled scanners, severity, exclusions, and `ignore-unfixed` setting before claiming coverage. Blocking policies need `exit-code: 1`; findings otherwise default to a successful exit.
+Scan non-`uv` dependencies, IaC, images, licenses, and SBOMs with committed `trivy.yaml` (`exit-code: 1` required to block; omit `secret` from `scan.scanners` so [betterleaks](../betterleaks.md) stays sole secret scanner; pure-Python repos without containers or IaC rely on `uv audit` + [jactionlint](../../../github-actions/references/jactionlint.md)). Check active scanners, severities, exclusions, and `ignore-unfixed` before claiming coverage (`uv.lock` and `aube-lock.yaml` carry no license metadata, so `license` evaluates container/OS and installed package metadata).
 
 ## Commands
 
@@ -20,7 +20,7 @@ trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars . # OpenTofu mod
 
 ## Mise Task
 
-Expose the repository scan as `check:scan` in `mise.toml` per [mise](../../../mise/SKILL.md) and add it to `check:network`'s `depends` (or `check`'s when the project has no split) per the [task conventions](../../../mise/references/task-conventions.md#conventions), so `mise run check`, the pre-push hook, and CI run it:
+Wire `check:scan` into `check:network` (or `check`) per [mise](../../../mise/SKILL.md) and [task conventions](../../../mise/references/task-conventions.md#conventions), alongside `check:vuln` (`uv audit` for `uv.lock` semantics); use [unfixed-report.md](references/unfixed-report.md) for scheduled informational visibility:
 
 ```toml
 [tasks."check:scan"]
@@ -28,29 +28,21 @@ description = "Scan dependencies, IaC, and licenses (Trivy)"
 run = "trivy --config trivy.yaml fs ."
 ```
 
-Python's native dependency scanner stays separate as `check:vuln` (`uv audit`) because it understands `uv.lock` semantics; keep both tasks, while `trivy fs` adds the configured IaC and license scanners.
-
-For scheduled visibility into advisories that the blocking policy intentionally excludes, use the separate [fixed and unfixed report](references/unfixed-report.md). It never replaces the blocking gate.
-
 ## Triage
 
-1. **Ignore findings, not the severity bar**: record an accepted risk in `.trivyignore` (one finding ID per line, with a `#` reason) instead of lowering the global severity bar. Use `.trivyignore.yaml` with explicit `--ignorefile` for path-scoped findings, expiry, or license ignores; see [filtering](https://trivy.dev/docs/latest/configuration/filtering/).
-1. **Route secret findings to betterleaks**: handle secret findings, including from a project that still enables Trivy's `secret` scanner, per [betterleaks](../betterleaks.md): verify exposure, then coordinate authorized rotation; history rewrites require explicit authority.
+1. **Ignore IDs, never severities**: document accepted risks in `.trivyignore` (with `#` reason) or path/expiry/license rules in `.trivyignore.yaml` (`--ignorefile`; [filtering](https://trivy.dev/docs/latest/configuration/filtering/)).
+1. **Route secrets to [betterleaks](../betterleaks.md)** for verification and authorized rotation.
 
 ## Gotchas
 
-- **Scan untrusted candidates independently**: a project-owned policy is not an independent audit policy. Run outside the candidate with reviewed configuration, `--ignorefile`, and exclusions; inspect environment overrides too. Preserve the repository policy for its normal gate and distinguish those results from the independent scan.
-- **Always pass `--config trivy.yaml`**: precedence is `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, and the owner's shell exports a global `TRIVY_CONFIG`, so a bare `trivy fs .` silently uses the global policy.
-- **Commit a project `trivy.yaml`**: copy the global one so CI, hooks, and agents share one policy.
-- **Disable telemetry in the policy**: Trivy sends anonymous usage data and an update check to Aqua on every run by default; set `scan.disable-telemetry: true` and `scan.skip-version-check: true` (`--debug` logs whether the request runs).
-- **Clear exclusions for image scans**: pass `--skip-dirs ''` for image scans to clear repository-only exclusions. The Python image stores its application in `/app/.venv`; inheriting `**/.venv` silently hides those packages. Confirm that the report includes the expected Python packages.
-- **License findings remain findings**: the shared license policy can reject Debian base packages. Review the owning project's distribution requirements and explicit license policy before publication; do not disable the scanner or add blanket ignores to make an image pass.
-- **Map aube locks for Trivy**: Trivy reads pypi `uv.lock` files natively but skips npm `aube-lock.yaml` unless `scan.file-patterns` maps it with `pnpm:aube-lock\.yaml`.
-- **Scan digests, not tags**: a tag can move after the scan; the digest is what ships.
-- **Pre-cache data for offline scans**: cache the required vulnerability database, Java database, and checks bundle first. `--skip-db-update` alone does not prevent other downloads; use the applicable `--skip-java-db-update`, `--skip-check-update`, and `--offline-scan` options per the [network guide](https://trivy.dev/docs/latest/advanced/air-gap/). Report missing data and database age instead of claiming a fresh or complete offline scan.
+- **Pass `--config trivy.yaml` explicitly**: `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, so bare `trivy fs .` uses the shell's global `TRIVY_CONFIG`; scan untrusted repos from outside with independent `--config`/`--ignorefile`.
+- **Disable telemetry in `trivy.yaml`**: set `scan.disable-telemetry: true` and `scan.skip-version-check: true` (`--debug` verifies).
+- **Pass `--skip-dirs ''` on images** so repo `**/.venv` exclusions do not hide `/app/.venv` packages, and scan immutable `@<digest>` refs rather than mutable tags.
+- **Keep license gates honest**: resolve Debian/package license hits against project distribution policy instead of blanket ignores.
+- **Map `aube-lock.yaml`**: Trivy reads `uv.lock` natively but needs `pnpm:aube-lock\.yaml` in `scan.file-patterns`.
+- **Air-gapped runs**: pre-cache DBs/checks and pass `--skip-db-update`, `--skip-java-db-update`, `--skip-check-update`, and `--offline-scan` ([air-gap docs](https://trivy.dev/docs/latest/advanced/air-gap/)), reporting DB age and gaps.
 
 ## Documentation
 
-- [Trivy](https://trivy.dev)
-- Releases: [Trivy](https://github.com/aquasecurity/trivy/releases) · [changelog](https://github.com/aquasecurity/trivy/blob/main/CHANGELOG.md)
-- Companion skills: [code-review](../code-review/GUIDE.md) (the repository checklist), [containerize](../../../docker/references/containerize/GUIDE.md) (image scans), [github-actions](../../../github-actions/references/ci-cd/GUIDE.md) (`security.yml` scheduled scan).
+- [Trivy](https://trivy.dev) · [releases](https://github.com/aquasecurity/trivy/releases) · [changelog](https://github.com/aquasecurity/trivy/blob/main/CHANGELOG.md)
+- Companion skills: [code-review](../code-review/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [github-actions](../../../github-actions/references/ci-cd/GUIDE.md).

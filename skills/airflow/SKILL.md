@@ -7,61 +7,51 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-10-31"
+  updated: "2026-11-10"
 ---
 
 # Apache Airflow with Astronomer CLI
 
-Use `astro` for local Apache Airflow development, DAG authoring, task testing, and debugging. [python-stack](../python-stack/SKILL.md) owns Python package conventions and [docker](../docker/SKILL.md) manages container runtimes.
+Develop, test, and debug local Airflow DAGs with `astro` ([python-stack](../python-stack/SKILL.md) owns Python packaging; [docker](../docker/SKILL.md) owns container runtimes).
 
-Docker mode (the default) needs an existing Docker-compatible engine; run `dot doctor --headroom` before the first image pull or build. `--standalone` runs Airflow on the host without Docker. Workstation tools disable anonymous telemetry (`ASTRO_TELEMETRY_DISABLED=1`). Inspect the project's Airflow version before choosing component flags for `astro dev logs` and `astro dev bash` (`--api-server` and `--dag-processor` for Airflow 3; `--webserver` for Airflow 2). `astro dev bash` opens an interactive shell, so agents run Airflow commands through `astro dev run` instead.
+Default Docker mode requires a running container engine—check `dot doctor --headroom` before first image pull/build (`--standalone` runs without Docker; workstation sets `ASTRO_TELEMETRY_DISABLED=1`). Check the project's Airflow major before selecting component flags (`--api-server` / `--dag-processor` on Airflow 3 vs `--webserver` on Airflow 2), and use `astro dev run` rather than interactive `astro dev bash`.
 
 ## Workflow
 
-1. **Start local environment**: `--no-browser` keeps the UI from opening.
-
+1. **Start without opening a browser**:
    ```bash
    astro dev start --no-browser
    ```
-
-1. **Validate DAG syntax and integrity**: parse DAG files to catch import and configuration errors without waiting for the scheduler.
-
+1. **Parse DAGs for import and config errors**:
    ```bash
    astro dev parse
    ```
-
-1. **Test tasks and runs**: execute unit tests or run individual tasks directly inside the local environment.
-
+1. **Run unit and single-task tests**:
    ```bash
    astro dev pytest
    astro dev run tasks test <dag_id> <task_id>
    ```
-
-1. **Inspect service and task logs**: select the relevant component and keep `--follow` opt-in.
-
+1. **Inspect component logs** (keep `--follow` opt-in):
    ```bash
    astro dev logs --scheduler
    astro dev logs --api-server
    ```
-
-1. **Stop or rebuild environment**: stop containers when done or rebuild when changing dependencies in `requirements.txt`.
-
+1. **Stop or rebuild** (restart after `requirements.txt` or `Dockerfile` edits):
    ```bash
    astro dev stop
-   # After changing requirements.txt or Dockerfile:
    astro dev restart
    ```
 
 ## Gotchas
 
-- **Author Airflow 3 DAGs with `airflow.sdk`**: import `dag`, `task`, and `DAG` from `airflow.sdk`; `ruff check --select AIR3` flags removed and deprecated Airflow 2 imports before `astro dev upgrade-test`.
-- **Proxy URLs replace fixed ports**: by default a shared reverse proxy serves each project at `http://<project>.localhost:6563` on random backend ports; `astro dev proxy status` lists each project's URL and Postgres port. `--no-proxy` restores fixed ports (`8080` for the API server or webserver, `5432` for Postgres), which can collide with local services.
-- **Task tests record no state**: `astro dev run tasks test` runs a single task without recording state in the Airflow database; upstream task dependencies must be handled or mocked.
-- **Run upgrade-test before upgrading**: before moving to a newer Airflow or Astro Runtime (including Airflow 2 to 3), run `astro dev upgrade-test` (optionally `--airflow-version <version>`); it reports dependency changes, DAG import errors, and deprecation lint in an `upgrade-test-<current>--<new>/` folder inside the project and temporarily appends `pytest-html` to `requirements.txt`; `--fix` rewrites project files with ruff fixes, including unsafe ones.
+- **Use `airflow.sdk` on Airflow 3**: import `dag`, `task`, and `DAG` from `airflow.sdk`; `ruff check --select AIR3` catches removed Airflow 2 imports early.
+- **Reverse-proxy URLs vs fixed ports**: projects default to `http://<project>.localhost:6563` over random backend ports (`astro dev proxy status`); `--no-proxy` binds fixed `8080` and `5432`, risking port collisions.
+- **`tasks test` is stateless**: records nothing in the metadata DB, so mock or supply upstream inputs.
+- **Qualify upgrades with `astro dev upgrade-test`** (`--airflow-version <version>`): writes dependency, import, and lint reports to `upgrade-test-<current>--<new>/` and temporarily appends `pytest-html` to `requirements.txt`; avoid `--fix` blindly since it applies unsafe Ruff fixes.
 
 ## Official Skills
 
-Upstream: Astronomer Agent Skills at `astronomer/agents` (including Airflow 2-to-3 migration). Its `airflow` skill drives the `af` CLI and shares this skill's name: preview it, never install it under that name, and install only selected non-colliding skills under the shared [vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions).
+Upstream: `astronomer/agents` (including Airflow 2→3 migration). Preview—never install—its colliding `airflow` skill (`af` CLI); install only non-colliding skills per [vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions).
 
 ## Documentation
 

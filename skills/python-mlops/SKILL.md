@@ -12,13 +12,11 @@ metadata:
 
 # Python MLOps
 
-Develop machine learning workflows from exploration to evaluated delivery, grounded in the [four reviewed MLOps repositories](references/sources.md).
+Build ML workflows from exploration to evaluated delivery, grounded in the [reviewed MLOps repositories](references/sources.md).
 
 ## Routing
 
-Read only the matching guide. For notebook authoring or reactivity, go directly to marimo; experiment tracking and model delivery are separate tasks. Preserve the project's libraries and notebook format. The reference package illustrates boundaries, not a mandatory architecture.
-
-For ML work, establish permitted compute and artifact destinations before running jobs. Training, tracking, registry writes, and promotion have different effects; inspect the selected task's dependencies before execution.
+Read only the matching guide. Go straight to `marimo` for notebooks/reactivity; keep existing project libraries and notebook formats, and treat reference repos as boundary examples rather than mandatory layouts. Confirm permitted compute, tracking stores, and artifact/registry targets before running training, logging, or promotion jobs.
 
 ## Task guides
 
@@ -35,6 +33,6 @@ For ML work, establish permitted compute and artifact destinations before runnin
 
 ## Related owners
 
-- [python-stack](../python-stack/SKILL.md): uv, typing, packaging, and async; [python-testing](../python-stack/references/python-testing/GUIDE.md): test implementation.
-- [Colab](../colab/SKILL.md), [Kaggle](../kaggle/SKILL.md), and [Hugging Face](../hf/SKILL.md) retain connector ownership of accounts, sessions, transfers, and compute. Available quota does not authorize allocation.
-- [duckdb](../duckdb/SKILL.md): SQL and file queries; [python-web](../python-web/SKILL.md): APIs and model demos; [observability](../python-stack/references/observability.md): service telemetry; [agent-evaluation](../agent-evaluation/SKILL.md): stochastic agent evaluation.
+- [python-stack](../python-stack/SKILL.md) (uv, typing, packaging, async) · [python-testing](../python-stack/references/python-testing/GUIDE.md) (tests) · [observability](../python-stack/references/observability.md) (telemetry).
+- [Colab](../colab/SKILL.md), [Kaggle](../kaggle/SKILL.md), [Hugging Face](../hf/SKILL.md): accounts, sessions, transfers, and compute (available quota never implies authorization).
+- [duckdb](../duckdb/SKILL.md) (SQL/file queries) · [python-web](../python-web/SKILL.md) (APIs/demos) · [agent-evaluation](../agent-evaluation/SKILL.md) (agent evals).

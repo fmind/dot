@@ -5,12 +5,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def collect(text: str, field: str, allow_incomplete: bool = False) -> dict:
+def collect(text: str, field: str, allow_incomplete: bool = False) -> dict[str, Any]:
     """Decode JSON values, not Unicode-aware lines (content can contain U+2028)."""
     decoder = json.JSONDecoder()
-    pages = []
+    pages: list[dict[str, Any]] = []
     offset = 0
     while offset < len(text):
         if text[offset] in " \t\r\n":

@@ -5,33 +5,26 @@ description: "Design any CLI's commands, flags, streams, exit codes, and JSON ou
 
 # CLI Contracts
 
-Define a command-line interface as a stable human and machine contract before implementing it, in any language. [argparse](argparse/GUIDE.md) owns the Python implementation.
+Define a stable human + machine CLI contract before coding, in any language; [argparse](argparse/GUIDE.md) owns Python implementation.
 
 ## Defaults for new CLIs
 
-Apply these defaults where the feature exists; a small utility does not need configuration, JSON, or prompting just to fill a checklist. Existing public contracts take precedence for command shape, streams, exit statuses, and output formats; the Help and version side-effect rules, Interaction consent rules, markup escaping, and Errors redaction apply to every CLI, existing or new.
+Apply where relevant (small tools need no forced config, JSON, or prompts). Existing public contracts take precedence for shape, streams, exit codes, and formats, while side-effect-free help/version, consent, markup escaping, and error redaction apply to every CLI.
 
-- **Command shape**: an explicit group for a growing toolbox; a single command for one focused job. Decide before publishing: adding a second command to a single-command tool changes its syntax.
-- **Help and version**: `-h` / `--help` at root and subcommands; eager root `--version`. Derive help, examples, deprecations, and shell completions from the same command definition. Both work before application setup: without credentials, network access, or valid configuration, and without operational side effects. Explicit help exits 0; a usage error prints its usage line to stderr and exits 2, including a group invoked without a command unless the contract defines that as help.
-- **Streams**: requested data to stdout; progress, diagnostics, and safe errors to stderr. Quiet success is appropriate for commands with nothing to return.
-- **Verbosity**: `-v` / `--verbose` adds progress details to stderr; it never enables raw exception dumps or changes stdout's data contract.
-- **Secrets**: never accept them as arguments, which shell history and process listings expose; read a credential store, protected file, hidden prompt, or explicit stdin.
-- **Configuration**: explicit flags > application-prefixed environment variables > configuration file > built-in defaults. Validate only when the selected command needs configuration.
-- **Machine output**: `--json` emits one documented, schema-stable JSON object with no Rich rendering or decoration. On failure, leave stdout empty, print a safe error to stderr, and exit nonzero. Define partial-result and schema-version behavior before adding them.
-- **Exit statuses**: 0 success, 2 invalid usage, 1 operational failure. Document cancellation and any additional codes; keep them consistent across commands.
-- **Terminal behavior**: detect TTY status independently for stdout and stderr; disable color and animations on redirected streams by default, honor nonempty `NO_COLOR` and `TERM=dumb`, and document any explicit color override. Keep pagers interactive and provide a way to disable them. Print external text literally, including brackets and emoji-like names: escape it before interpolating into markup, or disable markup and emoji interpretation, and apply styles separately.
-- **Interaction**: provide non-interactive inputs for every required value. Never prompt on non-TTY input; when prompting is disabled or stdin is not a TTY, fail clearly on missing inputs without reading prompts from piped data. When prompts exist, `--no-input` disables them and never implies consent; `--yes` confirms only the documented action and does not bypass validation or authorization. A destructive command needs a confirmation or an explicit non-interactive opt-in such as `--yes`.
-- **Errors**: actionable, sanitized messages by default, showing safe command and argument context, never collected values, tokens, provider response bodies, or unredacted stderr. Catch expected failures at the command boundary with specific recovery advice; preserve causes internally without displaying raw exception strings. Hidden locals do not sanitize exception text, source excerpts, causes, or provider responses. Tracebacks require an explicit diagnostic mode and a redaction policy.
-- **Completion**: add shell completion only to tools people type interactively, generated from the same command definition and tested in a fresh shell process; agent-facing tools and scripts skip it.
+- **Command shape**: explicit subcommand group for growing toolboxes; single command for one focused job (adding subcommands later breaks single-command syntax).
+- **Help & version**: `-h`/`--help` (root + subcommands) and eager root `--version` derived from one definition, working without credentials, network, valid config, or side effects. Explicit help exits `0`; usage errors (including bare command groups unless defined as help) print usage to stderr and exit `2`.
+- **Streams & verbosity**: requested data on stdout; progress, diagnostics, and sanitized errors on stderr (quiet success when nothing is returned). `-v`/`--verbose` adds stderr progress only — never raw tracebacks or altered stdout contracts.
+- **Secrets & config**: never pass secrets in CLI args (visible in history/`ps`); read credential stores, protected files, hidden TTY prompts, or explicit stdin. Precedence: flags > `<APP>_*` env vars > config file > defaults (validated lazily per command).
+- **Machine output & exits**: `--json` prints one schema-stable JSON object on stdout (empty stdout + stderr error + non-zero exit on failure; define partial/version fields upfront). Exit codes: `0` success, `2` invalid usage, `1` operational failure (document cancellation/extra codes).
+- **TTY, escaping, & prompts**: detect stdout/stderr TTY separately, disable color/spinners on pipes, honor non-empty `NO_COLOR` and `TERM=dumb`, make pagers disableable, and escape or disable markup/emoji before rendering external strings. Provide flags for every required input; never prompt on non-TTY stdin; `--no-input` disables prompts without implying consent; destructive actions require confirmation or explicit `--yes` (which never bypasses validation/auth).
+- **Sanitized errors & completions**: print actionable recovery context without secret values, tokens, provider bodies, or raw stderr (opt-in diagnostic tracebacks require a redaction policy). Add shell completions only for human-typed CLIs, tested in a fresh shell.
 
 ## Workflow
 
-1. **Apply the defaults** above for help, streams, terminal output, interaction, and errors; enforce the consent and redaction rules even when preserving an existing contract.
-1. **Bound result volume**: for large listings, support focused filters, field selection, and explicit limits where useful; retain counts, continuation tokens, and incomplete-result status. Make detail opt-in and provide file export for large reports. Compact JSON alone does not reduce the number of records; quiet modes must retain actionable errors and exit codes.
-1. **Test the contract**: cover parsing, validation, streams, exit codes, JSON schema, cancellation, and representative success and failure paths. Include help with broken configuration and no credentials, non-TTY missing inputs, `--no-input` without consent, redirected and color-disabled output, and empty, partial, and failed JSON results; then run `mise run check` and `mise run test`, and run the installed entry point from a clean shell, piped and non-TTY.
+1. **Apply defaults** above (enforcing consent and redaction even on legacy CLIs).
+1. **Bound output volume**: offer filters, field projection, limits, counts/cursors, incomplete-result markers, and file export for large outputs; keep errors and exit codes intact in quiet modes.
+1. **Verify**: test parsing, streams, exit codes (`0`/`1`/`2`), JSON schema, cancellation, broken-config/no-credential `--help`, non-TTY missing inputs, `--no-input`, piped/`NO_COLOR` output, and clean-shell invocation (`mise run check && mise run test`).
 
 ## Documentation
 
-- [Command Line Interface Guidelines](https://clig.dev)
-- [NO_COLOR convention](https://no-color.org/)
-- Companion guides: [argparse](argparse/GUIDE.md) (Python CLIs).
+- [Command Line Interface Guidelines](https://clig.dev) · [NO_COLOR](https://no-color.org/) · Companion: [argparse](argparse/GUIDE.md).

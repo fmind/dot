@@ -12,33 +12,33 @@ metadata:
 
 # Documentation Sites
 
-Use Zensical as the default static site generator for project documentation, courses, and blogs; keep an existing generator only when the project depends on it or the user asks. [repository-docs](../repository-docs/SKILL.md) owns README and AGENTS consistency.
+Use Zensical by default for project docs, courses, and blogs; keep an existing generator only when the project requires it or the user asks. [repository-docs](../repository-docs/SKILL.md) owns README and AGENTS consistency.
 
 ## Workflow
 
-1. **Inspect the project**: keep existing content, URLs, and publication rules. For an MkDocs or Hugo site, follow [migration](references/migration.md) instead of scaffolding over it.
-1. **Bootstrap with a locked dependency**: check the [latest release](https://github.com/zensical/zensical/releases), then add it as a dev dependency so `uv run` and `uv sync --locked` include it. Skip `uv init` in an existing Python project; run `zensical new` in a scratch directory when `docs/` or `zensical.toml` already exists, because it never overwrites files.
+1. **Inspect the project**: preserve existing content, URLs, and publication rules. For MkDocs or Hugo sites, follow [migration](references/migration.md) instead of scaffolding over them.
+1. **Bootstrap with a locked dependency**: check the [latest release](https://github.com/zensical/zensical/releases) and add Zensical as a dev dependency (skip `uv init` in existing Python projects; run `zensical new` in a scratch directory when `docs/` or `zensical.toml` exists, since it never overwrites):
    ```bash
    uv init --bare <slug> && cd <slug>
    uv add --dev 'zensical>=0.1.0,<0.2'
    uv run zensical new .
    ```
-1. **Apply the starter**: replace the generated files with the [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) as `docs/index.md`, the pinned `~/.agents/themes/zensical/fmind.css` as `docs/stylesheets/fmind.css` (for another brand, write a stylesheet with that brand's values for the same variables), and [abbreviations.md](templates/abbreviations.md) as `includes/abbreviations.md`; delete `docs/markdown.md`. Fill every `<placeholder>`, set the real `site_url` with its hosting prefix, and drop unused sections. The starter enables instant navigation, Copy as Markdown, `llms.txt`, social cards, a glossary, checked snippets, minified HTML, and self-hosted fonts and Mermaid; [configuration](references/configuration.md) explains each feature and the optional ones (blog, tags, redirects, API reference, versions, offline).
-1. **Write under `docs/`**: one H1 per page, explicit `nav`, a section `index.md` for overviews, relative `.md` links, and a `description` in front matter for search and social cards. Use [authoring](references/authoring.md) for page types and syntax. For courses, start each lesson from the [lesson template](templates/lesson.md), prefer local exercises because live models and cloud resources need declared authority and cost, and record terminal demos with [VHS](../fmind-visuals/references/recording.md) beside a static equivalent.
-1. **Wire tasks and ignores**: merge [mise.toml](templates/mise.toml) into the task graph and add `site/` and `.cache/` to `.gitignore`. Use [dprint](../dprint/SKILL.md) for Markdown and [python-stack](../python-stack/references/foundation/GUIDE.md) for executable examples.
-1. **Validate**: `uv run --locked zensical build --clean --strict` must print `No issues found` and exit 0. Preview with `uv run --locked zensical serve` (default `localhost:8000`) and check navigation, search, both palettes, a 390 px viewport, keyboard use, and code copy; use [playwright](../playwright/SKILL.md) for screenshots. Run lesson code and external links separately.
-1. **Publish**: replace the generated `.github/workflows/docs.yml` with the pinned [docs.yml](templates/docs.yml), which builds every pull request strictly and deploys `main` to GitHub Pages; [github-actions](../github-actions/references/ci-cd/GUIDE.md) owns pins and audits. Enabling Pages or deploying needs publication authority.
+1. **Apply the starter**: copy [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) (`docs/index.md`), `~/.agents/themes/zensical/fmind.css` (`docs/stylesheets/fmind.css`, or customer brand variables), and [abbreviations.md](templates/abbreviations.md) (`includes/abbreviations.md`); delete `docs/markdown.md`. Fill `<placeholder>` values, set `site_url` with its hosting prefix, and prune unused sections. See [configuration](references/configuration.md) for starter defaults and optional plugins (blog, tags, redirects, API docs, versions, offline).
+1. **Write under `docs/`**: one H1 per page, explicit `nav`, section `index.md` overviews, relative `.md` links, and frontmatter `description` ([authoring](references/authoring.md)). Courses start from the [lesson template](templates/lesson.md), prefer local exercises (live models/cloud need authority and budget), and pair [VHS](../fmind-visuals/references/recording.md) demos with a static fallback.
+1. **Wire tasks and ignores**: merge [mise.toml](templates/mise.toml), ignore `site/` and `.cache/`, format Markdown with [dprint](../mise/references/dprint.md), and test executable examples per [python-stack](../python-stack/references/foundation/GUIDE.md).
+1. **Validate**: `uv run --locked zensical build --clean --strict` must exit 0 with `No issues found`. Preview via `uv run --locked zensical serve` (`localhost:8000`) across navigation, search, light/dark palettes, 390 px width, keyboard, and code copy (screenshot with [playwright](../playwright/SKILL.md)); run lesson code and external link checks separately.
+1. **Publish**: replace `.github/workflows/docs.yml` with pinned [docs.yml](templates/docs.yml) ([github-actions](../github-actions/references/ci-cd/GUIDE.md) owns pins); enabling GitHub Pages or deploying requires publication authority.
 
 ## Gotchas
 
-- **Diagnostics come first**: a strict failure prints the file, line, and column, then a Python traceback; read the head of the output. Diagnostics stay colored when piped and ignore `NO_COLOR`; strip escapes with `perl -pe 's/\e\[[0-9;]*m//g'` before parsing.
-- **Strict mode has gaps**: it catches missing pages, anchors, snippets (`check_paths`), and unresolved autorefs, but unclosed fences and unknown icon shortcodes build silently. Review the rendered pages.
-- **`site_url` is load-bearing**: `llmstxt` aborts without it; instant navigation, previews, and the sitemap degrade; a wrong prefix breaks social card and `llms.txt` links.
-- **Unsupported plugins are silently ignored**: Zensical never runs MkDocs plugin code. Check the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/) for the locked version before relying on one. `gen-files` and `hooks` are unsupported; `exclude_docs`, `draft_docs`, and `not_in_nav` need Zensical 0.0.70 or later.
-- **Check features before enabling them**: some theme features exclude each other, offline builds drop several, and fonts, Mermaid, and analytics contact third parties; check [configuration](references/configuration.md) before enabling one.
-- **Some layouts and modes are unsupported**: `docs_dir` cannot be `.`; uv's symlink link mode is unsupported; `serve` has no strict mode, and a busy port fails with `Address already in use` (pass `-a 127.0.0.1:<port>`).
-- **Keep Zensical locked**: Zensical is pre-1.0 (0.1.x beta since 2026-11-05) and releases often; keep `uv.lock` committed, upgrade with `uv lock --upgrade-package zensical`, and rebuild `--clean`. A `<0.1` cap in `pyproject.toml` blocks that upgrade; raise the cap first. The CI template stays cache-free as upstream advises. Tested on 0.1.0.
-- **Preserve existing site branding**: the starter applies Fmind's `~/.agents/DESIGN.md` tokens to the light scheme and Google Sans fonts; customer sites use their own design system. Preserve an existing site's identity; follow [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos and assets.
+- **Read diagnostics from the top**: strict failures print `file:line:col` before the Python traceback, and keep ANSI colors when piped (`NO_COLOR` ignored; strip with `perl -pe 's/\e\[[0-9;]*m//g'`).
+- **Strict mode misses syntax errors**: missing pages, anchors, snippets (`check_paths`), and autorefs fail, but unclosed fences and unknown icons build silently—inspect rendered pages.
+- **`site_url` is load-bearing**: `llmstxt` aborts without it, and wrong prefixes break social cards, `llms.txt`, sitemaps, and instant navigation.
+- **Unsupported MkDocs plugins fail silently**: Zensical never runs MkDocs Python plugins; verify against the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/). `gen-files` and `hooks` are unsupported; `exclude_docs`, `draft_docs`, and `not_in_nav` require Zensical ≥0.0.70.
+- **Check feature interactions and privacy**: mutually exclusive features, offline limits, and third-party font/Mermaid/analytics hosts live in [configuration](references/configuration.md).
+- **Layout and CLI limits**: `docs_dir` cannot be `.`; uv symlink mode is unsupported; `serve` lacks `--strict` and fails on busy ports with `Address already in use` (use `-a 127.0.0.1:<port>`).
+- **Keep Zensical locked**: pre-1.0 (0.1.x beta since 2026-11-05, tested on 0.1.0); commit `uv.lock`, raise `<0.1` caps before `uv lock --upgrade-package zensical`, rebuild `--clean`, and keep CI cache-free.
+- **Respect site branding**: the starter uses `~/.agents/DESIGN.md` light tokens and Google Sans; preserve existing or customer branding, and use [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos/assets.
 
 ## Documentation
 

@@ -7,34 +7,34 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/model-providers
   created: "2026-09-16"
-  updated: "2026-11-07"
+  updated: "2026-11-10"
 ---
 
 # Model Providers
 
-Configure provider authentication, endpoints, and model selection. Default new integrations to **GCP Agent Platform with ADC**, an explicit GCP project, `global`, the latest GA model of the chosen tier, and high thinking. Preserve OpenCode's OpenRouter default. Use API keys only when explicitly requested or as a last resort after reporting why ADC cannot work; never retry automatically with a key or switch to AI Studio after an error.
+Configure provider auth, endpoints, and model selection. Default new integrations to **GCP Agent Platform with ADC**, an explicit GCP project, `global`, the tier's latest GA model, and high thinking (preserving OpenCode's OpenRouter default). Use API keys only on explicit request or after reporting why ADC cannot work—never auto-fallback to keys or AI Studio on error.
 
 ## Workflow
 
-1. **Never let a key pick the provider**: resolve the requested provider before inspecting credentials. An available key is not a reason to switch providers. Use the selected guide only; [gcloud](../gcloud/SKILL.md) owns Cloud identity/IAM and [agent-harnesses](../agent-harnesses/SKILL.md) owns coding-host settings.
-1. **Choose the tier, then the latest model**: default to the workhorse tier (the latest GA Flash) for agents, tool calls, extraction, and high-volume or latency-sensitive work. Escalate to the frontier tier (Gemini 4 Argon, GA and public since 2026-10-13) for complex long-horizon reasoning, coding, or analysis where quality outweighs cost and latency. Resolve the exact ID from the provider's current model list, never from memory, and confirm it with the read-only probe.
-1. **Pin the provider and scope keys**: make the provider explicit in application configuration so ambient Google API keys or SDK backend flags cannot silently select another service. Supply keys only to the process that needs them, through a secret manager or `dot secret run NAME -- COMMAND`; use native credential stores where supported. Never place keys in code or generated configuration.
-1. **Probe read-only; never silently fall back**: validate configuration and use a read-only model/auth probe first. Run inference only within the authorized usage scope, with a bounded output and timeout. Report authentication, model access, and successful inference separately; do not silently fall back to another provider or billing project after an error.
+1. **Choose the provider before checking credentials**: ambient keys never dictate the provider. Read only the matching guide; [gcloud](../gcloud/SKILL.md) owns IAM and [agent-harnesses](../agent-harnesses/SKILL.md) owns host configs.
+1. **Pick tier, then verify exact GA ID**: default to workhorse (latest GA Flash) for agents, tool calls, extraction, and latency/volume work; escalate to frontier (Gemini 4 Argon, GA since 2026-10-13) for hard reasoning, coding, or analysis. Look up exact IDs from the live provider catalog, never memory.
+1. **Pin backend and scope secrets**: set the backend explicitly so ambient Google keys or env vars cannot hijack routing; inject keys per process via secret manager, native store, or `dot secret run NAME -- COMMAND`, never in code or config files.
+1. **Probe read-only and fail closed**: separate auth, model access, and bounded/timed inference checks; never silently switch providers or billing projects on failure.
 
 ## Request contracts
 
-Current models reject request habits from older ones; steer with instructions, thinking level or effort, and native structured output instead.
+Steer current models via instructions, thinking/effort levels, and native structured output:
 
-- **Send no sampling parameters or prefill**: Gemini 3.6+ and Gemini 4 ignore `temperature`, `top_p`, and `top_k` (deprecation headers now, HTTP 400 in a future release) and return 400 when the last turn is a prefilled `model` turn. Current Claude models return 400 on an assistant prefill and on sampling parameters (on every model from Anthropic API version `2026-10-21`).
-- **Do not force a Claude tool call**: Claude Opus 5.5, Sonnet 5.5, and Fable 5.1 return 400 on `tool_choice` `any` or `tool`; use `auto` with `strict: true` tools, or structured output when the forced call only existed to get JSON.
-- **Keep the prefix stable and append only**: keep system text and tool definitions byte-stable and append per-turn content (date, retrieval, changing memory) in later messages. Rebuilding the prefix breaks prompt caching, and on Claude Opus 5.5, Sonnet 5.5, and Fable 5.1 editing earlier turns invalidates their thinking blocks (HTTP 400 for accounts created since 2026-08-31).
+- **Omit sampling parameters and prefill**: Gemini 3.6+ and Gemini 4 ignore `temperature`/`top_p`/`top_k` (deprecation headers now; future HTTP 400) and reject prefilled trailing `model` turns with 400; Claude returns 400 on assistant prefill and sampling parameters (all models from Anthropic API `2026-10-21`).
+- **Never force Claude tool calls**: Claude Opus 5.5, Sonnet 5.5, and Fable 5.1 return 400 on `tool_choice` `any` or `tool`—use `auto` with `strict: true` tools, or structured output for JSON.
+- **Keep prefixes byte-stable and append-only**: static system text + tools first, dynamic context (date, retrieval, memory) in later turns; mutating prior turns breaks caching and invalidates thinking blocks on Claude Opus 5.5, Sonnet 5.5, and Fable 5.1 (HTTP 400 on accounts created since 2026-08-31).
 
 ## Task guides
 
 <!-- guides:start -->
 
 - [gcp-agent-platform](references/gcp-agent-platform.md): GCP Agent Platform model access with ADC and global location.
-- [gemini-api](references/gemini-api.md): Gemini Developer API access with an explicitly requested API key backend.
+- [gemini-api](references/gemini-api.md): Gemini Developer API access with an explicit API key backend.
 - [openrouter](references/openrouter.md): OpenRouter model routing, API key authentication, and OpenAI-compatible requests.
 
 <!-- guides:end -->

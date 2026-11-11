@@ -9,6 +9,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: security
   cancel-in-progress: true
@@ -28,9 +31,9 @@ jobs:
         with:
           cache: true
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.11.2
+          version: 2026.11.6
       - name: Scan complete Git history
         run: mise run check:leaks:full
-      - name: Scan full checkout
+      - name: Audit locked dependencies and configured checkout scans
         # Delegate to the task so the scheduled scan cannot drift from the local gate.
-        run: mise run check:scan
+        run: mise run check:network

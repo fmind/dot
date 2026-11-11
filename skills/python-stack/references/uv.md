@@ -5,30 +5,19 @@ description: "Dependency resolution, environments, packaging, and lockfiles."
 
 # uv
 
-Use uv for Python dependency and environment operations; [foundation](foundation/GUIDE.md) owns project defaults and [python-script](python-script/GUIDE.md) owns PEP 723 scripts.
+Python dependencies, environments, builds, and lockfiles; [foundation](foundation/GUIDE.md) owns project defaults and [python-script](python-script/GUIDE.md) owns PEP 723 scripts.
 
 ## Workflow
 
-1. **Manage dependencies through uv**: use `uv add` for project dependencies and `uv sync --locked` to reproduce the existing graph; keep tool installations separate from application dependencies. Add new packages with `UV_MALWARE_CHECK=1 uv add --preview-features malware-check <pkg>`: it refuses a package with a published OSV malware advisory before installation, but resolution (including any sdist build) runs first; never export the variable globally.
-1. **Validate lock consistency**: run `uv lock --check`, then run the project's normal checks after any dependency change.
-1. **Qualify builds outside the source tree**: use `uv export --locked --no-dev --no-emit-project -o requirements.txt`, which emits hashes, then `uv venv`, `uv pip sync --require-hashes requirements.txt`, and `uv pip install <wheel>`. Skip the export and sync for a package without runtime dependencies: uv warns on an empty requirements file.
+1. **Add & sync**: add packages via `UV_MALWARE_CHECK=1 uv add --preview-features malware-check <pkg>` (blocks published OSV malware advisories pre-install, though sdist resolution still runs first; do not export globally) and reproduce envs via `uv sync --locked`.
+1. **Verify lock**: run `uv lock --check` plus project gates after dependency edits.
+1. **Out-of-tree wheel qualification**: export hashed deps (`uv export --locked --no-dev --no-emit-project -o requirements.txt` — skip when `dependencies = []`, as `uv` warns on empty files), then `uv venv`, `uv pip sync --require-hashes requirements.txt`, and `uv pip install <wheel>`.
 
 ## Gotchas
 
-- **Reuse the mise Python and uv cache**: use the compatible mise-selected Python rather than downloading another interpreter; pin runtimes, including `.python-version` against `requires-python`, per the [tool version rules](../../mise/references/tool-versions.md#workstation-and-projects) and upgrade each repository with `upgrade-tools`. Keep project environments separate for dependency isolation, but reuse uv's shared cache on the same filesystem so its normal clone/hardlink strategy can share package storage. Do not force copies or create per-task cache roots without an isolation requirement.
-- **Remove temporary environments after use**: remove task-created qualification environments and exports after their last check, including failure paths; retain project `.venv` directories and requested build artifacts. Use native `uv cache prune` for authorized periodic maintenance, not blanket cache deletion after every task. Never edit uv's cache by hand or use symlink link mode with a disposable cache; summed directory sizes can overcount shared storage. See [caching](https://docs.astral.sh/uv/concepts/cache/).
-- **Inspect packages without importing them**: inspect distribution versions and source with `uv pip show <dist>`, then read the reported files; importing a module merely to inspect it can execute code.
-- **Keep `uv_build` bounded**: use a range supported by the selected uv release. uv uses its bundled backend when compatible and otherwise installs the requested backend; verify wheel and sdist instead of widening constraints to hide diagnostics. See the [backend contract](https://docs.astral.sh/uv/concepts/build-backend/).
-- **Commit `uv.lock`, libraries included**: it pins your development environment, not your consumers' installs. Build environments with `uv sync --locked`, run tasks with `uv run --frozen`, and use `uv run --locked` when a task may be the first uv call; a bare `uv run` or `uv sync` re-locks and rewrites `uv.lock`, so it never belongs in a gate. `UV_LOCKED` and `UV_FROZEN` apply the same policy once from `[env]`.
-- **Clear `UV_*` variables for separate projects**: `UV_PROJECT` and other `UV_*` variables redirect project discovery, so a command run elsewhere silently operates on the exported project; `VIRTUAL_ENV` is ignored by project commands but selects the target of `uv pip`. Clear them when scaffolding or verifying a separate project, without `--no-config`: it also drops that project's `[tool.uv]` settings, such as `required-version`, and the user-level `python-preference` that selects the mise interpreter.
-- **Triage `uv audit` findings; never mute them**: first upgrade the affected package (`uv lock --upgrade-package <pkg>`, then the project checks). With no fix available, add the advisory ID to `[tool.uv.audit] ignore-until-fixed` with a dated reason comment, so it returns once a fix ships; use `ignore` only for an advisory shown not to apply, or for a fixed one you cannot take yet (name the blocker), with the reason inline. Never add `--ignore` to the task or drop `check:vuln`. See [audit settings](https://docs.astral.sh/uv/reference/settings/#audit).
-- **Unknown `[tool.uv]` keys only warn** during settings discovery, so a misspelled setting silently does nothing; `required-version` is enforced and fails the run.
-
-## Official Skills
-
-Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins), `plugins/astral/skills/uv`, selection `uv`. Follow the shared [vendor-skill policy](../../agent-project/references/vendor-skills.md) and compare this local guide before installation.
-
-## Documentation
-
-- [uv documentation](https://docs.astral.sh/uv/) · [Skills CLI](https://skills.sh/docs/cli)
-- Releases: [uv](https://github.com/astral-sh/uv/releases) · [changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)
+- **Reuse `mise` Python & shared cache**: align `.python-version` with `requires-python` per [tool-versions](../../mise/references/tool-versions.md#workstation-and-projects) and share `uv`'s hardlink/reflink [cache](https://docs.astral.sh/uv/concepts/cache/). Delete temporary qualification venvs/exports in `finally`, keep project `.venv`, and use `uv cache prune` only for periodic maintenance.
+- **Inspect without importing**: run `uv pip show <dist>` and read `.venv/` files rather than importing untrusted/heavy modules.
+- **Bound `uv_build` & commit `uv.lock`** (libraries included): keep `uv_build` within the `uv` release's [backend contract](https://docs.astral.sh/uv/concepts/build-backend/). Never use bare `uv run` or `uv sync` in gates (rewrites `uv.lock`); use `--locked` or `--frozen` (`UV_LOCKED`/`UV_FROZEN`).
+- **Scrub `UV_*` when testing nested/separate repos**: inherited `UV_PROJECT`/`UV_*` redirect discovery (`VIRTUAL_ENV` targets `uv pip` only); unset them instead of passing `--no-config` (which drops `[tool.uv]` `required-version` and `python-preference`). Note: misspelled `[tool.uv]` keys only warn.
+- **Triage `uv audit` findings**: upgrade first (`uv lock --upgrade-package <pkg>`); if unfixed upstream, record in `[tool.uv.audit] ignore-until-fixed` with a dated reason (or `ignore` only when proven non-applicable/blocked, per [audit settings](https://docs.astral.sh/uv/reference/settings/#audit)) — never pass CLI `--ignore` or drop `check:vuln`.
+- **Upstream & Docs**: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins) (`uv`, per [vendor-skills](../../agent-project/references/vendor-skills.md) · [Skills CLI](https://skills.sh/docs/cli)) · [uv docs](https://docs.astral.sh/uv/) · [Releases](https://github.com/astral-sh/uv/releases) ([changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)).

@@ -1,40 +1,38 @@
 # Host Discovery
 
-How each host finds the persona, global skills, and workspace skills, and the read-only command that lists what it loaded. Global paths follow the dotfiles layout where every host path links back to `~/.agents/AGENTS.md` and `~/.agents/skills`.
+Where each host loads the persona, global skills (`~/.agents/skills`), and workspace skills, plus its read-only check:
 
-| Host        | Persona                                          | Global skills                                          | Workspace skills                                        | Read-only listing                                                          |
-| ----------- | ------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Antigravity | `~/.gemini/GEMINI.md`                            | `~/.gemini/config/skills` (link to `~/.agents/skills`) | `.agents/skills`                                        | `/skills` inside the session                                               |
-| Claude Code | `~/.claude/CLAUDE.md`; project `AGENTS.md`       | `~/.claude/skills` (link to `~/.agents/skills`)        | `.claude/skills` (link to `../.agents/skills`)          | `/skills` inside the session                                               |
-| Copilot     | `~/.copilot/copilot-instructions.md`             | `~/.copilot/skills` or `~/.agents/skills`              | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list`; `copilot instruction list`                           |
-| Cursor      | Project `AGENTS.md` and Cursor rules             | `~/.agents/skills` or `~/.cursor/skills`               | `.agents/skills` or `.cursor/skills`                    | Skills in Customize; no standalone skill-list command in the inspected CLI |
-| OpenCode    | `~/.config/opencode/AGENTS.md` (managed symlink) | `~/.agents/skills`                                     | `.agents/skills` or `.opencode/skills`                  | None in 2.x; a bounded run that loads the skill by ID                      |
-| Pi          | `~/.pi/agent/AGENTS.md` (managed symlink)        | `~/.agents/skills` or `~/.pi/agent/skills`             | `.agents/skills` or `.pi/skills`, after project trust   | The startup header of an interactive session                               |
+| Host        | Persona                                    | Global skills                                  | Workspace skills                                        | Read-only listing                                      |
+| ----------- | ------------------------------------------ | ---------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------ |
+| Antigravity | `~/.gemini/GEMINI.md`                      | `~/.gemini/config/skills` → `~/.agents/skills` | `.agents/skills`                                        | `/skills` in-session                                   |
+| Claude Code | `~/.claude/CLAUDE.md`; project `AGENTS.md` | `~/.claude/skills` → `~/.agents/skills`        | `.claude/skills` → `../.agents/skills`                  | `/skills` in-session (`/<skill-name>` fallback)        |
+| Copilot     | `~/.copilot/copilot-instructions.md`       | `~/.copilot/skills` or `~/.agents/skills`      | `.github/skills`, `.agents/skills`, or `.claude/skills` | `copilot skill list --json`; `instruction list --json` |
+| Cursor      | Project `AGENTS.md` and Cursor rules       | `~/.agents/skills` or `~/.cursor/skills`       | `.agents/skills` or `.cursor/skills`                    | Customize UI (no CLI skill-list command)               |
+| OpenCode    | `~/.config/opencode/AGENTS.md` (symlink)   | `~/.agents/skills`                             | `.agents/skills` or `.opencode/skills`                  | None in 2.x; bounded run loading directory ID          |
+| Pi          | `~/.pi/agent/AGENTS.md` (symlink)          | `~/.agents/skills` or `~/.pi/agent/skills`     | `.agents/skills` or `.pi/skills` (after project trust)  | Interactive startup header                             |
 
 ## Reading the output
 
-- `copilot skill list` groups skills by source (project, personal, plugin), and `copilot instruction list` shows the instruction files a session would load; both take `--json`.
-- Claude Code and Antigravity expose `/skills` in the interactive session only; explicit invocation (`/<skill-name>`) is the fallback proof in Claude.
-- OpenCode 2.x removed `opencode debug skill`; its skill ID is the directory name, not the frontmatter `name`.
-- Pi loads workspace skills only from a trusted project, so a headless run in an untrusted checkout sees the global catalog alone; `dot trust` pre-accepts repository roots.
-- `gh skill list` (preview) scans every supported host's project and user directories in one pass; `--agent`, `--scope`, and `--json` narrow it. It proves files are present, not that a host loaded them.
-- **Listings prove only discovery**: A listing proves discovery by that interface; only a captured model input proves prompt inclusion, and neither proves instruction following. Validate behavior against explicit acceptance cases in a disposable, instrumented run.
-- Cursor also discovers compatibility directories documented in [its skills guide](https://cursor.com/docs/skills). User-level packages remain local unless explicitly distributed to a remote execution environment; use project packages or worker-image installation for Cloud Agents and self-hosted workers.
+- **OpenCode 2.x** dropped `opencode debug skill`; skill IDs match directory names, not frontmatter `name`.
+- **Pi** skips workspace skills in untrusted checkouts (headless runs see global skills only unless trusted via `dot trust`).
+- **`gh skill list`** (preview; `--agent`, `--scope`, `--json`) scans host directories on disk without proving runtime loading.
+- **Cursor** also checks compatibility paths in [its skills guide](https://cursor.com/docs/skills); cloud/remote workers see only project or image-installed packages, not local `~` files.
+- **Listings prove discovery only**: captured model inputs prove prompt inclusion, and only instrumented test cases prove behavioral compliance.
 
 ## Same-name resolution
 
-Hosts disagree when two skills, or a skill and a command, share a name (checked 2026-10-04):
+Observed precedence when skills or commands collide (checked 2026-10-04):
 
-| Host        | Global vs project skill                       | Built-in command vs skill                                 |
-| ----------- | --------------------------------------------- | --------------------------------------------------------- |
-| Antigravity | Project overrides global                      | Print-mode built-ins win; interactive built-ins untested  |
-| Claude Code | Personal (`~/.claude/skills`) beats project   | Skill replaces the built-in (not its aliases)             |
-| Copilot     | Project > `--plugin-dir` > personal, silently | Built-in keeps `/name`; the skill loses its slash command |
-| OpenCode    | Later source wins: project over global        | Built-in, custom, and MCP commands keep the name          |
-| Pi          | First found wins: project, then global        | Skills are `/skill:<name>`, so they never collide         |
+| Host        | Global vs project skill                       | Built-in command vs skill                          |
+| ----------- | --------------------------------------------- | -------------------------------------------------- |
+| Antigravity | Project overrides global                      | Print built-ins win; interactive untested          |
+| Claude Code | Personal (`~/.claude/skills`) beats project   | Skill overrides built-in (not aliases)             |
+| Copilot     | Project > `--plugin-dir` > personal, silently | Built-in keeps `/name`; skill loses slash shortcut |
+| OpenCode    | Later wins: project over global               | Built-in, custom, and MCP commands win             |
+| Pi          | First wins: project, then global              | Skills use `/skill:<name>` (no collision)          |
 
-A symlinked `.claude/skills` -> `.agents/skills` layout exposes the same files twice; OpenCode 2.x registers `.claude/skills`, then `.agents/skills`, `~/.config/opencode/skills`, and `.opencode/skills`, and the later source wins, so fish exports `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` to scan the catalog once. Otherwise keep skill names unique across global and project scopes and distinct from host built-in commands; `dot agent context --check` fails on duplicates between `~/.agents/skills` and the project's `.agents/skills`; other host directories are not checked.
+Because `.claude/skills` → `.agents/skills` exposes skills twice in OpenCode 2.x (`.claude/skills`, `.agents/skills`, `~/.config/opencode/skills`, `.opencode/skills`), fish sets `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. Keep skill names unique across global/project scopes and host built-ins; `dot agent context --check` flags duplicates between `~/.agents/skills` and `.agents/skills`.
 
 ## Native plugin catalogs
 
-Use the installed host's native discovery before adding a plugin: for example, `anthropics/skills` is Anthropic's skill bundle. Read the relevant package only when a task needs it, review executable integrations per [skill-security-review](../../code-security/references/skill-security-review/GUIDE.md), and preserve project versus user scope. Do not install an entire catalog into the shared personal skills directory.
+Check native host discovery (such as `anthropics/skills`) before adding plugins, vet executable packages via [skill-security-review](../../code-security/references/skill-security-review/GUIDE.md), keep project vs user scope intact, and never dump a whole catalog into `~/.agents/skills`.
