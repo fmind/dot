@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.11.1] - 2026-11-11
+
+### 🐛 Bug Fixes
+
+- Harden CLI, harness configs, and skills and refresh locks
+- _(dot)_ Decouple agy display renderer, harden pi vertex startup, and simplify runtime
+
+### ♻️ Refactor
+
+- _(skills)_ Merge evaluation, visuals, and lesson-learned skills and tighten guides
+
+### ⚙️ Build & CI
+
+- _(mise)_ Upgrade ty to 0.0.101 and refresh pypi tool locks
+
 ## [15.11.0] - 2026-11-11
 
 ### 🚀 Features
