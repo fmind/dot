@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.11.2] - 2026-11-11
+
+### 🐛 Bug Fixes
+
+- _(agents)_ Center Python defaults on proven packages and refine persona rules
+
 ## [15.11.1] - 2026-11-11
 
 ### 🐛 Bug Fixes
