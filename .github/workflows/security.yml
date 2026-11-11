@@ -9,6 +9,9 @@ permissions:
 concurrency:
   group: security
   cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
 jobs:
   scan:
     name: Full-history scan
@@ -25,7 +28,7 @@ jobs:
         with:
           cache: true
           # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.2
+          version: 2026.11.6
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Scan full checkout and audit locked dependencies

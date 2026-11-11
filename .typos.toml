@@ -1,0 +1,17 @@
+# Docs: https://github.com/crate-ci/typos/blob/master/docs/reference.md
+
+[files]
+ignore-hidden = false
+extend-exclude = [".git/**", "*.age"]
+
+[default]
+extend-ignore-re = ["(?Rm)^.*#\\s*typos:\\s*ignore-line$"]
+
+[default.extend-identifiers]
+PNGs = "PNGs"
+daa01d8 = "daa01d8"
+
+[default.extend-words]
+certifi = "certifi"
+cros = "cros"
+deprecat = "deprecat"

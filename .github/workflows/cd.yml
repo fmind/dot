@@ -9,6 +9,9 @@ permissions:
 concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
 jobs:
   # A tag can point at a commit whose CI is still running or red: rerun the gate
   # with a read-only token so a regression blocks the release instead of shipping.
@@ -30,22 +33,20 @@ jobs:
         with:
           cache: false
           # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.2
+          version: 2026.11.6
       - name: Run canonical gate
         run: mise run all
       - name: Verify clean tree
-        run: |
-          status="$(git status --porcelain)"
-          printf '%s\n' "$status"
-          test -z "$status"
+        run: git status --short && [ -z "$(git status --porcelain)" ]
       - name: Extract release notes
         id: notes
         run: |
           prev_release="$(git log --grep='^chore(release): v' -n 1 --format=%H HEAD^)"
+          delimiter="EOF_$(cat /proc/sys/kernel/random/uuid)"
           {
-            echo "notes<<EOF_RELEASE_NOTES"
+            printf 'notes<<%s\n' "$delimiter"
             git-cliff --config dot_config/git-cliff/cliff.toml --strip all --tag "$GITHUB_REF_NAME" "${prev_release:+${prev_release}..}HEAD"
-            echo "EOF_RELEASE_NOTES"
+            printf '%s\n' "$delimiter"
           } >> "$GITHUB_OUTPUT"
   # The write token lives in a job that checks out and runs no repository code.
   publish:
@@ -60,4 +61,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           NOTES: ${{ needs.gate.outputs.notes }}
-        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --notes "$NOTES"
+        run: printf '%s\n' "$NOTES" | gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --notes-file -

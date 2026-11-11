@@ -2049,27 +2049,27 @@ url = "https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-da
 url_api = "https://api.github.com/repos/FiloSottile/age/releases/assets/535541897"
 
 [[tools.ast-grep]]
-version = "0.51.1"
+version = "0.51.2"
 backend = "aqua:ast-grep/ast-grep"
 specifiers = ["latest"]
 
 [tools.ast-grep."platforms.linux-arm64"]
-checksum = "sha256:db02fae2d8eace5fc40c55242068882452dd03eab38a1d950d5fd981cf112926"
+checksum = "sha256:c3ab2bd43959db28621dc1551c13ea5fe5db4c1fc7b18086dade6b65042c78d0"
 checksum_source = "mise-versions"
-url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.1/app-aarch64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/701846463"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.2/app-aarch64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/734228024"
 
 [tools.ast-grep."platforms.linux-x64"]
-checksum = "sha256:42514f77ae0c8a25d7d32154d31d3e7e16f3ab894f8ce76ce417de234ee49157"
+checksum = "sha256:40604c21c38d4c7581c56bdddeef277c56bf3c0113620aa96e78ae87e82366df"
 checksum_source = "mise-versions"
-url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.1/app-x86_64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/701823082"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.2/app-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/734234607"
 
 [tools.ast-grep."platforms.macos-arm64"]
-checksum = "sha256:a95772097b4d02bd9d45ed63b300c37041ae3c36632b3bf19250cc7c10187dc4"
+checksum = "sha256:ea4f4082d25e5f8e0450add6fd488dd008a373c90483cc2031759c8431f1dcfb"
 checksum_source = "mise-versions"
-url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.1/app-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/701845634"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.2/app-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/734229272"
 
 [[tools.astro]]
 version = "1.47.0"
@@ -2095,44 +2095,44 @@ url = "https://github.com/astronomer/astro-cli/releases/download/v1.47.0/astro_1
 url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/678986897"
 
 [[tools.atuin]]
-version = "18.24.5"
+version = "18.24.6"
 backend = "aqua:atuinsh/atuin"
 specifiers = ["latest"]
 
 [tools.atuin."platforms.linux-arm64"]
-checksum = "sha256:ae4228314f6b33705fe584dce58a2910b8e19fbeb8b652263ee7b66cc7e87a59"
+checksum = "sha256:8e984995d681a8bb8af1b3f5798539a45123e3a2db2a67b9dc95dee3cfac86f3"
 checksum_source = "mise-versions"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.5/atuin-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/707958968"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.6/atuin-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/729825751"
 
 [tools.atuin."platforms.linux-x64"]
-checksum = "sha256:e16a95f10e9592543d2d578e44c2f1dccf89b57915c2e2c6935b435b3f43cee4"
+checksum = "sha256:8be1b3083ca19ed2743f71f4b08be2b68208336b8cf5b71870263abc76899af3"
 checksum_source = "mise-versions"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.5/atuin-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/707959200"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.6/atuin-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/729825940"
 
 [tools.atuin."platforms.macos-arm64"]
-checksum = "sha256:644e92d5667e2ebbc00758c71d5974bc907d238eaa6cdc32b24eb73dce7f9a5a"
+checksum = "sha256:756b7d2f8cb919d29888ea52b2fb19aba92ed52ddbca456839088ccc63257f5b"
 checksum_source = "mise-versions"
-url = "https://github.com/atuinsh/atuin/releases/download/v18.24.5/atuin-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/707958967"
+url = "https://github.com/atuinsh/atuin/releases/download/v18.24.6/atuin-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/atuinsh/atuin/releases/assets/729825753"
 
 [[tools.awscli]]
-version = "2.39.6"
+version = "2.40.0"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.awscli."platforms.linux-arm64"]
-checksum = "sha256:5763332bdcb432c19ee122545856fd350c3bb306753212deedcfccc76f4d20c3"
-url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.39.6.zip"
+checksum = "sha256:d293743e9e79dc69dc79dcbc23e26d1258193f0dd1253ba0c09ccf56b6123c6e"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.40.0.zip"
 
 [tools.awscli."platforms.linux-x64"]
-checksum = "sha256:7a121264f2637a3b90767aaf5bdd43ee88b8c925a931d0479fa2ce22b1a2fa76"
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.39.6.zip"
+checksum = "sha256:4a6d34150060a6bc30160ef1f66e536db64674797bbb582044f93bb9c6e299e7"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.40.0.zip"
 
 [tools.awscli."platforms.macos-arm64"]
-checksum = "sha256:ec350e9e8e9ceb49ccd2cb7fcdc69f3b6a424f83dbae64f3dc6499157a5eca07"
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.39.6.pkg"
+checksum = "sha256:b261555732c894b11e2af09bc7a0469e7b788a32333ccb54fae0e87423323dc0"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.40.0.pkg"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -2202,50 +2202,50 @@ url = "https://github.com/bitwarden/clients/releases/download/cli-v2026.10.1/bw-
 url_api = "https://api.github.com/repos/bitwarden/clients/releases/assets/688476006"
 
 [[tools.chezmoi]]
-version = "2.74.0"
+version = "2.74.1"
 backend = "aqua:twpayne/chezmoi"
 specifiers = ["latest"]
 
 [tools.chezmoi."platforms.linux-arm64"]
-checksum = "sha256:bf89495d1aab5e4fa0fc1ba9457837b34ee8dec9b787570f2de3e1c12a5835a5"
+checksum = "sha256:8c62619c4303770342e7c7e75d168b6cc6efee4ad5e4b994980de7cf794d68e2"
 checksum_source = "mise-versions"
-url = "https://github.com/twpayne/chezmoi/releases/download/v2.74.0/chezmoi_2.74.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/698495649"
+url = "https://github.com/twpayne/chezmoi/releases/download/v2.74.1/chezmoi_2.74.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/733055363"
 
 [tools.chezmoi."platforms.linux-x64"]
-checksum = "sha256:1b98a567f726f41540414aea4caf912699d53e248b29ccf8369cf553657b2374"
+checksum = "sha256:ae01c66b1a6dbf563667c63fbbd9986b3cfa3c98dd266ddee732f63e8af2e9d1"
 checksum_source = "mise-versions"
-url = "https://github.com/twpayne/chezmoi/releases/download/v2.74.0/chezmoi_2.74.0_linux-glibc_amd64.tar.gz"
-url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/698495837"
+url = "https://github.com/twpayne/chezmoi/releases/download/v2.74.1/chezmoi_2.74.1_linux-glibc_amd64.tar.gz"
+url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/733055497"
 
 [tools.chezmoi."platforms.macos-arm64"]
-checksum = "sha256:9d89672a597a9333ab47ea5173fcececb85c04864205686a7aa5699c3d8bd98c"
+checksum = "sha256:fbc7b86c7b36eb0448e2a99a616b6d32f022d1f3895076ad44f4c5d65a77fe60"
 checksum_source = "mise-versions"
-url = "https://github.com/twpayne/chezmoi/releases/download/v2.74.0/chezmoi_2.74.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/698495382"
+url = "https://github.com/twpayne/chezmoi/releases/download/v2.74.1/chezmoi_2.74.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/733055284"
 
 [[tools.claude]]
-version = "2.1.319"
+version = "2.1.322"
 backend = "aqua:anthropics/claude-code"
 specifiers = ["latest"]
 
 [tools.claude."platforms.linux-arm64"]
-checksum = "sha256:2e7348ffc96d52ccb20e34c81240ebc92505edc84d7bf29182d62c29bf6fa066"
+checksum = "sha256:65c1ad35e804ef463f34585d0c080afd4bf2e9018c7bad1f29efb8df4e9c3750"
 checksum_source = "mise-versions"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.319/claude-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/715418861"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.322/claude-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/729756936"
 
 [tools.claude."platforms.linux-x64"]
-checksum = "sha256:8cf226393c8eca446d6ca60fa6bbe3fa7b5fa4de82a7b410d1edbd48689cd776"
+checksum = "sha256:3d2bc5ae54d4d4cd63510e9fcca5b6d48d2b18806708df8c8f691aa486c5dca8"
 checksum_source = "mise-versions"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.319/claude-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/715419124"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.322/claude-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/729757174"
 
 [tools.claude."platforms.macos-arm64"]
-checksum = "sha256:7ae10919ce40346befabe3c18da4d5ccc860201b6785b3ae726d8961472d0e5d"
+checksum = "sha256:0ff389f1a313f50778c2472c2f85882ca82c10156398c68cfc3c332004694646"
 checksum_source = "mise-versions"
-url = "https://github.com/anthropics/claude-code/releases/download/v2.1.319/claude-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/715418856"
+url = "https://github.com/anthropics/claude-code/releases/download/v2.1.322/claude-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/anthropics/claude-code/releases/assets/729756939"
 
 [[tools.colima]]
 version = "0.10.3"
@@ -2355,27 +2355,50 @@ conda_deps = [
 ]
 
 [[tools.copilot]]
-version = "1.0.108"
+version = "1.0.109"
 backend = "aqua:github/copilot-cli"
 specifiers = ["latest"]
 
 [tools.copilot."platforms.linux-arm64"]
-checksum = "sha256:b0c78c49543bb8a1163e812dcd0601a5ff1ffc067889add6351b0568d76772e6"
+checksum = "sha256:679db06c3168457d8154cd8ce93b822f7c46d3169e61da4c0b78ac6e110c4af6"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.108/copilot-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/728128470"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.109/copilot-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/732234183"
 
 [tools.copilot."platforms.linux-x64"]
-checksum = "sha256:4c14e320c5cd10234ad56cba855509206e4518e1c04a780ac05a8e1c124bd97d"
+checksum = "sha256:45a7f37e822e8c8725eda6b27deaed55dad2688ff4163ed27ec22e23293cb761"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.108/copilot-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/728129070"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.109/copilot-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/732234568"
 
 [tools.copilot."platforms.macos-arm64"]
-checksum = "sha256:567198e7cd947f5b05bef7f036116e6286ddcd8286ec45830082b28c664dbfb0"
+checksum = "sha256:9c21ad663ce98f500c1f0b62e0a6d687bc1b1661e59f4c2161cc114515a01942"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.108/copilot-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/728128461"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.109/copilot-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/732234180"
+
+[[tools.cosign]]
+version = "3.1.4"
+backend = "aqua:sigstore/cosign"
+specifiers = ["latest"]
+
+[tools.cosign."platforms.linux-arm64"]
+checksum = "sha256:ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2"
+checksum_source = "mise-versions"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-arm64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660068106"
+
+[tools.cosign."platforms.linux-x64"]
+checksum = "sha256:424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa"
+checksum_source = "mise-versions"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-amd64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660069428"
+
+[tools.cosign."platforms.macos-arm64"]
+checksum = "sha256:9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4"
+checksum_source = "mise-versions"
+url = "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-arm64"
+url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/660069257"
 
 [[tools.databricks-cli]]
 version = "1.25.0"
@@ -2955,21 +2978,21 @@ url = "https://github.com/junegunn/fzf/releases/download/v0.75.0/fzf-0.75.0-darw
 url_api = "https://api.github.com/repos/junegunn/fzf/releases/assets/720590797"
 
 [[tools.gcloud]]
-version = "592.0.0"
+version = "593.0.0"
 backend = "vfox:mise-plugins/vfox-gcloud"
 specifiers = ["latest"]
 
 [tools.gcloud."platforms.linux-arm64"]
-checksum = "sha256:d5e1bbef7aeb534c96b1294da30b92d39a8c5133992453598572ce4753a1ac72"
-url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-592.0.0-linux-arm.tar.gz"
+checksum = "sha256:c98d356e906f13b67b94e7c1c20ccb870e33d39ccb61973481e92cd705b8d8e9"
+url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-593.0.0-linux-arm.tar.gz"
 
 [tools.gcloud."platforms.linux-x64"]
-checksum = "sha256:317a3a1c072b9a25199b5fc7cc95f3abf739b354d2bc7d19775e02c200ee070c"
-url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-592.0.0-linux-x86_64.tar.gz"
+checksum = "sha256:e36f240c5d6ddeaec2d0fb348c2d3b0f98a849dd74be59ff6e0f2f534c506a58"
+url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-593.0.0-linux-x86_64.tar.gz"
 
 [tools.gcloud."platforms.macos-arm64"]
-checksum = "sha256:d06a7e44308beb1f1c447159297e9b2b137f4bfb3cd5c14a20387126adadff9c"
-url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-592.0.0-darwin-arm.tar.gz"
+checksum = "sha256:71d6aa2b2b21494ad5538d0e5104ff3bb123d55f5a2ff0da6c58f87459a6b6af"
+url = "https://storage.googleapis.com/cloud-sdk-release/google-cloud-sdk-593.0.0-darwin-arm.tar.gz"
 
 [[tools.gh]]
 version = "2.103.3"
@@ -3037,27 +3060,27 @@ url = "https://github.com/git-lfs/git-lfs/releases/download/v3.8.1/git-lfs-darwi
 url_api = "https://api.github.com/repos/git-lfs/git-lfs/releases/assets/666388058"
 
 [[tools."github:DataDog/pup"]]
-version = "2.4.2"
+version = "2.4.4"
 backend = "github:DataDog/pup"
 specifiers = ["latest"]
 
 [tools."github:DataDog/pup"."platforms.linux-arm64"]
-checksum = "sha256:d32e814ccc965dc5abef445c5c4247a3479e268cd5d2621cb8f2ea7bc0708e00"
+checksum = "sha256:babd934b8b89ed146de9f97a0eafd066f6222de14b4e036bea8d1b508e54001a"
 checksum_source = "mise-versions"
-url = "https://github.com/DataDog/pup/releases/download/v2.4.2/pup_2.4.2_Linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/719093859"
+url = "https://github.com/DataDog/pup/releases/download/v2.4.4/pup_2.4.4_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/734142502"
 
 [tools."github:DataDog/pup"."platforms.linux-x64"]
-checksum = "sha256:b2f093c04f02398ac4dd0a5d1278bedd6f4ad1b81840ed2b186d9d2782e99782"
+checksum = "sha256:86ed3acd3f71e33cc88e173dc9a52f958056a3fbfd00f4d2d111e2bcd6f5fe16"
 checksum_source = "mise-versions"
-url = "https://github.com/DataDog/pup/releases/download/v2.4.2/pup_2.4.2_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/719093892"
+url = "https://github.com/DataDog/pup/releases/download/v2.4.4/pup_2.4.4_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/734142514"
 
 [tools."github:DataDog/pup"."platforms.macos-arm64"]
-checksum = "sha256:ecf081017fc9ed30cc5415e308642e3b7feccabade84a3300e22b012b97f30b0"
+checksum = "sha256:47f8f6b7be035bf766cff066de09ec960e3d472fdee7084e9bfc1251cdf9f8bd"
 checksum_source = "mise-versions"
-url = "https://github.com/DataDog/pup/releases/download/v2.4.2/pup_2.4.2_Darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/719093870"
+url = "https://github.com/DataDog/pup/releases/download/v2.4.4/pup_2.4.4_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/734142497"
 
 [[tools."github:a2aproject/a2a-cli"]]
 version = "0.4.0"
@@ -3769,26 +3792,26 @@ checksum = "sha256:d38bd5e5a2ddce6bbb5ce45e46e208337da4d51fffe611e567fd32073d643
 url = "https://nodejs.org/dist/v26.13.0/node-v26.13.0-darwin-arm64.tar.gz"
 
 [[tools."npm:@opencode/cli"]]
-version = "2.2.6"
-aube = { path = "locks/npm-opencode-cli/2.2.6", digest = "sha256:e28e5edefc4d4a5807f2f08163f8e4d2f952a5fc3d734dc5fabc62dd1a9fc869" }
+version = "2.2.7"
+aube = { path = "locks/npm-opencode-cli/2.2.7", digest = "sha256:6ad43b812650469739ff2b5236fd2ecb16dd190f86517d4c5320ac444a3d5bb0" }
 backend = "npm:@opencode/cli"
 specifiers = ["latest"]
 
 [[tools."npm:cf"]]
-version = "1.0.0-beta.28"
-aube = { path = "locks/npm-cf/1.0.0-beta.28", digest = "sha256:de27c22b63d747fe4ce2668c8052d892105d15ca801be27a938607f2a6d05bfe" }
+version = "1.0.0-beta.29"
+aube = { path = "locks/npm-cf/1.0.0-beta.29", digest = "sha256:1fcc7eeddc72453055d401f8597b31fadf663738928f5e151f98ae96c70a5ac8" }
 backend = "npm:cf"
 specifiers = ["latest"]
 
 [[tools."npm:firebase-tools"]]
 version = "15.35.0"
-aube = { path = "locks/npm-firebase-tools/15.35.0", digest = "sha256:3f795a2835603bfb2e548ea8d12d763311c432f924e0ffa30116ec901a714b5d" }
+aube = { path = "locks/npm-firebase-tools/15.35.0", digest = "sha256:cbb6ad5c8b41a36223944e9db071ea5eb4df2a1b2b5bcb020522ac45b11cfe80" }
 backend = "npm:firebase-tools"
 specifiers = ["latest"]
 
 [[tools."npm:skills"]]
-version = "1.7.6"
-aube = { path = "locks/npm-skills/1.7.6", digest = "sha256:217c1e2076b569495d2a0f30817b0adef33c8a15266bc9aa54990e0258ab75ef" }
+version = "1.8.1"
+aube = { path = "locks/npm-skills/1.8.1", digest = "sha256:8cc8488459e28a18f72b480875c70b328a398f69b99df4773bbffeb3c1de96f0" }
 backend = "npm:skills"
 specifiers = ["latest"]
 
@@ -3816,37 +3839,36 @@ url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.
 url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714325678"
 
 [[tools.pi]]
-version = "1.5.0"
+version = "1.5.2"
 backend = "aqua:earendil-works/pi"
 specifiers = ["latest"]
 
 [tools.pi."platforms.linux-arm64"]
-checksum = "sha256:5d5711b48600756473682e86360b026b11abf7591e5d112eb411d4da2c100d9a"
+checksum = "sha256:42805cd5615952fcbbfc9c56b04f8feb84395134952e169a6cdc8d7676975666"
 checksum_source = "mise-versions"
-url = "https://github.com/earendil-works/pi/releases/download/v1.5.0/pi-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/701404874"
+url = "https://github.com/earendil-works/pi/releases/download/v1.5.2/pi-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/731292536"
 
 [tools.pi."platforms.linux-x64"]
-checksum = "sha256:df870ba0e344cb7b3358d8d8f19397b8b8d225a8669784736ad68a5c2169d53b"
+checksum = "sha256:811c6f2c9e7aaee252b5404252e556fb713aa209c1f7f924226aa77d4ef70cb5"
 checksum_source = "mise-versions"
-url = "https://github.com/earendil-works/pi/releases/download/v1.5.0/pi-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/701404869"
+url = "https://github.com/earendil-works/pi/releases/download/v1.5.2/pi-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/731292534"
 
 [tools.pi."platforms.macos-arm64"]
-checksum = "sha256:a9bf0d82d58d2a7d337f4ae4171b5fc9ebffe42509527a831364c4b65adf2cdf"
+checksum = "sha256:56b5e194d485ced555667b8ba3276157a8272e9ecde9e001e428af80985bdd9b"
 checksum_source = "mise-versions"
-url = "https://github.com/earendil-works/pi/releases/download/v1.5.0/pi-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/701404873"
+url = "https://github.com/earendil-works/pi/releases/download/v1.5.2/pi-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/731292526"
 
 [[tools."pypi:brain-framework"]]
-version = "21.3.0"
+version = "21.4.1"
 backend = "pypi:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-brain-framework/21.3.0~900352df", digest = "sha256:28c07dd7346b4115f8c1c8426c3b682a78af493bae23619917bab11767fdd432" }
+uv = { path = "locks/pypi-brain-framework/21.4.1~60d65a25", digest = "sha256:ac87440c979ea73ba28840483f9de59607eb8eaac4b645f349a07bdc8580a6fa" }
 
 [tools."pypi:brain-framework".options]
 python = "3.14"
-with = '["typer<0.29"]'
 
 [[tools."pypi:copier"]]
 version = "9.19.1"
@@ -3861,16 +3883,16 @@ python = "3.14"
 version = "2.1.0"
 backend = "pypi:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-fmind/2.1.0~e8742b09", digest = "sha256:931d0678fdd265cd1875aa7f0fcfc110102e1d6f48015091eb338ae7f1401cac" }
+uv = { path = "locks/pypi-fmind/2.1.0~e8742b09", digest = "sha256:70bb8aaf5b1458c7ce2d1c00a1c56cf0944898f13c367e72dcb6a96e0d376cf6" }
 
 [tools."pypi:fmind".options]
 python = "3.14"
 
 [[tools."pypi:google-colab-cli"]]
-version = "0.7.5"
+version = "0.8.0"
 backend = "pypi:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-google-colab-cli/0.7.5~37dcb5ee", digest = "sha256:3e0c1e17fd8598c5cb9546879510d710585b25da843a2ffbd2f592df98214193" }
+uv = { path = "locks/pypi-google-colab-cli/0.8.0~37dcb5ee", digest = "sha256:f125f95c5954882dc40828d08c19a696f7d60770809a6b4af540689f9dcd128d" }
 
 [tools."pypi:google-colab-cli".options]
 python = "3.14"
@@ -3888,11 +3910,20 @@ python = "3.14"
 version = "2.2.5"
 backend = "pypi:kaggle"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-kaggle/2.2.5~35e9d436", digest = "sha256:efe84121d4cf375ea1f745a147a0bba776ee2fab8d62c5a21fb494c69093d1c5" }
+uv = { path = "locks/pypi-kaggle/2.2.5~35e9d436", digest = "sha256:0a3bd55008e05c8d239c5a5db5074bdc463546ebf08f46fb33e3bb2e2b9b53a6" }
 
 [tools."pypi:kaggle".options]
 python = "3.14"
 with = '["six"]'
+
+[[tools."pypi:marimo"]]
+version = "0.25.2"
+backend = "pypi:marimo"
+specifiers = ["latest"]
+uv = { path = "locks/pypi-marimo/0.25.2~d7f2a4f0", digest = "sha256:093b2b997cd80db058bb028bceeb6d1d1179b5307d334a54f7d4e32934241221" }
+
+[tools."pypi:marimo".options]
+python = "3.14"
 
 [[tools."pypi:pgcli"]]
 version = "4.7.1"
@@ -3903,6 +3934,15 @@ uv = { path = "locks/pypi-pgcli/4.7.1~8ddab439", digest = "sha256:ab15db51777cca
 [tools."pypi:pgcli".options]
 python = "3.14"
 with = '["psycopg[binary]"]'
+
+[[tools."pypi:vulture"]]
+version = "2.16"
+backend = "pypi:vulture"
+specifiers = ["latest"]
+uv = { path = "locks/pypi-vulture/2.16~86f57e0a", digest = "sha256:696d9bebaa5c76221d99b2d8d81d70cbde2d7108bddd35de88363ea5143e361f" }
+
+[tools."pypi:vulture".options]
+python = "3.14"
 
 [[tools.python]]
 version = "3.14.10"
@@ -4182,50 +4222,50 @@ url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.7
 url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/713400755"
 
 [[tools.ty]]
-version = "0.0.99"
+version = "0.0.100"
 backend = "aqua:astral-sh/ty"
 specifiers = ["latest"]
 
 [tools.ty."platforms.linux-arm64"]
-checksum = "sha256:8db8b7a5a5875ca593b0f92561f5f2285056a782737c33a187d1ffd3f5f0d716"
+checksum = "sha256:c3e5c5ff6422d90a5f08481c9ccb7c2063676fcf9dc7fec96061881308bb2f89"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.99/ty-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/716731556"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.100/ty-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/728837167"
 
 [tools.ty."platforms.linux-x64"]
-checksum = "sha256:b98eec859fa0a840dcfff013f208b7a9d71051bf3f693dff68a9bedb0e19c449"
+checksum = "sha256:27267f4a8b89f235ab8e59e005d12475c231d662d7adf1b14f687e47b628b04f"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.99/ty-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/716731881"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.100/ty-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/728837403"
 
 [tools.ty."platforms.macos-arm64"]
-checksum = "sha256:9967b1433cc65f2c89c74794bca7a767bcb45f400ff0d61102b93486657bb1d4"
+checksum = "sha256:22f993f68444218eca1633caaacc3c2615aa5f43122386ae811807aa7695c70a"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.99/ty-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/716731499"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.100/ty-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/728837097"
 
 [[tools.typos]]
-version = "1.52.0"
+version = "1.52.2"
 backend = "aqua:crate-ci/typos"
 specifiers = ["latest"]
 
 [tools.typos."platforms.linux-arm64"]
-checksum = "sha256:63b7d4478d467a61fe47cdb3162f720c6797856e61a04f7e125d1cdc282488b8"
+checksum = "sha256:f2f54b567f5f4688f000f1bf85c585ee22cce3b55befc9418bcdd4c5adc16595"
 checksum_source = "mise-versions"
-url = "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-aarch64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/703151522"
+url = "https://github.com/crate-ci/typos/releases/download/v1.52.2/typos-v1.52.2-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/733786825"
 
 [tools.typos."platforms.linux-x64"]
-checksum = "sha256:6155d4114f9a0f5b8f6d4fda96266c9d5f6add71df80da7f684ee5e72eb14588"
+checksum = "sha256:3b13d1291281d39d01822e54035636487a7a0f228e70097899b1e33aeb0e7e93"
 checksum_source = "mise-versions"
-url = "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/703158772"
+url = "https://github.com/crate-ci/typos/releases/download/v1.52.2/typos-v1.52.2-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/733787189"
 
 [tools.typos."platforms.macos-arm64"]
-checksum = "sha256:90724dd2905cb1ce033343c71ed60e52fe898674f882803e3110cd228e09e1c5"
+checksum = "sha256:b8e7b8b81f28cc808fd763b6d935536e15ba1ef72613bbb6d628b58a891da7ef"
 checksum_source = "mise-versions"
-url = "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/703166489"
+url = "https://github.com/crate-ci/typos/releases/download/v1.52.2/typos-v1.52.2-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/733789873"
 
 [[tools.usage]]
 version = "7.3.0"

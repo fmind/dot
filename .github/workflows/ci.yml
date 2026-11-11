@@ -11,6 +11,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+defaults:
+  run:
+    shell: bash
 jobs:
   ci:
     name: CI
@@ -26,17 +29,14 @@ jobs:
         with:
           cache: true
           # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.2
+          version: 2026.11.6
       - name: Run canonical gate
         run: mise run all
       - name: Run starter contracts
         # `all` skips the network-resolving starters; Linux is the primary platform.
         run: mise run test:starters
       - name: Verify clean tree
-        run: |
-          status="$(git status --porcelain)"
-          printf '%s\n' "$status"
-          test -z "$status"
+        run: git status --short && [ -z "$(git status --porcelain)" ]
   macos:
     # Exercise native process, filesystem, shell, and starter behavior as well as
     # template rendering. Installing the toolchain also checks its macOS locks.
@@ -52,7 +52,7 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           cache: true
-          version: 2026.11.2
+          version: 2026.11.6
       - name: Render chezmoi source
         run: mise run check:chezmoi
       - name: Run repository tests
@@ -60,7 +60,4 @@ jobs:
       - name: Run starter contracts
         run: mise run test:starters
       - name: Verify clean tree
-        run: |
-          status="$(git status --porcelain)"
-          printf '%s\n' "$status"
-          test -z "$status"
+        run: git status --short && [ -z "$(git status --porcelain)" ]

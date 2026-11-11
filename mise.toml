@@ -2,13 +2,14 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Keep equal to install.sh and the workflow pins (test_bootstrap enforces it).
-min_version = "2026.11.2"
+min_version = "2026.11.6"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
 # home config) verifies every repository tool; the workstation config opts out globally.
 lockfile = true
 lockfile_platforms = ["linux-arm64", "linux-x64", "macos-arm64"]
+minimum_release_age = "0d"
 
 [settings.task]
 run_auto_install = false
@@ -29,12 +30,8 @@ dot_bin = "{{env.HOME}}/.local/bin/dot"
 repo_mise = 'MISE_IGNORED_CONFIG_PATHS="${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}" mise'
 
 [env]
-# Export only values that are safe in any repository: agent shells snapshot this
-# environment and keep it after leaving the checkout. Tasks therefore pass `--project dot`,
-# set COVERAGE_FILE, and use [vars] for checkout paths; an exported UV_PROJECT would
-# silently resolve the dot project from another repository.
-# Chezmoi traverses the source tree during parallel checks. Python's temporary
-# bytecode files can disappear between its directory listing and lstat calls.
+# Export only repo-neutral values (agent shells snapshot env across directories): never UV_PROJECT.
+# Avoid transient .pyc files racing parallel chezmoi source traversal.
 PYTHONDONTWRITEBYTECODE = "1"
 
 [tool_alias]
@@ -59,6 +56,7 @@ shellcheck = "latest"
 shfmt = "latest"
 stylua = "latest"
 trivy = "latest"
+typos = "latest"
 uv = "latest"
 
 # Canonical project tasks.
@@ -93,6 +91,7 @@ depends = [
   "check:shell",
   "check:skills",
   "check:tasks",
+  "check:typos",
 ]
 
 [tasks."check:network"]
@@ -102,8 +101,8 @@ depends = ["check:scan", "check:vuln"]
 [tasks."check:actions"]
 description = "Validate GitHub Actions workflows, shipped workflow templates, and Dependabot config"
 run = [
-  "jactionlint",
-  "jactionlint {{vars.workflow_templates}}",
+  "jactionlint --profile pedantic",
+  "jactionlint --profile pedantic {{vars.workflow_templates}}",
 ]
 
 [tasks."check:actions:online"]
@@ -152,28 +151,25 @@ description = "Check Neovim Lua formatting (stylua)"
 run = "stylua --check dot_config/nvim"
 
 [tasks."check:python"]
-description = "Lint, format-check, type-check, and validate Python packaging"
+description = "Lint, format-check, type-check, and validate Python packaging and dependencies"
 # ruff.toml scopes Ruff.
 run = [
   "uv run --frozen --project dot ruff check .",
   "uv run --frozen --project dot ruff format --check .",
   "uv run --frozen --project dot ty check --project dot dot skills --exclude 'skills/*/references/*/templates'",
+  "uv run --frozen --directory dot deptry .",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
   "uv lock --check --project dot",
 ]
 
 [tasks."check:scan"]
 description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
-# Pass the config explicitly: the workstation's TRIVY_CONFIG (fish env.fish) replaces trivy's
-# ./trivy.yaml default, which would drop this repository's severity and scan settings.
-run = "trivy --config trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
+# Pass the repository's workstation Trivy config explicitly so checkouts use it before deploy.
+run = "trivy --config dot_config/trivy/trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
 
 [tasks."check:shell"]
 description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh and plain run scripts"
-# shellcheck cannot parse {{ }} actions, so templates are rendered first; they use only
-# built-in .chezmoi data, so no init is needed. Modify templates render their managed
-# block against an empty target. shfmt skips templates: it cannot rewrite a template
-# from its rendered copy.
+# Render {{ }} templates against empty stdin for shellcheck; shfmt formats plain scripts only.
 run = """
 rendered="$(mktemp -d)"
 trap 'rm -rf "$rendered"' EXIT
@@ -196,6 +192,10 @@ run = [
 [tasks."check:tasks"]
 description = "Validate repository task definitions"
 run = "mise tasks validate"
+
+[tasks."check:typos"]
+description = "Check spelling across documentation, skills, and sources (typos)"
+run = "typos --config .typos.toml"
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"
@@ -257,7 +257,7 @@ alias = "i"
 description = "Bootstrap a freshly initialized checkout"
 run = [
   "mise run full",
-  "mise run hooks",
+  "lefthook install",
   "mise run vim",
   "echo '✓ First-time bootstrap complete.'",
 ]
@@ -273,7 +273,7 @@ run = "uv run --frozen --project dot pytest -q -n auto --maxprocesses 8 dot/test
 [tasks."test:starters"]
 description = "Materialize and execute the Python library, CLI, and web starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
-run = "uv run --frozen --project dot pytest -q dot/tests/test_python_starter.py"
+run = "uv run --frozen --project dot pytest -q --force-enable-socket --timeout=600 dot/tests/test_python_starter.py"
 
 # Project management tasks. Every alias begins with m.
 
@@ -307,11 +307,6 @@ alias = "mo"
 description = "Run the dot, chezmoi, and mise workstation health checks"
 # chezmoi probes hardlinks from its source into TMPDIR; /tmp can be another filesystem.
 run = ['"{{vars.dot_bin}}" doctor', 'TMPDIR="$(chezmoi source-path)" chezmoi doctor', "mise doctor"]
-
-[tasks.hooks]
-alias = "mh"
-description = "Install repository Git hooks"
-run = "lefthook install"
 
 [tasks.lock]
 alias = "mk"
