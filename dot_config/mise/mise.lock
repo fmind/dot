@@ -2454,15 +2454,15 @@ checksum = "sha256:79145e169bca0b9571d02de8e1cd311a36e0e8fdb4599b6661a87b1bb3afb
 url = "https://download.docker.com/mac/static/stable/aarch64/docker-29.9.3.tgz"
 
 [[tools.docker-compose]]
-version = "5.7.0"
+version = "5.7.1"
 backend = "github:docker/compose"
 specifiers = ["latest"]
 
 [tools.docker-compose."platforms.macos-arm64"]
-checksum = "sha256:54495ff81dd8cae11861455f0308a293a530149beba8f1d90ff3f295b11cf035"
+checksum = "sha256:5a9aa8b5fb5b1e3cd83f39c80e570ae30aafd74cd9b47264fbe4ff7e6e6251ca"
 checksum_source = "mise-versions"
-url = "https://github.com/docker/compose/releases/download/v5.7.0/docker-compose-darwin-aarch64"
-url_api = "https://api.github.com/repos/docker/compose/releases/assets/702117350"
+url = "https://github.com/docker/compose/releases/download/v5.7.1/docker-compose-darwin-aarch64"
+url_api = "https://api.github.com/repos/docker/compose/releases/assets/734662223"
 
 [[tools.doggo]]
 version = "1.4.2"
@@ -3883,7 +3883,7 @@ python = "3.14"
 version = "2.1.0"
 backend = "pypi:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-fmind/2.1.0~e8742b09", digest = "sha256:70bb8aaf5b1458c7ce2d1c00a1c56cf0944898f13c367e72dcb6a96e0d376cf6" }
+uv = { path = "locks/pypi-fmind/2.1.0~e8742b09", digest = "sha256:030890239de88b26e53d46b5afa1db11db4228e82f556adcff52320cfbd7518d" }
 
 [tools."pypi:fmind".options]
 python = "3.14"
@@ -3892,7 +3892,7 @@ python = "3.14"
 version = "0.8.0"
 backend = "pypi:google-colab-cli"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-google-colab-cli/0.8.0~37dcb5ee", digest = "sha256:f125f95c5954882dc40828d08c19a696f7d60770809a6b4af540689f9dcd128d" }
+uv = { path = "locks/pypi-google-colab-cli/0.8.0~37dcb5ee", digest = "sha256:4bab5808ccf50544e9ddaedcb47b075b1ab39b8505bd0a99eb80f3c4853d0471" }
 
 [tools."pypi:google-colab-cli".options]
 python = "3.14"
@@ -4222,27 +4222,27 @@ url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.7
 url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/713400755"
 
 [[tools.ty]]
-version = "0.0.100"
+version = "0.0.101"
 backend = "aqua:astral-sh/ty"
 specifiers = ["latest"]
 
 [tools.ty."platforms.linux-arm64"]
-checksum = "sha256:c3e5c5ff6422d90a5f08481c9ccb7c2063676fcf9dc7fec96061881308bb2f89"
+checksum = "sha256:a1bcc8de30a251c9f327f37a937040e998cb7c262384ac655d0ba7af760394fc"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.100/ty-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/728837167"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.101/ty-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/735705358"
 
 [tools.ty."platforms.linux-x64"]
-checksum = "sha256:27267f4a8b89f235ab8e59e005d12475c231d662d7adf1b14f687e47b628b04f"
+checksum = "sha256:c96eb21a0d365f67de9ab37eada3545b619fb5d10e9bc769c97506c5314be68b"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.100/ty-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/728837403"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.101/ty-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/735705601"
 
 [tools.ty."platforms.macos-arm64"]
-checksum = "sha256:22f993f68444218eca1633caaacc3c2615aa5f43122386ae811807aa7695c70a"
+checksum = "sha256:43afcb380f43558bcb56c3a9c0b71d356a5750e5e5410e946c478bccea7875f4"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.100/ty-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/728837097"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.101/ty-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/735705211"
 
 [[tools.typos]]
 version = "1.52.2"
