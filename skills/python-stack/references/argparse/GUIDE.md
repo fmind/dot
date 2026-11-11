@@ -3,9 +3,9 @@ name: argparse
 description: "Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Typer CLIs."
 ---
 
-# CLI Contracts & Python argparse
+# CLI Contracts & Python CLIs
 
-Define a stable human + machine CLI contract in any language, and build new Python CLIs on stdlib `argparse` with zero runtime dependencies ([foundation](../foundation/GUIDE.md) owns packaging; existing Typer/Click CLIs stay on their framework per [Existing Typer CLIs](#existing-typer-clis)).
+Define a stable human + machine CLI contract in any language, and build Python CLIs with `argparse` (starter templates below) or [Typer](#typer-clis) when typed command trees and rich help fit better ([foundation](../foundation/GUIDE.md) owns packaging; existing CLIs keep their framework).
 
 ## Defaults for new CLIs
 
@@ -33,9 +33,9 @@ Existing public contracts govern shape, streams, exit codes, and formats; side-e
 - **Flags, env defaults, & colors**: pass `"-n", "--limit"` with `metavar` (`--since WHEN`), and build parsers inside `main()` reading `os.environ.get("APP_CONFIG") or None` (named in `help`). Python `3.14+` colors TTY help/errors (`NO_COLOR`, `FORCE_COLOR`, `PYTHON_COLORS`) — set `NO_COLOR=1` and strip forcing vars in tests.
 - **Formatting, TUIs, & startup**: use `RawDescriptionHelpFormatter` for multi-paragraph help; add `argcomplete` or `rich`/`textual` (markup/highlighting/emoji disabled on untrusted text) only for interactive human UIs, never agent CLIs. Profile startup via `uv run python -X importtime -c 'import <package>'` and lazy-import heavy SDKs inside handlers (or module-level `__lazy_modules__ = [...]` on `3.15+`).
 
-## Existing Typer CLIs
+## Typer CLIs
 
-Keep locked Typer unless asked to migrate:
+When building or maintaining a Typer CLI:
 
 - **Bundled skill & minor pin**: read `typer/.agents/skills/typer/SKILL.md` from `.venv/` (`0.25.1+`) and pin `typer>=0.N,<0.N+1` (`0.x` minors break APIs; `typer-slim`/`typer-cli` are deprecated, and Click is vendored since `0.26.0` — use `typer.testing.CliRunner`).
 - **Group callback & plain help**: add `@app.callback()` so single-command apps keep subcommand shape and `no_args_is_help=True` works; set `rich_markup_mode=None` when plain piped help is required (`GITHUB_ACTIONS`/`FORCE_COLOR`/`PY_COLORS` override `NO_COLOR` on Rich panels).

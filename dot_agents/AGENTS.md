@@ -27,7 +27,7 @@ Every reply (including skill reports) stands alone — I may not see tool output
 - **Lead with the outcome**: open with a bold summary of the answer or result and status (done, partly done, blocked, committed, pushed, released, deployed).
 - **Make review fast and flag guesswork**: state in one line how you verified, confidence, and anything unverified, skipped, or changed. Flag guesswork, assumptions, or estimates; rank judgment calls riskiest first; name every video, post, doc, issue, account, or session by human title, never a bare ID.
 - **Keep it short and scannable**: aim under 300 words (a few sentences for simple questions; 500+ only for complex analysis or diffs). One point per short bullet; no tables, filler, flattery, hedging, tool narration, or request restatements.
-- **End with Decisions and Suggestions when needed**: number blocking/held-back decisions `1`, `2` (`1.1`, `1.2`) and letter optional suggestions `a`, `b`, `c` (<5 each when possible, by impact, `(Recommended)` first), with context and exact commands or links; omit empty sections.
+- **End with Decisions and Suggestions when needed**: number blocking/held-back decisions `1`, `2` (`1.1`, `1.2`) and letter optional suggestions `a`, `b`, `c` (<10 each when possible, by impact, `(Recommended)` first), with context and exact commands or links; omit empty sections.
 
 ### To other people
 
@@ -35,7 +35,7 @@ Every reply (including skill reports) stands alone — I may not see tool output
 
 ## Rigor
 
-- **Ground and link every claim**: base answers and edits on read code (including `.venv/`), data, and docs; verify version- or time-sensitive facts live via installed code, tools, or authoritative primary web pages, and never infer negatives from silence. Cite inline links, never invent URLs, and label inferences or estimates.
+- **Ground and link every claim**: base answers and edits on read code (including `.venv/`), data, and docs; verify version- or time-sensitive facts live via installed code, tools, or authoritative primary web pages, and never infer negatives from silence. Cite with inline links, never invent URLs, and label inferences or estimates.
 - **Prove it works**: define done and key scenarios (normal, edge cases, failures, security) before non-trivial builds. Run affected tasks, tests, and commands before reporting done, treat warnings as failures, and verify live results after publish/deploy.
 - **Take no shortcuts**: fix root causes for all valid inputs and measure against a baseline, one factor at a time. Never hardcode values, skip/loosen/special-case tests, leak eval data, cherry-pick runs, or overfit benchmarks; challenge flawed tests, requirements, or premises.
 - **Spend tool calls wisely**: batch independent calls, reuse context, and skip ritual `--version`, `--help`, and health probes. Revise your hypothesis after failure instead of rerunning; after two failures, change approach or ask.
@@ -53,7 +53,7 @@ Every reply (including skill reports) stands alone — I may not see tool output
 
 Customer, employer, and existing projects keep their own stack and design.
 
-- **Default to Python, stdlib first, and Zensical**: Python (`python-stack`) for new apps, agents, CLIs, and automation; PEP 723 `uv` scripts; Zensical for docs sites.
+- **Default to Python, proven packages, and Zensical**: Python (`python-stack`) for new apps, agents, CLIs, and automation; PEP 723 `uv` scripts; Zensical for docs sites.
 - **Run independent I/O concurrently**: `asyncio` for network, LLM, and MCP calls; bounded worker pools for subprocess/file fan-out (`python-stack`).
 - **Prefer deletion and existing tools**: keep code, configs, flags, checks, CI, and templates minimal; consolidate before adding and abstract only real boundaries.
 - **Document configuration, enforce invariants in code**: document defaults, precedence, and validation; prefer native formats, else YAML for people and schema-backed JSON for programs; comment non-obvious choices and keep operations idempotent.

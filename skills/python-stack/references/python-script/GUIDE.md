@@ -5,7 +5,7 @@ description: "Standalone single-file utilities with PEP 723 inline metadata run 
 
 # PEP 723 Standalone Python Scripts
 
-Single-file CLIs with inline `# /// script` metadata executed via `uv run --script`. Prefer `dependencies = []` (instant startup, zero supply chain); promote to [foundation](../foundation/GUIDE.md) past ~200 lines or a second module, and keep agent scratch scripts in `.agents/tmp/`.
+Single-file CLIs with inline `# /// script` metadata executed via `uv run --script`. Declare only needed proven packages in `dependencies` (empty `[]` gives instant startup); promote to [foundation](../foundation/GUIDE.md) past ~200 lines or a second module, and keep agent scratch scripts in `.agents/tmp/`.
 
 ## Workflow
 

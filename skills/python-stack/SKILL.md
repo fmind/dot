@@ -12,7 +12,7 @@ metadata:
 
 # Python Stack
 
-Maintain a lean, strictly typed Python foundation: stdlib first for plumbing, proven packages only when they remove real code or risk, and existing project conventions preserved in place.
+Maintain a lean, strictly typed Python foundation built on proven, well-maintained packages, minimal dependencies, and existing project conventions preserved in place.
 
 ## Workflow
 

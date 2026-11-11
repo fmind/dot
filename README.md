@@ -19,7 +19,7 @@ Personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS. [
 - **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit — tuned for keyboard speed and ultrawide layouts.
 - **Editor:** Neovim (LazyVim), unified across tools with [fmind/theme](https://github.com/fmind/theme).
 - **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving and usage stats.
-- **Development:** Python 3.14 with uv, Ruff, ty, and pytest (stdlib first) plus cloud/service CLIs; projects pin their own stack tools.
+- **Development:** Python 3.14 with uv, Ruff, ty, and pytest plus cloud/service CLIs; projects pin their own stack tools.
 - **Automation:** `dot` checks workstation health, manages multi-repo workspaces, handles provider logins and scoped secrets, and enforces agent context budgets.
 
 ## Prerequisites
