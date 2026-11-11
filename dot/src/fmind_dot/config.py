@@ -29,7 +29,6 @@ class CompletionConfig(StrictModel):
 
 
 class PullConfig(StrictModel):
-    # private_dot_claude/modify_private_settings.json repeats this default; test_harness_config keeps them equal.
     directories: list[WorkspacePath] = Field(default_factory=lambda: ["~/fmind"])
 
 
@@ -400,6 +399,11 @@ def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]
     return merged
 
 
+def yaml_error_location(error: BaseException) -> str:
+    mark = getattr(error, "problem_mark", None)
+    return f"line {mark.line + 1}, column {mark.column + 1}" if mark is not None else ""
+
+
 def load_config(path: str | Path | None = None) -> Config:
     resolved, implicit = config_file_path(path)
     try:
@@ -412,8 +416,8 @@ def load_config(path: str | Path | None = None) -> Config:
     except (OSError, UnicodeError) as error:
         raise ValueError(f"failed to read config file at {resolved}: {error}") from error
     except (yaml.YAMLError, RecursionError) as error:
-        mark = getattr(error, "problem_mark", None)
-        location = f" at line {mark.line + 1}, column {mark.column + 1}" if mark is not None else ""
+        where = yaml_error_location(error)
+        location = f" at {where}" if where else ""
         # Parser messages and snippets can include credentials from malformed input.
         raise ValueError(f"failed to parse config file at {resolved}: invalid YAML{location}") from error
     if len(documents) > 1:

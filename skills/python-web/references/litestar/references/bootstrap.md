@@ -8,12 +8,12 @@ Omit SQLAlchemy, readiness queries, and Postgres fixtures when no database is ne
 
 1. **Install dependencies** via [uv](../../../../python-stack/references/uv.md):
    ```bash
-   UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.7' 'sqlalchemy[postgresql-asyncpg]>=2.1.6' 'pydantic>=2.14.3' 'pydantic-settings>=2.16.2' 'structlog>=26.1.0'
-   UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev 'anyio>=4.15.1' 'testcontainers>=4.15.0'
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.7' 'sqlalchemy[postgresql-asyncpg]>=2.1.8' 'pydantic>=2.14.3' 'pydantic-settings>=2.16.2' 'structlog>=26.1.0'
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev 'anyio>=4.16.0' 'testcontainers>=4.15.0'
    ```
    Base `litestar` already includes CLI, `TestClient`, `msgspec`, and `polyfactory`: add `[jinja]` only for templates, skip `[standard]` (avoids installing `uvicorn` beside Granian), pin `[uvloop]` explicitly (Granian picks `rloop` -> `uvloop` -> `asyncio`), and use `sqlalchemy[postgresql-asyncpg]` (`asyncpg` + `greenlet`, no deptry ignore needed).
 1. **Entry points & script**: place [init.py](../templates/init.py) at `src/<package>/__init__.py`, [main.py](../../../../python-stack/references/argparse/templates/main.py) at `src/<package>/__main__.py`, add `[project.scripts]` `<slug> = "<package>:main"`, and replace all placeholders.
-1. **Settings**: copy [env.example](../templates/env.example) to `.env.example` and ignored `.env` before importing (`DATABASE_URL` required, CORS closed by default; `conftest.py` sets a non-listening loopback `DATABASE_URL` so CI runs offline without `.env`). Add `[env]` `_.file = ".env"` in `mise.toml` ([mise](../../../../mise/SKILL.md)).
+1. **Settings**: copy [env.example](../templates/env.example) to `.env.example` and ignored `.env` before importing (`DATABASE_URL` required, CORS closed by default; `conftest.py` sets an unreachable `.invalid` `DATABASE_URL` so CI runs offline without `.env`). Add `[env]` `_.file = ".env"` in `mise.toml` ([mise](../../../../mise/SKILL.md)).
 1. **Tasks & tests**: set `watch` to `uv run granian --interface asgi --reload <package>:app`, keep `test` offline and `test:integration` opt-in, replace library tests with [test_web.py](../templates/test_web.py), [test_integration.py](../templates/test_integration.py), and `tests/conftest.py` from [conftest.py](../templates/conftest.py) (putting `conftest.py` at repo root triggers deptry on test imports; add `"conftest.py" = ["S105"]` in Ruff `per-file-ignores` if needed).
 1. **Qualify**: document settings, entry points, session lifecycle, `/health`, and `/ready` (`503` on failure) in `AGENTS.md`; run the offline gate + wheel check, and run `test:integration` when Docker is available.
 

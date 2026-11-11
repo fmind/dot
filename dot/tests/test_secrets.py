@@ -173,6 +173,8 @@ def test_missing_tool_does_not_read_secret(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.exit_code == 1
     assert isinstance(result.exception, DotError)
     assert "required tools are missing" in str(result.exception)
+    invalid = invoke_inprocess(monkeypatch, "bad-name", "--", "nonexistent-dot-test-tool", installed=set())
+    assert invalid.exit_code == 2
 
 
 def test_shell_secret_exports_are_retired() -> None:

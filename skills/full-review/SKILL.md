@@ -78,4 +78,4 @@ State `path:line`, reachable trigger, evidence, impact, and minimal fix (or `"no
 
 ## Documentation
 
-- Companion skills: [pull-request](../gh/references/pull-request.md), [issues](../gh/references/issues/GUIDE.md), [cloud-run](../cloud-run/SKILL.md), [continuation](../task-prompts/references/continuation.md).
+- Companions: [pull-request](../gh/references/pull-request.md), [issues](../gh/references/issues/GUIDE.md), [cloud-run](../cloud-run/SKILL.md), [continuation](../task-prompts/references/continuation.md).

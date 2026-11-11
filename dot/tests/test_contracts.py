@@ -70,6 +70,39 @@ def test_skills_contract_accepts_small_valid_repository(tmp_path: Path) -> None:
     assert checker.repository_findings(root) == []
 
 
+def test_skills_contract_reports_both_copies_when_catalogs_collide(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _fixture_repository(tmp_path)
+    broken = root / "skills/fixture/SKILL.md"
+    broken.write_text(broken.read_text(encoding="utf-8").replace("name: fixture", "name: wrong"), encoding="utf-8")
+    local_dir = root / ".agents/skills/fixture"
+    local_dir.mkdir(parents=True)
+    (local_dir / "SKILL.md").write_text(
+        "---\n"
+        "name: fixture\n"
+        "description: Validate a local duplicate fixture. Use for collision tests.\n"
+        "license: MIT\n"
+        "metadata:\n"
+        "  kind: task\n"
+        "  author: Fixture Author\n"
+        "  source: github.com/fmind/dot/tree/main/.agents/skills/fixture\n"
+        '  created: "2026-10-01"\n'
+        '  updated: "2026-10-12"\n'
+        "---\n\n"
+        "# Fixture\n",
+        encoding="utf-8",
+    )
+
+    findings = checker.repository_findings(root)
+    assert any("skills/fixture/SKILL.md" in item and "must match its directory" in item for item in findings)
+    assert any("duplicate skill directory 'fixture'" in item for item in findings)
+
+    monkeypatch.setattr(checker, "ROOT", root)
+    monkeypatch.setattr("sys.argv", ["skill_contracts", "--sync"])
+    assert checker.main() == 1
+
+
 @pytest.mark.parametrize("value", ["true", "false", '"true"', "1", "null"])
 def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, value: str) -> None:
     root = _fixture_repository(tmp_path)

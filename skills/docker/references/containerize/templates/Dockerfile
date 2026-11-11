@@ -3,13 +3,13 @@
 # Docs: https://docs.docker.com/reference/dockerfile/
 # The directive above fails every build on a build-check violation (https://docs.docker.com/build/checks/);
 # `docker buildx build --check .` lints without building but needs Buildx 0.15+; distro Buildx 0.13 lacks it.
-FROM python:3.14.10-slim@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999 AS build
+FROM python:3.14.10-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS build
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 # Use the base image Python in both stages; a managed download breaks the copied .venv.
 ENV UV_PYTHON_DOWNLOADS=0
 WORKDIR /app
-COPY --from=ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /uvx /bin/
 RUN --mount=type=cache,target=/root/.cache/uv \
   --mount=type=bind,source=uv.lock,target=uv.lock \
   --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -18,7 +18,7 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
   uv sync --locked --no-dev --no-editable
 
-FROM python:3.14.10-slim@sha256:3cabfd7d7aaf394e6040e79fa1eec6ca1c52b74ed9188650472695d9a9326999
+FROM python:3.14.10-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app

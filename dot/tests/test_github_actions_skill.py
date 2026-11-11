@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -60,7 +61,7 @@ def test_release_templates_gate_publishers_on_the_tagged_revision(relative: str)
     assert gate.get("permissions", workflow["permissions"]) == {"contents": "read"}
     commands = [step["run"] for step in gate["steps"] if "run" in step]
     assert "mise run all" in commands
-    assert any("git status --porcelain" in command and 'test -z "$status"' in command for command in commands)
+    assert any("git status --porcelain" in command and "git status --short" in command for command in commands)
     checkout = next(step for step in gate["steps"] if step.get("uses", "").startswith("actions/checkout@"))
     assert "ref" not in checkout["with"]  # Checkout the triggering tag, never moving main.
     for name, job in jobs.items():
@@ -213,6 +214,10 @@ if name == "cosign" and args[0] == "verify-attestation" and args[-1].endswith(os
     scripts = tmp_path / ".github/scripts"
     scripts.mkdir(parents=True)
     helper = ROOT / "skills/github-actions/references/ci-cd/templates/image-platforms.py"
+    source = helper.read_text(encoding="utf-8")
+    ast.parse(source, filename=str(helper), feature_version=(3, 14))
+    assert "allow_abbrev=False" in source
+    assert "suggest_on_error=True" in source
     (scripts / helper.name).write_bytes(helper.read_bytes())
     for step in steps[start:]:
         result = subprocess.run(

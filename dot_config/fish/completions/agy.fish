@@ -42,8 +42,10 @@ complete -c agy -n '__fish_use_subcommand' -a remote-control -d 'Manage the remo
 complete -c agy -n '__fish_use_subcommand' -a update -d 'Update CLI'
 complete -c agy -n '__fish_seen_subcommand_from acp' -l add-dir -r -F -d 'Add a directory to the workspace (repeatable) (default [])'
 complete -c agy -n '__fish_seen_subcommand_from acp' -l agent -r -d 'Agent for the ACP session'
+complete -c agy -n '__fish_seen_subcommand_from acp' -l app-data-dir -r -F -d 'Path where application data is stored (default antigravity-cli)'
 complete -c agy -n '__fish_seen_subcommand_from acp' -l dangerously-skip-permissions -d 'Auto-approve all tool permission requests'
 complete -c agy -n '__fish_seen_subcommand_from acp' -l disable-telemetry -d 'If true, disable telemetry'
+complete -c agy -n '__fish_seen_subcommand_from acp' -l gemini-dir -r -F -d 'Path where Gemini files are stored (default .gemini)'
 complete -c agy -n '__fish_seen_subcommand_from acp' -l ide-mcp-port -r -d "Port for host IDE tools MCP server (requires 'nc' in \$PATH) (default 0)"
 complete -c agy -n '__fish_seen_subcommand_from acp' -l include-default-customizations -d 'Include default customizations (default true)'
 complete -c agy -n '__fish_seen_subcommand_from acp' -l log-file -r -F -d 'Override ACP log file path'

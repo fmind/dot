@@ -1052,3 +1052,41 @@ def _agy_transcript(root: Path, session_id: str) -> Path:
     path = root / session_id / ".system_generated/logs/transcript.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def test_agy_estimated_usage_keeps_latest_record_timestamp_when_later_steps_are_truncated(tmp_path: Path) -> None:
+    path = tmp_path / "transcript.jsonl"
+    _jsonl(
+        path,
+        [
+            {"created_at": "2026-01-01T00:00:00Z", "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "hi"},
+            {
+                "created_at": "2026-01-02T00:00:00Z",
+                "source": "MODEL",
+                "type": "PLANNER_RESPONSE",
+                "content": "truncated",
+                "is_truncated": True,
+            },
+        ],
+    )
+    parsed = parse_agy_session(path, "agy-id")
+    assert [log.ts for log in parsed.logs] == ["2026-01-01T00:00:00Z"]
+    assert _usage(parsed).timestamp == "2026-01-02T00:00:00Z"
+
+
+@pytest.mark.parametrize(("cwd_sql", "created_sql"), [("X'ff'", "'2026-03-01T00:00:00Z'"), ("'/repo'", "X'ff'")])
+def test_copilot_non_string_session_columns_isolate_usage_error_without_losing_turns(
+    tmp_path: Path, cwd_sql: str, created_sql: str
+) -> None:
+    database = tmp_path / "copilot.db"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.executescript(
+            COPILOT_SCHEMA
+            + f"""INSERT INTO sessions VALUES('cp-id',{cwd_sql},{created_sql});
+            INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply',NULL);
+            INSERT INTO assistant_usage_events VALUES('cp-id','gpt',10,5,0,0,0);"""
+        )
+    parsed = parse_copilot_session(database, "cp-id")
+    assert [(log.role, log.content) for log in parsed.logs] == [("user", "ask"), ("assistant", "reply")]
+    assert parsed.usage is None
+    assert isinstance(parsed.usage_error, ValueError)

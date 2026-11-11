@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -31,6 +32,7 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     build = steps[push_index]
     assert isinstance(build["with"], dict)
     assert build["with"]["push"] is True
+    assert str(build["with"]["tags"]).endswith(":candidate-${{ github.sha }}")
     assert "continue-on-error" not in build
     first_use_index = next(
         index for index, step in enumerate(steps) if re.search(r"\b(?:cosign|trivy)\b", str(step.get("run", "")))
@@ -248,6 +250,10 @@ else:
     scripts = tmp_path / ".github/scripts"
     scripts.mkdir(parents=True)
     helper = ROOT / "skills/cloud-run/templates/verify-private.py"
+    source = helper.read_text(encoding="utf-8")
+    ast.parse(source, filename=str(helper), feature_version=(3, 14))
+    assert "allow_abbrev=False" in source
+    assert "suggest_on_error=True" in source
     (scripts / helper.name).write_bytes(helper.read_bytes())
     result = subprocess.run(
         ["bash", "-e", "-o", "pipefail", "-c", str(verify["run"])],

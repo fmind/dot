@@ -92,7 +92,7 @@ def copy_text(payload: bytes, *, keep_final_newline: bool = False) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument(
         "--keep-final-newline", action="store_true", help="keep one trailing newline instead of stripping it"
     )
@@ -100,6 +100,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = sys.stdin.buffer.read(LIMIT + 2)  # One optional newline plus one byte to detect excess.
         sys.stdout.write(copy_text(payload, keep_final_newline=args.keep_final_newline) + "\n")
+    except UnicodeDecodeError:
+        sys.stderr.write("Clipboard error: input is not valid UTF-8.\n")
+        return 1
     except (ValueError, RuntimeError, OSError) as error:
         sys.stderr.write(f"Clipboard error: {error}\n")
         return 1

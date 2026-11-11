@@ -4,9 +4,26 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
+
+SHELL_ONLY_ENV = frozenset(
+    {
+        "EDITOR",
+        "GLAMOUR_STYLE",
+        "LANG",
+        "LESS",
+        "LESSHISTFILE",
+        "LG_CONFIG_FILE",
+        "MANPAGER",
+        "PAGER",
+        "PUPPETEER_EXECUTABLE_PATH",
+        "VISUAL",
+        "XDG_CONFIG_HOME",
+    }
+)
 
 
 def test_fish_aliases_load_without_errors() -> None:
@@ -113,3 +130,40 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
     assert result.stderr == "", result.stderr
     assert result.stdout.splitlines() == ["shell-survived", "second-prompt"]
     assert calls.read_text(encoding="utf-8").splitlines() == ["attach --create main"]
+
+
+def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    mise_env = {
+        key: str(value).replace("{{env.HOME}}", str(tmp_path))
+        for key, value in tomllib.loads((root / "dot_config/mise/config.toml").read_text(encoding="utf-8"))[
+            "env"
+        ].items()
+    }
+    fish = shutil.which("fish") or "fish"
+    base_env = {"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"}
+    baseline = subprocess.run(
+        [fish, "--no-config", "--command", "env -0"],
+        cwd=root,
+        env=base_env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    sourced = subprocess.run(
+        [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; env -0"],
+        cwd=root,
+        env=base_env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    before = dict(entry.split("=", 1) for entry in baseline.stdout.split("\0") if "=" in entry)
+    after = dict(entry.split("=", 1) for entry in sourced.stdout.split("\0") if "=" in entry)
+    exported = {key: value for key, value in after.items() if before.get(key) != value and key not in SHELL_ONLY_ENV}
+    assert exported
+    assert {key: mise_env.get(key) for key in exported} == exported

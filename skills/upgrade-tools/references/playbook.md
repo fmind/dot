@@ -42,9 +42,9 @@ Refresh tag + multi-platform index `@sha256:` digest on every `FROM`, `COPY --fr
 
 ## GitHub Actions (`.github/workflows/*.yml`)
 
-Resolve latest release tags to verified 40-hex commit SHAs (`owner/action@<sha> # vN.N.N`) and run `jactionlint` ([dependabot](../../github-actions/references/dependabot.md) bumps vulnerable pins only; see [ci-cd](../../github-actions/references/ci-cd/GUIDE.md)).
+Resolve latest release tags to verified 40-hex commit SHAs (`owner/action@<sha> # vN.N.N`) and run `jactionlint --profile pedantic` ([dependabot](../../github-actions/references/dependabot.md) bumps vulnerable pins only; see [ci-cd](../../github-actions/references/ci-cd/GUIDE.md)).
 
-Raising the tested `mise` floor in `fmind/dot` (`self_update.auto = "24h"` updates the workstation binary, while `mise run upgrade` skips mise itself; use `mise self-update <version>` for an exact target) requires updating workflow `version:` inputs (including `github-actions`, `cloud-run`, and `documentation-site` templates), `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml` plus `python-stack` and `infra-as-code` templates, and `README.md` together after checking release notes (`test_bootstrap.py` enforces parity).
+Raising the tested `mise` floor in `fmind/dot` (`self_update.auto = "24h"` updates the workstation binary, while `mise run upgrade` skips mise itself; use `mise self-update <version>` for an exact target) requires updating workflow `version:` inputs (including `github-actions`, `cloud-run`, and `documentation-site` templates), `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml` plus `python-stack`, `infra-as-code`, and `documentation-site` templates, and `README.md` together after checking release notes (`test_bootstrap.py` enforces parity).
 
 ## dprint (`dprint.json`)
 
@@ -52,7 +52,7 @@ Raising the tested `mise` floor in `fmind/dot` (`self_update.auto = "24h"` updat
 dprint config update --yes --recursive
 ```
 
-Pass the project's cooldown flag (e.g. `--minimum-dependency-age P7D` from `check:outdated`) when configured, then run `dprint check` ([dprint](../../mise/references/dprint.md)).
+Pass the project's cooldown flag (e.g. `--minimum-dependency-age P7D`) when configured, then run `dprint check` ([dprint](../../mise/references/dprint.md)).
 
 ## Agent skills
 

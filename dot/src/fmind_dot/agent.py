@@ -222,6 +222,8 @@ def _agent_stats(state: State, args: argparse.Namespace) -> None:
     sessions, tokens_only, prompts_only = args.sessions, args.tokens_only, args.prompts_only
     if sessions and (by_model or by_project or monthly or tokens_only or prompts_only):
         raise UsageError("--sessions: lists sessions; drop the grouping and --*-only options")
+    if limit is not None and not sessions:
+        raise UsageError("--limit: requires --sessions")
     if tokens_only and prompts_only:
         raise UsageError("--tokens-only: cannot be combined with --prompts-only")
     if prompts_only and (monthly or by_model):
@@ -235,7 +237,7 @@ def _agent_stats(state: State, args: argparse.Namespace) -> None:
         records = list_usage_records(
             iter_usage_records(query.since, query.until),
             harness=selected,
-            limit=limit,
+            limit=50 if limit is None else limit,
             since=query.since,
             until=query.until,
             cwd=query.cwd,
@@ -378,9 +380,9 @@ def _register_stats(commands: Parser) -> None:
         "-n",
         "--limit",
         type=non_negative,
-        default=50,
+        default=None,
         metavar="N",
-        help="With --sessions, maximum rows; 0 returns all",
+        help="With --sessions, maximum rows (default: 50); 0 returns all",
     )
 
 

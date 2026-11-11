@@ -29,7 +29,7 @@ Verified live on 2026-10-28 ([references/dialect.md](references/dialect.md)) and
 
 1. **No YAML frontmatter or Setext underlines**: `---` or `===` directly under a paragraph turns it into a heading. Put metadata lines below `# Title` and leave a blank line before horizontal rules.
 1. **No GitHub alerts, raw HTML, or HTML comments**: all render as literal text. Use bold blockquotes (`> **Important — Decision needed by YYYY-MM-DD:** ...`), `## Annex` headings, and trailing `\` for hard breaks.
-1. **Compile figures to PNG references**: Docs renders `mermaid` fences as code and ignores PNG DPI (displaying pixels at 0.75 pt). Write column-0 `mermaid` fences or local 600 px `![Caption](figure.svg)` links in `.src.md`; the compiler rasterizes each (via pinned `mise exec` Mermaid CLI or headless Chrome) at ≤600 px wide, emits `![Caption][fig-N]` with `[fig-N]: <data:image/png;base64,...>` definitions, and exports editable sources to `--assets-dir`.
+1. **Compile figures to PNG references**: write column-0 `mermaid` fences or local 600 px `![Caption](figure.svg)` links in `.src.md`. [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py) rasterizes each at ≤600 px wide, emits `![Caption][fig-N]` Base64 PNG references, and exports editable sources to `--assets-dir` ([details](references/dialect.md)).
 1. **Verified natively**: ATX headings, ordered lists, checklists, GFM tables, footnotes, `$...$` / `$$...$$` equations, and Base64 PNG reference images.
 
 ## Workflow
@@ -62,4 +62,4 @@ Verified live on 2026-10-28 ([references/dialect.md](references/dialect.md)) and
 ## Documentation
 
 - [Docs Help: View and edit Markdown files in Google Docs](https://support.google.com/docs/answer/18289341) · [Workspace Updates, 2026-10-05: Markdown files natively across Drive and Docs](https://workspaceupdates.googleblog.com/2026/10/preview-edit-and-collaborate-on-Markdown-files-natively-across-Drive-and-Docs.html) · [dialect and figure reference](references/dialect.md)
-- Companion skills: [stakeholder-writing](../stakeholder-writing/SKILL.md) (structure, prose, and reader check), [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid and SVG authoring), [gws](../gws/SKILL.md) (Workspace CLI and `.gdoc` `batchUpdate`), [draft-mail](../draft-mail/SKILL.md) (Gmail drafts).
+- Companions: [stakeholder-writing](../stakeholder-writing/SKILL.md) (structure, prose, and reader check), [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid and SVG authoring), [gws](../gws/SKILL.md) (Workspace CLI and `.gdoc` `batchUpdate`), [draft-mail](../draft-mail/SKILL.md) (Gmail drafts).

@@ -1,6 +1,7 @@
 """Command tree and entry point for dot."""
 
 import argparse
+import contextlib
 import os
 import shlex
 import signal
@@ -126,11 +127,19 @@ def _complete() -> bool:
 
 
 def main() -> None:
-    if _complete():
-        return
     previous_sigterm = signal.signal(signal.SIGTERM, _interrupt_on_sigterm)
     try:
-        app()
+        if not _complete():
+            app()
+        sys.stdout.flush()
+    except BrokenPipeError:
+        with contextlib.suppress(OSError):
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            try:
+                os.dup2(devnull, sys.stdout.fileno())
+            finally:
+                os.close(devnull)
+        raise SystemExit(141) from None
     except KeyboardInterrupt:
         sys.stderr.write("Cancelled.\n")
         raise SystemExit(130) from None

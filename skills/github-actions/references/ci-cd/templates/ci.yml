@@ -31,7 +31,4 @@ jobs:
       - name: Run canonical gate
         run: mise run all
       - name: Verify no changes
-        run: |
-          status="$(git status --porcelain)"
-          printf '%s\n' "$status"
-          test -z "$status"
+        run: git status --short && [ -z "$(git status --porcelain)" ]

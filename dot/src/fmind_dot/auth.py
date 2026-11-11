@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import TypeAdapter, ValidationError
 
 from fmind_dot.command import Parser
-from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, LoginProvider, Project, Scope
+from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, LoginProvider, Project, Scope, expand_path
 from fmind_dot.errors import DotError, UsageError
 from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.state import State, require_tools
@@ -112,12 +112,21 @@ def probe(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS)
     return state.run_probe(tuple(args), run)
 
 
+def _missing_colab_scopes(state: State) -> list[str]:
+    return [scope for scope in _COLAB_ADC_SCOPES if scope not in state.config.auth.gcp.adc_scopes]
+
+
+def _require_colab_scopes(state: State) -> None:
+    if missing := _missing_colab_scopes(state):
+        raise DotError(f"auth.gcp.adc_scopes must include the Colab scopes: {', '.join(missing)}")
+
+
 def probe_commands(state: State, provider: LoginProvider) -> list[list[str]]:
     return {
         "github": [GITHUB_STATUS],
         "gcp": [GCLOUD_CLI_TOKEN, adc_probe_command(state)],
         "workspace": [WORKSPACE_STATUS],
-        "colab": [adc_probe_command(state), COLAB_SESSIONS],
+        "colab": [] if _missing_colab_scopes(state) else [adc_probe_command(state), COLAB_SESSIONS],
     }[provider]
 
 
@@ -237,7 +246,7 @@ def workspace_ready(state: State, grants: Sequence[str] = ()) -> bool:
 
 def _workspace_config_dir() -> Path:
     if custom := os.environ.get("GOOGLE_WORKSPACE_CLI_CONFIG_DIR"):
-        return Path(custom).expanduser()
+        return expand_path(custom)
     return Path.home() / ".config" / "gws"
 
 
@@ -509,9 +518,7 @@ def colab_ready(state: State) -> bool:
 
 
 def login_colab(state: State, *, force: bool = False, dry_run: bool = False) -> None:
-    missing = [scope for scope in _COLAB_ADC_SCOPES if scope not in state.config.auth.gcp.adc_scopes]
-    if missing:
-        raise DotError(f"auth.gcp.adc_scopes must include the Colab scopes: {', '.join(missing)}")
+    _require_colab_scopes(state)
     args = adc_login_command(state)
     if dry_run:
         execute(state, args, dry_run=True)
@@ -625,6 +632,7 @@ def provider_ready(state: State, provider: LoginProvider, *, reconcile: bool = F
         return gcloud_ready(state, GCLOUD_CLI_TOKEN) and adc_ready(state)
     if provider == "workspace":
         return workspace_ready(state)
+    _require_colab_scopes(state)
     return adc_ready(state, "colab") and colab_ready(state)
 
 

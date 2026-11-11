@@ -40,6 +40,8 @@ ASTRO_TELEMETRY_DISABLED = "1"
 CF_SEND_TELEMETRY = "0"
 # Also covers ad-hoc chrome-devtools-mcp runs that omit --no-usage-statistics.
 CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
+# "1" auto-approves tools only; "true" would also trust every directory and bypass `dot trust`.
+COPILOT_ALLOW_ALL = "1"
 # Copilot's autoUpdate setting only stops downloads; this also makes launches ignore newer
 # cached builds, so the mise-locked version is the one that runs.
 COPILOT_AUTO_UPDATE = "false"
@@ -48,13 +50,17 @@ COPILOT_TELEMETRY_DISABLED = "true"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Skip hf's PyPI/extension update checks, /api/agent-harnesses fetch, and hf-cli skill hint.
 HF_HUB_DISABLE_UPDATE_CHECK = "1"
+# ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively.
+OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
 # mise locks Pi: skip its pi.dev latest-version request and its install/update ping
 # (PI_TELEMETRY also drops Pi's attribution headers on provider requests).
 PI_SKIP_VERSION_CHECK = "1"
 PI_TELEMETRY = "0"
+RIPGREP_CONFIG_PATH = "{{env.HOME}}/.config/ripgrep/config"
 # Keep sonarqube-cli off the macOS Keychain (whose partition ACL blocks background probes and prompts repeatedly).
 # Its file store writes with default permissions, so chezmoi seeds a private tokens.json it then keeps.
 SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
+TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
 

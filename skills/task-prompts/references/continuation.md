@@ -30,7 +30,7 @@ Prefer native host resume or compaction; write a handoff only when conversation 
 1. **Copy** via [clipboard](../../clipboard/SKILL.md) without shell-quoting content; if requested or over ~8,000 chars, copy `Continue from <absolute path>: read it fully, verify the recorded state, then do the next step.` instead:
 
    ```bash
-   python -I ~/.agents/skills/clipboard/scripts/copy.py < "$handoff"
+   python3 -I ~/.agents/skills/clipboard/scripts/copy.py < "$handoff"
    ```
 
 1. **Confirm** saved path, copied form (full vs pointer), and any background work that may need restarting after `/clear`.

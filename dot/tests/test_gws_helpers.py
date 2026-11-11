@@ -240,3 +240,17 @@ def test_docs_undecodable_input_keeps_its_bytes_off_stderr(tmp_path: Path) -> No
     assert result.stderr == (
         "docs_text: Invalid or unreadable Docs input (UnicodeDecodeError); fetch full tab content.\n"
     )
+
+
+def test_pages_undecodable_input_keeps_its_bytes_off_stderr(tmp_path: Path) -> None:
+    source = tmp_path / "pages.json"
+    source.write_bytes(b'{"files":[{"name":"PRIVATE \xe9"}]}')
+    result = subprocess.run(
+        [sys.executable, str(SCRIPTS / "pages.py"), str(source), "--items", "files"],
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 1
+    assert result.stderr == "pages: Input is not valid UTF-8; retain only UTF-8 gws stdout.\n"

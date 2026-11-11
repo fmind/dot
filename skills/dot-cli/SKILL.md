@@ -41,4 +41,4 @@ Use [git-delivery](../git-delivery/SKILL.md#commit-messages) for commits, [pull-
 ## Documentation
 
 - [fmind/dot](https://github.com/fmind/dot) · [releases](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
-- Companion skills: [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).
+- Companions: [mise](../mise/SKILL.md), [gws](../gws/SKILL.md), [gcloud](../gcloud/SKILL.md).

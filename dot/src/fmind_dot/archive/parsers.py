@@ -214,6 +214,7 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         measurement_kind="estimated",
     )
     input_bytes = output_bytes = prompts = 0
+    created_timestamps: list[str] = []
     samples: list[UsageRecord] = []
     usage_error: Exception | None = None
     timed = True
@@ -226,6 +227,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             continue
         decoded += 1
         timestamp = raw.get("created_at")
+        if isinstance(timestamp, str):
+            created_timestamps.append(timestamp)
         if usage_error is None and ("input_tokens" in raw or "output_tokens" in raw):
             # Model responses and compaction checkpoints report each request's counters.
             sample = UsageRecord(
@@ -273,9 +276,7 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         # Older transcripts carry no counters: estimate about four bytes per token.
         usage.input_tokens = (input_bytes + 3) // 4
         usage.output_tokens = (output_bytes + 3) // 4
-        usage.timestamp = _latest_timestamp(
-            raw["created_at"] for raw in records if raw is not None and isinstance(raw.get("created_at"), str)
-        )
+        usage.timestamp = _latest_timestamp(created_timestamps)
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
     if usage.cwd:
@@ -603,6 +604,16 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def _sqlite_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
 def _copilot_turns(
     connection: sqlite3.Connection, session_id: str, fallback_cwd: str
 ) -> tuple[list[dict[str, Any]], list[SessionLog]]:
@@ -615,18 +626,19 @@ def _copilot_turns(
            WHERE t.session_id = ? ORDER BY t.turn_index, t.id""",
         (session_id,),
     ):
+        user_message, assistant_response = row["user_message"], row["assistant_response"]
         turn = {
-            "session_id": row["session_id"],
-            "user_message": row["user_message"] or "",
-            "assistant_response": row["assistant_response"] or "",
-            "timestamp": row["timestamp"] or "",
-            "cwd": row["cwd"] or "",
-            "turn_index": row["turn_index"],
+            "session_id": _sqlite_text(row["session_id"]),
+            "user_message": _sqlite_text(user_message),
+            "assistant_response": _sqlite_text(assistant_response),
+            "timestamp": _sqlite_text(row["timestamp"]),
+            "cwd": _sqlite_text(row["cwd"]),
+            "turn_index": row["turn_index"] if isinstance(row["turn_index"], int) else _sqlite_text(row["turn_index"]),
         }
         rows.append(turn)
-        cwd = resolve_cwd(str(turn["cwd"] or fallback_cwd))
-        timestamp = str(turn["timestamp"])
-        for role, text in (("user", turn["user_message"]), ("assistant", turn["assistant_response"])):
+        cwd = resolve_cwd(row["cwd"] if isinstance(row["cwd"], str) and row["cwd"] else fallback_cwd)
+        timestamp = row["timestamp"] if isinstance(row["timestamp"], str) else ""
+        for role, text in (("user", user_message), ("assistant", assistant_response)):
             if isinstance(text, str) and text.strip():
                 logs.append(SessionLog(timestamp, "copilot", session_id, role, text, cwd))
     return rows, logs
@@ -693,9 +705,14 @@ def _extract_copilot_usage(
         timestamp=latest_turn,
     )
     if session is not None:
+        raw_cwd, raw_created = session["cwd"], session["created_at"]
+        if raw_cwd is not None and not isinstance(raw_cwd, str):
+            raise ValueError("session cwd must be a string")
+        if raw_created is not None and not isinstance(raw_created, str):
+            raise ValueError("session created_at must be a string")
         if not record.cwd:
-            record.cwd = resolve_cwd(session["cwd"] or "")
-        record.timestamp = record.timestamp or session["created_at"] or ""
+            record.cwd = resolve_cwd(raw_cwd or "")
+        record.timestamp = record.timestamp or raw_created or ""
     for row in rows:
         if row["model"]:
             record.observe_model(str(row["model"]))

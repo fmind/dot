@@ -17,6 +17,7 @@ Split `<task>:<x>` only when parts run independently:
 | `check:vuln`    | dependency CVEs                         | `uv audit`                                                    |
 | `check:leaks`   | working-tree secrets                    | [betterleaks](../../code-security/references/betterleaks.md)  |
 | `check:scan`    | dependencies, IaC, images, and licenses | [trivy](../../code-security/references/trivy/GUIDE.md)        |
+| `check:typos`   | source and doc spelling                 | `typos`                                                       |
 | `check:actions` | workflow lint and audit                 | [jactionlint](../../github-actions/references/jactionlint.md) |
 
 Reuse these exact names rather than synonyms (`check:audit`, `check:dprint`); add repo-specific names (`check:docs`, `check:skills`, `check:pkg`, `check:site`, `check:validate`) or source-family splits (`check:python`, `check:shell`) only for distinct concerns, and treat single-letter aliases as best-effort.

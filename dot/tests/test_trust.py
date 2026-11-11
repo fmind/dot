@@ -601,3 +601,35 @@ def test_trust_refuses_symlinked_harness_file(tmp_path: Path, monkeypatch: pytes
         run_trust(state, [str(folder)], dry_run=dry_run)
 
     assert outside.read_text(encoding="utf-8") == '{"keep": true}\n'
+
+
+def test_claude_additional_directories_tilde_entry_covers_repositories(tmp_path: Path) -> None:
+    home = tmp_path.resolve()
+    harness_home(home)
+    settings = home / ".claude/settings.json"
+    settings.write_text(json.dumps({"permissions": {"additionalDirectories": ["~/work"]}}))
+    repo = git_repository(home / "work/one", "https://github.com/fmind/one")
+    assert register_claude_directories([repo], home=home) == [home / ".agents"]
+    assert json.loads(settings.read_text())["permissions"]["additionalDirectories"] == [
+        "~/work",
+        str(home / ".agents"),
+    ]
+
+
+@pytest.mark.parametrize("link_registry", [True, False], ids=["symlinked-registry", "symlinked-target"])
+def test_agy_project_registry_rejects_symlinks(tmp_path: Path, link_registry: bool) -> None:
+    from fmind_dot.trust import register_agy_projects
+
+    home = tmp_path.resolve()
+    repo = git_repository(home / "repo", "https://github.com/fmind/repo")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if link_registry:
+        (home / ".gemini/config").mkdir(parents=True)
+        (home / ".gemini/config/projects").symlink_to(outside, target_is_directory=True)
+    else:
+        registry = agy_registry(home)
+        (registry / "local-repo.json").symlink_to(outside / "stolen.json")
+
+    with pytest.raises(DotError, match="refusing symlinked"):
+        register_agy_projects([repo], ["~/repo"], home=home)

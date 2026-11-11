@@ -305,3 +305,13 @@ def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: M
 def test_missing_file_fails(svg: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert svg.main([str(tmp_path / "absent.svg")]) == 1
     assert "file not found" in capsys.readouterr().out
+
+
+def test_non_utf8_svg_fails_before_rendering(
+    svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad = tmp_path / "latin1.svg"
+    bad.write_bytes(b'<?xml version="1.0" encoding="iso-8859-1"?>\n<svg>\xe9</svg>\n')
+    monkeypatch.setattr(svg, "render", lambda *_args: pytest.fail("non-UTF-8 SVG must not launch a browser"))
+    assert svg.main([str(bad), "--render", str(tmp_path / "shots")]) == 1
+    assert "not valid UTF-8" in capsys.readouterr().out

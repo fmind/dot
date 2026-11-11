@@ -19,6 +19,7 @@ import yaml
 from markdown_it import MarkdownIt
 
 from dot_tasks import ROOT
+from fmind_dot.config import yaml_error_location
 from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     DUPLICATE_GUIDANCE,
@@ -110,8 +111,9 @@ def _relative(root: Path, path: Path) -> str:
         return str(path)
 
 
-def _discover_skills(root: Path) -> tuple[dict[str, Path], list[str]]:
-    skills: dict[str, Path] = {}
+def _discover_skills(root: Path) -> tuple[list[tuple[str, Path]], list[str]]:
+    skills: list[tuple[str, Path]] = []
+    by_name: dict[str, Path] = {}
     findings: list[str] = []
     for relative in (Path("skills"), Path(".agents/skills")):
         catalog = root / relative
@@ -135,7 +137,14 @@ def _discover_skills(root: Path) -> tuple[dict[str, Path], list[str]]:
             if skill.is_symlink():
                 findings.append(f"{_relative(root, skill)}: symbolic link is not allowed")
                 continue
-            skills[directory.name] = skill
+            if prior := by_name.get(directory.name):
+                findings.append(
+                    f"duplicate skill directory {directory.name!r} in "
+                    f"{_relative(root, prior)} and {_relative(root, skill)}; {DUPLICATE_GUIDANCE}"
+                )
+            else:
+                by_name[directory.name] = skill
+            skills.append((directory.name, skill))
     return skills, findings
 
 
@@ -222,8 +231,11 @@ def _reachable_resources(skill: Path, texts: dict[Path, str], resources: set[Pat
 
 def _guides(directory: Path) -> list[Path]:
     """Guide metadata is authoritative; no parallel metadata.guides inventory."""
+    references = directory / "references"
+    if references.is_symlink() or not references.is_dir():
+        return []
     guides: list[Path] = []
-    for path in sorted((directory / "references").rglob("*.md")):
+    for path in sorted(references.rglob("*.md")):
         if path.is_symlink() or not path.is_file():
             continue
         if "templates" in path.relative_to(directory).parts[:-1]:
@@ -425,8 +437,7 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
         try:
             config = yaml.safe_load(raw_dot_yaml)
         except yaml.YAMLError as error:
-            mark = getattr(error, "problem_mark", None)
-            where = f"line {mark.line + 1}, column {mark.column + 1}" if mark is not None else "invalid YAML"
+            where = yaml_error_location(error) or "invalid YAML"
             # Never format yaml.YAMLError directly: PyYAML embeds raw lines from untracked dot.yaml.
             msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({where})"
             raise ValueError(msg) from error
@@ -601,7 +612,7 @@ def repository_findings(root: Path) -> list[str]:
     root = root.resolve()
     discovered, findings = _discover_skills(root)
 
-    for name, path in sorted(discovered.items()):
+    for name, path in sorted(discovered):
         findings.extend(_skill_findings(root, name, path))
     findings.extend(privacy_findings(root))
     # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
@@ -627,7 +638,7 @@ def repository_findings(root: Path) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("--sync", action="store_true", help="refresh marked guide indexes from guide metadata")
     args = parser.parse_args()
     root = ROOT
@@ -636,7 +647,7 @@ def main() -> int:
         if errors:
             sys.stderr.write("\n".join(errors) + "\n")
             return 1
-        for path in discovered.values():
+        for _, path in discovered:
             text = path.read_text(encoding="utf-8")
             if GUIDE_START in text and GUIDE_END in text:
                 before, rest = text.split(GUIDE_START, 1)

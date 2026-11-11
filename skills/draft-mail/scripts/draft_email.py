@@ -480,7 +480,7 @@ def compose_draft_payload(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("input", help="Path to UTF-8 HTML body fragment file, or - for stdin")
     parser.add_argument("--to", action="append", default=[], help="To recipient(s), comma-separated")
     parser.add_argument("--cc", action="append", default=[], help="CC recipient(s), comma-separated")
@@ -609,6 +609,9 @@ def main(argv: list[str] | None = None) -> int:
         }
         sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
         return 0
+    except UnicodeDecodeError:
+        sys.stderr.write("draft_email: Input body is not valid UTF-8.\n")
+        return 1
     except (OSError, ValueError, RuntimeError) as error:
         sys.stderr.write(f"draft_email: {error}\n")
         return 1

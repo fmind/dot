@@ -7,8 +7,8 @@ Record executable terminal demos with VHS ([fmind-visuals](../SKILL.md) owns bra
 1. **Pretest on synthetic fixtures**: run the demonstrated command in a disposable directory and verify its exit code—VHS typing a command does not check success.
 1. **Preflight dependencies and fonts**: verify `vhs --version`, `ttyd --version`, `ffmpeg -version` (only `ffmpeg` is global), the target binary, and font (`vhs validate` checks syntax only). Pin `mise use --pin vhs` plus `ttyd = { version = "<exact>", os = ["linux"] }`; on macOS, qualify a local `ttyd` build or reviewed container first since upstream publishes no macOS release asset.
 1. **Adapt [demo.tape](../templates/demo.tape)**: set dimensions, font, typing speed, and bounded waits (`Wait` on observable output under an outer process timeout).
-1. **Copy `theme.tape`**: `cp ~/.agents/themes/vhs/fmind.tape theme.tape` ([fmind/theme](https://github.com/fmind/theme)), or write a single `Set Theme {...}` line with customer ANSI colors (`renderers.md` ([link](renderers.md)) covers diagrams).
-1. **Supervise in a clean HOME**: locate the reviewed font (`fc-match -f '%{file}' 'GoogleSansCode Nerd Font Mono'` on Linux; verify family before accepting fallbacks), save `record.py`, and run `mise exec -- python record.py <font-file>` so resolved tool paths run without personal shell config or credentials:
+1. **Copy `theme.tape`**: `cp ~/.agents/themes/vhs/fmind.tape theme.tape` ([fmind/theme](https://github.com/fmind/theme)), or write a single `Set Theme {...}` line with customer ANSI colors ([renderers.md](renderers.md) covers diagrams).
+1. **Supervise in a clean HOME**: locate the reviewed font (`fc-match -f '%{file}' 'GoogleSansCode Nerd Font Mono'` on Linux; verify family before accepting fallbacks), save `record.py`, and run `mise exec -- python3 record.py <font-file>` so resolved tool paths run without personal shell config or credentials:
    ```python
    import os
    import shutil

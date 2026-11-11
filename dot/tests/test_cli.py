@@ -69,8 +69,11 @@ def test_fish_script_completes_through_the_installed_callback(tmp_path: Path) ->
     if fish is None:
         pytest.skip("fish is not installed")
     # A stand-in `dot` on PATH runs this checkout, so the script is exercised exactly as Fish loads it.
+    calls = tmp_path / "calls.log"
     (tmp_path / "bin").mkdir()
-    (tmp_path / "bin/dot").write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} -m fmind_dot "$@"\n')
+    (tmp_path / "bin/dot").write_text(
+        f'#!/bin/sh\necho x >> {shlex.quote(str(calls))}\nexec {shlex.quote(sys.executable)} -m fmind_dot "$@"\n'
+    )
     (tmp_path / "bin/dot").chmod(0o755)
     (tmp_path / "dot.fish").write_text(FISH_COMPLETION)
 
@@ -97,6 +100,7 @@ def test_fish_script_completes_through_the_installed_callback(tmp_path: Path) ->
     assert "--json\tEmit structured JSON" in outputs[3]
     # Without candidates Fish falls back to file names.
     assert outputs[4] == ["custom.yaml"]
+    assert len(calls.read_text().splitlines()) == len(probes)
 
 
 def test_subcommand_help_displays_canonical_commands() -> None:
@@ -638,3 +642,26 @@ def test_main_reports_a_declined_confirmation_as_a_failure(
         cli.main()
     assert exit_info.value.code == 1
     assert capsys.readouterr().err == "Cancelled.\n"
+
+
+def test_main_exits_silently_on_broken_pipe(tmp_path: Path) -> None:
+    read_fd, write_fd = os.pipe()
+    os.close(read_fd)
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import fmind_dot.cli as cli, sys; cli.app = lambda: sys.stdout.write('x' * 65536); cli.main()",
+            ],
+            cwd=tmp_path,
+            stdout=write_fd,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    finally:
+        os.close(write_fd)
+    assert result.returncode == 141
+    assert result.stderr == ""

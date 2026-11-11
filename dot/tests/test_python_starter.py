@@ -101,12 +101,12 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "add",
             "litestar>=2.25.0",
             "granian[reload,uvloop]>=2.8.7",
-            "sqlalchemy[postgresql-asyncpg]>=2.1.6",
-            "pydantic>=2.14.2",
+            "sqlalchemy[postgresql-asyncpg]>=2.1.8",
+            "pydantic>=2.14.3",
             "pydantic-settings>=2.16.2",
             "structlog>=26.1.0",
         )
-        _run(project, "uv", "add", "--dev", "anyio>=4.15.1", "testcontainers>=4.15.0")
+        _run(project, "uv", "add", "--dev", "anyio>=4.16.0", "testcontainers>=4.15.0")
         _write(
             project,
             "src/starter_py/__init__.py",

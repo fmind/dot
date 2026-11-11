@@ -21,13 +21,13 @@ dev = [
   "pytest-watcher>=0.6.3",
   "pytest>=9.2.0",
   "ruff>=0.17.4",
-  "ty>=0.0.99,<0.1", # pre-1.0: pin a compatible range until it stabilizes
+  "ty>=0.0.100,<0.1", # pre-1.0: pin a compatible range until it stabilizes
   "validate-pyproject>=0.27",
-  "zensical>=0.1.0,<0.2", # pre-1.0: pin a compatible range until it stabilizes
+  "zensical>=0.1.1,<0.2", # pre-1.0: pin a compatible range until it stabilizes
 ]
 
 [build-system]
-requires = ["uv_build>=0.13.0,<0.14"]
+requires = ["uv_build>=0.13.7,<0.14"]
 build-backend = "uv_build"
 
 [tool.ruff]

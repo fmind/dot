@@ -361,7 +361,7 @@ def repository_name(value: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("repository", metavar="OWNER/REPO", type=repository_name)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
@@ -406,4 +406,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

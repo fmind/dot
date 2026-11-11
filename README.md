@@ -49,7 +49,7 @@ The installer requires mise 2026.11.6 or newer and installs it if absent. [Ghost
 ## Installation
 
 > [!WARNING]
-> Personal dotfiles: [adapt them](#adapting-this) and back up existing files first. Setup overwrites managed targets without backups. Agents run with autonomous permissions, and apply auto-trusts configured workspaces and owner-allowlisted repos; review [trust behavior](skills/dot-cli/references/daily-workflows.md#folder-trust) before use.
+> Personal dotfiles: [adapt them](#adapting-this) and back up existing files first. Setup overwrites managed targets without backups. Agents run with autonomous permissions, and apply auto-trusts configured workspaces (Copilot inherits trust across subdirectories; keep untrusted clones outside `pull.directories`) and owner-allowlisted repos; review [trust behavior](skills/dot-cli/references/daily-workflows.md#folder-trust) before use.
 
 Inspect [`install.sh`](install.sh), then run:
 
@@ -184,7 +184,7 @@ Commit [`allowed_signers`](dot_config/git/allowed_signers) for local verificatio
 
 Secrets are never exported at shell startup:
 
-- **Native credential seeds:** Hugging Face and Kaggle tokens deploy only when absent so `hf auth login` and `kaggle auth login` persist across apply; isolate customer accounts via [customer overrides](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
+- **Native credential seeds:** Hugging Face, Kaggle, and OpenCode (`~/.local/share/opencode/auth.json`) credentials deploy only when absent so `hf auth login`, `kaggle auth login`, and `opencode auth login` persist across apply (saved `auth.json` entries override env vars); isolate customer accounts via [customer overrides](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
 - **Scoped secrets:** inject a personal key into one command via `dot secret run` ([scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI uses Trusted Publishing:
 
   ```bash
@@ -201,7 +201,7 @@ Fork and replace personal defaults:
 1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), clone URL in [`install.sh`](install.sh), and [`allowed_signers`](dot_config/git/allowed_signers) before [commit signing](#commit-signing). Put local Git overrides in unmanaged `~/.config/git/config.local`.
 1. **Secrets:** replace the age recipient in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and remove or re-encrypt `*.age` files before applying ([Secret Management](#secret-management)).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md).
-1. **Workspaces & trust:** update `pull.directories` (also seeds Claude's `additionalDirectories`), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
+1. **Workspaces & trust:** update `pull.directories` (also trusted in harnesses — Copilot inherits trust to subdirectories while Pi trusts `.git` roots only — and added to Claude's `additionalDirectories`), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
 1. **Theme & design:** update [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl), pinned to an [fmind/theme](https://github.com/fmind/theme) commit (`mise run upgrade` advances it; personal work only) for app themes, `~/.agents/DESIGN.md`, and `~/.agents/themes/` renderer files.
 
 ## Uninstall / rollback

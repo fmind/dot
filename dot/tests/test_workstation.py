@@ -1447,6 +1447,26 @@ def test_login_check_reports_unknown_state_and_rejects_conflicting_flags(provide
     assert not provider.actions
 
 
+def test_colab_login_check_reports_missing_adc_scopes_without_probing_providers(
+    provider: RecordingRunner, tmp_path: Path
+) -> None:
+    config = tmp_path / "dot.yaml"
+    config.write_text("auth:\n  gcp:\n    adc_scopes: [openid]\n", encoding="utf-8")
+    result = cli(["--config", str(config), "login", "colab", "--check"], exit_code=1)
+    assert result.stdout.startswith("colab: unknown (auth.gcp.adc_scopes must include the Colab scopes:")
+    assert provider.calls == []
+
+
+def test_workspace_login_accepts_unknown_tilde_user_in_config_dir_env(
+    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", "~no-such-user-dot-test/gws")
+    provider.responses = [response({"auth_method": "none"}), workspace_status()]
+    cli(["login", "workspace"])
+    assert len(provider.actions) == 1
+
+
 def test_concurrent_probes_coalesce_and_clear_probes_drops_in_flight_writes() -> None:
     started: dict[int, threading.Event] = {1: threading.Event(), 2: threading.Event()}
     gates: dict[int, threading.Event] = {1: threading.Event(), 2: threading.Event()}

@@ -44,7 +44,13 @@ def view_box(root: ET.Element) -> tuple[float, float] | None:
 def check(path: Path, width: float) -> list[str]:
     """Return guide violations; an empty list means the static checks pass."""
     try:
-        root = ET.parse(path).getroot()  # noqa: S314 - local first-party file; no entity expansion in ElementTree
+        text = path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError:
+        return ["not valid UTF-8"]
+    except OSError as error:
+        return [f"unreadable file: {error.strerror or error}"]
+    try:
+        root = ET.fromstring(text)  # noqa: S314 - local first-party file; no entity expansion in ElementTree
     except ET.ParseError as error:
         return [f"not well-formed XML: {error}"]
     if local(root.tag) != "svg":
@@ -189,7 +195,7 @@ def render(path: Path, out: Path) -> list[Path]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("svg", nargs="+", type=Path, help="SVG files to check")
     parser.add_argument("--width", type=float, default=960, help="expected viewBox width; 0 skips the check")
     parser.add_argument("--render", type=Path, metavar="DIR", help="also write brand and fallback-font PNGs to DIR")

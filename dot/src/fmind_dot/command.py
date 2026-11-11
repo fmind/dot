@@ -17,10 +17,11 @@ COMPLETE_VARIABLE = "_DOT_COMPLETE"
 # One callback per Tab keeps the script independent of the command tree, so an upgraded dot needs no new script.
 # Without candidates the condition fails and Fish falls back to file names (--config, --project, repositories).
 FISH_COMPLETION = f"""\
-function __dot_candidates
-    {COMPLETE_VARIABLE}="$(commandline --cut-at-cursor --current-token)" dot (commandline --cut-at-cursor --current-process --tokens-expanded)[2..]
+function __dot_prepare_candidates
+    set -g __dot_last_candidates ({COMPLETE_VARIABLE}="$(commandline --cut-at-cursor --current-token)" dot (commandline --cut-at-cursor --current-process --tokens-expanded)[2..])
+    set -q __dot_last_candidates[1]
 end
-complete --command dot --no-files --condition 'test -n "$(__dot_candidates)"' --arguments '(__dot_candidates)'
+complete --command dot --no-files --condition __dot_prepare_candidates --arguments '(printf "%s\\n" $__dot_last_candidates)'
 """
 
 

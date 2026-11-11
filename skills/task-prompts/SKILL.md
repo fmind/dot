@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Task and Continuation Prompts
@@ -37,4 +37,4 @@ Write self-contained prompts for an agent without this conversation. [agent-fram
 
 ## Documentation
 
-- Companion skills: [clipboard](../clipboard/SKILL.md), [git-worktree](../git-delivery/references/git-worktree/GUIDE.md).
+- Companions: [clipboard](../clipboard/SKILL.md), [git-worktree](../git-delivery/references/git-worktree/GUIDE.md).

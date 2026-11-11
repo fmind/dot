@@ -52,7 +52,7 @@ def collect(text: str, field: str, allow_incomplete: bool = False) -> dict[str, 
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("input", help="Saved JSON/NDJSON file, or - for stdin")
     parser.add_argument("--items", required=True, help="Top-level array key, e.g. files, messages, spaces, items")
     parser.add_argument("--allow-incomplete", action="store_true", help="Emit partial data with complete=false")
@@ -60,7 +60,10 @@ def main() -> int:
     try:
         text = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
         result = collect(text, args.items, args.allow_incomplete)
-    except (OSError, ValueError, TypeError) as error:
+    except UnicodeDecodeError:
+        sys.stderr.write("pages: Input is not valid UTF-8; retain only UTF-8 gws stdout.\n")
+        return 1
+    except (OSError, ValueError, TypeError, RecursionError) as error:
         sys.stderr.write(f"pages: {error}\n")
         return 1
     sys.stdout.write(json.dumps(result, ensure_ascii=False) + "\n")
@@ -68,4 +71,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

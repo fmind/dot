@@ -50,7 +50,7 @@ def build_body(text: str, syntax: str, thread: str | None = None) -> dict[str, A
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("input", help="UTF-8 text file, or - for stdin")
     parser.add_argument("--syntax", choices=("chat", "markdown"), default="chat")
     parser.add_argument("--thread", help="Existing thread resource; also set messageReplyOption in --params")
@@ -58,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         text = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
         body = build_body(text, args.syntax, args.thread)
+    except UnicodeDecodeError:
+        sys.stderr.write("chat_body: Input is not valid UTF-8.\n")
+        return 1
     except (OSError, ValueError) as error:
         sys.stderr.write(f"chat_body: {error}\n")
         return 1
@@ -66,4 +69,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

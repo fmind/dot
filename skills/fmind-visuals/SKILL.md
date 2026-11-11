@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind-visuals
   created: "2026-07-16"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Fmind Visual Communication
@@ -38,4 +38,4 @@ Apply customer branding when the work belongs to one; otherwise use `~/.agents/D
 
 - [Fmind website](https://www.fmind.dev/) · [Mermaid](https://mermaid.js.org/) · [D2](https://d2lang.com/)
 - [VHS documentation](https://github.com/charmbracelet/vhs) · Releases: [VHS](https://github.com/charmbracelet/vhs/releases)
-- Companion skills: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2).
+- Companions: [diagrams-as-code](../diagrams-as-code/SKILL.md) (Mermaid, SVG, and D2).

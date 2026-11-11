@@ -96,7 +96,7 @@ def extract(document: Any) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("input", help="Saved documents.get JSON file, or - for stdin")
     args = parser.parse_args()
     try:
@@ -110,7 +110,7 @@ def main() -> int:
         sys.stderr.write(f"docs_text: {error}\n")
         return 1
     # Other errors can quote the input (a UnicodeDecodeError names its bytes), so print only their type.
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
         sys.stderr.write(
             f"docs_text: Invalid or unreadable Docs input ({type(error).__name__}); fetch full tab content.\n"
         )
@@ -120,4 +120,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

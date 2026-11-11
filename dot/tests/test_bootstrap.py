@@ -163,7 +163,11 @@ def test_every_copy_of_the_mise_version_agrees() -> None:
                     # An unpinned action would install the latest mise, not the tested one.
                     relative = path.relative_to(ROOT)
                     copies[f"{relative}:{name}:{index}"] = str(step.get("with", {}).get("version"))
-    for template in ("skills/python-stack/references/foundation/templates", "skills/infra-as-code/templates"):
+    for template in (
+        "skills/python-stack/references/foundation/templates",
+        "skills/infra-as-code/templates",
+        "skills/documentation-site/templates",
+    ):
         config = tomllib.loads((ROOT / template / "mise.toml").read_text(encoding="utf-8"))
         copies[f"{template}/mise.toml"] = str(config.get("min_version"))
     readme = re.search(r"requires mise ([0-9.]+[0-9])", (ROOT / "README.md").read_text(encoding="utf-8"))

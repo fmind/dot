@@ -31,4 +31,4 @@ gtk-single-instance = true
 linux-cgroup = never
 {{- end }}
 
-command = {{ .chezmoi.homeDir }}/.local/share/mise/shims/fish
+command = {{ joinPath .chezmoi.homeDir ".local/share/mise/shims/fish" | quote }}

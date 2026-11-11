@@ -13,9 +13,12 @@ TEXT
 uv run --no-project python ~/.agents/skills/gws/scripts/chat_body.py \
   "$request_dir/message.txt" > "$request_dir/body.json"
 jq -n --arg parent "$SPACE" '{parent: $parent}' > "$request_dir/params.json"
-gws chat spaces messages create \
-  --params "$(cat "$request_dir/params.json")" \
-  --json "$(cat "$request_dir/body.json")" --dry-run
+(
+  cd "$request_dir"
+  gws chat spaces messages create \
+    --params "$(cat params.json)" \
+    --json "$(cat body.json)" --dry-run
+)
 ```
 
 Verify dry-run method, URL, query, and body privately before dropping `--dry-run` under user authority. Keep scratch files out of Git (`umask 077`), avoid verbose HTTP logs, check exit status before parsing response JSON, preserve field masks and revision guards, and verify by reading back the returned resource ID.

@@ -5,11 +5,30 @@
 import { spawn } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-if (!process.env.GOOGLE_CLOUD_LOCATION && (process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT)) {
+const defaultedLocation =
+	!process.env.GOOGLE_CLOUD_LOCATION && Boolean(process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT);
+if (defaultedLocation) {
 	process.env.GOOGLE_CLOUD_LOCATION = "global";
 }
 
 export default function (pi: ExtensionAPI) {
+	pi.on("session_start", async (_event, ctx) => {
+		// ModelRuntime evaluates provider auth before loading extensions; refresh it after defaulting GOOGLE_CLOUD_LOCATION.
+		if (!defaultedLocation) return;
+		if (!ctx.modelRegistry.getAvailable().some((model) => model.provider === "google-vertex")) {
+			await ctx.modelRegistry.refresh();
+		}
+		if (!ctx.model || ctx.model.provider === "unknown") {
+			const { defaultProvider, defaultModel } = pi.getSettings();
+			if (defaultProvider === "google-vertex" && defaultModel) {
+				const model = ctx.modelRegistry.find("google-vertex", defaultModel);
+				if (model && ctx.modelRegistry.hasConfiguredAuth(model)) {
+					await pi.setModel(model);
+				}
+			}
+		}
+	});
+
 	pi.on("agent_settled", (event, ctx) => {
 		// Print, JSON, and RPC runs have nobody waiting; after Escape the user is already there.
 		if (ctx.mode !== "tui" || event.aborted) return;

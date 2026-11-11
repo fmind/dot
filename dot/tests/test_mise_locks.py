@@ -236,6 +236,7 @@ def test_retire_installs_removes_superseded_graphs_and_repoints_dangling_symlink
     (uv_tool / "latest").symlink_to("./1.0~uv~oldgraph")
     (uv_tool / "1").symlink_to("./1.0~uv~oldpython")
     (uv_tool / "0.9").symlink_to("./0.9.0")
+    (uv_tool / "0.8").symlink_to("./0.8.1")
 
     aube_tool = installs / "npm-cli"
     keep_aube = aube_tool / "2.0~aube~currenthash"
@@ -258,6 +259,7 @@ def test_retire_installs_removes_superseded_graphs_and_repoints_dangling_symlink
     assert (uv_tool / "latest").readlink() == Path("./1.0~uv~globalhash")
     assert (uv_tool / "1").readlink() == Path("./1.0~uv~globalhash")
     assert (uv_tool / "0.9").readlink() == Path("./0.9.0")
+    assert (uv_tool / "0.8").readlink() == Path("./0.8.1")
     assert retire_installs(lock, installs) == []
 
 

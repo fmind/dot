@@ -44,4 +44,4 @@ Upstream `cli/cli` ships agent skills including a same-name `gh`: preview only a
 ## Documentation
 
 - [GitHub CLI manual](https://cli.github.com/manual/) · [gh api](https://cli.github.com/manual/gh_api) · [releases](https://github.com/cli/cli/releases)
-- Companion skills: [github-actions](../github-actions/SKILL.md), [git-delivery](../git-delivery/SKILL.md).
+- Companions: [github-actions](../github-actions/SKILL.md), [git-delivery](../git-delivery/SKILL.md).

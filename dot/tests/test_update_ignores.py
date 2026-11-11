@@ -123,6 +123,8 @@ def test_cli_emits_json_and_fails_outside_a_repository(
 ) -> None:
     assert audit.main(["--root", str(repository), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["files"][0]["file"] == ".gitignore"
+    assert audit.main(["--root", str(repository / "src/app.py"), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["root"] == str(repository)
 
     outside = tmp_path / "outside"
     outside.mkdir()

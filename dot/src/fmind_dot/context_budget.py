@@ -155,18 +155,25 @@ def _duplicates(entries: list[ContextEntry]) -> list[dict[str, Any]]:
     return [{"name": name, "paths": found} for name, found in sorted(paths.items()) if len(found) > 1]
 
 
+def _resolve_root(path: Path) -> Path:
+    try:
+        return path.expanduser().resolve()
+    except (OSError, RuntimeError) as error:
+        raise DotError(f"invalid path {path}: {error}") from error
+
+
 def context_report(project: Path, *, global_root: Path | None = None, source: Path | None = None) -> dict[str, Any]:
     """Measure explicit shared roots, not a guessed host prompt or recursive workspace; source wins over global_root."""
-    project = project.expanduser().resolve()
+    project = _resolve_root(project)
     if not project.is_dir():
         raise DotError(f"project directory does not exist: {project}")
     if source is not None:
-        source = source.expanduser().resolve()
+        source = _resolve_root(source)
         if not (source / "skills").is_dir() or not (source / "dot_agents/AGENTS.md").is_file():
             raise DotError(f"invalid dot source: {source}; expected skills/ and dot_agents/AGENTS.md")
         global_agents, global_skills = source / "dot_agents/AGENTS.md", source / "skills"
     else:
-        root = (global_root or Path.home() / ".agents").expanduser().resolve()
+        root = _resolve_root(global_root or Path.home() / ".agents")
         global_agents, global_skills = root / "AGENTS.md", root / "skills"
     roots = {
         "global": {"agents": str(global_agents), "skills": str(global_skills)},

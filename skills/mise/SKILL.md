@@ -55,4 +55,4 @@ Start Python projects from [python-stack](../python-stack/references/foundation/
 ## Documentation
 
 - [upgrade-tools](../upgrade-tools/SKILL.md) · [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html) · [releases](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
-- Companion skills: [lefthook](../github-actions/references/lefthook.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md).
+- Companions: [lefthook](../github-actions/references/lefthook.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md).

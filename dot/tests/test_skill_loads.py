@@ -2,8 +2,10 @@
 
 import json
 import os
+import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "skills/skillify/scripts/skill_loads.py"
@@ -109,3 +111,45 @@ def test_window_excludes_older_sessions_and_bad_arguments_exit_two(tmp_path: Pat
     missing = _run(home, "--skills", str(tmp_path / "missing"))
     assert missing.returncode == 2
     assert "no skills found" in missing.stderr
+
+
+def test_claude_subagent_and_slash_skill_loads_roll_into_parent_session(tmp_path: Path) -> None:
+    home = _home(tmp_path)
+    claude = home / ".claude/projects/-work-project"
+    _jsonl(
+        claude / "session/subagents/agent-2.jsonl",
+        [
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "/bulk-0"}}]},
+            }
+        ],
+    )
+
+    report = json.loads(_run(home, "--json").stdout)
+    by_skill = {row["skill"]: row for row in report["skills"]}
+
+    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
+    assert by_skill["bulk-0"] == {"skill": "bulk-0", "agy": 0, "claude": 1, "pi": 0, "total": 1}
+
+
+def test_agy_subagent_loads_roll_into_root_conversation(tmp_path: Path) -> None:
+    home = _home(tmp_path)
+    app_dir = home / ".gemini/antigravity-cli"
+    _jsonl(
+        app_dir / "brain/child/.system_generated/logs/transcript.jsonl",
+        [{"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "beta")}}]}],
+    )
+    with closing(sqlite3.connect(app_dir / "conversation_summaries.db")) as conn, conn:
+        conn.execute("CREATE TABLE conversation_summaries (conversation_id TEXT, parent_conversation_id TEXT)")
+        conn.executemany(
+            "INSERT INTO conversation_summaries VALUES (?, ?)",
+            [("task", ""), ("child", "task"), ("cycle-a", "cycle-b"), ("cycle-b", "cycle-a")],
+        )
+
+    report = json.loads(_run(home, "--json").stdout)
+    by_skill = {row["skill"]: row for row in report["skills"]}
+
+    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
+    assert by_skill["alpha"] == {"skill": "alpha", "agy": 1, "claude": 1, "pi": 0, "total": 2}
+    assert by_skill["beta"] == {"skill": "beta", "agy": 1, "claude": 1, "pi": 1, "total": 3}

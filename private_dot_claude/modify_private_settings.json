@@ -76,18 +76,25 @@
   }
 }
 `) -}}
-{{- /* The brain's session-context hook joins host SessionStart hooks only where the brain is
-       checked out. The entry is decoded from JSON so its integer matches the deployed one and
-       uniq keeps a single copy; removing the brain later leaves the entry for the host to drop. */ -}}
-{{- $sessionContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/session-context.py" -}}
-{{- if stat $sessionContext -}}
-{{-   $current := dict -}}
-{{-   if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
-{{-   if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
-{{-   $sessionStart := dig "hooks" "SessionStart" (list) $current -}}
-{{-   if not (kindIs "slice" $sessionStart) }}{{ fail "hooks.SessionStart must be an array" }}{{ end -}}
-{{-   $command := printf "%s %s" $sessionContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
-{{-   $entry := fromJson (printf `{"hooks": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command)) -}}
-{{-   $_ := set $managedConfig.hooks "SessionStart" (append $sessionStart $entry | uniq) -}}
+{{- /* Inject the brain's SessionStart hook only when checked out, and drop any stale copy
+       when the brain is absent while preserving host-owned hook events and entries. */ -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
+{{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
+{{- $currentHooks := get $current "hooks" | default dict -}}
+{{- if not (kindIs "map" $currentHooks) }}{{ fail "hooks must be an object" }}{{ end -}}
+{{- range $event, $entries := $currentHooks -}}
+{{-   if and (ne $event "Notification") (ne $event "SessionStart") }}{{ $_ := set $managedConfig.hooks $event $entries }}{{ end -}}
 {{- end -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}
+{{- $sessionStart := get $currentHooks "SessionStart" | default list -}}
+{{- if not (kindIs "slice" $sessionStart) }}{{ fail "hooks.SessionStart must be an array" }}{{ end -}}
+{{- $sessionContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/session-context.py" -}}
+{{- $command := printf "%s %s" $sessionContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
+{{- $entry := fromJson (printf `{"hooks": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command)) -}}
+{{- $keptSessionStart := list -}}
+{{- range $item := $sessionStart -}}
+{{-   if not (deepEqual $item $entry) }}{{ $keptSessionStart = append $keptSessionStart $item }}{{ end -}}
+{{- end -}}
+{{- if stat $sessionContext }}{{ $keptSessionStart = append $keptSessionStart $entry }}{{ end -}}
+{{- if $keptSessionStart }}{{ $_ := set $managedConfig.hooks "SessionStart" $keptSessionStart }}{{ end -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "replace" (list "hooks")) -}}

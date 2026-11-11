@@ -7,22 +7,26 @@ counts leave the transcripts: no prompt, path, or message text is printed.
 
 import argparse
 import json
+import os
 import re
+import sqlite3
 import sys
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import closing
 from pathlib import Path
+from urllib.parse import quote
 
 _SKILL_PATH = re.compile(r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/SKILL\.md")
 _AGY_READS = {"read_file", "view_file"}
 
 
-def _records(path: Path, marker: str) -> Iterator[dict[str, object]]:
-    """Yield the JSON object lines that contain `marker`; transcripts can hold megabytes of other records."""
+def _records(path: Path, *markers: str) -> Iterator[dict[str, object]]:
+    """Yield the JSON object lines that contain all `markers`; transcripts can hold megabytes of other records."""
     with path.open(encoding="utf-8", errors="replace") as stream:
         for line in stream:
-            if marker not in line:
+            if not all(marker in line for marker in markers):
                 continue
             try:
                 record = json.loads(line)
@@ -44,7 +48,7 @@ def agy_loads(path: Path) -> set[str]:
     """Skills read through agy's file tools in one conversation transcript."""
     return {
         name
-        for record in _records(path, "tool_calls")
+        for record in _records(path, "tool_calls", "SKILL.md")
         for call in _dicts(record.get("tool_calls"))
         if call.get("name") in _AGY_READS
         for name in _paths(call.get("args"))
@@ -60,16 +64,32 @@ def claude_loads(path: Path) -> set[str]:
             if part.get("type") != "tool_use" or not isinstance(tool_input := part.get("input"), dict):
                 continue
             if part.get("name") == "Skill" and isinstance(skill := tool_input.get("skill"), str):
-                loads.add(skill)
+                loads.add(skill.lstrip("/"))
             elif part.get("name") == "Read":
                 loads |= _paths(tool_input.get("file_path"))
+    return loads
+
+
+def claude_session_loads(path: Path) -> set[str]:
+    """Skills loaded by a top-level Claude session and its `<session>/subagents/*.jsonl` children."""
+    loads = claude_loads(path)
+    subagents = path.with_suffix("") / "subagents"
+    try:
+        children = list(subagents.glob("*.jsonl")) if subagents.is_dir() else []
+    except OSError:
+        children = []
+    for child in children:
+        try:
+            loads |= claude_loads(child)
+        except OSError:
+            continue
     return loads
 
 
 def pi_loads(path: Path) -> set[str]:
     """Skills read through Pi's read tool in one session file."""
     loads: set[str] = set()
-    for record in _records(path, '"toolCall"'):
+    for record in _records(path, '"toolCall"', "SKILL.md"):
         message = record.get("message")
         for part in _dicts(message.get("content") if isinstance(message, dict) else None):
             if part.get("type") == "toolCall" and part.get("name") == "read":
@@ -78,18 +98,88 @@ def pi_loads(path: Path) -> set[str]:
 
 
 def agy_transcripts(root: Path) -> Iterator[Path]:
-    for directory in root.iterdir() if root.is_dir() else ():
+    try:
+        directories = list(root.iterdir()) if root.is_dir() else []
+    except OSError:
+        return
+    for directory in directories:
         logs = directory / ".system_generated" / "logs"
-        found = next(
-            (logs / name for name in ("transcript_full.jsonl", "transcript.jsonl") if (logs / name).is_file()), None
-        )
+        try:
+            found = next(
+                (logs / name for name in ("transcript_full.jsonl", "transcript.jsonl") if (logs / name).is_file()),
+                None,
+            )
+        except OSError:
+            continue
         if found is not None:
             yield found
 
 
+def _agy_parents(db_path: Path) -> dict[str, str]:
+    if not db_path.is_file():
+        return {}
+    try:
+        with closing(sqlite3.connect(f"file:{quote(str(db_path))}?mode=ro", uri=True)) as conn:
+            rows = conn.execute(
+                "SELECT conversation_id, parent_conversation_id FROM conversation_summaries "
+                "WHERE parent_conversation_id IS NOT NULL AND parent_conversation_id != ''"
+            ).fetchall()
+    except sqlite3.Error, OSError:
+        return {}
+    return {
+        cid: pid for cid, pid in rows if isinstance(cid, str) and isinstance(pid, str) and cid and pid and cid != pid
+    }
+
+
+def agy_sessions(app_dir: Path, *, since: float) -> Iterator[set[str]]:
+    """Skill sets per root agy conversation, rolling subagent transcripts into their root task."""
+    parents = _agy_parents(app_dir / "conversation_summaries.db")
+    groups: dict[str, list[tuple[float, Path]]] = {}
+    for path in agy_transcripts(app_dir / "brain"):
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        cid = path.parents[2].name
+        seen = {cid}
+        while (parent := parents.get(cid)) and parent not in seen:
+            seen.add(parent)
+            cid = parent
+        groups.setdefault(cid, []).append((mtime, path))
+    for entries in groups.values():
+        if max(mtime for mtime, _ in entries) < since:
+            continue
+        found: set[str] = set()
+        readable = False
+        for _, path in entries:
+            try:
+                found |= agy_loads(path)
+                readable = True
+            except OSError:
+                continue
+        if readable:
+            yield found
+
+
+def file_sessions(paths: Iterator[Path], parse: Callable[[Path], set[str]], *, since: float) -> Iterator[set[str]]:
+    for path in paths:
+        try:
+            if path.stat().st_mtime < since:
+                continue
+            yield parse(path)
+        except OSError:
+            continue
+
+
 def session_files(root: Path) -> Iterator[Path]:
     # Claude subagent transcripts belong to their parent session's task; count top-level sessions.
-    return (path for path in root.rglob("*.jsonl") if "subagents" not in path.parts) if root.is_dir() else iter(())
+    if not root.is_dir():
+        return
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [name for name in dirnames if name != "subagents"]
+        for name in filenames:
+            if name.endswith(".jsonl"):
+                yield Path(dirpath) / name
 
 
 AGENTS = ("agy", "claude", "pi")
@@ -103,20 +193,15 @@ def count(
     A session that loads `audit` skills or more is a catalog review, not a task.
     """
     sources = {
-        "agy": (agy_transcripts(home / ".gemini/antigravity-cli/brain"), agy_loads),
-        "claude": (session_files(home / ".claude/projects"), claude_loads),
-        "pi": (session_files(home / ".pi/agent/sessions"), pi_loads),
+        "agy": agy_sessions(home / ".gemini/antigravity-cli", since=since),
+        "claude": file_sessions(session_files(home / ".claude/projects"), claude_session_loads, since=since),
+        "pi": file_sessions(session_files(home / ".pi/agent/sessions"), pi_loads, since=since),
     }
     loads = {agent: Counter[str]() for agent in AGENTS}
     sessions, audits = dict.fromkeys(AGENTS, 0), dict.fromkeys(AGENTS, 0)
-    for agent, (paths, parse) in sources.items():
-        for path in paths:
-            try:
-                if path.stat().st_mtime < since:
-                    continue
-                found = parse(path) & catalog
-            except OSError:
-                continue
+    for agent, stream in sources.items():
+        for raw in stream:
+            found = raw & catalog
             sessions[agent] += 1
             if len(found) >= audit:
                 audits[agent] += 1

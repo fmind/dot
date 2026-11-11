@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Documentation Sites
@@ -20,7 +20,7 @@ Use Zensical by default for project docs, courses, and blogs; keep an existing g
 1. **Bootstrap with a locked dependency**: check the [latest release](https://github.com/zensical/zensical/releases) and add Zensical as a dev dependency (skip `uv init` in existing Python projects; run `zensical new` in a scratch directory when `docs/` or `zensical.toml` exists, since it never overwrites):
    ```bash
    uv init --bare <slug> && cd <slug>
-   uv add --dev 'zensical>=0.1.0,<0.2'
+   uv add --dev 'zensical>=0.1.1,<0.2'
    uv run zensical new .
    ```
 1. **Apply the starter**: copy [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) (`docs/index.md`), `~/.agents/themes/zensical/fmind.css` (`docs/stylesheets/fmind.css`, or customer brand variables), and [abbreviations.md](templates/abbreviations.md) (`includes/abbreviations.md`); delete `docs/markdown.md`. Fill `<placeholder>` values, set `site_url` with its hosting prefix, and prune unused sections. See [configuration](references/configuration.md) for starter defaults and optional plugins (blog, tags, redirects, API docs, versions, offline).
@@ -37,7 +37,7 @@ Use Zensical by default for project docs, courses, and blogs; keep an existing g
 - **Unsupported MkDocs plugins fail silently**: Zensical never runs MkDocs Python plugins; verify against the [plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/). `gen-files` and `hooks` are unsupported; `exclude_docs`, `draft_docs`, and `not_in_nav` require Zensical ≥0.0.70.
 - **Check feature interactions and privacy**: mutually exclusive features, offline limits, and third-party font/Mermaid/analytics hosts live in [configuration](references/configuration.md).
 - **Layout and CLI limits**: `docs_dir` cannot be `.`; uv symlink mode is unsupported; `serve` lacks `--strict` and fails on busy ports with `Address already in use` (use `-a 127.0.0.1:<port>`).
-- **Keep Zensical locked**: pre-1.0 (0.1.x beta since 2026-11-05, tested on 0.1.0); commit `uv.lock`, raise `<0.1` caps before `uv lock --upgrade-package zensical`, rebuild `--clean`, and keep CI cache-free.
+- **Keep Zensical locked**: pre-1.0 (0.1.x beta since 2026-11-05, tested on 0.1.1); commit `uv.lock`, raise `<0.1` caps before `uv lock --upgrade-package zensical`, rebuild `--clean`, and keep CI cache-free.
 - **Respect site branding**: the starter uses `~/.agents/DESIGN.md` light tokens and Google Sans; preserve existing or customer branding, and use [fmind-visuals](../fmind-visuals/SKILL.md) for Fmind logos/assets.
 
 ## Documentation

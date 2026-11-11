@@ -34,10 +34,7 @@ jobs:
       - name: Validate the tagged revision
         run: mise run all
       - name: Verify no changes
-        run: |
-          status="$(git status --porcelain)"
-          printf '%s\n' "$status"
-          test -z "$status"
+        run: git status --short && [ -z "$(git status --porcelain)" ]
       - name: Upload distributions
         if: ${{ vars.ENABLE_DEPLOY_PYPI == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -131,7 +128,7 @@ jobs:
       - name: Resolve platform digests
         run: |
           docker buildx imagetools inspect "$IMAGE" --raw > "$RUNNER_TEMP/index.json"
-          python .github/scripts/image-platforms.py "$RUNNER_TEMP/index.json" "$PLATFORMS" > "$RUNNER_TEMP/platforms.tsv"
+          python3 .github/scripts/image-platforms.py "$RUNNER_TEMP/index.json" "$PLATFORMS" > "$RUNNER_TEMP/platforms.tsv"
       - name: Scan every platform
         run: |
           while IFS=$'\t' read -r platform digest; do

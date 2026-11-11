@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/clipboard
   created: "2026-10-03"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Clipboard
@@ -17,10 +17,10 @@ metadata:
 ## Workflow
 
 1. **Select the deliverable verbatim**: draft, prompt, command, snippet, table, or test output—without assistant preambles, tool logs, or surrounding code fences (unless Markdown was requested). Never regenerate or guess missing context; ask if multiple outputs fit.
-1. **Pipe UTF-8 stdin to [scripts/copy.py](scripts/copy.py)** via `python -I` and structured stdin or a single-quoted heredoc (never shell interpolation or argv). Payloads >1 MiB belong in a file; pass `--keep-final-newline` when a trailing newline is part of the deliverable:
+1. **Pipe UTF-8 stdin to [scripts/copy.py](scripts/copy.py)** via `python3 -I` and structured stdin or a single-quoted heredoc (never shell interpolation or argv). Payloads >1 MiB belong in a file; pass `--keep-final-newline` when a trailing newline is part of the deliverable:
 
    ```bash
-   python -I ~/.agents/skills/clipboard/scripts/copy.py <<'CLIPBOARD_PAYLOAD'
+   python3 -I ~/.agents/skills/clipboard/scripts/copy.py <<'CLIPBOARD_PAYLOAD'
    The selected deliverable goes here, unchanged.
    CLIPBOARD_PAYLOAD
    ```

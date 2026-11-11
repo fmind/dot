@@ -22,7 +22,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "21.4.1"
+version = "22.0.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "markdown-it-py" },
@@ -31,9 +31,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/fa/ac81d2098bf0ab09d51570570c301a7e579395476084436519e6bd594eef/brain_framework-21.4.1.tar.gz", hash = "sha256:399c74ee2825bb5cd6c3d21345397b9d027f194e74a9c5e4bd2c0679b77df82b", size = 341499, upload-time = "2026-11-09T20:50:34.492Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/4e/a5dc96ad5fd5d2466d45f1723573302467a466fad72ea153e13f25e4b3f1/brain_framework-22.0.0.tar.gz", hash = "sha256:319f5ace53e2d2beacb750ce24cb846e53112832d4769e03ac6a39762800daad", size = 330573, upload-time = "2026-11-11T10:43:20.72Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/ca/76851b467b87e883b19dea14508ef7d36f44fa595359cf2fec2b45076a35/brain_framework-21.4.1-py3-none-any.whl", hash = "sha256:cefbbcfa695b6875e97e49d76d528c5fb17e86e80efef368e3e9b33604adee55", size = 367043, upload-time = "2026-11-09T20:50:33.079Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/f5/db2369876ee13b33ac541368c25baf2245e08c6e8f8d49f7f2d1a30b5eb5/brain_framework-22.0.0-py3-none-any.whl", hash = "sha256:1246579912711bce1ab4d1fa536016a988bb09ca03fe31eeae234f65c918e7fc", size = 358836, upload-time = "2026-11-11T10:43:19.211Z" },
 ]
 
 [[package]]
@@ -75,7 +75,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==21.4.1" }]
+requires-dist = [{ name = "brain-framework", specifier = "==22.0.0" }]
 
 [[package]]
 name = "pydantic"
@@ -193,17 +193,18 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.28.0"
+version = "0.29.1"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "annotated-doc" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "pydantic" },
     { name = "rich" },
     { name = "shellingham" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/8f/21021859316f44289101638dc74d82e13d722d8533e4b8708a3ab7c8461a/typer-0.28.0.tar.gz", hash = "sha256:69ab84ef79fd601cff071bbd2566d855ecadfd93adbc4b3360b9924359bdd857", size = 205415, upload-time = "2026-11-06T08:37:19.779Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/aa/0de7986aa1fa856adb961c67345189b97d13f6e250b34ba68884df865f07/typer-0.29.1.tar.gz", hash = "sha256:ab6eb3880bf67ce96147734717f9ec333c06f66e361f3ea947d0be43da39f242", size = 205843, upload-time = "2026-11-11T09:18:39.782Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/98/8ef60c7cd773dbab9d276a4c7bff505913a25b61acd8a9ef01ceeb70f554/typer-0.28.0-py3-none-any.whl", hash = "sha256:afd18929180b706c5e9a239f53c3c8136903553c0c2d460598bbaa924191d4ab", size = 123253, upload-time = "2026-11-06T08:37:18.611Z" },
+    { url = "https://files.pythonhosted.org/packages/05/ff/51969745f31cea6bcd12151e668febcf979656316e67a7755942267c1273/typer-0.29.1-py3-none-any.whl", hash = "sha256:00dbc549c13428bec1be55fe1f4d0fb8c6637a310e4f178ef14abe9534ee7b58", size = 121064, upload-time = "2026-11-11T09:18:38.671Z" },
 ]
 
 [[package]]

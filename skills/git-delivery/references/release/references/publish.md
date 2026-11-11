@@ -12,14 +12,14 @@ Prefer the repository's native release task when defined; use this fallback only
 1. **Compute the next tag** (`feat` → minor, `fix`/others → patch, `!`/`BREAKING CHANGE` → major; stop if unchanged from latest tag):
 
    ```bash
-   tag=$(git-cliff --config pyproject.toml --bumped-version)
+   tag=$(git-cliff --bumped-version)   # add --config pyproject.toml when configured there
    ```
 
 1. **Bump static manifests**: run `uv version "${tag#v}" --no-sync` for static Python versions (`pyproject.toml` + `uv.lock`) and check OpenTofu version constants; skip for VCS-versioned (`hatch-vcs`) packages.
 1. **Update `CHANGELOG.md`** (`--prepend` preserves prior edits; use `-o CHANGELOG.md` only to initialize a missing file):
 
    ```bash
-   git-cliff --config pyproject.toml --unreleased --tag "$tag" --prepend CHANGELOG.md
+   git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
    ```
 
 1. **Gate the release tree**: run `mise run format` and `mise run all` ([dirty-tree rule](../../../../mise/SKILL.md#gotchas) if needed) and include formatter updates.
@@ -48,7 +48,7 @@ Prefer the repository's native release task when defined; use this fallback only
 
    ```bash
    release_tmp=$(mktemp -d)
-   git-cliff --config pyproject.toml --latest --strip all > "$release_tmp/release-notes.md"
+   git-cliff --latest --strip all > "$release_tmp/release-notes.md"
    gh release create "$tag" --verify-tag --draft --title "$tag" --notes-file "$release_tmp/release-notes.md"
    ```
 

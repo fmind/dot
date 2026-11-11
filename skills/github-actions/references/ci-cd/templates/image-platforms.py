@@ -42,13 +42,13 @@ def platform_digests(index_path: Path, platforms: str) -> str:
 
 def main() -> None:
     """Validate a saved image index without registry access."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("index", type=Path, help="JSON output of buildx imagetools inspect --raw")
     parser.add_argument("platforms", help="Comma-separated OS/architecture pairs")
     args = parser.parse_args()
     try:
         output = platform_digests(args.index, args.platforms)
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
         raise SystemExit("Cannot read or validate the image index") from error
     sys.stdout.write(output)
 

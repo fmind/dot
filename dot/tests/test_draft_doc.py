@@ -627,3 +627,20 @@ def test_cli_rejects_output_path_equal_to_source(
     assert mod.main([str(src_md), "-o", str(src_md)]) == 1
     assert "Output path must differ from source Markdown" in capsys.readouterr().err
     assert src_md.read_text(encoding="utf-8") == "# Report\n\nKeep source intact.\n"
+
+
+def test_compile_handles_crlf_fences_bracketed_captions_and_nested_output_dir(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(mod, "render_mermaid_png", lambda _code, out, **_kw: out.write_bytes(b"PNG"))
+    src_md = tmp_path / "crlf.src.md"
+    src_md.write_bytes(
+        b"# Report\r\n\r\n```mermaid\r\nflowchart LR\r\n  A --> B\r\n```\r\n"
+        b"*Figure 1 [p95] ([source](https://example.com))*\r\n"
+    )
+    out_md = tmp_path / "nested" / "dir" / "crlf.md"
+    assert mod.main([str(src_md), "-o", str(out_md)]) == 0
+    compiled = out_md.read_text(encoding="utf-8")
+    assert "![Figure 1 (p95) (source)][fig-1]" in compiled

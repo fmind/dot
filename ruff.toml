@@ -14,6 +14,8 @@ force-exclude = true
 [per-file-target-version]
 # agy runs this renderer with the first python3 on PATH, possibly an older system one.
 "skills/agy/scripts/display.py" = "py39"
+# CD runs this helper with ubuntu-26.04's system python3 (3.14), independent of dot's Python version.
+"skills/cloud-run/templates/verify-private.py" = "py314"
 
 [format]
 docstring-code-format = true

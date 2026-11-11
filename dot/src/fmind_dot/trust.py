@@ -46,6 +46,8 @@ def _lstat_regular(path: Path) -> os.stat_result | None:
         return None
     if stat.S_ISLNK(info.st_mode):
         raise DotError(f"refusing symlinked trust file: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise DotError(f"refusing non-regular trust file: {path}")
     return info
 
 
@@ -65,10 +67,15 @@ def _file_state(path: Path) -> tuple[int, int, int] | None:
 
 
 def _read_utf8(path: Path) -> str:
+    _lstat_regular(path)
     try:
         return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise
     except UnicodeDecodeError as error:
         raise DotError(f"{path} is not valid UTF-8") from error
+    except OSError as error:
+        raise DotError(f"failed to read trust file {path}: {error}") from error
 
 
 def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool) -> list[str]:
@@ -133,8 +140,17 @@ def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
 
 
-def _claude_settings(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
+def _expand_home(raw: str, home: Path) -> Path:
+    if raw == "~":
+        return home
+    if raw.startswith("~/"):
+        return home / raw.removeprefix("~/")
+    return expand_path(raw)
+
+
+def _claude_settings(path: Path, text: str, folders: list[str], *, home: Path | None = None) -> tuple[str, list[str]]:
     """Add uncovered roots to Claude's permissions.additionalDirectories, keeping host entries."""
+    resolved_home = (home or Path.home()).resolve()
     data = _load_json(path, text)
     permissions = data.setdefault("permissions", {})
     if not isinstance(permissions, dict):
@@ -142,7 +158,8 @@ def _claude_settings(path: Path, text: str, folders: list[str]) -> tuple[str, li
     directories = permissions.setdefault("additionalDirectories", [])
     if not isinstance(directories, list) or not all(isinstance(item, str) for item in directories):
         raise DotError(f"{path}: permissions.additionalDirectories must be a JSON array of strings")
-    covered = {Path(item).resolve() for item in directories} | {Path(item) for item in directories}
+    expanded = [_expand_home(item, resolved_home) for item in directories]
+    covered = {item.resolve() for item in expanded} | set(expanded)
     changed = []
     for raw in folders:
         folder = Path(raw)
@@ -165,7 +182,12 @@ def register_claude_directories(
     # Parents precede children so workspace roots subsume the repositories below them.
     ordered = [home / ".agents", *sorted(set(folders), key=lambda item: (len(item.parts), str(item)))]
     selected = {str(folder): folder for folder in ordered}
-    added = _update(home / ".claude" / "settings.json", _claude_settings, list(selected), dry_run=dry_run)
+    added = _update(
+        home / ".claude" / "settings.json",
+        lambda path, text, items: _claude_settings(path, text, items, home=home),
+        list(selected),
+        dry_run=dry_run,
+    )
     return [selected[raw] for raw in added]
 
 
@@ -242,6 +264,8 @@ def register_agy_projects(
     """
     home = (home or Path.home()).resolve()
     registry = home / ".gemini" / "config" / "projects"
+    if registry.is_symlink():
+        raise DotError(f"refusing symlinked project registry: {registry}")
     # agy creates the registry on its first start; until then there is nothing to extend.
     if not registry.is_dir():
         return []
@@ -249,10 +273,7 @@ def register_agy_projects(
     for path in sorted(registry.glob("*.json")):
         listed |= _agy_project_folders(path, _read_utf8(path))
     # Folders arrive resolved, so patterns resolve too: a symlinked home would otherwise never match.
-    patterns = [
-        (home / pattern.removeprefix("~/") if pattern.startswith("~/") else expand_path(pattern)).resolve()
-        for pattern in include
-    ]
+    patterns = [_expand_home(pattern, home).resolve() for pattern in include]
     chezmoi = (home / ".local" / "share" / "chezmoi").resolve()
     added = []
     for folder in folders:
@@ -272,7 +293,7 @@ def register_agy_projects(
             f"local-{slug}" if slug else "local-" + hashlib.sha256(str(folder).encode("utf-8")).hexdigest()[:24]
         )
         target = registry / f"{project_id}.json"
-        if target.exists():
+        if _lstat_regular(target) is not None:
             continue
         if not dry_run:
             project = {
@@ -280,7 +301,7 @@ def register_agy_projects(
                 "name": name,
                 "projectResources": {"resources": [{"folderUri": folder.as_uri()}]},
             }
-            write_atomic_file(target, (json.dumps(project, indent=2) + "\n").encode("utf-8"), mode=0o600)
+            _write(target, json.dumps(project, indent=2) + "\n")
         added.append(folder)
     return added
 

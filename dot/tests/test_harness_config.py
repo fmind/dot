@@ -586,8 +586,34 @@ class HarnessConfigTests(unittest.TestCase):
             env=dict(os.environ, HOME=str(self.home)),
         )
         assert f'spawn("{dot}", ["agent", "hook", "notify", "pi", "stop"]' in extension
+        assert 'pi.on("session_start"' in extension
         assert 'pi.on("agent_settled"' in extension
         assert 'process.env.GOOGLE_CLOUD_LOCATION = "global"' in extension
+
+    def test_claude_session_start_hook_prunes_removed_brain_while_keeping_host_hooks(self):
+        template = "private_dot_claude/modify_private_settings.json"
+        brain_hook = self.home / "fmind/brain/settings/hooks/session-context.py"
+        brain_hook.parent.mkdir(parents=True)
+        brain_hook.write_text("#!/usr/bin/env python3\n")
+        custom_entry = {"hooks": [{"type": "command", "command": "echo host", "timeout": 5}]}
+        stop_entry = [{"hooks": [{"type": "command", "command": "echo stop", "timeout": 5}]}]
+        initial = json.dumps({"hooks": {"SessionStart": [custom_entry], "Stop": stop_entry}})
+
+        with_brain = self.render(template, initial)
+        with_brain_hooks = json.loads(with_brain)["hooks"]
+        assert with_brain_hooks["Stop"] == stop_entry
+        assert len(with_brain_hooks["SessionStart"]) == 2
+        assert with_brain_hooks["SessionStart"][0] == custom_entry
+        assert self.render(template, with_brain) == with_brain
+
+        brain_hook.unlink()
+        without_brain = json.loads(self.render(template, with_brain))["hooks"]
+        assert without_brain["Stop"] == stop_entry
+        assert without_brain["SessionStart"] == [custom_entry]
+
+        brain_only = json.dumps({"hooks": {"SessionStart": [with_brain_hooks["SessionStart"][1]]}})
+        pruned_all = json.loads(self.render(template, brain_only))["hooks"]
+        assert "SessionStart" not in pruned_all
 
     def test_pi_dynamic_google_cloud_project_resolves_vertex_without_static_project(self):
         pi = native_binary("pi")

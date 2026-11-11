@@ -177,6 +177,7 @@ for template in run_*.sh.tmpl modify_dot_*; do
   chezmoi execute-template --source "$PWD" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
 shellcheck --rcfile dot_config/shellcheckrc {{vars.shell_scripts}} "$rendered"/*.bash
+shellcheck --rcfile dot_config/shellcheckrc --shell=sh "$rendered/modify_dot_profile.bash"
 shfmt -d -i 2 -s {{vars.shell_scripts}}
 """
 

@@ -1,6 +1,15 @@
+# :schema https://mise.jdx.dev/schema/mise.json
 # Docs: https://mise.jdx.dev/configuration.html
 # Merge into the repository's existing task graph; do not replace application gates.
+
+# Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
+min_version = "2026.11.6"
+
+[settings]
+lockfile = true
+
 [settings.task]
+run_auto_install = false
 # Keep build warnings and errors; MISE_TASK_QUIET=false restores command echoes.
 quiet = true
 
@@ -15,33 +24,40 @@ description = "Check formatting and build the docs strictly without rewriting so
 run = "mise run check"
 
 [tasks.install]
-run = "uv sync --locked"
+description = "Install documentation dependencies, refusing packages with known malware advisories"
+run = "UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check"
 
 [tasks.format]
+description = "Format Markdown and configuration files"
 depends = ["format:dprint"]
 
 [tasks."format:dprint"]
+description = "Format JSON, Markdown, TOML, YAML with dprint"
 # Lefthook appends {staged_files}; the flag keeps an empty list from exiting 14.
 run = "dprint fmt --allow-no-files"
 
 [tasks."check:format"]
+description = "Check Markdown and configuration formatting (dprint)"
 run = "dprint check"
 
 # Strict builds fail on broken links, anchors, snippets, and plugin warnings; exit status 1 on any issue.
 [tasks."build:docs"]
+description = "Build the documentation site strictly (Zensical)"
 run = "uv run --locked zensical build --clean --strict"
 
 [tasks."serve:docs"]
+description = "Preview the documentation site"
 run = "uv run --locked zensical serve"
 
 [tasks.check]
+description = "Run all static and documentation checks"
 # Course repositories also add their lab tests here; a docs build is not a lab test.
 depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
-# Pre-commit stays offline.
+description = "Run offline checks (pre-commit)"
 depends = ["check:format"]
 
 [tasks."check:network"]
-# The privacy plugin downloads fonts and Mermaid on every clean build, so pre-push and CI run it.
+description = "Build the site with its vendored font and Mermaid assets (pre-push)"
 depends = ["build:docs"]

@@ -38,7 +38,7 @@ def verify_private(root: Path, service_name: str) -> None:
 
 def main() -> None:
     """Check saved JSON responses without making cloud requests."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument(
         "responses", type=Path, help="Directory containing service.json, service-iam.json, project-iam.json"
     )
@@ -46,7 +46,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         verify_private(args.responses, args.service)
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as error:
         raise SystemExit("Cannot read or validate the private-invocation responses") from error
     sys.stdout.write("Invoker IAM check enabled; service and project policies contain no broad principals.\n")
 

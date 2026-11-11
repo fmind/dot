@@ -27,16 +27,16 @@ LIMIT = 15 * 1024 * 1024  # Keep the sheet small enough to send or open anywhere
 NUMBER = re.compile(r"^v(\d+)", re.IGNORECASE)
 COLUMNS = 3
 STYLE = """
-body { margin: 0; padding: 24px; background: #F8F9FA; color: #202124;
+body { margin: 0; padding: 24px; background: #F1F3F4; color: #202124;
   font-family: "Google Sans", Roboto, "Segoe UI", Helvetica, Arial, sans-serif; }
 h1 { margin: 0 0 16px; font-size: 20px; }
 .grid { display: grid; grid-template-columns: repeat(COLUMNS, minmax(0, 1fr)); gap: 16px; }
-figure { margin: 0; background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 12px; overflow: hidden; }
+figure { margin: 0; background: #FFFFFF; border: 1px solid #9AA0A6; border-radius: 12px; overflow: hidden; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; }
 .pair div { height: 180px; display: flex; align-items: center; justify-content: center; padding: 12px; }
 .light { background: #FFFFFF; } .dark { background: #202124; }
 img { max-width: 100%; max-height: 100%; object-fit: contain; }
-figcaption { padding: 8px 12px; font-size: 14px; border-top: 1px solid #DADCE0; }
+figcaption { padding: 8px 12px; font-size: 14px; border-top: 1px solid #9AA0A6; }
 b { color: #174EA6; margin-right: 8px; }
 """
 
@@ -108,7 +108,7 @@ def screenshot(page: Path, count: int) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("folder", type=Path, help="folder holding the variant files")
     parser.add_argument("--title", default="Variants", help="sheet heading")
     parser.add_argument("--png", action="store_true", help="also screenshot the sheet with Chrome or Chromium")

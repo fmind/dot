@@ -5,11 +5,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import shutil
 import sys
 import tomllib
 from pathlib import Path
+
+from fmind_dot.config import xdg_dir
 
 _GRAPH_FILES = {"uv": ("pyproject.toml", "uv.lock"), "aube": ("package.json", "aube-lock.yaml")}
 # Revision 4 (mise 2026.11.1) adds npm provenance repositories; mise refuses newer revisions.
@@ -181,7 +182,7 @@ def retire_installs(lock: Path, installs: Path) -> list[Path]:
         tool_dir = installs / slug
         if tool_dir.is_symlink() or not tool_dir.is_dir():
             continue
-        removed = False
+        retired_names: set[str] = set()
         for candidate in sorted(tool_dir.iterdir()):
             if candidate.is_symlink() or not candidate.is_dir():
                 continue
@@ -196,12 +197,12 @@ def retire_installs(lock: Path, installs: Path) -> list[Path]:
                 continue
             shutil.rmtree(candidate)
             retired.append(candidate)
-            removed = True
-        if removed:
+            retired_names.add(candidate.name)
+        if retired_names:
             global_link = tool_dir / "global"
             target = global_link.readlink() if global_link.is_symlink() and global_link.exists() else None
             for entry in sorted(tool_dir.iterdir()):
-                if entry.is_symlink() and not entry.exists():
+                if entry.is_symlink() and not entry.exists() and entry.readlink().name in retired_names:
                     entry.unlink()
                     if target is not None:
                         entry.symlink_to(target)
@@ -211,15 +212,13 @@ def retire_installs(lock: Path, installs: Path) -> list[Path]:
 def main() -> int:
     """Retire stale graphs and hash-suffixed installs next to a deployed global lock."""
     parser = argparse.ArgumentParser(
-        description="Remove deployed dependency graphs and hash-suffixed installs that mise.lock no longer references."
+        description="Remove deployed dependency graphs and hash-suffixed installs that mise.lock no longer references.",
+        allow_abbrev=False,
+        suggest_on_error=True,
     )
     parser.add_argument("lock", type=Path, help="deployed global mise.lock")
     arguments = parser.parse_args()
-    raw_data_dir = os.environ.get("MISE_DATA_DIR")
-    data_dir = Path(os.path.expandvars(raw_data_dir)).expanduser() if raw_data_dir else Path()
-    if not data_dir.is_absolute():
-        data_dir = Path.home() / ".local/share/mise"
-    installs = data_dir / "installs"
+    installs = xdg_dir("MISE_DATA_DIR", ".local/share/mise") / "installs"
     try:
         retired = [
             *(arguments.lock.parent / relative for relative in retire(arguments.lock)),

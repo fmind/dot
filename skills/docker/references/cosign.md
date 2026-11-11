@@ -47,4 +47,4 @@ Pin Cosign per project (`mise use --pin cosign` + `mise lock`, upgraded via [upg
 ## Documentation
 
 - [Cosign](https://docs.sigstore.dev/cosign/) · [Keyless overview](https://docs.sigstore.dev/cosign/signing/overview/) · [releases](https://github.com/sigstore/cosign/releases) · [changelog](https://github.com/sigstore/cosign/blob/main/CHANGELOG.md)
-- Companion skills: [containerize](containerize/GUIDE.md), [ci-cd](../../github-actions/references/ci-cd/GUIDE.md), [code-security](../../code-security/references/code-review/GUIDE.md).
+- Companions: [containerize](containerize/GUIDE.md), [ci-cd](../../github-actions/references/ci-cd/GUIDE.md), [code-security](../../code-security/references/code-review/GUIDE.md).

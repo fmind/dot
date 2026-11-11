@@ -32,7 +32,7 @@ MAX_FIGURE_WIDTH_PX = 600
 SVG_CANVAS_WIDTH = float(MAX_FIGURE_WIDTH_PX)
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---(?:\r?\n|\Z)", re.DOTALL)
-FENCED_BLOCK_RE = re.compile(r"(?m)^(`{3,}|~{3,})([^\n]*)\n(.*?)\n\1[ \t]*$", re.DOTALL)
+FENCED_BLOCK_RE = re.compile(r"(?m)^(`{3,}|~{3,})([^\r\n]*)\r?\n(.*?)\r?\n\1[ \t]*\r?$", re.DOTALL)
 GITHUB_ALERT_RE = re.compile(r"(?m)^[ \t]*>[ \t]*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]")
 # HTML comments also render as literal text in native .md (verified 2026-10-28).
 RAW_HTML_RE = re.compile(
@@ -51,9 +51,17 @@ SVG_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.svg)\)")
 # Image links the compiler does not read from disk.
 NON_LOCAL_PREFIXES = ("http://", "https://", "data:")
 MERMAID_ALT_RE = re.compile(r"^\s*%%\s*alt\s*:\s*(.+?)\s*$", re.MULTILINE)
-CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\n]+)\*|_([^_\n]+)_)\s*$")
-INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\r\n]+)\*|_([^_\r\n]+)_)\s*$")
+INLINE_CODE_RE = re.compile(r"`[^`\r\n]+`")
+MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,128}$")
+
+
+def _clean_alt(text: str) -> str:
+    """Flatten Markdown links and replace remaining square brackets so `![alt][id]` stays valid."""
+    return MD_LINK_RE.sub(r"\1", text).replace("[", "(").replace("]", ")").strip()
+
+
 ASSET_MIME_TYPES = {
     ".md": "text/markdown",
     ".mmd": "text/plain",
@@ -269,11 +277,12 @@ def compile_markdown(
 
             fig_id = next_fig_id()
             if alt_match:
-                alt_text = alt_match.group(1).strip()
+                alt_text = _clean_alt(alt_match.group(1))
             elif caption_match:
-                alt_text = (caption_match.group(1) or caption_match.group(2) or "").strip()
+                alt_text = _clean_alt(caption_match.group(1) or caption_match.group(2) or "")
             else:
-                alt_text = f"Figure {fig_counter} — Architecture diagram"
+                alt_text = ""
+            alt_text = alt_text or f"Figure {fig_counter} — Architecture diagram"
 
             png_path = tmp_dir / f"{fig_id}.png"
             render_mermaid_png(raw_code, png_path, scale=scale, max_width_px=MAX_FIGURE_WIDTH_PX)
@@ -324,7 +333,7 @@ def compile_markdown(
                 raise ValueError("; ".join(svg_problems))
 
             fig_id = next_fig_id()
-            alt_text = match.group(1).strip() or f"Figure {fig_counter}"
+            alt_text = _clean_alt(match.group(1)) or f"Figure {fig_counter}"
             png_path = tmp_dir / f"{fig_id}.png"
             render_svg_png(svg_path, png_path, scale=scale, max_width_px=MAX_FIGURE_WIDTH_PX)
             b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
@@ -662,7 +671,7 @@ def _scale(value: str) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("source", type=Path, help="Input .src.md / .md document or .svg figure to validate/compile.")
     parser.add_argument(
         "-o",
@@ -785,6 +794,7 @@ def main(argv: list[str] | None = None) -> int:
                         svg_width=args.svg_width,
                         assets_dir=assets_dir,
                     )
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
                     out_path.write_text(compiled, encoding="utf-8")
                     exported_assets: list[str] = []
                     if assets_dir is not None:

@@ -41,4 +41,4 @@ Upstream `google/skills` (`skills/cloud`) installs via [google-developer](../gcl
 ## Documentation
 
 - [Cloud Run](https://docs.cloud.google.com/run/docs) · [Artifact Registry](https://docs.cloud.google.com/artifact-registry/docs) · [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation) · [Cloud Run releases](https://docs.cloud.google.com/run/docs/release-notes) · [Artifact Registry releases](https://docs.cloud.google.com/artifact-registry/docs/release-notes)
-- Companion skills: [containerize](../docker/references/containerize/GUIDE.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), [code-security](../code-security/references/code-review/GUIDE.md).
+- Companions: [containerize](../docker/references/containerize/GUIDE.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md), [gcloud](../gcloud/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md), [code-security](../code-security/references/code-review/GUIDE.md).

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-mail
   created: "2026-10-04"
-  updated: "2026-11-10"
+  updated: "2026-11-11"
 ---
 
 # Draft Mail
@@ -16,9 +16,9 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
 
 ## Gmail Draft Creation Standards (Mandatory)
 
-1. **Rich HTML Multipart Only**: never create plain-text or single-part drafts (`gws gmail +send` and `+reply` omit `multipart/alternative` and `sendAs` signatures). Always build `multipart/alternative` with `text/plain` and `<div dir="ltr">`-wrapped `text/html`.
-1. **Mandatory Signature Injection**: fetch `gws gmail users settings sendAs get --params '{"userId": "me", "sendAsEmail": "<sender_email>"}'` and inject it inside `<div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">`.
-1. **Thread Continuity & Quoted History (Replies)**: set `threadId`, preserve `Subject` (`Re: ...`), `In-Reply-To`, and `References`, and append the parent message's HTML body below the signature inside `<div class="gmail_quote gmail_quote_container">` (`<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">`).
+1. **Rich HTML Multipart Only**: never create plain-text or single-part drafts (`gws gmail +send` and `+reply` omit `multipart/alternative` and `sendAs` signatures); [`scripts/draft_email.py`](scripts/draft_email.py) wraps `text/plain` + `<div dir="ltr">` `text/html`.
+1. **Mandatory Signature Injection**: `draft_email.py` fetches `users.settings.sendAs` for `<sender_email>` and injects `.gmail_signature` automatically.
+1. **Thread Continuity & Quoted History (Replies)**: `draft_email.py` sets `threadId`, preserves `Subject` (`Re: ...`), `In-Reply-To`, and `References`, and appends the parent HTML body inside `.gmail_quote_container`.
 
 ## Workflow
 
@@ -57,4 +57,4 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
 ## Documentation
 
 - [Gmail drafts guide](https://developers.google.com/workspace/gmail/api/guides/drafts) · [Workspace CLI](https://github.com/googleworkspace/cli)
-- Companion skills: [gws](../gws/SKILL.md) (Gmail mechanics and other services), [clipboard](../clipboard/SKILL.md) (copy text for another mail client).
+- Companions: [gws](../gws/SKILL.md) (Gmail mechanics and other services), [clipboard](../clipboard/SKILL.md) (copy text for another mail client).

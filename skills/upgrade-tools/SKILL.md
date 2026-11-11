@@ -41,4 +41,4 @@ Upgrade a single repository's tools and dependencies to latest stable releases i
 
 - [mise upgrade](https://mise.jdx.dev/cli/upgrade.html) · [uv upgrading](https://docs.astral.sh/uv/concepts/projects/sync/#upgrading-locked-package-versions) · [OpenTofu lockfile](https://opentofu.org/docs/language/files/dependency-lock/) · [dprint update](https://dprint.dev/config/#updating-plugins-via-cli)
 - Releases: [mise](https://github.com/jdx/mise/releases) · [uv](https://github.com/astral-sh/uv/releases) · [OpenTofu](https://github.com/opentofu/opentofu/releases) · [dprint](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../mise/SKILL.md), [dependabot](../github-actions/references/dependabot.md), [full-review](../full-review/SKILL.md).
+- Companions: [mise](../mise/SKILL.md), [dependabot](../github-actions/references/dependabot.md), [full-review](../full-review/SKILL.md).

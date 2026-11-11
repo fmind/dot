@@ -1145,6 +1145,30 @@ def test_completion_generates_tools_concurrently(monkeypatch: pytest.MonkeyPatch
     ]
 
 
+def test_completion_tightens_existing_fish_cache_and_rejects_symlink(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache_root = tmp_path / "cache"
+    fish_cache = cache_root / "fish"
+    fish_cache.mkdir(parents=True)
+    fish_cache.chmod(0o755)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(cache_root))
+    config = Config()
+    config.completions.path = str(tmp_path / "completions")
+    select_completions(monkeypatch)
+    state = make_state(ScriptedRunner({"fish"}), config)
+    system.run_completion(state, check_only=False)
+    assert fish_cache.stat().st_mode & 0o777 == 0o700
+
+    fish_cache.rmdir()
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o755)
+    fish_cache.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(DotError, match="fish cache directory: failed to create"):
+        system.run_completion(state, check_only=False)
+    assert outside.stat().st_mode & 0o777 == 0o755
+
+
 def test_report_lines_wrap_without_splitting_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(reporting.shutil, "get_terminal_size", lambda **_kwargs: os.terminal_size((40, 24)))
     path = "/home/user/projects/very-long-repository-name-with-hyphens"

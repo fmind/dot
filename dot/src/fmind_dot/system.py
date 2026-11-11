@@ -27,7 +27,7 @@ from fmind_dot.command import FISH_COMPLETION, Parser, add_json
 from fmind_dot.config import expand_path, xdg_dir
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
 from fmind_dot.orphan import find_orphans
-from fmind_dot.private_files import write_atomic_file
+from fmind_dot.private_files import private_directory, write_atomic_file
 from fmind_dot.process import CommandResult, Runner, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State, require_tools
@@ -246,7 +246,7 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
         if failure is not None:
             failures.append(failure)
     try:
-        cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+        private_directory(cache)
     except OSError:
         failures.append("fish cache directory: failed to create")
         print("  ✗ Failed to create fish cache directory", file=state.stdout)

@@ -13,12 +13,12 @@ Delegate only for context-heavy read/search work or clean-context reviews that a
 
 ## Native definitions
 
-| Host        | Personal profile                      | Project profile                  | Invoke or inspect                             |
-| ----------- | ------------------------------------- | -------------------------------- | --------------------------------------------- |
-| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agents`; `agy --agent <role>`; `/agents` |
-| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name   |
-| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`            |
-| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agents`; delegation by name   |
+| Host        | Personal profile                      | Project profile                  | Invoke or inspect                            |
+| ----------- | ------------------------------------- | -------------------------------- | -------------------------------------------- |
+| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agent`; `agy --agent <role>`; `/agents` |
+| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name  |
+| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`           |
+| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agents`; delegation by name  |
 
 All four use YAML frontmatter + Markdown body (Pi uses TypeScript extensions and prompt templates rather than custom-agent role files). Claude's `skills` preloads only on subagent delegation (not `claude --agent <role>`), so preload only always-needed skills and cite conditional skills by path; `claude agents` lists background sessions, not roles. Inherit the model where supported and pass task context explicitly.
 

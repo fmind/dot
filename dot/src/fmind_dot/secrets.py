@@ -11,12 +11,17 @@ from fmind_dot.errors import DotError, UsageError
 from fmind_dot.state import State, require_tools
 
 _MAX_SECRET_BYTES = 64 << 10
+_SECRET_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
+
+
+def _validate_secret_name(name: str) -> None:
+    if not _SECRET_NAME.fullmatch(name):
+        raise UsageError("NAME: expected an uppercase environment variable name")
 
 
 def personal_token(name: str) -> str:
     """An explicit environment value wins, including an empty value that fails closed."""
-    if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", name):
-        raise UsageError("NAME: expected an uppercase environment variable name")
+    _validate_secret_name(name)
     if name in os.environ:
         value = os.environ[name]
         if not value or any(character in value for character in "\x00\r\n"):
@@ -43,6 +48,7 @@ def personal_token(name: str) -> str:
 
 def _run(state: State, args: argparse.Namespace) -> None:
     name, command = args.name, args.command
+    _validate_secret_name(name)
     # Packages publish through PyPI Trusted Publishing; a long-lived personal upload token is retired.
     if name == "UV_PUBLISH_TOKEN":
         raise UsageError("NAME: PyPI publishing uses Trusted Publishing, not a personal token")

@@ -46,17 +46,7 @@ Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`
          actions-security:
            applies-to: security-updates
            patterns: ["*"]
-     - package-ecosystem: uv
-       directory: /
-       schedule:
-         interval: weekly
-       open-pull-requests-limit: 0
-       commit-message:
-         prefix: "fix(deps)"
-       groups:
-         python-security:
-           applies-to: security-updates
-           patterns: ["*"]
+     # Add one entry per advisory-backed ecosystem (e.g., uv with group python-security; set directory per manifest).
    ```
 
 1. **Validate**: run [jactionlint](jactionlint.md) (`--profile pedantic` flags `open-pull-requests-limit: 0` as `dependabot-missing-actions-update`, so set `dependabot-missing-actions-update: off` in `.github/jactionlint.yaml`); GitHub re-validates on push under Insights → Dependency graph → Dependabot.
@@ -84,4 +74,4 @@ Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`
 ## Documentation
 
 - [Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain) · [Options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) · [Security updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates) · [changelog](https://github.blog/changelog/label/supply-chain-security/)
-- Companion skills: [code-security](../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../upgrade-tools/SKILL.md), [jactionlint](jactionlint.md), [settings baseline](../../gh/references/repository/references/settings-baseline.md).
+- Companions: [code-security](../../code-security/references/code-review/GUIDE.md), [upgrade-tools](../../upgrade-tools/SKILL.md), [jactionlint](jactionlint.md), [settings baseline](../../gh/references/repository/references/settings-baseline.md).

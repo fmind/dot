@@ -81,7 +81,8 @@ def attribute(root: Path, paths: list[str], extra: Path | None) -> dict[tuple[st
 
 
 def audit(root: Path, files: list[Path]) -> dict[str, Any]:
-    root = Path(git(root, "rev-parse", "--show-toplevel").decode().strip())
+    start = root.parent if root.is_file() else root
+    root = Path(git(start, "rev-parse", "--show-toplevel").decode().strip())
     paths, tracked = candidate_paths(root)
     global_file = global_excludes(root)
     global_patterns = {line for _, line in patterns(global_file)} if global_file and global_file.is_file() else set()
@@ -149,7 +150,12 @@ def render(report: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
+        suggest_on_error=True,
+    )
     parser.add_argument("files", nargs="*", type=Path, help="ignore files to audit (default: every .gitignore)")
     parser.add_argument("--root", type=Path, default=Path(), help="any path inside the repository")
     parser.add_argument("--json", action="store_true", help="emit structured JSON")

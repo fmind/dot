@@ -25,7 +25,7 @@ Hand-authored, diffable SVG illustrations for user-facing docs ([Brain Framework
 1. **Validate and inspect**: run [check_svg.py](scripts/check_svg.py) (`CHROME` overrides browser; else use [playwright](../../../playwright/SKILL.md) with JS and network off) to verify XML, a11y, 12px floor, and `<img>`-sandbox safety, then visually inspect both brand-font and fallback-font renders for overflow, collisions, contrast, and typos:
 
    ```bash
-   python -I ~/.agents/skills/diagrams-as-code/references/svg/scripts/check_svg.py docs/assets/*.svg --render "$(mktemp -d)"
+   python3 -I ~/.agents/skills/diagrams-as-code/references/svg/scripts/check_svg.py docs/assets/*.svg --render "$(mktemp -d)"
    ```
 
 ## Gotchas
@@ -39,4 +39,4 @@ Hand-authored, diffable SVG illustrations for user-facing docs ([Brain Framework
 ## Documentation
 
 - [MDN SVG reference](https://developer.mozilla.org/en-US/docs/Web/SVG) · [Complex images](https://www.w3.org/WAI/tutorials/images/complex/)
-- Companion skills: [fmind-visuals](../../../fmind-visuals/SKILL.md) (brand and template), [repository-docs](../../../repository-docs/SKILL.md) (README journey), [mermaid](../mermaid.md) (technical diagrams).
+- Companions: [fmind-visuals](../../../fmind-visuals/SKILL.md) (brand and template), [repository-docs](../../../repository-docs/SKILL.md) (README journey), [mermaid](../mermaid.md) (technical diagrams).
