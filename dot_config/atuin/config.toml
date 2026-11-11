@@ -1,26 +1,14 @@
 # Docs: https://docs.atuin.sh/latest/configuration/config/
 
-# Search behavior
-enter_accept = true
 inline_height = 0
-
-# Vim keybindings
 keymap_mode = "vim-insert"
-
-# Privacy: no sync
 auto_sync = false
 update_check = false
-
-# Up-arrow scoped to the session
-filter_mode_shell_up_key_binding = "session"
-
 # Match Fish's vi cursor shapes and Ghostty's steady cursor
 keymap_cursor = { emacs = "steady-bar", vim_insert = "steady-bar", vim_normal = "steady-block" }
 
 [search]
-# The first filter is the default mode: search the current directory first.
-# Fish assigns a UUIDv4 session ID (plugins.fish), so session-preload, which reads the
-# UUIDv7 start time, would behave like session; leave it out of the filter cycle.
+# Default to current-directory search; omit session-preload (Fish assigns a UUIDv4 session ID in plugins.fish).
 filters = ["directory", "workspace", "session", "host", "global"]
 
 [theme]

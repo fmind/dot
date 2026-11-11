@@ -1,9 +1,13 @@
-// Managed by fmind/dot (dot_pi/agent/extensions/dot-notify.ts.tmpl); edit the source, not this copy.
+// Managed by fmind/dot (private_dot_pi/private_agent/extensions/dot-notify.ts.tmpl); edit the source, not this copy.
 // Docs: https://pi.dev/docs/latest/extensions
-// Pi has no command hooks, so this extension is the turn alert: one desktop notification when an
-// interactive run settles and Pi waits for input. `agent_end` would fire before retries and queued messages.
+// Defaults Agent Platform to `global` when a dynamic GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT is set,
+// and sends one desktop alert when an interactive run settles (`agent_end` fires before retries).
 import { spawn } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+if (!process.env.GOOGLE_CLOUD_LOCATION && (process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT)) {
+	process.env.GOOGLE_CLOUD_LOCATION = "global";
+}
 
 export default function (pi: ExtensionAPI) {
 	pi.on("agent_settled", (event, ctx) => {

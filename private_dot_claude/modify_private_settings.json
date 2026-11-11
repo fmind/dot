@@ -1,0 +1,93 @@
+# chezmoi:modify-template
+{{- /* Docs: https://code.claude.com/docs/en/settings
+       Seed model/effort via `defaults` (preserving `/model` and `/effort`; Opus 5.5 needs per-model effortLevel);
+       `dot trust` owns folder trust and `permissions.additionalDirectories`. Suppress updates, telemetry,
+       claude.ai connectors/plugins/skills, and git/gh/gcloud prompts; force session persistence under
+       CLAUDE_CODE_CHILD_SESSION; use `light-ansi` for Ghostty's palette; notify on stale/disabled
+       quota auto-resume (no `idle_prompt` follows). */ -}}
+{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
+{{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-fable-5-2" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) -}}
+{{- $managedConfig := fromJson (replace "@dot@" $dot `
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "agentPushNotifEnabled": true,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "autoContinueAtUsageLimit": true,
+  "disableClaudeAiConnectors": true,
+  "editorMode": "vim",
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "BASH_MAX_TIMEOUT_MS": "1800000",
+    "CLAUDE_AUTO_BACKGROUND_TASKS": "1",
+    "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE": "1",
+    "CLOUDSDK_CORE_DISABLE_PROMPTS": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_UPDATES": "1",
+    "GH_PROMPT_DISABLED": "1",
+    "GIT_TERMINAL_PROMPT": "0"
+  },
+  "fallbackModel": [
+    "sonnet"
+  ],
+  "feedbackSurveyRate": 0,
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "command": "@dot@ agent hook notify claude needs-input",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "^(permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input|quota_auto_resume_stale|quota_auto_resume_disabled)$"
+      },
+      {
+        "hooks": [
+          {
+            "command": "@dot@ agent hook notify claude ready",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "^idle_prompt$"
+      }
+    ]
+  },
+  "inputNeededNotifEnabled": true,
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "remoteControlAtStartup": true,
+  "respectGitignore": false,
+  "skillListingBudgetFraction": 0.02,
+  "skipDangerousModePermissionPrompt": true,
+  "syncClaudeAiPlugins": false,
+  "syncClaudeAiSkills": false,
+  "theme": "light-ansi",
+  "tui": "fullscreen",
+  "workflowSizeGuideline": "large",
+  "worktree": {
+    "baseRef": "head"
+  }
+}
+`) -}}
+{{- /* The brain's session-context hook joins host SessionStart hooks only where the brain is
+       checked out. The entry is decoded from JSON so its integer matches the deployed one and
+       uniq keeps a single copy; removing the brain later leaves the entry for the host to drop. */ -}}
+{{- $sessionContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/session-context.py" -}}
+{{- if stat $sessionContext -}}
+{{-   $current := dict -}}
+{{-   if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
+{{-   if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
+{{-   $sessionStart := dig "hooks" "SessionStart" (list) $current -}}
+{{-   if not (kindIs "slice" $sessionStart) }}{{ fail "hooks.SessionStart must be an array" }}{{ end -}}
+{{-   $command := printf "%s %s" $sessionContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
+{{-   $entry := fromJson (printf `{"hooks": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command)) -}}
+{{-   $_ := set $managedConfig.hooks "SessionStart" (append $sessionStart $entry | uniq) -}}
+{{- end -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

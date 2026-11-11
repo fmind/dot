@@ -11,7 +11,7 @@ encryption = "age"
     secrets = "error"
 
 [age]
-    identity = "{{ .chezmoi.homeDir }}/.config/chezmoi/key.txt"
+    identity = {{ joinPath .chezmoi.homeDir ".config/chezmoi/key.txt" | quote }}
     recipient = "age1uvmlyuvm070d22xtmsadg9a0ucw49fyn4fx0fkd805lp3kd6zy0q745paz"
 
 [cd]

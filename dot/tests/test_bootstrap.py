@@ -228,6 +228,8 @@ elif tool == "dot":
         sys.path.insert(0, os.environ["DOT_SOURCE"])
         from fmind_dot.cli import main
         main()
+elif tool == "lefthook":
+    record("hooks")
 elif args == ["deploy"]:
     record("deploy")
     if os.environ.get("FAIL_STEP") == "deploy":
@@ -252,7 +254,7 @@ def run_task_bootstrap(
     tool = bin_directory / "fixture-tool"
     tool.write_text(TASK_TOOL.replace("{python}", sys.executable))
     tool.chmod(0o755)
-    for name in ("mise", "chezmoi", "uv"):
+    for name in ("mise", "chezmoi", "uv", "lefthook"):
         (bin_directory / name).symlink_to(tool)
     config = tomllib.loads((ROOT / "mise.toml").read_text())
     # Keep task bodies, variables, and environment from the repository, but install no
@@ -264,15 +266,15 @@ def run_task_bootstrap(
     for name in ("full", "install", "apply", "completions"):
         lines.append(f"[tasks.{name}]")
         lines.extend(f"{key} = {json.dumps(value)}" for key, value in config["tasks"][name].items())
-    for name in ("deploy", "hooks", "vim"):
+    for name in ("deploy", "vim"):
         lines.extend((f"[tasks.{name}]", f'run = "fixture-tool {name}"'))
     (source / "mise.toml").write_text("\n".join(lines))
     (source / ".chezmoiignore").write_text("mise.toml\n")
     (source / "dot_config/mise").mkdir(parents=True)
     (source / "dot_config/mise/config.toml").write_text("[tools]\n")
     # Copilot state gives the trust hook a harness file to extend.
-    (source / "dot_copilot").mkdir()
-    (source / "dot_copilot/config.json").write_text('{"banner": "never"}\n')
+    (source / "private_dot_copilot").mkdir()
+    (source / "private_dot_copilot/config.json").write_text('{"banner": "never"}\n')
     (source / "dot_config/bat/themes").mkdir(parents=True)
     (source / "dot_config/bat/themes/fmind.tmTheme").write_text("fixture theme\n")
     for name in ("run_after_dot-trust.sh.tmpl", "run_after_bat-theme.sh.tmpl"):

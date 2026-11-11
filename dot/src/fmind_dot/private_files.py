@@ -7,8 +7,19 @@ from pathlib import Path
 
 def private_directory(path: Path) -> Path:
     """Create a directory if needed and restrict it to its owner."""
+    if path.is_symlink():
+        raise OSError(f"refusing symlinked private directory: {path}")
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path.chmod(0o700)
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as error:
+        if path.is_symlink():
+            raise OSError(f"refusing symlinked private directory: {path}") from error
+        raise
+    try:
+        os.fchmod(descriptor, 0o700)
+    finally:
+        os.close(descriptor)
     return path
 
 
@@ -19,6 +30,8 @@ def write_private_file(path: Path, content: bytes) -> None:
 
 def write_atomic_file(path: Path, content: bytes, *, mode: int) -> None:
     """Replace a file atomically after writing, setting permissions, and syncing it."""
+    if path.is_symlink():
+        raise OSError(f"refusing to overwrite symlink: {path}")
     # mkstemp creates the file with 0600 in the target directory, so the replace stays atomic.
     descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     temporary = Path(name)

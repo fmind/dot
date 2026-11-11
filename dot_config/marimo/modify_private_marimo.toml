@@ -1,6 +1,6 @@
 # chezmoi:modify-template
+{{- /* Docs: https://docs.marimo.io/guides/configuration/ */ -}}
 {{- $managedConfig := fromToml `
-# Docs: https://docs.marimo.io/guides/configuration/
 [keymap]
 preset = "vim"
 ` -}}

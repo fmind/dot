@@ -1,35 +1,28 @@
 # Docs: https://ghostty.org/docs/config/reference
 
-# The fmind theme also sets minimum-contrast and faint-opacity for readable text.
 theme = fmind
-# Match Linux window chrome to the terminal background; use light chrome on macOS.
 window-theme = {{ if eq .chezmoi.os "linux" }}ghostty{{ else }}light{{ end }}
 
-# Font Configs
 font-family = "GoogleSansCode Nerd Font Mono"
 font-feature = -calt
 font-feature = -liga
 font-size = 14
-# Use the font's real italic faces when requested; never synthesise slanted glyphs.
-# The theme uses upright text and bold for structure.
+# Never synthesize slanted glyphs; use real italic faces only.
 font-synthetic-style = no-italic,no-bold-italic
 
 {{- if eq .chezmoi.os "darwin" }}
 macos-option-as-alt = left
-# Restoring window state is macOS-only; it has no effect on Linux.
 window-save-state = always
 {{- end }}
 
-# Quality of Life
 copy-on-select = clipboard
-# Compensate for fast Zellij scrolling on Linux; retain the macOS tuning.
+# Compensate for fast Zellij scrolling on Linux.
 {{- if eq .chezmoi.os "linux" }}
 mouse-scroll-multiplier = precision:0.0625,discrete:0.25
 {{- else }}
 mouse-scroll-multiplier = precision:0.25,discrete:1
 {{- end }}
 
-# Behavior
 cursor-style-blink = false
 mouse-hide-while-typing = true
 resize-overlay = never
@@ -38,5 +31,4 @@ gtk-single-instance = true
 linux-cgroup = never
 {{- end }}
 
-# Launch fish through the mise shim
 command = {{ .chezmoi.homeDir }}/.local/share/mise/shims/fish

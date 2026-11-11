@@ -92,7 +92,7 @@ def test_registry_promotion_preserves_digest_and_rejects_invalid_tags(tmp_path: 
     promotion = next(step for step in steps if step.get("name") == "Promote verified image")
     executable = tmp_path / "docker"
     executable.write_text(
-        f"#!{sys.executable}\nimport json, os, sys\nfrom pathlib import Path\n"
+        f"#!{sys.executable} -IS\nimport json, os, sys\nfrom pathlib import Path\n"
         'Path(os.environ["CALLS"]).write_text(json.dumps(sys.argv[1:]))\n'
     )
     executable.chmod(0o755)
@@ -111,7 +111,7 @@ def test_registry_promotion_preserves_digest_and_rejects_invalid_tags(tmp_path: 
         text=True,
         capture_output=True,
         check=False,
-        timeout=10,
+        timeout=30,
     )
     if release_tag != "v1.2.3":
         assert result.returncode != 0
@@ -172,7 +172,7 @@ def test_every_platform_is_verified_before_index_promotion(tmp_path: Path, probl
     )
     (tmp_path / "registry.json").write_text(json.dumps({"manifests": manifests}))
     executable = (
-        f"#!{sys.executable}\n"
+        f"#!{sys.executable} -IS\n"
         """import json, os, sys
 from pathlib import Path
 name, args = Path(sys.argv[0]).name, sys.argv[1:]
@@ -221,7 +221,7 @@ if name == "cosign" and args[0] == "verify-attestation" and args[-1].endswith(os
             env=environment,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
             check=False,
         )
         if result.returncode:

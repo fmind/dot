@@ -605,3 +605,25 @@ def test_cli_warns_when_drive_returns_no_parent_for_assets(
     assert json.loads(captured.err) == {"warning": warning}
     assert "PRIVATE-TEXT" not in captured.err
     assert [call[2] for call in calls] == ["get", "update"], "only the document itself is written"
+
+
+def test_compile_markdown_rejects_svg_outside_document_directory(mod: ModuleType, tmp_path: Path) -> None:
+    outside = tmp_path / "outside.svg"
+    outside.write_text(VALID_SVG, encoding="utf-8")
+    doc_dir = tmp_path / "docs"
+    doc_dir.mkdir()
+    for ref in ("../outside.svg", str(outside)):
+        with pytest.raises(ValueError, match="SVG path escapes document directory"):
+            mod.compile_markdown(f"# Doc\n\n![Card]({ref})\n", doc_dir)
+
+
+def test_cli_rejects_output_path_equal_to_source(
+    mod: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    src_md = tmp_path / "report.md"
+    src_md.write_text("# Report\n\nKeep source intact.\n", encoding="utf-8")
+    assert mod.main([str(src_md), "-o", str(src_md)]) == 1
+    assert "Output path must differ from source Markdown" in capsys.readouterr().err
+    assert src_md.read_text(encoding="utf-8") == "# Report\n\nKeep source intact.\n"

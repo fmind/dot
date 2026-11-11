@@ -1213,6 +1213,11 @@ def test_custom_cache_and_prune_selections_replace_defaults(provider: RecordingR
     ("environment", "target"),
     [
         ({}, ".cache/huggingface/hub"),
+        (
+            {"XDG_CACHE_HOME": "", "HF_HOME": "", "HUGGINGFACE_HUB_CACHE": "", "HF_HUB_CACHE": ""},
+            ".cache/huggingface/hub",
+        ),
+        ({"XDG_CACHE_HOME": "relative/cache"}, ".cache/huggingface/hub"),
         ({"XDG_CACHE_HOME": "~/xdg"}, "xdg/huggingface/hub"),
         ({"XDG_CACHE_HOME": "~/xdg", "HF_HOME": "$HOME/hf"}, "hf/hub"),
         ({"HF_HOME": "~/hf", "HUGGINGFACE_HUB_CACHE": "$HOME/legacy"}, "legacy"),
@@ -1440,3 +1445,57 @@ def test_login_check_reports_unknown_state_and_rejects_conflicting_flags(provide
     conflict = CliRunner().invoke(app, ["login", "gcp", "--check", "--force"])
     assert conflict.exit_code == 2
     assert not provider.actions
+
+
+def test_concurrent_probes_coalesce_and_clear_probes_drops_in_flight_writes() -> None:
+    started: dict[int, threading.Event] = {1: threading.Event(), 2: threading.Event()}
+    gates: dict[int, threading.Event] = {1: threading.Event(), 2: threading.Event()}
+    calls = 0
+    lock = threading.Lock()
+
+    class BlockingProbeRunner(Runner):
+        def which(self, command: str) -> Path:
+            return Path("/bin") / command
+
+        def run(self, args: Sequence[str], **_kwargs: object) -> CommandResult:
+            nonlocal calls
+            del args
+            with lock:
+                calls += 1
+                current = calls
+            if current in started:
+                started[current].set()
+            if current in gates:
+                gates[current].wait(timeout=5)
+            return CommandResult(f"attempt-{current}", "", 0)
+
+    state = State(runner=BlockingProbeRunner(), stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
+    outcomes: list[str] = []
+
+    def worker() -> None:
+        outcomes.append(auth.probe(state, ["gws", "auth", "status"]).stdout)
+
+    threads = [threading.Thread(target=worker) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    assert started[1].wait(timeout=5)
+    gates[1].set()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert calls == 1
+    assert outcomes == ["attempt-1"] * 4
+
+    state.clear_probes()
+    stale_thread = threading.Thread(target=worker)
+    stale_thread.start()
+    assert started[2].wait(timeout=5)
+    state.clear_probes()
+    # A new caller entering while attempt-2 is still blocked starts a fresh generation immediately.
+    assert auth.probe(state, ["gws", "auth", "status"]).stdout == "attempt-3"
+    gates[2].set()
+    stale_thread.join(timeout=5)
+
+    assert calls == 3
+    assert outcomes[-1] == "attempt-2"
+    assert auth.probe(state, ["gws", "auth", "status"]).stdout == "attempt-3"

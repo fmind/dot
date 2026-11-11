@@ -55,7 +55,7 @@ def test_packaged_template_needs_no_third_party_import(tmp_path: Path) -> None:
     script.write_text(source + '\nif __name__ == "__main__":\n    main()\n')
     greeted = _invoke(script, "greet", "--name", "Ada")
     assert (greeted.returncode, greeted.stdout, greeted.stderr) == (0, "Hello, Ada!\n", "")
-    for arguments in ([], ["gret"], ["greet", "--nam", "Ada"]):
+    for arguments in ([], ["gret"], ["greet", "--nam", "Ada"]):  # typos: ignore-line
         rejected = _invoke(script, *arguments)
         assert rejected.returncode == 2, arguments
         assert rejected.stdout == ""

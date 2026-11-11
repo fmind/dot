@@ -1,12 +1,42 @@
 # Docs: https://docs.astral.sh/ruff/configuration/
 # Fallback for scratch scripts outside projects with their own Ruff configuration.
-# Projects retain their own rules; this subset allows prints and one-off scripts.
+# Projects retain their own rules; this subset allows prints, asserts, and one-off scripts,
+# and keeps Ruff off Markdown files (owned by dprint).
 line-length = 120
 target-version = "py314"
+extend-exclude = ["*.md"]
+force-exclude = true
 
 [format]
 docstring-code-format = true
 line-ending = "lf"
 
 [lint]
-select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "PTH", "PERF", "RUF"]
+select = [
+  "A",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "DTZ",
+  "E",
+  "F",
+  "FURB",
+  "I",
+  "ISC",
+  "LOG",
+  "N",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PLE",
+  "PTH",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "UP",
+  "W",
+]
+ignore = ["E501", "S101"]

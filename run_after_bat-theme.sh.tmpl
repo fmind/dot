@@ -4,8 +4,8 @@
 # would read the theme before this apply refreshes it and rebuild one apply late, so
 # a stamp of the theme and bat version skips the ~0.6 s rebuild instead.
 set -eu
-bat="{{ .chezmoi.homeDir }}/.local/share/mise/shims/bat"
-theme="{{ .chezmoi.homeDir }}/.config/bat/themes/fmind.tmTheme"
+bat={{ joinPath .chezmoi.homeDir ".local/share/mise/shims/bat" | shellQuote }}
+theme={{ joinPath .chezmoi.homeDir ".config/bat/themes/fmind.tmTheme" | shellQuote }}
 # Bare apply can precede installation; `mise run full` defers hooks until bat is installed.
 [ -x "${bat}" ] && [ -f "${theme}" ] || exit 0
 cache="$("${bat}" --cache-dir)"

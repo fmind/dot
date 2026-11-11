@@ -37,7 +37,10 @@ def _config_path(state: State, _args: argparse.Namespace) -> None:
 
 
 def _config_edit(state: State, _args: argparse.Namespace) -> None:
-    editor = shlex.split(os.environ.get("EDITOR", "")) or ["vi"]
+    try:
+        editor = shlex.split(os.environ.get("EDITOR", "")) or ["vi"]
+    except ValueError as error:
+        raise DotError(f"invalid EDITOR value: {error}") from error
     if state.runner.which(editor[0]) is None:
         raise DotError(f"editor {editor[0]!r} not found in PATH")
     try:

@@ -104,20 +104,12 @@ _GOOGLE_SCOPE_PREFIX = "https://www.googleapis.com/auth/"
 
 def probe(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS) -> CommandResult:
     """Run a readiness probe once per invocation; logins clear the reused results."""
-    key = tuple(args)
-    if isinstance(cached := state.probes.get(key), DotError):
-        raise cached
-    if cached is not None:
-        return cached
-    require_tools(state, [args])
-    try:
-        result = state.runner.run(args, timeout=timeout, check=False)
-    except DotError as error:
-        # Reuse a timeout too: the sequential step after warm_probes must not wait for it again.
-        state.probes[key] = error
-        raise
-    state.probes[key] = result
-    return result
+
+    def run() -> CommandResult:
+        require_tools(state, [args])
+        return state.runner.run(args, timeout=timeout, check=False)
+
+    return state.run_probe(tuple(args), run)
 
 
 def probe_commands(state: State, provider: LoginProvider) -> list[list[str]]:
@@ -146,7 +138,7 @@ def change(state: State, args: list[str], **options: Any) -> None:
     try:
         execute(state, args, **options)
     finally:
-        state.probes.clear()
+        state.clear_probes()
 
 
 def google_signin_opener() -> Callable[[str], None] | None:
@@ -496,8 +488,8 @@ def login_gcp(state: State, *, force: bool = False, dry_run: bool = False) -> No
 def colab_ready(state: State) -> bool:
     result = probe(state, COLAB_SESSIONS)
     diagnostic = f"{result.stdout}\n{result.stderr}".lower()
-    # Colab 0.7.4 catches an ADC SystemExit and can report an empty listing
-    # with exit 0. Authentication diagnostics take precedence over that listing.
+    # Colab catches an ADC SystemExit and can print an empty listing with exit 0;
+    # authentication diagnostics take precedence over that listing.
     if any(
         marker in diagnostic
         for marker in (

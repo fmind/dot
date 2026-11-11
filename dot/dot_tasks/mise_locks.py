@@ -162,10 +162,10 @@ def retire_installs(lock: Path, installs: Path) -> list[Path]:
     mise names pypi and npm installs `<version>~<backend>~<hash>` and strips the
     suffix during `mise prune`, so superseded dependency graphs accumulate under installs/.
     """
-    bundle(lock, verify=False)
+    raw_lock = bundle(lock, verify=False)[Path(lock.name)]
     if installs.is_symlink() or not installs.is_dir():
         return []
-    document = tomllib.loads(_bundle_path(lock.parent, Path(lock.name)).read_text(encoding="utf-8"))
+    document = tomllib.loads(raw_lock.decode("utf-8"))
     active: dict[str, set[tuple[str, str, str]]] = {}
     for entries in document["tools"].values():
         for entry in entries:
@@ -215,7 +215,11 @@ def main() -> int:
     )
     parser.add_argument("lock", type=Path, help="deployed global mise.lock")
     arguments = parser.parse_args()
-    installs = Path(os.environ.get("MISE_DATA_DIR", Path.home() / ".local/share/mise")) / "installs"
+    raw_data_dir = os.environ.get("MISE_DATA_DIR")
+    data_dir = Path(os.path.expandvars(raw_data_dir)).expanduser() if raw_data_dir else Path()
+    if not data_dir.is_absolute():
+        data_dir = Path.home() / ".local/share/mise"
+    installs = data_dir / "installs"
     try:
         retired = [
             *(arguments.lock.parent / relative for relative in retire(arguments.lock)),

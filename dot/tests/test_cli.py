@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import runpy
 import shlex
 import sqlite3
 import subprocess
@@ -73,32 +74,29 @@ def test_fish_script_completes_through_the_installed_callback(tmp_path: Path) ->
     (tmp_path / "bin/dot").chmod(0o755)
     (tmp_path / "dot.fish").write_text(FISH_COMPLETION)
 
-    def complete(line: str) -> list[str]:
-        result = subprocess.run(
-            [
-                str(fish),
-                "--no-config",
-                "--command",
-                f"source {tmp_path}/dot.fish; complete --do-complete={shlex.quote(line)}",
-            ],
-            env={**os.environ, "PATH": f"{tmp_path}/bin{os.pathsep}{os.environ['PATH']}"},
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
-        assert result.returncode == 0, result.stderr
-        assert result.stderr == ""
-        return result.stdout.splitlines()
-
-    assert "doctor\tCheck local workstation health; --deep also probes authentication" in complete("dot do")
-    assert [line.split("\t")[0] for line in complete("dot agent ")] == ["context", "doctor", "session", "stats"]
-    assert complete("dot agent stats --agent cl") == ["claude"]
-    assert "--json\tEmit structured JSON" in complete("dot status --j")
-    # Without candidates Fish falls back to file names.
     (tmp_path / "custom.yaml").write_text("")
-    assert complete("dot --config cust") == ["custom.yaml"]
+    probes = ("dot do", "dot agent ", "dot agent stats --agent cl", "dot status --j", "dot --config cust")
+    script = f"source {tmp_path}/dot.fish; " + "; ".join(
+        f"echo ===; complete --do-complete={shlex.quote(line)}" for line in probes
+    )
+    result = subprocess.run(
+        [str(fish), "--no-config", "--command", script],
+        env={**os.environ, "PATH": f"{tmp_path}/bin{os.pathsep}{os.environ['PATH']}"},
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    outputs = [block.splitlines() for block in result.stdout.split("===\n")[1:]]
+    assert "doctor\tCheck local workstation health; --deep also probes authentication" in outputs[0]
+    assert [line.split("\t")[0] for line in outputs[1]] == ["context", "doctor", "session", "stats"]
+    assert outputs[2] == ["claude"]
+    assert "--json\tEmit structured JSON" in outputs[3]
+    # Without candidates Fish falls back to file names.
+    assert outputs[4] == ["custom.yaml"]
 
 
 def test_subcommand_help_displays_canonical_commands() -> None:
@@ -376,6 +374,12 @@ def test_config_edit_reports_missing_editor_and_failed_exit(tmp_path: Path, monk
     assert isinstance(failed_result.exception, DotError)
     assert str(failed_result.exception) == "editor exited with status 23"
 
+    monkeypatch.setenv("EDITOR", 'vim "unterminated')
+    malformed_editor = runner.invoke(app, ["--config", str(path), "config", "edit"])
+    assert malformed_editor.exit_code == 1
+    assert isinstance(malformed_editor.exception, DotError)
+    assert str(malformed_editor.exception).startswith("invalid EDITOR value:")
+
 
 @pytest.mark.parametrize(
     "error",
@@ -446,31 +450,27 @@ def test_python_module_entrypoint_reports_config_os_failure_without_traceback(tm
         (["--unknown-option"], 2, "unrecognized arguments: --unknown-option"),
         (["unknown-command"], 2, "invalid choice: 'unknown-command'"),
         (["help", "unknown-command"], 2, "invalid choice: 'help'"),
-        (["agent", "sesion"], 2, "maybe you meant 'session'?"),
+        (["agent", "sesion"], 2, "maybe you meant 'session'?"),  # typos: ignore-line
         (["agent", "stats", "--since", "never"], 2, "dot agent stats: error: --since: expected a duration"),
         (["status", "--js"], 2, "unrecognized arguments: --js"),
     ],
 )
 def test_python_module_entrypoint_preserves_parser_exit_codes(
-    arguments: list[str], expected_exit: int, expected_error: str, tmp_path: Path
+    arguments: list[str],
+    expected_exit: int,
+    expected_error: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    environment = os.environ.copy()
-    environment["HOME"] = str(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["dot", *arguments])
+    with pytest.raises(SystemExit) as exit_info:
+        runpy.run_module("fmind_dot", run_name="__main__")
 
-    result = subprocess.run(
-        [sys.executable, "-m", "fmind_dot", *arguments],
-        cwd=Path(__file__).parents[1],
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=30,
-    )
-
-    assert result.returncode == expected_exit
-    assert result.stdout == ""
-    assert expected_error in result.stderr
-    assert "Traceback" not in result.stderr
+    captured = capsys.readouterr()
+    assert exit_info.value.code == expected_exit
+    assert captured.out == ""
+    assert expected_error in captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_main_maps_keyboard_interrupt_to_shell_exit_130(
@@ -595,11 +595,24 @@ def test_fish_candidates_complete_options_choices_and_nothing_after_a_separator(
         "copilot",
         "codex",
     ]
+    assert [value for value, _ in candidates(root, ["agent", "stats", "--agent=c"])] == [
+        "--agent=claude",
+        "--agent=copilot",
+        "--agent=codex",
+    ]
+    assert [value for value, _ in candidates(root, ["agent", "stats", "--agent=claude", "--mon"])] == ["--monthly"]
     # A value-taking option consumes the next word: `stats` here is a project, not a command.
     assert [value for value, _ in candidates(root, ["agent", "stats", "--project", "session", "--mon"])] == [
         "--monthly"
     ]
     assert [value for value, _ in candidates(root, ["login", "g"])] == ["gcp", "github"]
+    assert candidates(root, ["cache", "uv", ""]) == []
+    paired = Parser(prog="dot")
+    paired.add_argument("first", choices=("alpha", "beta"))
+    paired.add_argument("second", choices=("stop", "ready", "needs-input"))
+    assert [value for value, _ in candidates(paired, [""])] == ["alpha", "beta"]
+    assert [value for value, _ in candidates(paired, ["alpha", ""])] == ["stop", "ready", "needs-input"]
+    assert candidates(paired, ["alpha", "stop", ""]) == []
     assert candidates(root, ["secret", "run", "NAME", "--", "py"]) == []
     assert candidates(root, ["--config", ""]) == []
 

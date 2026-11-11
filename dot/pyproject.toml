@@ -16,8 +16,11 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "deptry>=0.25.1",
   "markdown-it-py>=4.0.0",
   "pytest-cov>=7.1.0",
+  "pytest-socket>=0.8.1",
+  "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
   "pytest>=9.1.1",
   "ruff>=0.16.6",
@@ -45,24 +48,30 @@ extend = "../ruff.toml"
   "SLF001", # access internal contract helpers under test
 ]
 
+[tool.deptry]
+# deptry does not infer uv_build's src/ layout on `.`; dot_tasks/ is repo-only like tests/.
+extend_exclude = ["dot_tasks"]
+known_first_party = ["fmind_dot"]
+
 # No blanket [tool.ty.rules] ignores. Fix diagnostics at their source and use
 # only an evidenced, narrow line-level suppression for an upstream typing defect.
 [tool.ty.rules]
 blanket-ignore-comment = "error" # require `ty: ignore[<rule>]`; Ruff PGH003 checks only `type: ignore`
 
 [tool.pytest]
-addopts = ["-ra"]
+# Offline by default: tests reach only loopback and Unix sockets; starter smoke tests opt in.
+addopts = ["-ra", "--allow-hosts=127.0.0.1,::1", "--allow-unix-socket"]
 filterwarnings = ["error"]
 markers = ["real_home: keep the real HOME for tests that run repository tasks through mise shims"]
 pythonpath = ["."]
 # Umbrella for strict_config, strict_markers, strict_xfail, and strict_parametrization_ids.
 strict = true
 testpaths = ["tests"]
+# Fail a hung test instead of stalling the agent; a plugin string option rejects a bare TOML integer.
+timeout = "60"
 
 [tool.coverage.run]
 branch = true
-# Measure `python -m fmind_dot` subprocess tests; pytest-cov 7 no longer does.
-patch = ["subprocess"]
 source = ["fmind_dot", "dot_tasks"]
 
 [tool.coverage.report]

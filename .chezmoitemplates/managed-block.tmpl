@@ -1,18 +1,17 @@
 {{- /*
-  Keep one marker-delimited block current in a shell file the user also edits: rewrite it in
-  place when present, otherwise add it at the top or bottom. A changed body therefore
-  deploys without per-version rewrite code; a begin marker without its end marker is an
-  unrecognized legacy block and stays untouched rather than duplicated.
-
-  Params: stdin (current content), name (marker id), body (block lines), position (top|bottom).
+  Rewrite a `# chezmoi: NAME` .. `# chezmoi: end NAME` block in place when both markers exist,
+  leave a begin-only legacy block untouched, or insert at `position` (top|bottom).
+  Params: stdin, name, body, position.
 */ -}}
 {{- $begin := printf "# chezmoi: %s" .name -}}
 {{- $end := printf "# chezmoi: end %s" .name -}}
 {{- $block := printf "%s\n%s\n%s" $begin .body $end -}}
+{{- $span := printf "(?ms)^%s\\n.*?^%s$" (regexQuoteMeta $begin) (regexQuoteMeta $end) -}}
+{{- $open := printf "(?m)^%s$" (regexQuoteMeta $begin) -}}
 {{- $text := .stdin -}}
-{{- if contains $end $text -}}
-{{-   $text = regexReplaceAllLiteral (printf "(?s)%s\n.*?%s" (regexQuoteMeta $begin) (regexQuoteMeta $end)) $text $block -}}
-{{- else if contains $begin $text -}}
+{{- if regexMatch $span $text -}}
+{{-   $text = regexReplaceAllLiteral $span $text $block -}}
+{{- else if regexMatch $open $text -}}
 {{- else if eq (trim $text) "" -}}
 {{-   $text = print $block "\n" -}}
 {{- else if eq .position "top" -}}

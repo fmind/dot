@@ -5,15 +5,20 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import pytest
 
+from fmind_dot.cli import app
 from fmind_dot.errors import DotError
 from fmind_dot.secrets import personal_token
+from fmind_dot.state import State
 from tests.chezmoi_helpers import chezmoi
+from tests.fakes import CliResult, CliRunner, ScriptedRunner
 
 ROOT = Path(__file__).resolve().parents[2]
+cli_runner = CliRunner()
 
 
 @pytest.fixture
@@ -78,39 +83,51 @@ def test_scoped_key_ignores_invalid_configuration(secret_home: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
+def invoke_inprocess(
+    monkeypatch: pytest.MonkeyPatch,
+    *args: str,
+    installed: set[str] | None = None,
+    captured_env: list[Mapping[str, str] | None] | None = None,
+) -> CliResult:
+    class SecretRunner(ScriptedRunner):
+        def interactive(self, args: Sequence[str], *, env: Mapping[str, str] | None = None, **_kwargs: object) -> int:
+            self.calls.append(list(args))
+            if captured_env is not None:
+                captured_env.append(env)
+            return 0
+
+    fake = SecretRunner(installed if installed is not None else {"python"})
+    monkeypatch.setattr("fmind_dot.cli.State", lambda **kwargs: State(runner=fake, **kwargs))
+    return cli_runner.invoke(app, ["secret", "run", *args])
+
+
 def test_customer_environment_wins_without_reading_personal_file(
     secret_home: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (secret_home / ".config/dot/secrets/TEST_API_KEY").unlink()
     monkeypatch.setenv("TEST_API_KEY", "synthetic-customer")
-    result = invoke_process(
-        secret_home,
-        "secret",
-        "run",
-        "TEST_API_KEY",
-        "--",
-        sys.executable,
-        "-c",
-        "import os; assert os.environ['TEST_API_KEY'] == 'synthetic-customer'",
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout == result.stderr == ""
+    captured: list[Mapping[str, str] | None] = []
+    result = invoke_inprocess(monkeypatch, "TEST_API_KEY", "--", "python", captured_env=captured)
+    assert result.exit_code == 0, result.output
+    assert captured == [{"TEST_API_KEY": "synthetic-customer"}]
 
 
-def test_explicit_empty_does_not_fall_back(secret_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.usefixtures("secret_home")
+def test_explicit_empty_does_not_fall_back(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TEST_API_KEY", "")
-    result = invoke_process(secret_home, "secret", "run", "TEST_API_KEY", "--", sys.executable, "-c", "print('ran')")
-    assert result.returncode == 1
-    assert result.stdout == ""
-    assert "empty" in result.stderr
-    assert "synthetic-personal" not in result.stderr
+    result = invoke_inprocess(monkeypatch, "TEST_API_KEY", "--", "python")
+    assert result.exit_code == 1
+    assert isinstance(result.exception, DotError)
+    assert "empty" in str(result.exception)
+    assert "no personal fallback was used" in str(result.exception)
+    assert "synthetic-personal" not in str(result.exception)
 
 
 @pytest.mark.parametrize(
-    "kind", ["missing", "public", "link", "fifo", "directory", "large", "nul", "multiline", "encoding"]
+    "kind", ["missing", "public", "link", "fifo", "directory", "large", "nul", "multiline", "encoding", "empty"]
 )
-def test_invalid_secret_fails_before_launch(secret_home: Path, kind: str) -> None:
+def test_invalid_secret_fails_before_launch(secret_home: Path, monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
     path = secret_home / ".config/dot/secrets/TEST_API_KEY"
     if kind in {"missing", "link", "fifo", "directory"}:
         path.unlink()
@@ -122,25 +139,40 @@ def test_invalid_secret_fails_before_launch(secret_home: Path, kind: str) -> Non
         path.mkdir()
     elif kind == "public":
         path.chmod(0o644)
-    elif kind in {"large", "nul", "multiline", "encoding"}:
-        path.write_bytes({"large": b"x" * 65537, "nul": b"x\0y", "multiline": b"x\ny", "encoding": b"\xff"}[kind])
-    result = invoke_process(secret_home, "secret", "run", "TEST_API_KEY", "--", sys.executable, "-c", "print('ran')")
-    assert result.returncode == 1
-    assert result.stdout == ""
-    assert "synthetic-personal" not in result.stderr
+    elif kind in {"large", "nul", "multiline", "encoding", "empty"}:
+        payloads = {
+            "large": b"x" * 65537,
+            "nul": b"x\0y",
+            "multiline": b"x\ny",
+            "encoding": b"\xff",
+            "empty": b"\n",
+        }
+        path.write_bytes(payloads[kind])
+    captured: list[Mapping[str, str] | None] = []
+    result = invoke_inprocess(monkeypatch, "TEST_API_KEY", "--", "python", captured_env=captured)
+    assert result.exit_code == 1
+    assert captured == []
+    assert isinstance(result.exception, DotError)
+    assert "synthetic-personal" not in str(result.exception)
+    if kind in {"nul", "multiline", "empty"}:
+        assert "no personal fallback" not in str(result.exception)
 
 
+@pytest.mark.usefixtures("secret_home")
 @pytest.mark.parametrize("name", ["../TEST_API_KEY", "bad-name", "UV_PUBLISH_TOKEN"])
-def test_disallowed_name(secret_home: Path, name: str) -> None:
-    result = invoke_process(secret_home, "secret", "run", name, "--", sys.executable, "-c", "print('ran')")
-    assert result.returncode == 2
+def test_disallowed_name(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    result = invoke_inprocess(monkeypatch, name, "--", "python")
+    assert result.exit_code == 2
     assert result.stdout == ""
+    assert "error: NAME:" in result.stderr
 
 
-def test_missing_tool_does_not_read_secret(secret_home: Path) -> None:
-    result = invoke_process(secret_home, "secret", "run", "MISSING_SECRET", "--", "nonexistent-dot-test-tool")
-    assert result.returncode == 1
-    assert "required tools are missing" in result.stderr
+@pytest.mark.usefixtures("secret_home")
+def test_missing_tool_does_not_read_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = invoke_inprocess(monkeypatch, "MISSING_SECRET", "--", "nonexistent-dot-test-tool", installed=set())
+    assert result.exit_code == 1
+    assert isinstance(result.exception, DotError)
+    assert "required tools are missing" in str(result.exception)
 
 
 def test_shell_secret_exports_are_retired() -> None:

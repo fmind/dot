@@ -1,6 +1,7 @@
 """Native hook payloads and desktop notifications for agent events."""
 
 import html
+import io
 import json
 import math
 import os
@@ -14,7 +15,9 @@ from pathlib import Path
 from typing import IO, Any
 
 from fmind_dot.archive.parsers import AGENT_ADAPTERS, resolve_cwd
+from fmind_dot.config import xdg_dir
 from fmind_dot.errors import DotError
+from fmind_dot.private_files import private_directory, write_atomic_file
 from fmind_dot.process import Runner
 from fmind_dot.state import State
 
@@ -183,9 +186,9 @@ def notification_command(runner: Runner, notification: Notification, *, system: 
 
 def chime_path() -> Path:
     """Write dot's two-note chime once; the WAV is generated, so no sound theme is required."""
-    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    cache = xdg_dir("XDG_CACHE_HOME", ".cache")
     path = cache / "dot" / "notify.wav"
-    if path.is_file():
+    if not path.is_symlink() and path.is_file():
         return path
     rate, frames = 44_100, bytearray()
     for frequency, seconds in ((880.0, 0.12), (1318.5, 0.24)):
@@ -195,14 +198,14 @@ def chime_path() -> Path:
             envelope = min(1.0, index / (rate * 0.005)) * math.exp(-12 * index / rate)
             sample = 0.3 * envelope * math.sin(2 * math.pi * frequency * index / rate)
             frames += struct.pack("<h", round(sample * 32_767))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_name(f".{path.name}.{os.getpid()}")
-    with wave.open(str(partial), "wb") as audio:
+    private_directory(path.parent)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as audio:
         audio.setnchannels(1)
         audio.setsampwidth(2)
         audio.setframerate(rate)
         audio.writeframes(bytes(frames))
-    partial.replace(path)
+    write_atomic_file(path, buffer.getvalue(), mode=0o644)
     return path
 
 
@@ -213,7 +216,11 @@ def play_chime(runner: Runner) -> None:
             "install pw-play (PipeWire) or paplay (PulseAudio) to play notification sounds, "
             "or set agent.notify.sound: false with dot config edit"
         )
-    result = runner.run([player, str(chime_path())], timeout=5, check=False)
+    try:
+        chime = chime_path()
+    except OSError as error:
+        raise DotError(f"failed to prepare notification sound: {error}") from error
+    result = runner.run([player, str(chime)], timeout=5, check=False)
     if result.returncode != 0:
         raise DotError(f"failed to play notification sound with {player}")
 
@@ -277,7 +284,9 @@ def send_notification(state: State, notification: Notification, *, sound: bool =
         play_chime(state.runner)
 
 
-def notification_workspace(stream: IO[str] | None, agent: str, event: str = "stop") -> str | None:
+def notification_workspace(
+    stream: IO[str] | None, agent: str, event: str = "stop", *, runner: Runner | None = None
+) -> str | None:
     """Return the payload workspace, or None when the event must stay quiet.
 
     Native idle notifications mean attention is due. agy's Stop fires per loop, so
@@ -299,7 +308,7 @@ def notification_workspace(stream: IO[str] | None, agent: str, event: str = "sto
         if agent == "agy" and payload.get("fullyIdle") is not True:
             return None
     # Headless agy runs (scheduled assistants, loops) end without anyone waiting for them.
-    if agent == "agy" and agy_print_mode():
+    if agent == "agy" and (agy_print_mode() if runner is None else agy_print_mode(runner=runner)):
         return None
     if agent == "claude":
         kind = payload.get("notification_type")

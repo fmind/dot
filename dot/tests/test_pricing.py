@@ -279,9 +279,19 @@ def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
     ("harness", "model", "expected"),
     [
         ("codex", "gpt-6.1-sol", 12),
+        ("codex", "gpt-6.1-terra", 6),
+        ("codex", "gpt-5.6-cyber", 87.5),
         ("claude", "claude-fable-5-2", 48),
         ("claude", "claude-sonnet-5-5", 12),
+        ("copilot", "claude-sonnet-5.5", 12),
         ("claude", "claude-haiku-5-5", 0.6),
+        ("pi", "gemini-4-argon", 12),
+        ("pi", "gemini-4-carbon", 12),
+        ("pi", "gemini-3.8-flash", 4.5),
+        ("pi", "gemini-3.5-flash-lite", 2.8),
+        ("pi", "gemini-3.1-pro-preview", 14),
+        ("pi", "gemini-2.5-pro", 11.25),
+        ("pi", "grok-build-0.1", 3),
         ("grok", "grok-4.7", 8),
         ("grok", "grok-4.6", 8),
         ("grok", "grok-4.6-build", 8),
@@ -302,6 +312,27 @@ def test_rate_card_prices_current_models(harness: str, model: str, expected: flo
 
     assert reason == ""
     assert cost == pytest.approx(expected)
+
+
+def test_gemini_pi_cache_reads_are_discounted_and_default_pricing_returns_isolated_copies() -> None:
+    first = default_pricing()
+    first.models["gemini-4-argon"].input = 999
+    fresh = default_pricing()
+    assert fresh.models["gemini-4-argon"].input == 2
+
+    cached = UsageRecord(
+        harness="pi",
+        session_id="pi-gemini",
+        model="gemini-4-argon",
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+        cached_tokens=1_000_000,
+        output_tokens=100_000,
+    ).finalize(fallback_timestamp="2026-11-01T00:00:00Z")
+    assert api_equivalent(cached, fresh) == (pytest.approx(3.1), "")
+
+    explicit_write = replace(cached, cache_write_tokens=1_000)
+    assert api_equivalent(explicit_write, fresh) == (None, "missing token rate")
 
 
 def test_sonnet_5_5_cache_hits_use_the_published_discount() -> None:

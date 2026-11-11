@@ -2,7 +2,7 @@
 {{- /* Docs: https://antigravity.google/docs/remote-control/
        Remote Control reads protobuf JSON, not the CLI settings schema; the daemon reads it
        only at start. autoContinueOnMaxGeneratorInvocations is undocumented (verified in
-       agy 1.5.3): it skips the "continue?" prompt after the step budget. */ -}}
+       agy 1.5.5): it skips the "continue?" prompt after the step budget. */ -}}
 {{- $managed := fromJson `
 {
   "userSettings": {
@@ -18,6 +18,7 @@
 ` -}}
 {{- $current := dict -}}
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
+{{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
 {{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
 {{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
 {{- /* Full autonomy for remote sessions (developer, 2026-10-01): wildcard grants for every action

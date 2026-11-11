@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-from fmind_dot.config import PullConfig
 from tests.chezmoi_helpers import chezmoi
 from tests.fakes import ROOT, native_binary
 
@@ -126,14 +125,14 @@ class HarnessConfigTests(unittest.TestCase):
         return f"{script} {self.home / 'fmind/brain'}"
 
     def test_brain_session_hook_needs_the_brain_checkout(self):
-        claude = json.loads(self.render("dot_claude/modify_private_settings.json", ""))
+        claude = json.loads(self.render("private_dot_claude/modify_private_settings.json", ""))
         assert "SessionStart" not in claude["hooks"]
 
     def test_claude_registers_brain_session_hook_once_beside_host_hooks(self):
         command = self._brain_hook()
         brain = {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
         host = {"hooks": [{"type": "command", "command": "/synthetic/host"}]}
-        template = "dot_claude/modify_private_settings.json"
+        template = "private_dot_claude/modify_private_settings.json"
         for existing in ([], [host], [host, brain]):
             with self.subTest(existing=len(existing)):
                 rendered = self.render(template, json.dumps({"hooks": {"SessionStart": existing}}))
@@ -141,7 +140,7 @@ class HarnessConfigTests(unittest.TestCase):
                 assert self.render(template, rendered) == rendered
 
     def test_agy_registers_brain_context_hook_only_with_the_brain_checkout(self):
-        template = "dot_gemini/private_config/modify_private_hooks.json"
+        template = "private_dot_gemini/private_config/modify_private_hooks.json"
         assert "brain-context" not in json.loads(self.render(template, ""))
         script = self.home / "fmind/brain/settings/hooks/agy-context.py"
         script.parent.mkdir(parents=True)
@@ -161,9 +160,13 @@ class HarnessConfigTests(unittest.TestCase):
         assert list(upgraded["brain-context"]) == ["SessionStart"]
         assert list(upgraded["notify"]) == ["Stop"]
         assert upgraded["custom"] == {"Stop": []}
+        script.unlink()
+        retired = json.loads(self.render(template, json.dumps(upgraded)))
+        assert "brain-context" not in retired
+        assert retired["custom"] == {"Stop": []}
 
     def test_claude_merge_preserves_host_environment_and_permissions(self):
-        template = "dot_claude/modify_private_settings.json"
+        template = "private_dot_claude/modify_private_settings.json"
         original = {
             "advisorModel": "opus",
             "teammateDefaultModel": "sonnet",
@@ -193,8 +196,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["disableClaudeAiConnectors"] is True
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
-        managed_roots = [str(self.home / ".agents"), str(self.source), str(self.home / "fmind")]
-        assert data["permissions"]["additionalDirectories"][:4] == ["/synthetic/host-root", *managed_roots]
+        assert data["permissions"]["additionalDirectories"] == ["/synthetic/host-root"]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
         assert fresh["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
@@ -208,32 +210,11 @@ class HarnessConfigTests(unittest.TestCase):
             "claude-fable-5-1": {"effortLevel": "high"},
             "claude-fable-5-2": {"effortLevel": "high"},
         }
-        # The template's fallback must match dot's own pull.directories default.
-        pull_defaults = [str(self.home / path.removeprefix("~/")) for path in PullConfig().directories]
-        assert fresh["permissions"]["additionalDirectories"] == [*managed_roots[:2], *pull_defaults]
-        with pytest.raises(RuntimeError, match="additionalDirectories must be an array"):
-            self.render(template, '{"permissions": {"additionalDirectories": "/synthetic"}}')
-        # No managed deny rules: the host's own list passes through untouched.
-        assert "deny" not in fresh["permissions"]
-        dot_config = self.home / ".config/dot.yaml"
-        dot_config.parent.mkdir(parents=True, exist_ok=True)
-        dot_config.write_text("pull:\n  directories:\n    - ~/custom-work\n    - /synthetic/abs-work\n")
-        custom = json.loads(self.render(template, ""))
-        assert custom["permissions"]["additionalDirectories"] == [
-            str(self.home / ".agents"),
-            str(self.source),
-            str(self.home / "custom-work"),
-            "/synthetic/abs-work",
-        ]
-        dot_config.write_text("pull:\n  directories:\n    - relative-work\n")
-        with pytest.raises(RuntimeError, match=r'"relative-work" in ~/.config/dot\.yaml must start with ~/ or /'):
-            self.render(template, "")
-        dot_config.write_text("pull:\n  directories: /synthetic/not-an-array\n")
-        with pytest.raises(RuntimeError, match=r"pull\.directories in ~/.config/dot\.yaml must be an array"):
-            self.render(template, "")
+        # dot trust owns permissions.additionalDirectories; host deny/additionalDirectories pass through untouched.
+        assert fresh["permissions"] == {"defaultMode": "bypassPermissions"}
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
-        template = "dot_config/opencode/modify_private_opencode.json"
+        template = "dot_config/private_opencode/modify_private_opencode.json"
         original = {
             "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
             "compaction": {"reserved": 300000, "protect": ["skill"]},
@@ -260,12 +241,13 @@ class HarnessConfigTests(unittest.TestCase):
         assert not {"instructions", "skills", "default_agent", "snapshot", "lsp"} & data.keys()
         assert data["experimental"] == original["experimental"]
         assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
+        assert "policies" not in data
         assert self.render(template, rendered) == rendered
 
     def test_opencode_keeps_credentials_out_of_rendered_config(self):
         data = json.loads(
             self.render(
-                "dot_config/opencode/modify_private_opencode.json",
+                "dot_config/private_opencode/modify_private_opencode.json",
                 "{}",
                 {"OPENROUTER_API_KEY": "synthetic-private-value", "GOOGLE_CLOUD_PROJECT": "unrelated"},
             )
@@ -274,7 +256,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert "synthetic-private-value" not in json.dumps(data)
 
     def test_opencode_cli_merge_preserves_client_preferences(self):
-        template = "dot_config/opencode/modify_cli.json"
+        template = "dot_config/private_opencode/modify_cli.json"
         original = {"keybinds": {"leader": "ctrl+a"}, "theme": {"mode": "dark"}, "scroll": {"speed": 2}}
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
@@ -286,7 +268,10 @@ class HarnessConfigTests(unittest.TestCase):
         assert self.render(template, rendered) == rendered
 
     def test_json_merge_preserves_mcp_and_unmanaged_hook_events(self):
-        for template in ["dot_claude/modify_private_settings.json", "dot_config/opencode/modify_private_opencode.json"]:
+        for template in [
+            "private_dot_claude/modify_private_settings.json",
+            "dot_config/private_opencode/modify_private_opencode.json",
+        ]:
             with self.subTest(template=template):
                 original = {
                     "mcp": {"custom-team": {"command": ["/synthetic/tool"]}},
@@ -299,7 +284,7 @@ class HarnessConfigTests(unittest.TestCase):
                 assert self.render(template, rendered) == rendered
 
     def test_copilot_merge_preserves_preferences_and_enforces_policy(self):
-        template = "dot_copilot/modify_private_settings.json"
+        template = "private_dot_copilot/modify_private_settings.json"
         original = {
             "model": "account-model",
             "effortLevel": "medium",
@@ -331,10 +316,11 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh["theme"] == "default"
 
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
-        template = "dot_gemini/antigravity-cli/modify_private_settings.json"
+        template = "private_dot_gemini/private_antigravity-cli/modify_private_settings.json"
         original = {
             "model": "account-model",
             "gcp": {"project": "host-project", "location": "host-location", "extra": "preserved"},
+            "permissions": {"allow": ["command(git)"], "ask": ["read_url(example.com)"], "deny": ["command(rm -rf)"]},
             "trustedWorkspaces": [],
             "pickerGrouping": "flat",
             "runningLightSpeed": "slow",
@@ -364,7 +350,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert "trustedWorkspaces" not in fresh  # dot trust owns folder trust.
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
-        template = "dot_gemini/private_config/modify_private_config.json"
+        template = "private_dot_gemini/private_config/modify_private_config.json"
         original = {
             "userSettings": {
                 "cliRemoteControlHostname": "fixture-host",
@@ -393,8 +379,8 @@ class HarnessConfigTests(unittest.TestCase):
             "mcp(*)",
         ]
         assert grants["allow"] == ["read_file(/fixture)", *managed]
-        for action in ("ask", "deny"):
-            assert grants[action] == original["userSettings"]["globalPermissionGrants"][action]
+        assert grants["ask"] == original["userSettings"]["globalPermissionGrants"]["ask"]
+        assert grants["deny"] == ["command(rm *)"]
         assert data["customState"] == original["customState"]
         assert settings["autoExecutionPolicy"] == "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER"
         assert settings["permissionPreset"] == "AGENT_PERMISSION_PRESET_TURBO"
@@ -406,7 +392,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh["globalPermissionGrants"] == {"allow": managed}
 
     def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
-        template = "dot_gemini/antigravity-cli/modify_private_settings.json"
+        template = "private_dot_gemini/private_antigravity-cli/modify_private_settings.json"
         original = json.dumps({"gcp": {"project": "host", "location": "region", "extra": True}})
         location_only = self.render(template, original, {"ANTIGRAVITY_CLOUD_LOCATION": "ignored"})
         assert json.loads(location_only)["gcp"] == json.loads(original)["gcp"]
@@ -420,7 +406,7 @@ class HarnessConfigTests(unittest.TestCase):
                 assert data["gcp"] == {"project": 'project-with-"quote', "location": location, "extra": True}
 
     def test_copilot_lsp_merge_keeps_other_servers_and_ty_options(self):
-        template = "dot_copilot/modify_lsp-config.json"
+        template = "private_dot_copilot/modify_lsp-config.json"
         original = {"lspServers": {"custom": {"command": "fixture"}, "ty": {"env": {"CUSTOM": "value"}}}}
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)["lspServers"]
@@ -432,13 +418,27 @@ class HarnessConfigTests(unittest.TestCase):
         assert self.render(template, rendered) == rendered
 
     def test_json_merge_rejects_malformed_or_non_object_host_state(self):
-        for content in ['{"unfinished":', "[]", "null", '"string"']:
-            with self.subTest(content=content), pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
-                self.render("dot_copilot/modify_private_settings.json", content)
+        templates = (
+            "private_dot_claude/modify_private_settings.json",
+            "private_dot_copilot/modify_private_settings.json",
+            "private_dot_gemini/private_antigravity-cli/modify_private_settings.json",
+            "private_dot_gemini/private_config/modify_private_config.json",
+            "private_dot_gemini/private_config/modify_private_hooks.json",
+            "dot_config/private_opencode/modify_private_opencode.json",
+            "dot_config/private_opencode/modify_cli.json",
+            "private_dot_pi/private_agent/modify_private_settings.json",
+        )
+        for template in templates:
+            for content in ['{"unfinished":', "[]", "null", '"string"']:
+                with (
+                    self.subTest(template=template, content=content),
+                    pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"),
+                ):
+                    self.render(template, content)
 
     def test_json_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
         # Hook timeouts, feedbackSurveyRate, and Copilot's version are managed integers.
-        template = "dot_claude/modify_private_settings.json"
+        template = "private_dot_claude/modify_private_settings.json"
         converged = json.loads(self.render(template, ""))
         converged["hostCounter"] = 9007199254740993
         host = json.dumps(dict(reversed(converged.items())), indent=4)
@@ -449,9 +449,9 @@ class HarnessConfigTests(unittest.TestCase):
 
     def test_native_jsonc_merges_preserve_comments_when_converged_and_keep_host_values(self):
         templates = [
-            "dot_copilot/modify_private_settings.json",
-            "dot_config/opencode/modify_private_opencode.json",
-            "dot_config/opencode/modify_cli.json",
+            "private_dot_copilot/modify_private_settings.json",
+            "dot_config/private_opencode/modify_private_opencode.json",
+            "dot_config/private_opencode/modify_cli.json",
         ]
         assert json.loads(self.render(templates[0], ""))["connectors"] is False
         original = '{/* host preference */ "hostCounter":9007199254740993,"hostUrl":"https://example.com/a//b",}'
@@ -467,7 +467,7 @@ class HarnessConfigTests(unittest.TestCase):
                     self.render(template, '{"incomplete": /* unfinished')
         # JSONC support belongs to native formats that support it, not every JSON caller.
         with pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
-            self.render("dot_copilot/modify_lsp-config.json", original)
+            self.render("private_dot_copilot/modify_lsp-config.json", original)
 
     def test_opencode_native_parser_accepts_jsonc_before_and_after_managed_merge(self):
         opencode = native_binary("opencode")
@@ -491,7 +491,7 @@ class HarnessConfigTests(unittest.TestCase):
         }
         # OpenCode 2.x answers through a server; --standalone runs a private one that exits with
         # the command, so the test never touches the workstation's background service.
-        for content in (original, self.render("dot_config/opencode/modify_private_opencode.json", original)):
+        for content in (original, self.render("dot_config/private_opencode/modify_private_opencode.json", original)):
             target.write_text(content)
             result = subprocess.run(
                 [opencode, "debug", "config", "--standalone"],
@@ -546,7 +546,7 @@ class HarnessConfigTests(unittest.TestCase):
         # Hooks name the CLI absolutely: a harness may start without ~/.local/bin on PATH.
         dot = str(self.home / ".local/bin/dot")
 
-        claude_template = "dot_claude/modify_private_settings.json"
+        claude_template = "private_dot_claude/modify_private_settings.json"
         claude = json.loads(self.render(claude_template, "{}"))["hooks"]
         assert set(claude) == {"Notification"}
         assert claude["Notification"][1]["matcher"] == "^idle_prompt$"
@@ -558,13 +558,13 @@ class HarnessConfigTests(unittest.TestCase):
             f"{dot} agent hook notify claude needs-input"
         ]
 
-        agy = json.loads(self.render("dot_gemini/private_config/modify_private_hooks.json", ""))
+        agy = json.loads(self.render("private_dot_gemini/private_config/modify_private_hooks.json", ""))
         assert set(agy) == {"notify"}
         # agy's /hooks writes named hooks to the same file; apply keeps them and enforces notify.
         user_hook = {"type": "command", "command": "echo user", "timeout": 5}
         merged = json.loads(
             self.render(
-                "dot_gemini/private_config/modify_private_hooks.json",
+                "private_dot_gemini/private_config/modify_private_hooks.json",
                 json.dumps({"custom": {"Stop": [user_hook]}, "notify": {"Stop": []}}),
             )
         )
@@ -581,15 +581,80 @@ class HarnessConfigTests(unittest.TestCase):
             self.source,
             "execute-template",
             "--file",
-            str(ROOT / "dot_pi/agent/extensions/dot-notify.ts.tmpl"),
+            str(ROOT / "private_dot_pi/private_agent/extensions/dot-notify.ts.tmpl"),
             config=self.config,
             env=dict(os.environ, HOME=str(self.home)),
         )
         assert f'spawn("{dot}", ["agent", "hook", "notify", "pi", "stop"]' in extension
         assert 'pi.on("agent_settled"' in extension
+        assert 'process.env.GOOGLE_CLOUD_LOCATION = "global"' in extension
+
+    def test_pi_dynamic_google_cloud_project_resolves_vertex_without_static_project(self):
+        pi = native_binary("pi")
+        if pi is None:
+            pytest.skip("Pi native validation requires the workstation tool")
+        agent_dir = self.home / ".pi/agent"
+        (agent_dir / "extensions").mkdir(parents=True)
+        (agent_dir / "settings.json").write_text(
+            self.render("private_dot_pi/private_agent/modify_private_settings.json", "")
+        )
+        (agent_dir / "extensions/dot-notify.ts").write_text(
+            chezmoi(
+                self.source,
+                "execute-template",
+                "--file",
+                str(ROOT / "private_dot_pi/private_agent/extensions/dot-notify.ts.tmpl"),
+                config=self.config,
+                env=dict(os.environ, HOME=str(self.home)),
+            )
+        )
+        adc = self.home / "adc.json"
+        adc.write_text("{}")
+        base_env = {
+            "HOME": str(self.home),
+            "PATH": os.defpath,
+            "LANG": "C.UTF-8",
+            "PI_CODING_AGENT_DIR": str(agent_dir),
+            "PI_OFFLINE": "1",
+            "GOOGLE_APPLICATION_CREDENTIALS": str(adc),
+            "HTTPS_PROXY": "http://127.0.0.1:1",
+        }
+        without_project = subprocess.run(
+            [pi, "--mode", "json", "--no-session", "--no-tools", "-p", "hi"],
+            env=base_env,
+            cwd=self.home,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert "No API key found" in without_project.stderr
+
+        with_project = subprocess.run(
+            [pi, "--mode", "json", "--no-session", "--no-tools", "-p", "hi"],
+            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project"},
+            cwd=self.home,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        events = [json.loads(line) for line in with_project.stdout.splitlines() if line.startswith("{")]
+        [reply] = [
+            event["message"]
+            for event in events
+            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
+        ]
+        assert (reply["provider"], reply["model"], reply["thinkingLevel"]) == (
+            "google-vertex",
+            "gemini-4-argon",
+            "high",
+        )
 
     def test_pi_settings_seed_the_model_once_and_keep_host_state(self):
-        template = "dot_pi/agent/modify_private_settings.json"
+        template = "private_dot_pi/private_agent/modify_private_settings.json"
         fresh = json.loads(self.render(template, ""))
         assert fresh == {
             "$schema": "https://pi.dev/schemas/settings.schema.json",
@@ -623,8 +688,8 @@ class HarnessConfigTests(unittest.TestCase):
         self.home = self.home / "home with spaces"
         self.home.mkdir()
         for template in [
-            "dot_claude/modify_private_settings.json",
-            "dot_gemini/private_config/modify_private_hooks.json",
+            "private_dot_claude/modify_private_settings.json",
+            "private_dot_gemini/private_config/modify_private_hooks.json",
         ]:
             with self.subTest(template=template), pytest.raises(RuntimeError, match="not shell-safe"):
                 self.render(template, "")

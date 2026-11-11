@@ -174,7 +174,7 @@ def test_docs_smart_chips_become_labeled_placeholders(tmp_path: Path) -> None:
     ("properties", "expected"),
     [
         ({"displayValue": "Blocked"}, "Status: [dropdown: Blocked]\n"),
-        ({"displayValue": "En cours"}, "Status: [dropdown: En cours]\n"),
+        ({"displayValue": "En cours"}, "Status: [dropdown: En cours]\n"),  # typos: ignore-line
         ({}, "Status: [dropdown]\n"),
         ({"displayValue": ""}, "Status: [dropdown]\n"),
     ],

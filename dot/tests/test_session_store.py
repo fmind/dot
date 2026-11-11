@@ -193,7 +193,7 @@ def test_fingerprints_preserve_native_unicode_json() -> None:
     logs = [SessionLog("", "codex", "session-1", "user", "café <&>\u2028\u2029", "/repo", "gpt")]
     encoded = marshal_session_logs(logs)
     native_transcript = (
-        b'{"ts":"","agent":"codex","sid":"session-1","role":"user","content":"caf\xc3\xa9 '
+        b'{"ts":"","agent":"codex","sid":"session-1","role":"user","content":"caf\xc3\xa9 '  # typos: ignore-line
         + '<&>\u2028\u2029","cwd":"/repo","model":"gpt"}\n'.encode()
     )
     assert encoded == native_transcript

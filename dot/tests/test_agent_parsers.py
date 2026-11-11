@@ -87,6 +87,23 @@ def test_file_transcript_parsers_and_usage(tmp_path) -> None:
     assert parsed_agy.usage.model == "unknown"
     assert parsed_agy.usage.source_bytes == agy.stat().st_size
 
+    sampled_agy = tmp_path / "sampled-agy.jsonl"
+    _jsonl(
+        sampled_agy,
+        [
+            {
+                "created_at": "2026-01-01T00:00:01Z",
+                "source": "MODEL",
+                "type": "PLANNER_RESPONSE",
+                "input_tokens": 10,
+                "output_tokens": 5,
+            },
+            {"created_at": "not-a-timestamp", "source": "SYSTEM", "type": "SYSTEM_MESSAGE", "content": "trailing"},
+        ],
+    )
+    sampled_usage = _usage(parse_agy_session(sampled_agy, "agy-sampled"))
+    assert (sampled_usage.timestamp, sampled_usage.total_tokens) == ("2026-01-01T00:00:01Z", 15)
+
     claude = tmp_path / "claude.jsonl"
     _jsonl(
         claude,
@@ -841,7 +858,7 @@ def test_claude_subagents_are_sidechains_and_workflow_journals_are_not_sessions(
 _DEEP_ARRAY = "[" * 1_000_000 + "]" * 1_000_000
 
 
-@pytest.mark.parametrize("parser", [parse_agy_session, parse_claude_session])
+@pytest.mark.parametrize("parser", [parse_agy_session, parse_claude_session, parse_pi_session])
 def test_deeply_nested_json_lines_are_malformed_records(tmp_path: Path, parser) -> None:
     transcript = tmp_path / "transcript.jsonl"
     transcript.write_text(_DEEP_ARRAY + "\n" + json.dumps({"type": "unrelated"}) + "\n", encoding="utf-8")
@@ -849,6 +866,112 @@ def test_deeply_nested_json_lines_are_malformed_records(tmp_path: Path, parser) 
     parsed = parser(transcript, "session-id")
 
     assert parsed.malformed == 1
+
+
+def test_claude_and_pi_usage_timestamp_selects_latest_instant_across_precision_and_offsets(tmp_path: Path) -> None:
+    stamps = ("2026-11-09T20:00:00Z", "2026-11-09T20:00:00.500Z", "2026-11-09T21:30:00+02:00")
+    claude_path = tmp_path / "claude.jsonl"
+    _jsonl(
+        claude_path,
+        [
+            {
+                "type": "assistant",
+                "timestamp": stamp,
+                "requestId": f"req-{index}",
+                "message": {
+                    "id": f"msg-{index}",
+                    "model": "claude-sonnet-5-5",
+                    "content": [{"type": "text", "text": "ok"}],
+                    "usage": {"input_tokens": 10, "output_tokens": 5},
+                },
+            }
+            for index, stamp in enumerate(stamps)
+        ],
+    )
+    pi_path = tmp_path / "2026-11-09T20-00-00-000Z_pi-id.jsonl"
+    _jsonl(
+        pi_path,
+        [
+            {
+                "type": "message",
+                "timestamp": stamp,
+                "message": {
+                    "role": "assistant",
+                    "model": "gemini-4-argon",
+                    "content": [{"type": "text", "text": "ok"}],
+                    "usage": {"input": 10, "output": 5},
+                },
+            }
+            for stamp in stamps
+        ],
+    )
+
+    assert _usage(parse_claude_session(claude_path, "claude-id")).timestamp == "2026-11-09T20:00:00.500Z"
+    assert _usage(parse_pi_session(pi_path, "pi-id")).timestamp == "2026-11-09T20:00:00.500Z"
+
+
+def test_pi_parser_records_positive_cache_warm_ignores_user_usage_and_guards_fork_timestamps(tmp_path: Path) -> None:
+    warm = tmp_path / "warm.jsonl"
+    _jsonl(
+        warm,
+        [
+            {
+                "type": "usage",
+                "timestamp": "2026-11-09T10:00:00Z",
+                "model": "claude-sonnet-5-5",
+                "usage": {"cacheWrite": 50_000},
+            },
+            {
+                "type": "message",
+                "timestamp": "2026-11-09T10:00:01Z",
+                "message": {"role": "user", "content": "prompt", "usage": {"input": 999}},
+            },
+        ],
+    )
+    warm_usage = _usage(parse_pi_session(warm, "warm-id"))
+    assert (warm_usage.cache_write_tokens, warm_usage.input_tokens) == (50_000, 0)
+
+    bad_fork = tmp_path / "fork.jsonl"
+    _jsonl(
+        bad_fork,
+        [
+            {"type": "session", "parentSession": "/work/parent.jsonl"},
+            {
+                "type": "message",
+                "timestamp": "2026-11-09T10:05:00Z",
+                "message": {
+                    "role": "assistant",
+                    "model": "gemini-4-argon",
+                    "content": [{"type": "text", "text": "reply"}],
+                    "usage": {"input": 10, "output": 5},
+                },
+            },
+        ],
+    )
+    parsed_fork = parse_pi_session(bad_fork, "fork-id")
+    assert [log.content for log in parsed_fork.logs] == ["reply"]
+    assert parsed_fork.usage is None
+    assert "forked Pi session usage requires valid header and entry timestamps" in str(parsed_fork.usage_error)
+
+
+def test_pi_session_with_unpriced_or_empty_usage_preserves_invariants(tmp_path: Path) -> None:
+    mixed = tmp_path / "2026-11-09T20-57-49-274Z_mixed.jsonl"
+    unpriced = _pi_message(
+        "e8",
+        "e7",
+        "2026-11-09T20:58:00.000Z",
+        {"role": "assistant", "model": "mock-model", "content": [], "usage": {"input": 7, "output": 3}},
+    )
+    _jsonl(mixed, [*_PI_SESSION, unpriced])
+    mixed_usage = _usage(parse_pi_session(mixed, "mixed"))
+    assert (mixed_usage.input_tokens, mixed_usage.output_tokens) == (407, 63)
+    assert (mixed_usage.cost_known, mixed_usage.cost_usd) == (False, 0.0)
+
+    partial = tmp_path / "2026-11-09T20-57-49-274Z_partial.jsonl"
+    empty = _pi_message("e8", "e7", "2026-11-09T20:58:00.000Z", {"role": "assistant", "content": [], "usage": {}})
+    _jsonl(partial, [*_PI_SESSION, empty])
+    parsed_partial = parse_pi_session(partial, "partial")
+    assert (parsed_partial.usage, parsed_partial.usage_error) == (None, None)
 
 
 def test_unexpandable_home_paths_are_malformed_input() -> None:

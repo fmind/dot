@@ -107,7 +107,7 @@ def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> Non
     hooks = yaml.safe_load((ROOT / "skills/python-stack/references/foundation/templates/lefthook.yml").read_text())[
         "pre-commit"
     ]["jobs"]
-    formatters = [hook for hook in hooks if hook.get("glob") == "*.py"]
+    formatters = [hook for hook in hooks if "**/*.py" in hook.get("glob", "")]
     assert formatters
     for hook in formatters:
         task = hook["run"].split()[2]

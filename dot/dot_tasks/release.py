@@ -17,15 +17,9 @@ _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
 _RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, Path("dot/uv.lock"))
 _RELEASE_CLIFF_CONFIG = Path("dot_config/git-cliff/cliff.toml")
 _CD_URL = "https://github.com/fmind/dot/actions/workflows/cd.yml"
-# Gates for the bumped release commit: the network scans refresh vulnerability data
-# that CD rechecks, the host-only completion check never runs in CI, the build proves
-# the new version packages, and the starter contracts re-resolve the latest upstream
-# packages, so an upstream break since CI stops preparation here instead of failing
-# CD after the tag consumed the version. None of them may depend on Git hooks.
+# Pre-tag gates (none depend on Git hooks): live vuln/starter checks, packaging, and host completions.
 _RELEASE_GATES = ("check:network", "test:starters", "build", "check:completions")
-# Generous bounds for captured commands: a hung tool must fail the release instead of
-# blocking it forever. Relayed commands (gates, commit hooks, push, deploy) stream their
-# output and stay unbounded, like their CI counterparts.
+# Captured commands fail on hang; streamed commands (gates, hooks, push, deploy) stay unbounded like CI.
 _GIT_TIMEOUT_SECONDS = 300
 _TOOL_TIMEOUT_SECONDS = 600
 # Release versions only: a SemVer pre-release or build suffix normalizes differently

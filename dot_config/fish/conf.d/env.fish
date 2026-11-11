@@ -1,44 +1,33 @@
 # Docs: https://fishshell.com/docs/current/index.html
-# Go xdg libraries (lazygit, lazydocker) default to
-# ~/Library/Application Support on macOS; keep their managed ~/.config files active.
-set -q XDG_CONFIG_HOME; or set -gx XDG_CONFIG_HOME $HOME/.config
+# Go xdg libraries (lazygit, lazydocker) default to ~/Library/Application Support on macOS; point them at ~/.config.
+if not set -q XDG_CONFIG_HOME; or test -z "$XDG_CONFIG_HOME"
+    set -gx XDG_CONFIG_HOME "$HOME/.config"
+end
 
-# Editors
 # Opens nvim on a terminal and fails fast without one (agent shells).
-set -gx EDITOR $HOME/.local/bin/nvim-tty
-set -gx VISUAL $EDITOR
-
-# Locales
+set -gx EDITOR "$HOME/.local/bin/nvim-tty"
+set -gx VISUAL "$EDITOR"
 set -gx LANG en_US.UTF-8
-
-# Pagers
 set -gx LESS -FRSXMK
 set -gx LESSHISTFILE -
-# Agents inherit this; less prints like cat without a terminal.
 set -gx MANPAGER less
 set -gx PAGER bat
 
-# Tools
-# 1 auto-approves tools only; the exact value "true" would also trust every working
-# directory and load its hooks, bypassing the folders curated by `dot trust`.
+# "1" auto-approves tools only; "true" would also trust every directory and its hooks, bypassing `dot trust`.
 set -gx COPILOT_ALLOW_ALL 1
-# ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively;
-# loading both resolves each duplicate name nondeterministically.
+# ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively.
 set -gx OPENCODE_DISABLE_CLAUDE_CODE_SKILLS 1
-# gh renders Markdown with Glamour; the fmind/theme external replaces its built-in 256-color style.
-if test -r $XDG_CONFIG_HOME/glamour/fmind.json
-    set -gx GLAMOUR_STYLE $XDG_CONFIG_HOME/glamour/fmind.json
+if test -r "$HOME/.config/glamour/fmind.json"
+    set -gx GLAMOUR_STYLE "$HOME/.config/glamour/fmind.json"
 end
-# Layer the fmind/theme external over the managed config; lazygit rejects a missing
-# custom config file, so wait until chezmoi has fetched it.
-if test -r $XDG_CONFIG_HOME/lazygit/theme.yml
-    set -gx LG_CONFIG_FILE $XDG_CONFIG_HOME/lazygit/config.yml,$XDG_CONFIG_HOME/lazygit/theme.yml
+# Guard until chezmoi fetches theme.yml (lazygit rejects missing config files).
+if test -r "$HOME/.config/lazygit/theme.yml"
+    set -gx LG_CONFIG_FILE "$HOME/.config/lazygit/config.yml,$HOME/.config/lazygit/theme.yml"
 end
-# mermaid-cli (mmdc) renders through puppeteer; point it at the system Chrome so
-# a diagram export never downloads a second browser into ~/.cache/puppeteer.
+# Reuse system Chrome/Chromium so mermaid-cli (mmdc) never downloads a second browser into ~/.cache/puppeteer.
 if command -q google-chrome
     set -gx PUPPETEER_EXECUTABLE_PATH (command -v google-chrome)
-else if command -q chromium # hosts with only Chromium installed
+else if command -q chromium
     set -gx PUPPETEER_EXECUTABLE_PATH (command -v chromium)
 else if test -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     set -gx PUPPETEER_EXECUTABLE_PATH "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"

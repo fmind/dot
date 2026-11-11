@@ -24,7 +24,7 @@ from fmind_dot.auth import (
     workspace_ready,
 )
 from fmind_dot.command import FISH_COMPLETION, Parser, add_json
-from fmind_dot.config import expand_path
+from fmind_dot.config import expand_path, xdg_dir
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
 from fmind_dot.orphan import find_orphans
 from fmind_dot.private_files import write_atomic_file
@@ -113,6 +113,7 @@ COMPLETION_SOURCES: dict[str, CompletionSource] = {
     "chezmoi": CompletionSource(),
     "colab": CompletionSource(binary="env", args=("_COLAB_COMPLETE=source_fish", "colab")),
     "copilot": CompletionSource(),
+    "cosign": CompletionSource(),
     "databricks": CompletionSource(),
     "delta": CompletionSource(args=("--generate-completion", "fish")),
     "doggo": CompletionSource(args=("completions", "fish")),
@@ -131,6 +132,7 @@ COMPLETION_SOURCES: dict[str, CompletionSource] = {
     "lefthook": CompletionSource(),
     "lsd": CompletionSource(package="lsd"),
     "lychee": CompletionSource(args=("--generate", "complete-fish")),
+    "marimo": CompletionSource(binary="env", args=("_MARIMO_COMPLETE=fish_source", "marimo")),
     "mise": CompletionSource(),
     "pup": CompletionSource(args=("completions", "fish")),
     "rg": CompletionSource(args=("--generate", "complete-fish")),
@@ -197,7 +199,7 @@ def run_completion(state: State, *, check_only: bool = False) -> None:
         success = "Completion check passed; installed scripts were not changed."
     else:
         directory = expand_path(state.config.completions.path)
-        cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "fish"
+        cache = xdg_dir("XDG_CACHE_HOME", ".cache") / "fish"
         # A failed generator keeps its previous script; the others still install before the exit 1.
         failures = _run_completion(state, directory, cache)
         success = f"\n✓ Completions updated in {directory}"
@@ -271,24 +273,26 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
 def _inspect_secret(label: str, *, fix: bool) -> CheckResult:
     path = expand_path(label)
     try:
-        info = path.stat()
+        info = path.lstat()
     except FileNotFoundError:
-        return (
-            CheckResult(label, "fail", "unable to inspect file")
-            if path.is_symlink()
-            else CheckResult(label, "warn", "MISSING")
-        )
+        return CheckResult(label, "warn", "MISSING")
     except OSError:
         return CheckResult(label, "fail", "unable to inspect file")
     if not stat.S_ISREG(info.st_mode):
         return CheckResult(label, "fail", "not a regular file")
+    if info.st_uid != os.getuid():
+        return CheckResult(label, "fail", "not owned by current user")
     current = stat.S_IMODE(info.st_mode)
     allowed = _SECRET_PERMISSIONS
     if current & ~allowed == 0:
         return CheckResult(label, "pass", f"secure (permissions: {current:04o})")
     if fix:
         try:
-            path.chmod(allowed)
+            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            try:
+                os.fchmod(descriptor, allowed)
+            finally:
+                os.close(descriptor)
         except OSError:
             return CheckResult(
                 label,

@@ -3,7 +3,9 @@
 import argparse
 import hashlib
 import json
+import os
 import re
+import stat
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -37,18 +39,36 @@ _Edit = Callable[[Path, str, list[str]], tuple[str, list[str]]]
 _WRITE_ATTEMPTS = 3
 
 
-def _write(path: Path, text: str) -> None:
-    """Replace the file atomically, keeping its permissions (new files are owner-only)."""
-    mode = path.stat().st_mode & 0o777 if path.exists() else 0o600
-    write_atomic_file(path, text.encode("utf-8"), mode=mode)
-
-
-def _file_state(path: Path) -> tuple[int, int] | None:
+def _lstat_regular(path: Path) -> os.stat_result | None:
     try:
-        info = path.stat()
+        info = path.lstat()
     except FileNotFoundError:
         return None
-    return info.st_size, info.st_mtime_ns
+    if stat.S_ISLNK(info.st_mode):
+        raise DotError(f"refusing symlinked trust file: {path}")
+    return info
+
+
+def _write(path: Path, text: str) -> None:
+    """Replace the file atomically, keeping its permissions (new files are owner-only)."""
+    info = _lstat_regular(path)
+    mode = stat.S_IMODE(info.st_mode) if info is not None else 0o600
+    try:
+        write_atomic_file(path, text.encode("utf-8"), mode=mode)
+    except OSError as error:
+        raise DotError(f"failed to write trust file {path}: {error}") from error
+
+
+def _file_state(path: Path) -> tuple[int, int, int] | None:
+    info = _lstat_regular(path)
+    return None if info is None else (info.st_ino, info.st_size, info.st_mtime_ns)
+
+
+def _read_utf8(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise DotError(f"{path} is not valid UTF-8") from error
 
 
 def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool) -> list[str]:
@@ -60,7 +80,7 @@ def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool) -> li
     for _ in range(_WRITE_ATTEMPTS):
         observed = _file_state(path)
         try:
-            text = path.read_text(encoding="utf-8")
+            text = _read_utf8(path)
         except FileNotFoundError:
             text = ""
         updated, changed = edit(path, text, folders)
@@ -111,6 +131,42 @@ def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
             project["hasTrustDialogAccepted"] = True
             changed.append(folder)
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
+
+
+def _claude_settings(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
+    """Add uncovered roots to Claude's permissions.additionalDirectories, keeping host entries."""
+    data = _load_json(path, text)
+    permissions = data.setdefault("permissions", {})
+    if not isinstance(permissions, dict):
+        raise DotError(f"{path}: permissions must be a JSON object")
+    directories = permissions.setdefault("additionalDirectories", [])
+    if not isinstance(directories, list) or not all(isinstance(item, str) for item in directories):
+        raise DotError(f"{path}: permissions.additionalDirectories must be a JSON array of strings")
+    covered = {Path(item).resolve() for item in directories} | {Path(item) for item in directories}
+    changed = []
+    for raw in folders:
+        folder = Path(raw)
+        resolved = folder.resolve()
+        if any(resolved.is_relative_to(parent) or folder.is_relative_to(parent) for parent in covered):
+            continue
+        directories.append(raw)
+        covered.update((folder, resolved))
+        changed.append(raw)
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
+
+
+def register_claude_directories(
+    folders: Sequence[Path], *, dry_run: bool = False, home: Path | None = None
+) -> list[Path]:
+    """Extend Claude's permissions.additionalDirectories with ~/.agents and uncovered roots."""
+    home = (home or Path.home()).resolve()
+    if not (home / ".claude").is_dir():
+        return []
+    # Parents precede children so workspace roots subsume the repositories below them.
+    ordered = [home / ".agents", *sorted(set(folders), key=lambda item: (len(item.parts), str(item)))]
+    selected = {str(folder): folder for folder in ordered}
+    added = _update(home / ".claude" / "settings.json", _claude_settings, list(selected), dry_run=dry_run)
+    return [selected[raw] for raw in added]
 
 
 def _pi(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
@@ -191,7 +247,7 @@ def register_agy_projects(
         return []
     listed: set[str] = set()
     for path in sorted(registry.glob("*.json")):
-        listed |= _agy_project_folders(path, path.read_text(encoding="utf-8"))
+        listed |= _agy_project_folders(path, _read_utf8(path))
     # Folders arrive resolved, so patterns resolve too: a symlinked home would otherwise never match.
     patterns = [
         (home / pattern.removeprefix("~/") if pattern.startswith("~/") else expand_path(pattern)).resolve()
@@ -292,6 +348,8 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
 
 def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = False, as_json: bool = False) -> None:
     # One invocation covers every target, so the apply hook pays the CLI startup once.
+    home = Path.home().resolve()
+    forbidden = {home, *home.parents}
     selected: set[Path] = set()
     excluded: set[Path] = set()
     for target in targets:
@@ -300,10 +358,19 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
         excluded.update(skipped_here)
     folders = sorted(selected)
     skipped = sorted(excluded - selected)
+    claude_roots = (
+        [*[expand_path(directory).resolve() for directory in state.config.pull.directories], *folders]
+        if "all" in targets
+        else folders
+    )
+    for root in claude_roots:
+        if root in forbidden:
+            raise DotError(f"refusing to trust {root}: it contains the home directory")
     harnesses = installed_harnesses()
     # Projects go first: a malformed agy project file then stops the run before any trust write.
     include = state.config.trust.agy_projects
     projects = register_agy_projects(folders, include, dry_run=dry_run) if "agy" in harnesses else []
+    claude_directories = register_claude_directories(claude_roots, dry_run=dry_run) if "claude" in harnesses else []
     changes = trust_folders(folders, dry_run=dry_run) if harnesses else {}
     if as_json:
         document = {
@@ -313,6 +380,7 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
             "folders": [{"path": str(folder), "changed": changes.get(folder, [])} for folder in folders],
             "skipped": [str(folder) for folder in skipped],
             "agy_projects": [str(folder) for folder in projects],
+            "claude_directories": [str(folder) for folder in claude_directories],
         }
         write_json(state.stdout, document)
         return
@@ -325,6 +393,9 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
         verb = "would trust" if dry_run else "trusted"
         detail = f"{verb} in {', '.join(changed)}" if changed else "already trusted"
         state.stdout.write(f"{'✓' if not changed else '+'} {folder}: {detail}\n")
+    for folder in claude_directories:
+        verb = "would add" if dry_run else "added"
+        state.stdout.write(f"+ {folder}: {verb} to Claude additionalDirectories\n")
     for folder in projects:
         verb = "would add" if dry_run else "added"
         state.stdout.write(f"+ {folder}: {verb} to agy Remote Control projects\n")

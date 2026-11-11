@@ -15,7 +15,6 @@ mise.lock
 mise.toml
 ruff.toml
 skills
-trivy.yaml
 
 # Machine-specific CLI configuration stays local.
 .config/dot.yaml
@@ -32,7 +31,7 @@ trivy.yaml
 {{- end }}
 
 # An existing Kaggle legacy/OAuth login must not acquire a higher-priority personal token.
-{{- if or (stat (joinPath .chezmoi.homeDir ".kaggle/kaggle.json")) (stat (joinPath .chezmoi.homeDir ".kaggle/credentials.json")) }}
+{{- if or (stat (joinPath .chezmoi.destDir ".kaggle/kaggle.json")) (stat (joinPath .chezmoi.destDir ".kaggle/credentials.json")) }}
 .kaggle/access_token
 {{- end }}
 

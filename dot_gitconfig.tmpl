@@ -59,7 +59,7 @@
 # the directory buffers first. Git sets LOCAL and REMOTE as shell variables only, so the prefix
 # exports them and the paths never word-split. nvim-tty fails fast in agent shells without a terminal.
 [difftool "nvim"]
-    cmd = LOCAL=\"$LOCAL\" REMOTE=\"$REMOTE\" {{ joinPath .chezmoi.homeDir ".local/bin/nvim-tty" }} -c \"packadd nvim.difftool\" -c \"lua require('difftool').open(vim.env.LOCAL, vim.env.REMOTE)\"
+    cmd = {{ printf "LOCAL=\"$LOCAL\" REMOTE=\"$REMOTE\" %s -c \"packadd nvim.difftool\" -c \"lua require('difftool').open(vim.env.LOCAL, vim.env.REMOTE)\"" (joinPath .chezmoi.homeDir ".local/bin/nvim-tty" | shellQuote) | quote }}
 
 [fetch]
     all = true

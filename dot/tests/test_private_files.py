@@ -6,7 +6,27 @@ from pathlib import Path
 
 import pytest
 
-from fmind_dot.private_files import write_atomic_file, write_private_file
+from fmind_dot.private_files import private_directory, write_atomic_file, write_private_file
+
+
+def test_private_directory_and_atomic_write_refuse_symlinks(tmp_path: Path) -> None:
+    real_dir = tmp_path / "real-dir"
+    real_dir.mkdir()
+    real_dir.chmod(0o755)
+    linked_dir = tmp_path / "linked-dir"
+    linked_dir.symlink_to(real_dir)
+    with pytest.raises(OSError, match="refusing symlinked private directory"):
+        private_directory(linked_dir)
+    assert stat.S_IMODE(real_dir.stat().st_mode) == 0o755
+
+    real_file = tmp_path / "real-file"
+    real_file.write_bytes(b"keep")
+    linked_file = tmp_path / "linked-file"
+    linked_file.symlink_to(real_file)
+    with pytest.raises(OSError, match="refusing to overwrite symlink"):
+        write_atomic_file(linked_file, b"clobber", mode=0o600)
+    assert real_file.read_bytes() == b"keep"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["linked-dir", "linked-file", "real-dir", "real-file"]
 
 
 @pytest.mark.parametrize("mode", [0o600, 0o640, 0o644])

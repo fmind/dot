@@ -413,13 +413,29 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
     tokens: set[str] = set()
     config = None
     dot_yaml = home / ".config/dot.yaml"
-    if dot_yaml.is_file():
+    try:
+        raw_dot_yaml: str | None = dot_yaml.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raw_dot_yaml = None
+    except (OSError, UnicodeError) as error:
+        # Fail closed: Python 3.14 is_file() suppresses PermissionError, which would drop local tokens.
+        msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
+        raise ValueError(msg) from error
+    if raw_dot_yaml is not None:
         try:
-            config = yaml.safe_load(dot_yaml.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as error:
-            # Fail closed: skipping the file would silently drop every local token from the check.
-            msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error})"
+            config = yaml.safe_load(raw_dot_yaml)
+        except yaml.YAMLError as error:
+            mark = getattr(error, "problem_mark", None)
+            where = f"line {mark.line + 1}, column {mark.column + 1}" if mark is not None else "invalid YAML"
+            # Never format yaml.YAMLError directly: PyYAML embeds raw lines from untracked dot.yaml.
+            msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({where})"
             raise ValueError(msg) from error
+        except RecursionError as error:
+            msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
+            raise ValueError(msg) from error
+        if config is not None and not isinstance(config, dict):
+            msg = f"{dot_yaml}: cannot load local privacy tokens; expected a YAML mapping"
+            raise ValueError(msg)
     # privacy.allowed_tokens exempts already-public names without writing them into this repository.
     safe = set(SAFE_HOST_TOKENS)
     privacy = config.get("privacy") if isinstance(config, dict) else None
@@ -449,16 +465,26 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
                     _add(owner)
 
     git_dir = home / ".config/git"
-    if git_dir.is_dir():
-        for path in sorted(git_dir.iterdir()):
-            if not path.is_file() or path.name in {"allowed_signers", "personal.gitconfig", "theme.gitconfig"}:
+    try:
+        git_entries: list[Path] | None = sorted(git_dir.iterdir())
+    except FileNotFoundError:
+        git_entries = None
+    except OSError as error:
+        msg = f"{git_dir}: cannot load local privacy tokens; fix permissions ({error.__class__.__name__})"
+        raise ValueError(msg) from error
+    if git_entries is not None:
+        for path in git_entries:
+            if path.name in {"allowed_signers", "personal.gitconfig", "theme.gitconfig"}:
                 continue
+            try:
+                if not stat.S_ISREG(path.stat().st_mode):
+                    continue
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as error:
+                msg = f"{path}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
+                raise ValueError(msg) from error
             if path.name.startswith("config.") and len(suffix := path.name.removeprefix("config.")) >= 4:
                 _add(suffix)
-            try:
-                text = path.read_text(encoding="utf-8")
-            except OSError:
-                continue
             for match in EMAIL_PATTERN.finditer(text):
                 full_email, domain = match.group(1), match.group(2)
                 if not _is_allowed_email_domain(domain):

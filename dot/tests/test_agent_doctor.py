@@ -29,7 +29,6 @@ def _text(stream: IO[str]) -> str:
 NOTIFY = {
     "agy": ["stop"],
     "claude": ["needs-input", "ready"],
-    "copilot": ["stop"],
 }
 
 

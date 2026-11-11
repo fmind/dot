@@ -7,14 +7,16 @@ vi = True
 syntax_style = bw
 
 [colors]
-completion-menu.completion.current = 'bg:#d2e3fc #202124'
+completion-menu.completion.current = 'noinherit bg:#d2e3fc #202124'
 completion-menu.completion = 'bg:#f1f3f4 #202124'
 completion-menu.meta.completion.current = 'bg:#d2e3fc #202124'
 completion-menu.meta.completion = 'bg:#f1f3f4 #595d62'
 completion-menu.multi-column-meta = 'bg:#f1f3f4 #595d62'
-scrollbar.arrow = 'bg:#9aa0a6'
+scrollbar.arrow = 'bg:#595d62'
+scrollbar.background = 'bg:#f1f3f4'
+scrollbar.button = 'bg:#595d62'
 scrollbar = 'bg:#f1f3f4'
-selected = '#202124 bg:#d2e3fc'
+selected = 'noinherit #202124 bg:#d2e3fc'
 search = '#202124 bg:#feefc3'
 search.current = '#202124 bg:#fbbc04'
 bottom-toolbar = 'bg:#f1f3f4 #595d62'

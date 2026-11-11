@@ -165,7 +165,7 @@ def bodies(calls: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def test_public_apply_sets_every_baseline_setting(tmp_path: Path) -> None:
-    result, calls = run(tmp_path, {"before": public_before(), "after": public_after()}, "--disable", "wiki")
+    result, calls = run(tmp_path, {"before": public_before(), "after": public_after()}, "--apply", "--disable", "wiki")
     assert result.returncode == 0, result.stderr
     assert mutations(calls) == [
         (
@@ -231,7 +231,7 @@ def test_other_deployment_policies_are_drift_and_never_deleted(tmp_path: Path) -
             ]
         }
     )
-    for folder, flags in (("check", ("--check",)), ("apply", ())):
+    for folder, flags in (("default", ()), ("check", ("--check",)), ("apply", ("--apply",))):
         (tmp_path / folder).mkdir()
         result, calls = run(tmp_path / folder, {"before": state}, *flags)
         assert result.returncode == 1, result.stderr
@@ -245,6 +245,8 @@ def test_other_deployment_policies_are_drift_and_never_deleted(tmp_path: Path) -
                 f"(`gh api --method DELETE {policies}/ID`), then rerun"
             ),
         ]
+        if folder != "apply":
+            assert mutations(calls) == []
         changed = [call for call in mutations(calls) if policies in call[-1]]
         assert changed == [], "the baseline neither deletes other policies nor adds a second v* policy"
 
@@ -255,7 +257,7 @@ def test_private_repository_without_secret_scanning_reports_the_gap(tmp_path: Pa
         f"GET {BASE}/actions/permissions": {"enabled": False},
     }
     after = {f"GET {BASE}": repository("private", **MERGED), f"GET {BASE}/automated-security-fixes": {"enabled": True}}
-    result, calls = run(tmp_path, {"before": before, "after": after})
+    result, calls = run(tmp_path, {"before": before, "after": after}, "--apply")
     assert result.returncode == 0, result.stderr
     edit, *rest = mutations(calls)
     assert "--enable-secret-scanning" not in edit
@@ -267,22 +269,26 @@ def test_private_repository_without_secret_scanning_reports_the_gap(tmp_path: Pa
 
 def test_duplicate_rulesets_stop_before_any_change(tmp_path: Path) -> None:
     owned = [{"id": 7, "name": "Protect default branch"}, {"id": 9, "name": "Protect default branch"}]
-    result, calls = run(tmp_path, {"before": public_before(owned)})
+    result, calls = run(tmp_path, {"before": public_before(owned)}, "--apply")
     assert result.returncode == 1
     assert "rulesets 7, 9" in result.stderr
     assert "nothing was changed" in result.stderr
     assert mutations(calls) == []
 
 
-def test_check_only_reads_and_reports_drift(tmp_path: Path) -> None:
-    result, calls = run(tmp_path, {"before": public_before()}, "--check")
-    assert result.returncode == 1
-    assert calls
-    assert mutations(calls) == []
-    drift = json.loads(result.stdout)["drift"]
-    assert "allow_merge_commit: expected false, found true" in drift
-    assert "automated_security_fixes: expected true, found false" in drift
-    assert "default_branch_protected: expected true, found false" in drift
+def test_default_and_check_only_read_and_report_drift(tmp_path: Path) -> None:
+    for folder, flags in (("default", ()), ("check", ("--check",))):
+        (tmp_path / folder).mkdir()
+        result, calls = run(tmp_path / folder, {"before": public_before()}, *flags)
+        assert result.returncode == 1
+        assert calls
+        assert mutations(calls) == []
+        report = json.loads(result.stdout)
+        assert "changed" not in report
+        drift = report["drift"]
+        assert "allow_merge_commit: expected false, found true" in drift
+        assert "automated_security_fixes: expected true, found false" in drift
+        assert "default_branch_protected: expected true, found false" in drift
 
 
 def test_invalid_repository_is_a_usage_error(tmp_path: Path) -> None:

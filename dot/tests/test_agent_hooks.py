@@ -201,7 +201,7 @@ def test_headless_agy_turns_stay_quiet(monkeypatch: pytest.MonkeyPatch, tmp_path
     monkeypatch.setattr(
         agent_module, "send_notification", lambda _state, notification, **_: captured.append(notification)
     )
-    monkeypatch.setattr(hooks, "agy_print_mode", lambda: True)
+    monkeypatch.setattr(hooks, "agy_print_mode", lambda *_, **__: True)
     payload = json.dumps({"cwd": str(tmp_path), "fullyIdle": True})
     assert CliRunner().invoke(app, ["agent", "hook", "notify", "agy", "stop"], stdin=payload).exit_code == 0
     assert CliRunner().invoke(app, ["agent", "hook", "notify", "claude", "stop"], stdin=payload).exit_code == 0
@@ -417,7 +417,7 @@ def test_notification_text_is_short_and_has_no_terminal_controls() -> None:
     assert long.summary == "✅ Copilot · " + "x" * 79 + "…"
 
 
-@pytest.mark.parametrize("agent", ["claude", "agy", "copilot", "opencode"])
+@pytest.mark.parametrize("agent", ["claude", "agy", "copilot", "opencode", "pi"])
 def test_all_harness_notifications_dispatch_on_macos_without_dbus(monkeypatch: pytest.MonkeyPatch, agent: str) -> None:
     monkeypatch.setattr(hooks.platform, "system", lambda: "Darwin")
     monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
@@ -522,6 +522,21 @@ def test_linux_sound_plays_the_generated_chime_after_the_notification(
         assert (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) == (1, 2, 44_100)
         assert 0.3 < audio.getnframes() / audio.getframerate() < 0.5
     assert [path.name for path in chime.parent.iterdir()] == ["notify.wav"]
+
+
+def test_chime_refuses_symlink_and_wraps_os_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    cache_dir = tmp_path / "cache"
+    monkeypatch.setenv("XDG_CACHE_HOME", str(cache_dir))
+    outside = tmp_path / "outside.wav"
+    outside.write_bytes(b"keep")
+    (cache_dir / "dot").mkdir(parents=True)
+    (cache_dir / "dot/notify.wav").symlink_to(outside)
+
+    with pytest.raises(DotError, match="failed to prepare notification sound"):
+        hooks.play_chime(ScriptedRunner({"paplay"}))
+
+    assert outside.read_bytes() == b"keep"
+    assert [path.name for path in (cache_dir / "dot").iterdir()] == ["notify.wav"]
 
 
 def test_linux_sound_names_its_fix_when_no_player_exists(monkeypatch: pytest.MonkeyPatch) -> None:

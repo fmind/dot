@@ -11,10 +11,6 @@ if status is-interactive
     abbr -a c gcloud
     # d:docker
     abbr -a d docker
-    # Theme DuckDB for people only: an init file adds a stderr notice to every call, which agents would pay for.
-    if test -r $XDG_CONFIG_HOME/duckdb/fmind.duckdbrc
-        alias duckdb="duckdb -init $XDG_CONFIG_HOME/duckdb/fmind.duckdbrc"
-    end
     # e:lazydocker
     abbr -a e lazydocker
     # f:fd
@@ -58,8 +54,14 @@ if status is-interactive
     # q:fzf
     abbr -a q fzf
     # r:ripgrep
-    # Truncate long lines for people only; agents inherit RIPGREP_CONFIG_PATH and need full matches.
-    alias rg="rg --max-columns=150 --max-columns-preview"
+    # Truncate long lines on a terminal only; pipes and agents receive full matches.
+    function rg --wraps rg
+        if isatty stdout
+            command rg --max-columns=150 --max-columns-preview $argv
+        else
+            command rg $argv
+        end
+    end
     abbr -a r rg
     # s:ssh
     abbr -a s ssh

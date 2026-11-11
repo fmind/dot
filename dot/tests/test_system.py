@@ -107,6 +107,17 @@ def test_doctor_rejects_secret_directories_without_changing_permissions(tmp_path
     assert result["secrets"][0]["details"] == "not a regular file"
     assert secret.stat().st_mode & 0o777 == mode
 
+    target = tmp_path / "target"
+    target.write_text("synthetic")
+    target.chmod(0o644)
+    link = tmp_path / "link"
+    link.symlink_to(target)
+    config.doctor.secrets[0].path = str(link)
+    linked = doctor_sections(run_doctor(make_state(ScriptedRunner(), config), fix=fix))
+    assert linked["secrets"][0]["status"] == "fail"
+    assert linked["secrets"][0]["details"] == "not a regular file"
+    assert target.stat().st_mode & 0o777 == 0o644
+
 
 def _disk(free_gib: float) -> Callable[[object], object]:
     usage = type("Usage", (), {"free": int(free_gib * 1024**3)})
@@ -212,12 +223,12 @@ def select_completions(monkeypatch: pytest.MonkeyPatch, *tools: str) -> None:
 
 
 def test_retired_tools_have_no_completion_sources() -> None:
-    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "marimo", "pyrit", "zizmor"}
+    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "pyrit", "zizmor"}
     assert not retired.intersection(COMPLETION_SOURCES)
 
 
 def test_cloud_connectors_are_included_in_default_completions() -> None:
-    assert {"astro", "cf", "databricks", "pup"} <= set(COMPLETION_SOURCES)
+    assert {"astro", "cf", "cosign", "databricks", "marimo", "pup"} <= set(COMPLETION_SOURCES)
     managed = Path(__file__).resolve().parents[2] / "dot_config/fish/completions"
     assert {path.name for path in managed.glob("*.fish")} == MANAGED_COMPLETIONS
 
@@ -701,11 +712,11 @@ def test_verify_reports_secret_edge_cases(tmp_path: Path) -> None:
     assert secrets[str(missing)]["status"] == "warn"
     assert secrets[str(insecure)]["status"] == "fail"
     assert secrets[str(strict)]["status"] == "pass"
-    assert secrets[str(loop)]["details"] == "unable to inspect file"
+    assert secrets[str(loop)]["details"] == "not a regular file"
     assert secrets[str(dangling)] == {
         "name": str(dangling),
         "status": "fail",
-        "details": "unable to inspect file",
+        "details": "not a regular file",
     }
 
 
@@ -759,10 +770,10 @@ def test_verify_repairs_permissions_and_reports_repair_failure(monkeypatch: pyte
 
     secret.chmod(0o644)
 
-    def deny_chmod(_path: Path, _mode: int) -> None:
+    def deny_fchmod(_fd: int, _mode: int) -> None:
         raise PermissionError("chmod-denied-secret-marker")
 
-    monkeypatch.setattr(Path, "chmod", deny_chmod)
+    monkeypatch.setattr(os, "fchmod", deny_fchmod)
     failed = doctor_sections(system.run_doctor(make_state(runner, config), fix=True, deep=True))
     assert failed["secrets"][0]["status"] == "fail"
     assert "chmod-denied-secret-marker" not in json.dumps(failed)

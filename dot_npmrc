@@ -1,3 +1,4 @@
 # Docs: https://docs.npmjs.com/cli/configuring-npm/npmrc
-save-exact=true   # deterministic installs — pin exact versions on --save/--save-dev
-fund=false        # silence the post-install funding banner
+save-exact=true       # deterministic installs — pin exact versions on --save/--save-dev
+fund=false            # silence the post-install funding banner
+update-notifier=false # mise owns upgrades — skip registry phone-home and stderr notices

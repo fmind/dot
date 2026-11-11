@@ -32,6 +32,9 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
     if rate is None and record.harness == "grok" and record.model.endswith("-build"):
         # Grok Build bills turns as `<model>-build`; xAI lists only the `<model>` it serves.
         rate = pricing.models.get(record.model.removesuffix("-build"))
+    if rate is None and record.model.startswith("claude-") and "." in record.model:
+        # Copilot and OpenRouter spell Claude minor versions with dots (claude-sonnet-5.5).
+        rate = pricing.models.get(record.model.replace(".", "-"))
     if record.model in {"", "mixed", "unknown"} or rate is None:
         return None, "unknown or mixed model"
     # UsageRecord validation keeps 1-hour cache writes within cache writes.

@@ -17,6 +17,7 @@ from fmind_dot.archive.store import (
 from fmind_dot.archive.sync import read_sync_state, source_root
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
+from fmind_dot.process import run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State
 
@@ -27,7 +28,7 @@ _CLI_NAME = "dot"
 class HostDeployment:
     """What the chezmoi source deploys for one agent host: notify hooks and discovery links."""
 
-    # Every remaining host keeps its notification settings in JSON.
+    # Path to the host's notification config or extension file.
     config_path: str
     notify_events: tuple[str, ...]
     persona: str
@@ -233,50 +234,51 @@ def _check_archive(root: Path, agent: str) -> tuple[str, int]:
     return (f"unreadable:{unreadable}" if unreadable else "readable"), sessions
 
 
+def _inspect_agent(state: State, root: Path, name: str) -> AgentDoctorResult:
+    definition = HOSTS[name]
+    hooks = _check_hooks(name, definition) if definition.notify_events else "not-required"
+    discovery = _check_discovery(name)
+    source, last_sync, failures, retained = _check_sync(state, root, name)
+    archive, sessions = _check_archive(root, name)
+    synced = last_sync != "unreadable" and (last_sync not in {"never", "stale"} or source == "missing")
+    if discovery != "ok":
+        hint = "chezmoi status to find the undeployed host files, then chezmoi apply --force"
+    elif hooks == "disabled":
+        hint = f"review {definition.notify_switch} in the chezmoi source for {definition.config_path}"
+    elif hooks not in {"configured", "not-required"}:
+        hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
+    elif archive not in {"readable", "empty"}:
+        hint = f"inspect the unreadable bundles under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
+    elif source == "unreadable":
+        hint = f"restore read access to the {name} session source, then dot agent session sync --agent {name}"
+    elif not synced or failures:
+        hint = f"dot agent session sync --agent {name}"
+    else:
+        hint = ""
+    return AgentDoctorResult(
+        agent=name,
+        hooks=hooks,
+        source=source,
+        last_sync=last_sync,
+        sync_failures=failures,
+        sync_retained=retained,
+        archive=archive,
+        sessions=sessions,
+        healthy=not hint,
+        next=hint,
+        discovery=discovery,
+        note=_discovery_note(name),
+    )
+
+
 def gather_agent_doctor(state: State, *, agent: str = "") -> list[AgentDoctorResult]:
     """Inspect every adapter, or one name the CLI has already validated."""
+    names = [name for name in AGENT_ADAPTERS if not agent or name == agent]
+    if not names:
+        return []
+    _ = state.config
     root = session_store_root()
-    results: list[AgentDoctorResult] = []
-    for name in AGENT_ADAPTERS:
-        if agent and name != agent:
-            continue
-        definition = HOSTS[name]
-        hooks = _check_hooks(name, definition) if definition.notify_events else "not-required"
-        discovery = _check_discovery(name)
-        source, last_sync, failures, retained = _check_sync(state, root, name)
-        archive, sessions = _check_archive(root, name)
-        synced = last_sync != "unreadable" and (last_sync not in {"never", "stale"} or source == "missing")
-        if discovery != "ok":
-            hint = "chezmoi status to find the undeployed host files, then chezmoi apply --force"
-        elif hooks == "disabled":
-            hint = f"review {definition.notify_switch} in the chezmoi source for {definition.config_path}"
-        elif hooks not in {"configured", "not-required"}:
-            hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
-        elif archive not in {"readable", "empty"}:
-            hint = f"inspect the unreadable bundles under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
-        elif source == "unreadable":
-            hint = f"restore read access to the {name} session source, then dot agent session sync --agent {name}"
-        elif not synced or failures:
-            hint = f"dot agent session sync --agent {name}"
-        else:
-            hint = ""
-        results.append(
-            AgentDoctorResult(
-                agent=name,
-                hooks=hooks,
-                source=source,
-                last_sync=last_sync,
-                sync_failures=failures,
-                sync_retained=retained,
-                archive=archive,
-                sessions=sessions,
-                healthy=not hint,
-                next=hint,
-                discovery=discovery,
-                note=_discovery_note(name),
-            )
-        )
-    return results
+    return run_parallel(state.runner, lambda name: _inspect_agent(state, root, name), names, len(names))
 
 
 def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") -> list[AgentDoctorResult]:

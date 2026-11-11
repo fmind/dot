@@ -155,7 +155,7 @@ def test_usage_rejects_malformed_timestamp_at_every_boundary() -> None:
 @pytest.mark.parametrize(
     "timestamp",
     ["NaN", "Infinity", "10000-01-01T00:00:00Z", "0001-01-01T00:00:00+23:59"],
-    ids=["nan", "infinity", "unparseable-year", "utc-underflow"],
+    ids=["nan", "infinity", "unparsable-year", "utc-underflow"],
 )
 def test_usage_rejects_non_finite_and_out_of_range_timestamps(timestamp: str) -> None:
     record = UsageRecord(

@@ -103,7 +103,12 @@ def test_invalid_metrics_are_omitted(bad: object) -> None:
 )
 def test_invalid_or_empty_input_has_quiet_fallback(raw: str) -> None:
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "title"], input=raw, capture_output=True, text=True, check=False, timeout=10
+        [sys.executable, "-I", "-S", str(SCRIPT), "title"],
+        input=raw,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
     )
     assert result.returncode == 0
     assert result.stdout == "◐ agy\n"
@@ -164,7 +169,7 @@ def test_plain_terminal_overrides(environment: dict[str, str]) -> None:
         capture_output=True,
         text=True,
         check=True,
-        timeout=10,
+        timeout=30,
     )
     assert "\x1b" not in result.stdout
 

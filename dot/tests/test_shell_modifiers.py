@@ -54,6 +54,17 @@ def test_modifier_rewrites_stale_block_in_place(tmp_path: Path, modifier: str) -
     assert rewritten.count(end) == 1
 
 
+def test_modifier_ignores_prefix_and_orphan_end_markers(tmp_path: Path) -> None:
+    prefix = "# chezmoi: mise-bash-integration-extra\nexport EXTRA=1\n# chezmoi: end mise-bash-integration-extra\n"
+    rendered = render(tmp_path, "modify_dot_profile", prefix)
+    assert prefix in rendered
+    assert rendered.count("# chezmoi: mise-bash-integration\n") == 1
+    orphan_end = "export USER_VAR=1\n# chezmoi: end mise-bash-integration\n"
+    with_orphan = render(tmp_path, "modify_dot_profile", orphan_end)
+    assert "# chezmoi: mise-bash-integration\n" in with_orphan
+    assert "export USER_VAR=1\n" in with_orphan
+
+
 def test_macos_only_targets_are_ignored_elsewhere() -> None:
     ignore = (ROOT / ".chezmoiignore").read_text(encoding="utf-8")
     _, block = ignore.split('{{- if ne .chezmoi.os "darwin" }}\n', 1)

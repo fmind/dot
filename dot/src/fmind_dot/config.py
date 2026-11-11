@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import copy
+import functools
 import os
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -29,7 +29,7 @@ class CompletionConfig(StrictModel):
 
 
 class PullConfig(StrictModel):
-    # dot_claude/modify_private_settings.json repeats this default; test_harness_config keeps them equal.
+    # private_dot_claude/modify_private_settings.json repeats this default; test_harness_config keeps them equal.
     directories: list[WorkspacePath] = Field(default_factory=lambda: ["~/fmind"])
 
 
@@ -67,8 +67,15 @@ class PricingConfig(StrictModel):
     models: dict[str, ModelPrice]
 
 
+@functools.cache
+def _parsed_default_pricing() -> PricingConfig:
+    return PricingConfig.model_validate(
+        yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text(encoding="utf-8"))
+    )
+
+
 def default_pricing() -> PricingConfig:
-    return PricingConfig.model_validate(yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text()))
+    return _parsed_default_pricing().model_copy(deep=True)
 
 
 class NotifyConfig(StrictModel):
@@ -159,14 +166,9 @@ PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
 
 
 class GitHubConfig(StrictModel):
-    # Defaults grant everything except key, package, org and enterprise administration and deletion
-    # (https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps).
-    # Keys and packages stay readable so security reviews can spot planted keys or images; writing
-    # them is a one-off grant (`dot login github --grant write:public_key`) that the next
-    # `dot setup github` removes, because a stolen token could otherwise add a persistent SSH key
-    # or replace a public image that CI publishes with its own token. gh always requests its minimum
-    # scopes (repo, read:org, gist) and cannot remove them, so gist stays listed. The
-    # dot-cli authentication guide lists the possible and refused one-off grants.
+    # Keys and packages stay read-only by default; writes (`--grant write:public_key`) are removed
+    # on `dot setup github` so a leaked token cannot plant SSH keys or overwrite published images.
+    # `gist` stays because `gh` always requests its minimum scopes (repo, read:org, gist).
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "gist",
@@ -214,18 +216,9 @@ WORKSPACE_SCOPE_LIMIT = 50
 
 class WorkspaceConfig(StrictModel):
     project: Project | None = None
-    # gws replaces its whole grant on login, so this list is the single owner of every scope
-    # borrowed from it: the read-only analytics, Search Console, YouTube, Workspace and audit
-    # scopes that brain sensors narrow their tokens to, the read-only Admin and Chrome management
-    # scopes the brain's google CLI reads with, and the Analytics, Search Console and Business
-    # Profile management scopes it narrows its explicit writes to; dropping one breaks those
-    # consumers on the next login. Google's consent page hangs after Allow above 50 scopes (logins
-    # of 45, 47 and 50 completed; 52 and more hung, bisected 2026-10-26), and one-off grants share
-    # that consent, so defaults stop at 48 to leave two one-off slots. They hold the everyday
-    # user-level writes and only the read-only scopes a consumer narrows its token to, since a write
-    # scope already allows reads. Everything else is a one-off grant (`dot login workspace --grant
-    # SCOPE`) that the dot-cli authentication guide lists
-    # (https://developers.google.com/identity/protocols/oauth2/scopes).
+    # gws replaces its whole grant on login, so this list owns every consumer's scope (daily user
+    # writes plus read-only sensor/CLI scopes). Cap defaults at 48 to leave two `--grant` slots
+    # below Google's 50-scope consent-page hang (WORKSPACE_SCOPE_LIMIT).
     scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
@@ -320,11 +313,8 @@ class WorkspaceConfig(StrictModel):
 
 
 class GcpConfig(StrictModel):
-    # ADC login replaces its whole grant, so this list owns every ADC consumer's scope: gcloud's
-    # default ADC scopes plus Colab's and the read-only scopes the brain's sensors narrow their
-    # tokens to (BigQuery for analytics and costs; Logging and read-only Cloud Platform for the
-    # error collector's log reads and project listing). `dot login colab` requires the Colab
-    # scopes to stay listed.
+    # ADC login replaces its whole grant: keep gcloud defaults, Colab (`dot login colab`), and
+    # read-only BigQuery/Logging/Cloud Platform sensor scopes together.
     adc_scopes: list[Scope] = Field(
         default_factory=lambda: [
             "openid",
@@ -385,6 +375,15 @@ def expand_path(value: str | Path) -> Path:
     return Path(text)
 
 
+def xdg_dir(name: str, default: str) -> Path:
+    """Resolve an XDG base-directory override; empty or relative values fall back to ~/<default>."""
+    if raw := os.environ.get(name):
+        candidate = expand_path(os.path.expandvars(raw))
+        if candidate.is_absolute():
+            return candidate
+    return Path.home() / default
+
+
 def config_file_path(path: str | Path | None) -> tuple[Path, bool]:
     if path is None or os.fspath(path) == "":
         return Path.home() / ".config/dot.yaml", True
@@ -392,12 +391,12 @@ def config_file_path(path: str | Path | None) -> tuple[Path, bool]:
 
 
 def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
-    merged = copy.deepcopy(base)
+    merged = dict(base)
     for key, value in overlay.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):
             merged[key] = _deep_merge(merged[key], value)
         else:
-            merged[key] = copy.deepcopy(value)
+            merged[key] = value
     return merged
 
 
@@ -424,6 +423,8 @@ def load_config(path: str | Path | None = None) -> Config:
         overlay = {}
     if not isinstance(overlay, dict):
         raise ValueError(f"config file at {resolved} must contain a YAML mapping")
+    if not overlay:
+        return Config()
     defaults = Config().model_dump(mode="python")
     try:
         return Config.model_validate(_deep_merge(defaults, overlay))

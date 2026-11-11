@@ -11,8 +11,6 @@ blocks:
 color:
   theme: custom
 date: relative
-icons:
-  when: always
 ignore-globs:
   - .DS_Store
   - .git

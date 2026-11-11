@@ -46,13 +46,24 @@ def test_agy_projects_must_name_absolute_or_home_paths(tmp_path: Path, pattern: 
 
 def test_doctor_inventory_covers_managed_harnesses_and_core_workflows() -> None:
     config = Config()
-    expected = {*config.agent.sources, "opencode", "bf"}
+    expected = {*config.agent.sources, "bf"}
     assert expected <= set(config.doctor.tools)
+
+
+@pytest.mark.parametrize(("value", "expected_suffix"), [("", ".cache"), ("relative/cache", ".cache"), ("~/xdg", "xdg")])
+def test_xdg_dir_ignores_empty_and_relative_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str, expected_suffix: str
+) -> None:
+    from fmind_dot.config import xdg_dir
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("XDG_CACHE_HOME", value)
+    assert xdg_dir("XDG_CACHE_HOME", ".cache") == tmp_path / expected_suffix
 
 
 def test_retired_tools_are_not_workstation_requirements() -> None:
     config = Config()
-    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "marimo", "pyrit", "zizmor"}
+    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "pyrit", "zizmor"}
     assert not retired.intersection(config.doctor.tools)
 
 

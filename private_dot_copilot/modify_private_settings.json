@@ -1,8 +1,8 @@
 # chezmoi:modify-template
 {{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
-       Native model and UI choices survive apply; mise owns CLI updates. askUser stays on so
-       autopilot can still pause on the question form when a task is unclear. connectors is
-       false: account-managed Copilot Connectors would add MCP servers to every session. */ -}}
+       Host model/UI choices survive apply; mise owns updates. askUser lets autopilot pause on
+       unclear requirements; connectors, remoteExport, remoteSessions, and storeTokenPlaintext stay
+       off for session/credential isolation; worktreeBaseRef pins clean worktrees to HEAD. */ -}}
 {{- $defaults := fromJson `
 {
   "banner": "never",
@@ -24,8 +24,11 @@
   "includeCoAuthoredBy": false,
   "notifications": true,
   "remoteExport": false,
+  "remoteSessions": false,
   "respectGitignore": false,
-  "theme": "default"
+  "storeTokenPlaintext": false,
+  "theme": "default",
+  "worktreeBaseRef": "head"
 }
 ` -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "format" "jsonc") -}}

@@ -185,7 +185,7 @@ def _hook_notify(state: State, args: argparse.Namespace) -> None:
     agent, event = args.agent, args.event
     try:
         # Consume the hook payload so re-entrant and mid-turn events remain quiet.
-        workspace = notification_workspace(state.stdin, agent, event)
+        workspace = notification_workspace(state.stdin, agent, event, runner=state.runner)
         if workspace is None:
             return
         cwd = Path(workspace) if workspace else None
@@ -233,7 +233,12 @@ def _agent_stats(state: State, args: argparse.Namespace) -> None:
         sync_sessions(state, agent=selected, quiet=True)
     if sessions:
         records = list_usage_records(
-            iter_usage_records(), harness=selected, limit=limit, since=query.since, until=query.until, cwd=query.cwd
+            iter_usage_records(query.since, query.until),
+            harness=selected,
+            limit=limit,
+            since=query.since,
+            until=query.until,
+            cwd=query.cwd,
         )
         if as_json:
             document = {"schema": "dot.agent.stats.sessions/v1", "records": [record.to_dict() for record in records]}

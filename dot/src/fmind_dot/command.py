@@ -32,7 +32,8 @@ class _HelpFormatter(argparse.HelpFormatter):
 
     def _fill_text(self, text: str, width: int, indent: str) -> str:
         # argparse joins a description or epilog into one paragraph; keep the authored breaks.
-        return "\n\n".join(super(_HelpFormatter, self)._fill_text(part, width, indent) for part in text.split("\n\n"))
+        fill = super()._fill_text
+        return "\n\n".join(fill(part, width, indent) for part in text.split("\n\n"))
 
 
 class Parser(argparse.ArgumentParser):
@@ -115,27 +116,44 @@ def _takes_value(action: argparse.Action) -> bool:
 def candidates(root: Parser, words: list[str]) -> list[tuple[str, str]]:
     """Complete the last of `words` (the words after the program name) as (value, description) pairs."""
     *completed, current = words or [""]
-    parser, pending = root, None
+    parser, pending, positionals_used = root, None, 0
     for word in completed:
         if pending is not None:
             pending = None
         elif word == "--":
-            # Everything after it belongs to another program, as in `dot secret run NAME -- COMMAND`.
+            # Everything after `--` belongs to the child command (`dot secret run NAME -- COMMAND`).
             return []
         elif word.startswith("-"):
-            option = next((item for item in parser.arguments if word in item.option_strings), None)
-            pending = option if option is not None and _takes_value(option) else None
-        elif word in parser.children:
+            if "=" not in word:
+                option = next((item for item in parser.arguments if word in item.option_strings), None)
+                pending = option if option is not None and _takes_value(option) else None
+        elif word in parser.children and positionals_used == 0:
             parser = parser.children[word]
+        else:
+            positionals_used += 1
     if pending is not None:
         found = [(str(choice), "") for choice in pending.choices or ()]
+    elif current.startswith("--") and "=" in current:
+        flag, prefix = current.split("=", 1)
+        option = next((item for item in parser.arguments if flag in item.option_strings and _takes_value(item)), None)
+        choices = option.choices if option is not None else None
+        return [(f"{flag}={choice}", "") for choice in choices or () if str(choice).startswith(prefix)]
     elif current.startswith("-"):
         found = [(flag, _summary(item)) for item in parser.arguments for flag in item.option_strings]
     else:
-        found = [(name, child.summary) for name, child in parser.children.items() if not child.hidden]
-        found += [
-            (str(choice), "") for item in parser.arguments if not item.option_strings for choice in item.choices or ()
-        ]
+        found = (
+            [(name, child.summary) for name, child in parser.children.items() if not child.hidden]
+            if positionals_used == 0
+            else []
+        )
+        positionals = [item for item in parser.arguments if not item.option_strings]
+        active = (
+            positionals[positionals_used]
+            if positionals_used < len(positionals)
+            else (positionals[-1] if positionals and positionals[-1].nargs in {"*", "+"} else None)
+        )
+        if active is not None:
+            found += [(str(choice), "") for choice in active.choices or ()]
     return [(value, description) for value, description in found if value.startswith(current)]
 
 

@@ -259,3 +259,22 @@ def test_retire_installs_removes_superseded_graphs_and_repoints_dangling_symlink
     assert (uv_tool / "1").readlink() == Path("./1.0~uv~globalhash")
     assert (uv_tool / "0.9").readlink() == Path("./0.9.0")
     assert retire_installs(lock, installs) == []
+
+
+@pytest.mark.parametrize("override", ["", "relative/mise"])
+def test_mise_locks_main_ignores_empty_or_relative_mise_data_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, override: str
+) -> None:
+    from dot_tasks import mise_locks
+
+    home = tmp_path / "home"
+    cwd = tmp_path / "cwd"
+    (cwd / "installs/example/1.0").mkdir(parents=True)
+    lock = _lock(home / ".config/mise", "1.0")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("MISE_DATA_DIR", override)
+    monkeypatch.chdir(cwd)
+    monkeypatch.setattr("sys.argv", ["mise_locks", str(lock)])
+
+    assert mise_locks.main() == 0
+    assert (cwd / "installs/example/1.0").is_dir()

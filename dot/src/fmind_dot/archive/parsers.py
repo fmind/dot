@@ -7,7 +7,7 @@ import math
 import re
 import sqlite3
 import stat
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -125,12 +125,14 @@ def _apply_counters(
     *,
     accumulate: bool = False,
 ) -> None:
-    """Copy (or add) the present provider counters; an input, output, or total counter proves a measurement."""
+    """Copy (or add) the present provider counters; a primary counter or positive cache count proves a measurement."""
     for source, target in fields:
         count = _usage_token_count(counters.get(source), target)
         if count is not None:
             setattr(record, target, getattr(record, target) + count if accumulate else count)
-            if target in {"input_tokens", "output_tokens", "total_tokens"}:
+            if target in {"input_tokens", "output_tokens", "total_tokens"} or (
+                count > 0 and target in {"cached_tokens", "cache_write_tokens"}
+            ):
                 record.measurement_kind = "provider-reported"
 
 
@@ -156,14 +158,18 @@ def _usage_cost(value: object) -> float | None:
     return cost
 
 
+def _latest_timestamp(values: Iterable[str]) -> str:
+    dated = [(instant, value) for value in values if (instant := parse_utc_instant(value)) is not None]
+    return max(dated, key=lambda item: item[0])[1] if dated else ""
+
+
 def _undated_usage_timestamp(logs: list[SessionLog], source: Path | None = None) -> str:
     """Date usage without its own timestamp by the latest transcript record, else the source mtime.
 
     The clock is never evidence: a capture-time stamp would move usage between periods and change on recapture.
     """
-    dated = [(instant, log.ts) for log in logs if (instant := parse_utc_instant(log.ts)) is not None]
-    if dated:
-        return max(dated, key=lambda item: item[0])[1]
+    if latest := _latest_timestamp(log.ts for log in logs):
+        return latest
     if source is None:
         return ""
     try:
@@ -220,8 +226,6 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             continue
         decoded += 1
         timestamp = raw.get("created_at")
-        if isinstance(timestamp, str) and timestamp:
-            usage.timestamp = timestamp
         if usage_error is None and ("input_tokens" in raw or "output_tokens" in raw):
             # Model responses and compaction checkpoints report each request's counters.
             sample = UsageRecord(
@@ -263,11 +267,15 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
     if samples:
         samples[-1].turn_count += prompts
         usage.set_samples(samples, timed=timed)
+        usage.timestamp = _latest_timestamp(sample.timestamp for sample in samples) if timed else ""
         usage.measurement_kind = "provider-reported"
     else:
         # Older transcripts carry no counters: estimate about four bytes per token.
         usage.input_tokens = (input_bytes + 3) // 4
         usage.output_tokens = (output_bytes + 3) // 4
+        usage.timestamp = _latest_timestamp(
+            raw["created_at"] for raw in records if raw is not None and isinstance(raw.get("created_at"), str)
+        )
     usage.source_bytes = source_bytes
     parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
     if usage.cwd:
@@ -305,7 +313,7 @@ _CLAUDE_TOKEN_FIELDS = (
 
 def _observe_claude_usage(record: UsageRecord, raw: dict[str, Any]) -> None:
     timestamp = raw.get("timestamp")
-    if isinstance(timestamp, str) and timestamp:
+    if isinstance(timestamp, str) and (raw.get("type") == "assistant" or parse_utc_instant(timestamp) is not None):
         record.timestamp = timestamp
     line_cwd = raw.get("cwd")
     if isinstance(line_cwd, str) and line_cwd and not record.cwd:
@@ -445,7 +453,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
     if measured:
         usage.measurement_kind = "provider-reported"
         usage.set_samples(list(messages.values()), timed=timed)
-        usage.timestamp = max(sample.timestamp for sample in messages.values()) if timed else ""
+        usage.timestamp = _latest_timestamp(sample.timestamp for sample in messages.values()) if timed else ""
         if not usage.cwd:
             usage.cwd = next((sample.cwd for sample in messages.values() if sample.cwd), "")
     usage.source_bytes = source_bytes
@@ -512,8 +520,9 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
     logs: list[SessionLog] = []
     samples: list[UsageRecord] = []
     malformed = decoded = 0
-    cost, cost_known, timed = 0.0, False, True
+    cost, all_costs_known, timed = 0.0, True, True
     usage_error: Exception | None = None
+    forked = False
     forked_at: datetime | None = None
     session_cwd = resolve_cwd(cwd)
     records, fingerprint, source_bytes = _jsonl_snapshot(path)
@@ -532,18 +541,22 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
                 session_cwd = resolve_cwd(header_cwd)
             if raw.get("parentSession"):
                 # /fork and /clone copy the parent's entries, usage included, under a new header.
+                forked = True
                 forked_at = parse_utc_instant(timestamp)
             continue
-        if forked_at is not None and (instant := parse_utc_instant(timestamp)) is not None and instant < forked_at:
+        instant = parse_utc_instant(timestamp)
+        if forked_at is not None and instant is not None and instant < forked_at:
             # Copied entries predate the fork and stay with the parent session, or they would count twice.
             continue
         message = raw.get("message") if kind == "message" else None
         role = message.get("role") if isinstance(message, dict) else None
         # Usage sits on assistant messages, on tool results that ran nested model work, on
         # `usage` entries (cache warming), and on the summaries of compactions and branches.
-        measured = message if role in {"assistant", "toolResult"} else raw
+        measured = (message if role in {"assistant", "toolResult"} else None) if kind == "message" else raw
         if isinstance(measured, dict) and measured.get("usage") is not None:
             try:
+                if forked and (forked_at is None or instant is None):
+                    raise ValueError("forked Pi session usage requires valid header and entry timestamps")
                 sample, sample_cost = _pi_sample(session_id, timestamp, measured.get("model"), measured.get("usage"))
                 sample.turn_count = int(role == "assistant")
                 timed = timed and bool(sample.timestamp)
@@ -552,8 +565,10 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
                 usage_error = error
             else:
                 samples.append(sample)
-                if sample_cost is not None:
-                    cost, cost_known = cost + sample_cost, True
+                if sample_cost is None:
+                    all_costs_known = False
+                else:
+                    cost += sample_cost
         if not isinstance(message, dict) or role not in {"user", "assistant"}:
             continue
         content = _pi_text(message.get("content"))
@@ -563,16 +578,16 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
         logs.append(SessionLog(timestamp, "pi", session_id, str(role), content, session_cwd, model))
     propagate_models(logs)
     usage = UsageRecord(harness="pi", agent="pi", session_id=session_id, cwd=session_cwd, source_bytes=source_bytes)
-    if all(sample.measurement_kind for sample in samples) and samples:
+    if samples and all(sample.measurement_kind for sample in samples):
         usage.measurement_kind = "provider-reported"
         usage.set_samples(samples, timed=timed)
-        usage.timestamp = max(sample.timestamp for sample in samples) if timed else ""
-    usage.cost_usd, usage.cost_known = cost, cost_known
-    if not usage.measurement_kind and not cost_known:
-        # An absent measurement is unknown, not a zero-token provider request.
-        parsed_usage = None
-    else:
+        usage.timestamp = _latest_timestamp(sample.timestamp for sample in samples) if timed else ""
+        if all_costs_known:
+            usage.cost_usd, usage.cost_known = cost, True
         parsed_usage, usage_error = _finalize_parsed_usage(usage, usage_error, _undated_usage_timestamp(logs, path))
+    else:
+        # An absent or partial measurement is unknown, not a zero-token provider request.
+        parsed_usage = None
     return ParsedSession(logs, fingerprint, "pi-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
 
 

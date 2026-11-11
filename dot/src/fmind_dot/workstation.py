@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import IO, Any, get_args
 
 from fmind_dot.command import Parser, add_json
-from fmind_dot.config import CacheProvider, PruneProvider
+from fmind_dot.config import CacheProvider, PruneProvider, xdg_dir
 from fmind_dot.errors import CancelledError, CommandTimeoutError, DotError
 from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
@@ -36,32 +36,23 @@ class CacheTool:
         return (self.aggressive or self.prune) if aggressive else self.prune
 
 
-# The single registry for `dot cache` and `dot prune`; config.CacheProvider/PruneProvider name its keys.
-# Cleanup never touches repositories, installed tool versions (virtualenvs link to them), models in
-# use, Docker images, containers, or volumes. Machine-readable inspection: Docker emits JSON lines,
-# hf a JSON array, uv a byte count.
+# Single registry for `dot cache` and `dot prune` (keys match CacheProvider / PruneProvider).
+# Cleanup never touches repos, active tool installs, models in use, or Docker images/containers/volumes.
 CACHE_TOOLS = {
-    # Dangling build cache by default; every unused build-cache layer with --aggressive.
     "docker": CacheTool(
         ["docker", "builder", "prune", "--force"],
         ["docker", "builder", "prune", "--all", "--force"],
         ["docker", "system", "df"],
         ["docker", "system", "df", "--format", "json"],
     ),
-    # Downloaded plugins only: offline formatting (and commit hooks) fail until they download again.
     "dprint": CacheTool(None, ["dprint", "clear-cache"]),
-    # Detached revisions and incomplete downloads; current model revisions are data, never cache.
     "hf": CacheTool(
         ["hf", "cache", "prune", "--yes"], None, ["hf", "cache", "ls"], ["hf", "cache", "ls", "--format", "json"]
     ),
-    # Cache files not accessed within cache_prune_age; --aggressive clears the whole cache.
-    # `mise prune` would uninstall versions that virtualenvs still use.
+    # `mise prune` would uninstall tool versions that virtualenvs still link to.
     "mise": CacheTool(["mise", "cache", "prune"], ["mise", "cache", "clear"]),
-    # Garbage-collect unreachable entries; --aggressive empties the cache.
     "npm": CacheTool(["npm", "cache", "verify"], ["npm", "cache", "clean", "--force"]),
-    # Scan results; --aggressive also drops the vulnerability databases, which the next scan downloads.
     "trivy": CacheTool(["trivy", "clean", "--scan-cache"], ["trivy", "clean", "--all"]),
-    # Unused entries; --aggressive empties the cache (hardlinked virtualenvs keep their files).
     "uv": CacheTool(
         ["uv", "cache", "prune"],
         ["uv", "cache", "clean"],
@@ -89,20 +80,19 @@ def add_dry_run(parser: Parser) -> None:
 
 def _ensure_hf_cache_dir() -> None:
     # Match huggingface_hub's precedence and expansion before the native CLI runs.
-    cache_root = Path(os.environ.get("XDG_CACHE_HOME", "~/.cache")) / "huggingface"
-    hf_home = os.path.expandvars(str(Path(os.environ.get("HF_HOME", str(cache_root))).expanduser()))
-    legacy = os.environ.get("HUGGINGFACE_HUB_CACHE", str(Path(hf_home) / "hub"))
-    selected = Path(os.environ.get("HF_HUB_CACHE", legacy)).expanduser()
+    cache_root = xdg_dir("XDG_CACHE_HOME", ".cache") / "huggingface"
+    hf_home = os.path.expandvars(str(Path(os.environ.get("HF_HOME") or cache_root).expanduser()))
+    legacy = os.environ.get("HUGGINGFACE_HUB_CACHE") or str(Path(hf_home) / "hub")
+    selected = Path(os.environ.get("HF_HUB_CACHE") or legacy).expanduser()
     Path(os.path.expandvars(str(selected))).mkdir(parents=True, exist_ok=True)
 
 
 def _mise_tracked_configs_dir() -> Path:
     if state_dir := os.environ.get("MISE_STATE_DIR"):
-        base = Path(os.path.expandvars(state_dir)).expanduser()
-    else:
-        xdg_state = Path(os.environ.get("XDG_STATE_HOME", "~/.local/state"))
-        base = Path(os.path.expandvars(str(xdg_state))).expanduser() / "mise"
-    return base / "tracked-configs"
+        expanded = Path(os.path.expandvars(state_dir)).expanduser()
+        if expanded.is_absolute():
+            return expanded / "tracked-configs"
+    return xdg_dir("XDG_STATE_HOME", ".local/state") / "mise" / "tracked-configs"
 
 
 def _prune_mise_tracked_configs() -> None:
@@ -202,7 +192,7 @@ def _cache_report(state: State, name: str, args: list[str]) -> dict[str, Any]:
         else:
             report = json.loads(result.stdout)
     except ValueError:
-        return entry | {"error": "unparseable native output"}
+        return entry | {"error": "unparsable native output"}
     return entry | {"report": report}
 
 

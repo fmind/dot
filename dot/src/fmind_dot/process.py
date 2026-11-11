@@ -36,8 +36,16 @@ class CommandResult:
 
 
 _CREDENTIAL_URL = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]+@")
-# Provider token prefixes, plus any long opaque run that could be a credential or signature.
-_PREFIXED_TOKEN = re.compile(r"\b(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_+/=-]{20,}")
+# Provider token prefixes, API keys, AWS access keys, JWTs, plus any long opaque run that could be a credential.
+_PREFIXED_TOKEN = re.compile(
+    r"(?:\b(?:gh[opsur]_|github_pat_|glpat-|sk-|xai-|pypi-|hf_|npm_)[A-Za-z0-9_+/=-]{20,}"
+    r"|\bxox[abprs]-[A-Za-z0-9_+/=-]{10,}"
+    r"|\bAIza[A-Za-z0-9_+/=-]{35,}"
+    r"|\bya29\.[A-Za-z0-9._-]{20,}"
+    r"|(?<![A-Za-z0-9])1//0[A-Za-z0-9_+/=-]{20,}"
+    r"|\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"
+    r"|\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+)"
+)
 _OPAQUE_TOKEN = re.compile(rf"{_PREFIXED_TOKEN.pattern}|(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{{32,}}")
 # An absolute or home path is the diagnostic's most useful part: keep it whole (dot-directories
 # included), redacting only provider-prefixed tokens inside it. URL paths follow ":", so they stay checked.
@@ -276,20 +284,23 @@ class Runner:
                         process_group=0 if detached else None,
                     )
                 if on_stderr_line is not None and process.stderr is not None:
+                    # Hand pipe ownership to the forwarder so _terminate never closes a locked BufferedReader.
+                    stderr_pipe = process.stderr
+                    process.stderr = None
                     forwarder = threading.Thread(
-                        target=_forward_lines, args=(process.stderr, stderr or sys.stderr, on_stderr_line), daemon=True
+                        target=_forward_lines, args=(stderr_pipe, stderr or sys.stderr, on_stderr_line), daemon=True
                     )
                     forwarder.start()
                 code = process.wait()
                 if forwarder is not None:
                     forwarder.join(_TERMINATION_TIMEOUT_SECONDS)
-                if code == -signal.SIGINT:
-                    raise KeyboardInterrupt
-                return code
             except BaseException:
                 if process is not None:
                     _terminate(process, group=detached)
                 raise
+            if code == -signal.SIGINT:
+                raise KeyboardInterrupt
+            return code
 
 
 def _forward_lines(source: IO[str], target: IO[str], on_line: Callable[[str], None]) -> None:
@@ -307,8 +318,17 @@ def run_parallel[T, R](runner: Runner, function: Callable[[T], R], items: Sequen
 
     A worker error propagates after the other workers finish, and the runner stays usable.
     """
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
     if not items:
         return []
+    if len(items) == 1:
+        try:
+            return [function(items[0])]
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                runner.cancel()
+            raise
     executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
     try:
         return list(executor.map(function, items))

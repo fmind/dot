@@ -1,0 +1,27 @@
+# chezmoi:modify-template
+{{- /* Docs: https://antigravity.google/docs/hooks/
+       `/hooks` shares this file; each top-level key is an independent named hook, so merging
+       keeps host hooks while enforcing managed ones. */ -}}
+{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
+{{- $managedConfig := fromJson (replace "@dot@" $dot `
+{
+  "notify": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "@dot@ agent hook notify agy stop",
+        "timeout": 30
+      }
+    ]
+  }
+}
+`) -}}
+{{- /* Inject brain context once per conversation on SessionStart (PreInvocation re-ran every
+       invocation), only when the brain checkout exists. */ -}}
+{{- $agyContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/agy-context.py" -}}
+{{- if stat $agyContext -}}
+{{-   $command := printf "%s %s" $agyContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
+{{-   $_ := set $managedConfig "brain-context" (fromJson (printf `{"SessionStart": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command))) -}}
+{{- end -}}
+{{- /* Replace managed named hooks whole so dropped events (former PreInvocation) do not linger. */ -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "replace" (list "notify" "brain-context")) -}}

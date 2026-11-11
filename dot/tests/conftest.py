@@ -53,7 +53,7 @@ def isolated_home(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatc
 @pytest.fixture(autouse=True)
 def interactive_agy(monkeypatch: pytest.MonkeyPatch) -> None:
     """A suite launched by a headless agy run must still exercise agy notifications."""
-    monkeypatch.setattr(fmind_dot.hooks, "agy_print_mode", lambda: False)
+    monkeypatch.setattr(fmind_dot.hooks, "agy_print_mode", lambda *_, **__: False)
 
 
 @pytest.fixture(autouse=True)

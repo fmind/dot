@@ -262,6 +262,16 @@ def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: 
     ("text", "expected"),
     [
         ("token ghp_0123456789abcdefghijklmnopqrstuvwxyz", "token <redacted>"),
+        ("key " + "sk-proj-" + "0123456789abcdefghij", "key <redacted>"),
+        ("google " + "AIza" + "SyA1234567890abcdefghijklmnopqrstuvwx", "google <redacted>"),
+        ("oauth " + "ya29." + "a0AfH6SMBx1234567890abcdef.segment", "oauth <redacted>"),
+        ("refresh " + "1//0g" + "abcdefghijklmnopqrstuv", "refresh <redacted>"),
+        ("aws " + "AKIA" + "IOSFODNN7EXAMPLE denied", "aws <redacted> denied"),
+        (
+            "jwt " + ".".join(("eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "signaturePart123")),
+            "jwt <redacted>",
+        ),
+        ("token " + "hf_" + "0123456789abcdefghijk", "token <redacted>"),
         ("signature " + "A1b2C3d4" * 5, "signature <redacted>"),
         (
             "fatal: /home/user/projects/a-very-long-name/src/module: x",
@@ -578,3 +588,73 @@ def test_sigterm_stops_descendants_of_a_child_without_a_terminal(tmp_path: Path)
         if descendant is not None and not stopped:
             with suppress(ProcessLookupError):
                 os.kill(descendant, process_module.signal.SIGKILL)
+
+
+def test_run_parallel_validates_workers_and_runs_single_item_inline(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = Runner()
+    with pytest.raises(ValueError, match="workers must be at least 1"):
+        process_module.run_parallel(runner, lambda item: item, [], 0)
+
+    monkeypatch.setattr(process_module, "ThreadPoolExecutor", Mock(side_effect=AssertionError("pool spawned")))
+    assert process_module.run_parallel(runner, lambda item: item * 2, [21], 4) == [42]
+
+    def interrupt(_item: int) -> int:
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        process_module.run_parallel(runner, interrupt, [1], 2)
+    with pytest.raises(DotError, match="operation cancelled"):
+        runner.run(["true"])
+
+
+def test_interactive_sigint_exit_skips_reaped_process_termination(monkeypatch: pytest.MonkeyPatch) -> None:
+    signals: list[tuple[int, int]] = []
+    monkeypatch.setattr(process_module.os, "killpg", lambda pid, sig: signals.append((pid, sig)))
+    script = "import os,signal; signal.signal(signal.SIGINT, signal.SIG_DFL); os.kill(os.getpid(), signal.SIGINT)"
+    with pytest.raises(KeyboardInterrupt):
+        Runner().interactive([sys.executable, "-c", script])
+    assert signals == []
+
+
+def test_interactive_cancellation_detaches_stderr_pipe_from_terminate(monkeypatch: pytest.MonkeyPatch) -> None:
+    import io
+    import threading
+
+    gate = threading.Event()
+
+    class LockedStderr(io.StringIO):
+        closed_from_main = False
+
+        def readline(self, size: int = -1) -> str:  # type: ignore[override]
+            del size
+            gate.wait(timeout=5)
+            return ""
+
+        def close(self) -> None:
+            if threading.current_thread() is threading.main_thread():
+                self.closed_from_main = True
+            super().close()
+
+    pipe = LockedStderr()
+
+    class FakeProcess:
+        pid = 424242
+        stdin = None
+        stdout = None
+        stderr: object = pipe
+        returncode = -15
+
+        def wait(self, timeout: float | None = None) -> int:
+            if timeout is None:
+                raise KeyboardInterrupt
+            gate.set()
+            return self.returncode
+
+        def send_signal(self, _sig: int) -> None:
+            gate.set()
+
+    monkeypatch.setattr(process_module.subprocess, "Popen", lambda *_args, **_kwargs: FakeProcess())
+    monkeypatch.setattr(process_module.os, "killpg", lambda _pid, _sig: gate.set())
+    with pytest.raises(KeyboardInterrupt):
+        Runner().interactive(["command"], on_stderr_line=lambda _line: None)
+    assert pipe.closed_from_main is False
