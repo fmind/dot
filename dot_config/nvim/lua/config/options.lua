@@ -10,7 +10,7 @@ opt.wrap = true
 opt.scrolloff = 15
 opt.timeoutlen = 400
 
--- Prefer xclip on X11 and Crostini (SOMMELIER_VERSION bridges X11 clipboard while wl-clipboard can hang).
+-- Prefer xclip on X11 desktops (Wayland keeps Neovim's native wl-clipboard provider).
 -- On Android AVF (local Xwayland never syncs clipboard) and Wayland-less Linux terminals, emit OSC 52 on yank
 -- and paste from an in-process cache so terminals ignoring OSC 52 '?' reads never block 10s.
 local android_vm = vim.uv.os_uname().release:find("android", 1, true) ~= nil
@@ -18,7 +18,7 @@ if
   vim.fn.has("linux") == 1
   and not android_vm
   and (vim.env.DISPLAY or "") ~= ""
-  and ((vim.env.SOMMELIER_VERSION or "") ~= "" or (vim.env.WAYLAND_DISPLAY or "") == "")
+  and (vim.env.WAYLAND_DISPLAY or "") == ""
   and vim.fn.executable("xclip") == 1
 then
   -- Wrap xclip paste so empty/non-text selections return `{}` instead of an error; `keepempty=1` preserves linewise yanks.

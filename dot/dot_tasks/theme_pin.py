@@ -70,14 +70,14 @@ def fetch(url: str) -> bytes:
     return content
 
 
-def prefetch(revision: str, template: str, download: Fetch = fetch, *, workers: int = 8) -> Fetch:
+def prefetch(revision: str, template: str, download: Fetch = fetch) -> Fetch:
     """Download every distinct upstream theme file for a revision concurrently."""
     paths = [match.group("path") for match in ENTRY.finditer(template)]
     if not paths:
         return download
     paths.extend(upstream for _, (upstream, _) in COPIED.items())
     urls = list(dict.fromkeys(RAW.format(revision=revision, path=path) for path in paths))
-    with ThreadPoolExecutor(max_workers=min(workers, len(urls))) as executor:
+    with ThreadPoolExecutor(max_workers=min(8, len(urls))) as executor:
         cache = dict(zip(urls, executor.map(download, urls), strict=True))
     return lambda url: cache[url] if url in cache else download(url)
 
@@ -164,7 +164,7 @@ def _commit(value: str) -> str:
 
 def main() -> int:
     """Advance the theme pin to upstream main, or verify a given revision."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("--revision", type=_commit, help="commit SHA to pin instead of upstream main")
     arguments = parser.parse_args()
     path = ROOT / ".chezmoiexternal.toml.tmpl"

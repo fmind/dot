@@ -14,23 +14,19 @@ from fmind_dot.errors import DotError
 from fmind_dot.orphan import run_orphan
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.state import State
+from tests.fakes import ScriptedRunner
 
 
-class ChezmoiRunner(Runner):
-    def __init__(self, entries: object, managed: Sequence[str], *, installed: bool = True) -> None:
-        super().__init__()
-        self.dump = entries if isinstance(entries, str) else json.dumps({"entryState": entries})
-        self.managed = managed
-        self.installed = installed
-
-    def which(self, command: str) -> Path | None:
-        return Path(f"/tools/{command}") if self.installed else None
-
-    def run(self, args: Sequence[str], **_: object) -> CommandResult:
-        if list(args[:3]) == ["chezmoi", "state", "dump"]:
-            return CommandResult(self.dump, "", 0)
-        assert list(args[:2]) == ["chezmoi", "managed"]
-        return CommandResult("\0".join(self.managed), "", 0)
+def chezmoi_runner(entries: object, managed: Sequence[str], *, installed: bool = True) -> ScriptedRunner:
+    dump = entries if isinstance(entries, str) else json.dumps({"entryState": entries})
+    return ScriptedRunner(
+        {"chezmoi"} if installed else set(),
+        run=lambda args, *_rest: (
+            CommandResult(dump, "", 0)
+            if args[:3] == ["chezmoi", "state", "dump"]
+            else CommandResult("\0".join(managed), "", 0)
+        ),
+    )
 
 
 def _sha(data: bytes) -> str:
@@ -67,7 +63,7 @@ def test_orphans_compare_existing_targets_with_the_last_write(tmp_path: Path) ->
         str(tmp_path / "script.sh"): {"type": "script"},
         str(tmp_path / "removed"): {"type": "remove"},
     }
-    state, output = _state(ChezmoiRunner(entries, [str(managed)]))
+    state, output = _state(chezmoi_runner(entries, [str(managed)]))
 
     orphans = run_orphan(state, as_json=True)
 
@@ -88,7 +84,7 @@ def test_orphans_compare_existing_targets_with_the_last_write(tmp_path: Path) ->
 def test_orphan_reports_a_target_replaced_by_another_type(tmp_path: Path) -> None:
     path = tmp_path / "hooks"
     path.mkdir()
-    state, output = _state(ChezmoiRunner({str(path): {"type": "file", "contentsSHA256": _sha(b"x")}}, []))
+    state, output = _state(chezmoi_runner({str(path): {"type": "file", "contentsSHA256": _sha(b"x")}}, []))
 
     assert [item.status for item in run_orphan(state)] == ["replaced"]
     assert "chezmoi state delete --bucket=entryState --key=PATH" in output.getvalue()
@@ -100,14 +96,14 @@ def test_orphan_marks_unreadable_files_without_failing(tmp_path: Path) -> None:
     secret.write_text("value")
     secret.chmod(0)
     try:
-        state, _ = _state(ChezmoiRunner({str(secret): {"type": "file", "contentsSHA256": _sha(b"value")}}, []))
+        state, _ = _state(chezmoi_runner({str(secret): {"type": "file", "contentsSHA256": _sha(b"value")}}, []))
         assert [item.status for item in run_orphan(state)] == ["unreadable"]
     finally:
         secret.chmod(0o600)
 
 
 def test_orphan_without_leftovers_says_so() -> None:
-    state, output = _state(ChezmoiRunner({}, []))
+    state, output = _state(chezmoi_runner({}, []))
 
     assert run_orphan(state) == []
     assert output.getvalue() == "✓ No orphaned chezmoi targets.\n"
@@ -116,28 +112,27 @@ def test_orphan_without_leftovers_says_so() -> None:
 @pytest.mark.parametrize("dump", ["not json", json.dumps({"configState": {}})], ids=["invalid", "no-bucket"])
 def test_orphan_rejects_unreadable_state(dump: str) -> None:
     with pytest.raises(DotError, match="chezmoi state dump"):
-        run_orphan(_state(ChezmoiRunner(dump, []))[0])
+        run_orphan(_state(chezmoi_runner(dump, []))[0])
 
 
 def test_orphan_failure_names_the_chezmoi_cause() -> None:
-    class LockedRunner(ChezmoiRunner):
-        def run(self, args: Sequence[str], **_: object) -> CommandResult:
-            del args
-            return CommandResult("", "chezmoi: timeout obtaining persistent state lock\n", 1)
-
+    runner = ScriptedRunner(
+        {"chezmoi"},
+        run=lambda *_args: CommandResult("", "chezmoi: timeout obtaining persistent state lock\n", 1),
+    )
     with pytest.raises(DotError, match=r"chezmoi state failed \(1\): chezmoi: timeout obtaining persistent state lock"):
-        run_orphan(_state(LockedRunner({}, []))[0])
+        run_orphan(_state(runner)[0])
 
 
 def test_orphan_requires_chezmoi() -> None:
     with pytest.raises(DotError, match="chezmoi"):
-        run_orphan(_state(ChezmoiRunner({}, [], installed=False))[0])
+        run_orphan(_state(chezmoi_runner({}, [], installed=False))[0])
 
 
 def test_orphan_skips_a_target_removed_while_scanning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "leftover"
     path.write_text("x")
-    state, _ = _state(ChezmoiRunner({str(path): {"type": "file", "contentsSHA256": _sha(b"x")}}, []))
+    state, _ = _state(chezmoi_runner({str(path): {"type": "file", "contentsSHA256": _sha(b"x")}}, []))
 
     def vanished(_: Path) -> str:
         raise FileNotFoundError(path)
@@ -162,7 +157,7 @@ def test_orphan_text_collapses_targets_inside_an_orphaned_directory(tmp_path: Pa
         str(locks / "nested"): {"type": "dir"},
         str(sibling): {"type": "file", "contentsSHA256": _sha(b"s")},
     }
-    state, output = _state(ChezmoiRunner(entries, []))
+    state, output = _state(chezmoi_runner(entries, []))
 
     assert len(run_orphan(state)) == 5
 
@@ -175,10 +170,11 @@ def test_orphan_text_collapses_targets_inside_an_orphaned_directory(tmp_path: Pa
 def test_orphan_queries_chezmoi_state_and_managed_concurrently() -> None:
     barrier = threading.Barrier(2, timeout=5)
 
-    class ConcurrentChezmoi(ChezmoiRunner):
-        def run(self, args: Sequence[str], **kwargs: object) -> CommandResult:
-            barrier.wait()
-            return super().run(args, **kwargs)
+    def concurrent(args: list[str], *_rest: object) -> CommandResult:
+        barrier.wait()
+        if args[:3] == ["chezmoi", "state", "dump"]:
+            return CommandResult(json.dumps({"entryState": {}}), "", 0)
+        return CommandResult("", "", 0)
 
-    state, _ = _state(ConcurrentChezmoi({}, []))
+    state, _ = _state(ScriptedRunner({"chezmoi"}, run=concurrent))
     assert run_orphan(state) == []

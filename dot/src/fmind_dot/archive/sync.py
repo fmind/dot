@@ -4,7 +4,6 @@ import json
 import re
 import sqlite3
 import stat
-from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +26,6 @@ from fmind_dot.archive.store import (
     read_session_manifest,
     report_ingestion,
     session_store_root,
-    upgrade_session_bundle,
 )
 from fmind_dot.archive.usage import RETIRED_AGENTS
 from fmind_dot.config import expand_path
@@ -42,7 +40,6 @@ SYNC_STATE_SCHEMA = "dot.agent.session.sync-state/v1"
 FAILURE_DETAIL_LIMIT = 512
 _UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 _SESSION_ERRORS = (OSError, ValueError, TypeError, sqlite3.Error, DotError)
-_SCHEMA_3_PREFIX = re.compile(rb'\{\s*"schema_version"\s*:\s*3\s*,')
 
 
 @dataclass
@@ -128,24 +125,6 @@ def _stored_sources(root: Path, agent: str) -> dict[str, SessionManifest]:
             continue
         stored[manifest.session_id] = manifest
     return stored
-
-
-def _upgrade_bundles(root: Path, adapter: AgentAdapter, fail: Callable[..., None]) -> None:
-    directory = root / adapter.name
-    try:
-        paths = agent_bundle_paths(directory)
-    except OSError:
-        # Absent needs nothing; the archive inspection that follows reports an unreadable one once.
-        return
-    for path in paths:
-        try:
-            # Peek at the version without decoding: a schema 3 manifest line holds every usage sample.
-            with path.open("rb") as stream:
-                legacy = _SCHEMA_3_PREFIX.match(stream.read(64)) is not None
-            if legacy:
-                upgrade_session_bundle(path)
-        except _SESSION_ERRORS as error:
-            fail(adapter, "upgrade session bundle", error, path.stem)
 
 
 def _capture(
@@ -346,12 +325,6 @@ class _SyncPass:
         self.state.stderr.write(f"agent-session: failed to {operation} for {adapter.label}: {detail}\n")
 
     def sync_agent(self, adapter: AgentAdapter) -> None:
-        if not self.dry_run and not self.session:
-            # Schema 3 bundles embed usage in their manifest line: rewrite them once, even when the
-            # provider deleted the source, so later metadata reads skip the usage samples.
-            _upgrade_bundles(self.root, adapter, self.fail)
-        # An unreadable legacy bundle fails the command, but never this pass's capture state: it would
-        # otherwise clear a database checkpoint and force a full re-parse on every later sync.
         failed_before = self.outcome.failed
         try:
             source = _validated_source_root(self.state, adapter)

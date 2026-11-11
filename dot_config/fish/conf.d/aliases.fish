@@ -13,8 +13,8 @@ if status is-interactive
     abbr -a d docker
     # e:lazydocker
     abbr -a e lazydocker
-    # f:fd
-    abbr -a f fd
+    # f:fmind
+    abbr -a f fmind
     # g:git
     abbr -a g git
     abbr -a gl lazygit
@@ -29,8 +29,8 @@ if status is-interactive
     abbr -a hs "dot status --fetch --needs-attention"
     # i:fastfetch
     abbr -a i fastfetch
-    # j:bf
-    abbr -a j bf
+    # j:fd
+    abbr -a j fd
     # l:lsd
     alias ls="lsd"
     abbr -a l "lsd --long --all"

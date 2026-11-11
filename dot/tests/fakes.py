@@ -112,11 +112,15 @@ class ScriptedRunner(Runner):
         installed: set[str] | None = None,
         *,
         run: RunHandler | None = None,
+        responses: Mapping[tuple[str, ...], Sequence[CommandResult]] | None = None,
     ) -> None:
         super().__init__()
         self.installed = installed or set()
         self.run_handler = run
+        self.responses = {key: list(items) for key, items in (responses or {}).items()}
         self.calls: list[list[str]] = []
+        self.envs: dict[tuple[str, ...], Mapping[str, str] | None] = {}
+        self.interactive_envs: list[Mapping[str, str] | None] = []
         self.timeouts: dict[tuple[str, ...], float | None] = {}
 
     def which(self, command: str) -> Path | None:
@@ -132,11 +136,17 @@ class ScriptedRunner(Runner):
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        del env
         command = list(args)
+        key = tuple(command)
         self.calls.append(command)
-        self.timeouts[tuple(command)] = timeout
-        result = self.run_handler(command, cwd, input_text, check) if self.run_handler else CommandResult("ok\n", "", 0)
+        self.envs[key] = env
+        self.timeouts[key] = timeout
+        if self.run_handler is not None:
+            result = self.run_handler(command, cwd, input_text, check)
+        elif key in self.responses:
+            result = self.responses[key].pop(0)
+        else:
+            result = CommandResult("ok\n", "", 0)
         if check and result.returncode != 0:
             raise DotError(f"command failed ({result.returncode}): {command[0]}")
         return result
@@ -153,7 +163,9 @@ class ScriptedRunner(Runner):
         on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
         # Never launch a real process from a test.
-        del args, cwd, stdin, stdout, stderr, env, on_stderr_line
+        del cwd, stdin, stdout, stderr, on_stderr_line
+        self.calls.append(list(args))
+        self.interactive_envs.append(env)
         return 0
 
 

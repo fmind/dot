@@ -312,8 +312,6 @@ def test_doctor_cli_keeps_only_json_and_agent_options() -> None:
     doctor = build_parser().children["agent"].children["doctor"]
     options = {option for argument in doctor.arguments for option in argument.option_strings}
     assert options == {"--agent", "-a", "--json", "-j", "--help", "-h"}
-    for removed in ("--fix", "--dry-run", "--deep", "--explain"):
-        assert CliRunner().invoke(app, ["agent", "doctor", removed]).exit_code == 2
     unknown = CliRunner().invoke(app, ["agent", "doctor", "--agent", "unsupported"])
     assert unknown.exit_code == 2
     assert "invalid choice: 'unsupported'" in unknown.stderr

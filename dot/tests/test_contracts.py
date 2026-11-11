@@ -301,6 +301,24 @@ def test_skills_guide_metadata_drives_index_and_detects_stale_description(tmp_pa
     assert any("add <!-- guides:start -->" in item for item in checker.repository_findings(root))
 
 
+@pytest.mark.parametrize("guide_name", ["fixture", "fixture-cli", "headless-fixture", "sub-fixture-guide"])
+def test_skills_contract_rejects_guide_repeating_parent_skill_name(tmp_path: Path, guide_name: str) -> None:
+    root = _fixture_repository(tmp_path)
+    path = root / "skills/fixture/SKILL.md"
+    guide = path.parent / f"references/{guide_name}.md"
+    guide.write_text(f"---\nname: {guide_name}\ndescription: Repeat parent skill name.\n---\n# Guide\n")
+    path.write_text(path.read_text() + "\n" + checker._guide_index(path.parent, root) + "\n")
+
+    findings = checker.repository_findings(root)
+    assert any("must not repeat its parent skill" in item for item in findings), findings
+    same_name = path.parent / "references/fixture.md"
+    same_name.write_text("---\nname: fixture\ndescription: Collide with parent.\n---\n# Fixture\n")
+    path.write_text(
+        path.read_text() + "\n- [fixture](references/fixture.md)\n" + checker._guide_index(path.parent, root)
+    )
+    assert any("must not repeat its parent skill" in item for item in checker.repository_findings(root))
+
+
 def test_skills_nested_resources_are_reachable_but_disconnected_cycles_are_not(tmp_path: Path) -> None:
     root = _fixture_repository(tmp_path)
     folder = root / "skills/fixture/references"

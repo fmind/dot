@@ -140,14 +140,6 @@ def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n", changed
 
 
-def _expand_home(raw: str, home: Path) -> Path:
-    if raw == "~":
-        return home
-    if raw.startswith("~/"):
-        return home / raw.removeprefix("~/")
-    return expand_path(raw)
-
-
 def _claude_settings(path: Path, text: str, folders: list[str], *, home: Path | None = None) -> tuple[str, list[str]]:
     """Add uncovered roots to Claude's permissions.additionalDirectories, keeping host entries."""
     resolved_home = (home or Path.home()).resolve()
@@ -158,7 +150,7 @@ def _claude_settings(path: Path, text: str, folders: list[str], *, home: Path | 
     directories = permissions.setdefault("additionalDirectories", [])
     if not isinstance(directories, list) or not all(isinstance(item, str) for item in directories):
         raise DotError(f"{path}: permissions.additionalDirectories must be a JSON array of strings")
-    expanded = [_expand_home(item, resolved_home) for item in directories]
+    expanded = [expand_path(item, home=resolved_home) for item in directories]
     covered = {item.resolve() for item in expanded} | set(expanded)
     changed = []
     for raw in folders:
@@ -273,7 +265,7 @@ def register_agy_projects(
     for path in sorted(registry.glob("*.json")):
         listed |= _agy_project_folders(path, _read_utf8(path))
     # Folders arrive resolved, so patterns resolve too: a symlinked home would otherwise never match.
-    patterns = [_expand_home(pattern, home).resolve() for pattern in include]
+    patterns = [expand_path(pattern, home=home).resolve() for pattern in include]
     chezmoi = (home / ".local" / "share" / "chezmoi").resolve()
     added = []
     for folder in folders:

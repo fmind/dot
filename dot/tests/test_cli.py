@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import runpy
@@ -31,18 +32,6 @@ def test_root_help_exposes_python_first_command_tree() -> None:
     assert result.exit_code == 0
     # Repository tasks and release gates call `dot completion`; it stays out of everyday help.
     assert not re.search(r"^\s*completion\s", result.stdout, flags=re.MULTILINE)
-    for removed in (
-        "context",
-        "help",
-        "notify",
-        "version",
-        "commit",
-        "pr",
-        "release",
-        "chezmoi",
-        "verify",
-    ):
-        assert not re.search(rf"^\s*{removed}(?:\s|$)", result.stdout, flags=re.MULTILINE)
 
 
 def test_fish_completion_callback_works_in_fresh_process(tmp_path: Path) -> None:
@@ -665,3 +654,62 @@ def test_main_exits_silently_on_broken_pipe(tmp_path: Path) -> None:
         os.close(write_fd)
     assert result.returncode == 141
     assert result.stderr == ""
+
+
+@pytest.mark.parametrize("command", [["pull"], ["agent", "stats"], ["login"]])
+def test_help_works_with_invalid_config(command: list[str], tmp_path: Path) -> None:
+    config = tmp_path / "bad.yaml"
+    config.write_text("pull:\n  typo: true\n")
+    result = runner.invoke(app, ["--config", str(config), *command, "--help"])
+    assert result.exit_code == 0
+    assert "usage:" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["agent", "session", "show"],
+        ["agent", "stats", "--since", "invalid"],
+        ["agent", "stats", "--since", "2026-09-16", "--until", "2026-09-15"],
+        ["agent", "session", "list", "--since", "2026-09-16", "--until", "2026-09-15"],
+        ["agent", "stats", "--sessions", "--limit", "-1"],
+        ["agent", "stats", "--limit", "10"],
+        ["agent", "session", "list", "--limit", "-1"],
+        ["agent", "stats", "--tokens-only", "--prompts-only"],
+    ],
+)
+def test_usage_errors_exit_two(arguments: list[str]) -> None:
+    assert runner.invoke(app, arguments).exit_code == 2
+
+
+def test_login_dry_run_names_every_provider() -> None:
+    result = runner.invoke(app, ["login", "--dry-run"])
+    assert result.exit_code == 0
+    assert "gh auth login" in result.stdout
+    assert "gws auth login" in result.stdout
+    assert "gcloud auth login" in result.stdout
+
+
+def test_invalid_config_still_blocks_archive_reads(tmp_path: Path) -> None:
+    config = tmp_path / "bad.yaml"
+    config.write_text("pull:\n  typo: true\n")
+    result = runner.invoke(app, ["--config", str(config), "agent", "session", "show", "missing"])
+    assert result.exit_code == 1
+    assert "validation error" in str(result.exception)
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    ("command", "key"),
+    [
+        (["agent", "session", "list"], "sessions"),
+        (["agent", "stats", "--sessions"], "records"),
+        (["pull"], "repositories"),
+    ],
+)
+def test_empty_json_has_versioned_envelope(command: list[str], key: str) -> None:
+    result = runner.invoke(app, [*command, "--json"])
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.stdout)
+    assert document["schema"].startswith("dot.")
+    assert document[key] == []

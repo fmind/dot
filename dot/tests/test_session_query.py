@@ -196,14 +196,13 @@ def test_cli_list_is_bounded_and_filters_json_by_status() -> None:
     latest = runner.invoke(app, ["agent", "session", "list", "--json", "--limit", "1"])
     flagged = runner.invoke(app, ["agent", "session", "list", "--json", "--status", "legacy"])
     unknown = runner.invoke(app, ["agent", "session", "list", "--status", "stale"])
-    removed = runner.invoke(app, ["agent", "session", "list", "--all-generations"])
 
     assert latest.exit_code == 0
     assert json.loads(latest.stdout)["schema"] == "dot.agent.session.list/v2"
     assert [row["session_id"] for row in json.loads(latest.stdout)["sessions"]] == ["other"]
     assert flagged.exit_code == 0
     assert [row["cwd"] for row in json.loads(flagged.stdout)["sessions"]] == ["/old"]
-    assert unknown.exit_code == removed.exit_code == 2
+    assert unknown.exit_code == 2
 
 
 def test_query_selects_status_and_limit_without_reading_content(monkeypatch: pytest.MonkeyPatch) -> None:

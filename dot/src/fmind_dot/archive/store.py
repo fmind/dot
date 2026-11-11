@@ -4,8 +4,8 @@ Each session is one owner-only JSONL bundle, ``sessions/v3/<agent>/<session_id>.
 puts the manifest (provenance, counts, and the usage time span) on the first line, the usage
 document (or ``null``) on the second, and one normalized record on each following line, so
 metadata reads never decode usage samples. Schema 3 bundles embed usage in the manifest and start
-records on the second line; sync upgrades them in place. Publication replaces the whole file
-atomically, so transcript and usage never diverge.
+records on the second line; read paths accept both schemas and sync rewrites changed sources as
+schema 4. Publication replaces the whole file atomically, so transcript and usage never diverge.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from pydantic import Field, StrictBool, StrictStr, TypeAdapter, ValidationError
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 4
-# Schema 3 embeds usage in the manifest line; it stays readable until sync upgrades it.
+# Schema 3 embeds usage in the manifest line and stays readable alongside schema 4.
 READABLE_SCHEMA_VERSIONS = (3, SESSION_SCHEMA_VERSION)
 SESSION_PARSER_VERSION = "15"
 # Every released parser stays readable: a bundle whose source the provider deleted can never be
@@ -422,15 +422,6 @@ def _write_lock(root: Path) -> Generator[None]:
     with os.fdopen(descriptor, "rb") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
         yield
-
-
-def upgrade_session_bundle(path: Path) -> None:
-    """Rewrite one schema 3 bundle as schema 4 without changing its content."""
-    root = session_store_root()
-    with _write_lock(root):
-        manifest, logs = read_session_bundle(path)
-        if manifest.schema_version == 3:
-            _write_bundle(root, manifest, logs)
 
 
 def ingest_session(

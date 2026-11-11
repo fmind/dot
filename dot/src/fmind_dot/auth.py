@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import TypeAdapter, ValidationError
 
 from fmind_dot.command import Parser
-from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, LoginProvider, Project, Scope, expand_path
+from fmind_dot.config import WORKSPACE_SCOPE_LIMIT, LoginProvider, Project, Scope, env_path
 from fmind_dot.errors import DotError, UsageError
 from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.state import State, require_tools
@@ -152,7 +152,7 @@ def change(state: State, args: list[str], **options: Any) -> None:
 
 def google_signin_opener() -> Callable[[str], None] | None:
     """Open the first Google sign-in URL a login prints; None where only a text browser could open it."""
-    # webbrowser follows $BROWSER (garcon-url-handler on ChromeOS) and `open` on macOS. Without a
+    # webbrowser follows $BROWSER on Linux and `open` on macOS. Without a
     # display it would launch lynx or w3m inside the login's terminal, and over SSH the browser is remote.
     if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
         return None
@@ -245,9 +245,7 @@ def workspace_ready(state: State, grants: Sequence[str] = ()) -> bool:
 
 
 def _workspace_config_dir() -> Path:
-    if custom := os.environ.get("GOOGLE_WORKSPACE_CLI_CONFIG_DIR"):
-        return expand_path(custom)
-    return Path.home() / ".config" / "gws"
+    return env_path("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", Path.home() / ".config" / "gws", expand_vars=False)
 
 
 def login_workspace(state: State, *, force: bool = False, dry_run: bool = False, grants: Sequence[str] = ()) -> None:
@@ -282,13 +280,6 @@ def login_workspace(state: State, *, force: bool = False, dry_run: bool = False,
             )
         return
     # gws prints its OAuth URL on stderr but, unlike gh and gcloud, never opens a browser (gws 0.22.5).
-    if os.environ.get("SOMMELIER_VERSION"):
-        # gws redirects to http://localhost:PORT but listens on 127.0.0.1 only; ChromeOS forwards the
-        # IPv4 loopback into Crostini, while its localhost attempt stalls, so the tab hangs after Allow.
-        print(
-            "ChromeOS: if the tab hangs after Allow, replace localhost with 127.0.0.1 in its address and press Enter.",
-            file=state.stderr,
-        )
     change(state, args, on_stderr_line=google_signin_opener())
     # gws 0.22.5 overwrites credentials.enc on login without clearing its yup-oauth2
     # token caches, which can still hold ADC fallback tokens or dropped --grant scopes.

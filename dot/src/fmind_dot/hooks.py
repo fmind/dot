@@ -170,7 +170,7 @@ def notification_command(runner: Runner, notification: Notification, *, system: 
     body = "\n".join(line for line in (notification.headline, notification.detail) if line)
     if runner.which("notify-send") is None:
         raise DotError("install notify-send (libnotify-bin) to send desktop notifications")
-    # dot plays its own chime on Linux (servers such as ChromeOS notificationd play none), so the
+    # dot plays its own chime on Linux (some notification daemons play none), so the
     # server's theme sound stays off and the setting behaves the same on every desktop.
     return [
         "notify-send",

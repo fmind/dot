@@ -118,52 +118,35 @@ class HarnessConfigTests(unittest.TestCase):
         rendered = self.render("dot_config/git/personal.gitconfig.tmpl", "")
         assert 'email = "github@fmind.dev"' in rendered
 
-    def _brain_hook(self) -> str:
-        script = self.home / "fmind/brain/settings/hooks/session-context.py"
-        script.parent.mkdir(parents=True)
-        script.write_text("#!/usr/bin/env python3\n")
-        return f"{script} {self.home / 'fmind/brain'}"
-
-    def test_brain_session_hook_needs_the_brain_checkout(self):
-        claude = json.loads(self.render("private_dot_claude/modify_private_settings.json", ""))
-        assert "SessionStart" not in claude["hooks"]
-
-    def test_claude_registers_brain_session_hook_once_beside_host_hooks(self):
-        command = self._brain_hook()
-        brain = {"hooks": [{"type": "command", "command": command, "timeout": 30}]}
-        host = {"hooks": [{"type": "command", "command": "/synthetic/host"}]}
+    def test_claude_preserves_host_session_start_hooks_while_replacing_notifications(self):
         template = "private_dot_claude/modify_private_settings.json"
-        for existing in ([], [host], [host, brain]):
-            with self.subTest(existing=len(existing)):
-                rendered = self.render(template, json.dumps({"hooks": {"SessionStart": existing}}))
-                assert json.loads(rendered)["hooks"]["SessionStart"] == [*existing[:1], brain]
-                assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert "SessionStart" not in fresh["hooks"]
+        host_session = [{"hooks": [{"type": "command", "command": "/synthetic/host", "timeout": 30}]}]
+        stale_notify = [{"hooks": [{"type": "command", "command": "old"}]}]
+        rendered = self.render(
+            template,
+            json.dumps({"hooks": {"SessionStart": host_session, "Notification": stale_notify}}),
+        )
+        hooks = json.loads(rendered)["hooks"]
+        assert hooks["SessionStart"] == host_session
+        assert hooks["Notification"] != stale_notify
+        assert self.render(template, rendered) == rendered
 
-    def test_agy_registers_brain_context_hook_only_with_the_brain_checkout(self):
+    def test_agy_replaces_managed_notify_hook_while_preserving_host_hooks(self):
         template = "private_dot_gemini/private_config/modify_private_hooks.json"
         assert "brain-context" not in json.loads(self.render(template, ""))
-        script = self.home / "fmind/brain/settings/hooks/agy-context.py"
-        script.parent.mkdir(parents=True)
-        script.write_text("#!/usr/bin/env python3\n")
-        rendered = self.render(template, json.dumps({"custom": {"Stop": []}}))
-        hooks = json.loads(rendered)
-        assert hooks["brain-context"] == {
-            "SessionStart": [{"type": "command", "command": f"{script} {self.home / 'fmind/brain'}", "timeout": 30}]
+        host = {
+            "brain-context": {"SessionStart": [{"type": "command", "command": "/synthetic/brain", "timeout": 30}]},
+            "notify": {"Stop": [], "PreToolUse": []},
+            "custom": {"Stop": []},
         }
-        assert hooks["custom"] == {"Stop": []}
-        assert self.render(template, rendered) == rendered
-        # A managed named hook replaces its whole value: the former PreInvocation registration and
-        # host edits inside a managed hook leave, while other named hooks stay.
-        legacy = {"PreInvocation": [{"type": "command", "command": "old"}]}
-        host = {"brain-context": legacy, "notify": {"Stop": [], "PreToolUse": []}, "custom": {"Stop": []}}
-        upgraded = json.loads(self.render(template, json.dumps(host)))
-        assert list(upgraded["brain-context"]) == ["SessionStart"]
+        rendered = self.render(template, json.dumps(host))
+        upgraded = json.loads(rendered)
+        assert upgraded["brain-context"] == host["brain-context"]
         assert list(upgraded["notify"]) == ["Stop"]
         assert upgraded["custom"] == {"Stop": []}
-        script.unlink()
-        retired = json.loads(self.render(template, json.dumps(upgraded)))
-        assert "brain-context" not in retired
-        assert retired["custom"] == {"Stop": []}
+        assert self.render(template, rendered) == rendered
 
     def test_claude_merge_preserves_host_environment_and_permissions(self):
         template = "private_dot_claude/modify_private_settings.json"
@@ -322,7 +305,7 @@ class HarnessConfigTests(unittest.TestCase):
             "gcp": {"project": "host-project", "location": "host-location", "extra": "preserved"},
             "permissions": {"allow": ["command(git)"], "ask": ["read_url(example.com)"], "deny": ["command(rm -rf)"]},
             "trustedWorkspaces": [],
-            "pickerGrouping": "flat",
+            "pickerGrouping": "none",
             "runningLightSpeed": "slow",
             "colorScheme": "dark",
             "showFeedbackSurvey": True,
@@ -337,15 +320,16 @@ class HarnessConfigTests(unittest.TestCase):
         assert "notifications" not in data
         assert data["queuedMessages"] == "send-immediately"
         assert data["verbosity"] == "high"
-        display = str(self.home / ".agents/skills/agy/scripts/display.py")
+        display = str(self.home / ".gemini/antigravity-cli/display.py")
         for field, mode in [("statusLine", "statusline"), ("title", "title")]:
             assert data[field]["enabled"] is True
             assert shlex.split(data[field]["command"]) == ["exec", "python3", "-I", "-S", display, mode]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
+        assert fresh["pickerGrouping"] == "grouped"
         assert fresh["queuedMessages"] == "send-immediately"
         assert fresh["verbosity"] == "high"
-        for key in ("model", "pickerGrouping", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
+        for key in ("model", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
             assert key not in fresh
         assert "trustedWorkspaces" not in fresh  # dot trust owns folder trust.
 
@@ -590,31 +574,6 @@ class HarnessConfigTests(unittest.TestCase):
         assert 'pi.on("agent_settled"' in extension
         assert 'process.env.GOOGLE_CLOUD_LOCATION = "global"' in extension
 
-    def test_claude_session_start_hook_prunes_removed_brain_while_keeping_host_hooks(self):
-        template = "private_dot_claude/modify_private_settings.json"
-        brain_hook = self.home / "fmind/brain/settings/hooks/session-context.py"
-        brain_hook.parent.mkdir(parents=True)
-        brain_hook.write_text("#!/usr/bin/env python3\n")
-        custom_entry = {"hooks": [{"type": "command", "command": "echo host", "timeout": 5}]}
-        stop_entry = [{"hooks": [{"type": "command", "command": "echo stop", "timeout": 5}]}]
-        initial = json.dumps({"hooks": {"SessionStart": [custom_entry], "Stop": stop_entry}})
-
-        with_brain = self.render(template, initial)
-        with_brain_hooks = json.loads(with_brain)["hooks"]
-        assert with_brain_hooks["Stop"] == stop_entry
-        assert len(with_brain_hooks["SessionStart"]) == 2
-        assert with_brain_hooks["SessionStart"][0] == custom_entry
-        assert self.render(template, with_brain) == with_brain
-
-        brain_hook.unlink()
-        without_brain = json.loads(self.render(template, with_brain))["hooks"]
-        assert without_brain["Stop"] == stop_entry
-        assert without_brain["SessionStart"] == [custom_entry]
-
-        brain_only = json.dumps({"hooks": {"SessionStart": [with_brain_hooks["SessionStart"][1]]}})
-        pruned_all = json.loads(self.render(template, brain_only))["hooks"]
-        assert "SessionStart" not in pruned_all
-
     def test_pi_dynamic_google_cloud_project_resolves_vertex_without_static_project(self):
         pi = native_binary("pi")
         if pi is None:
@@ -622,7 +581,7 @@ class HarnessConfigTests(unittest.TestCase):
         agent_dir = self.home / ".pi/agent"
         (agent_dir / "extensions").mkdir(parents=True)
         (agent_dir / "settings.json").write_text(
-            self.render("private_dot_pi/private_agent/modify_private_settings.json", "")
+            self.render("private_dot_pi/private_agent/modify_private_settings.json", '{"retry": {"enabled": false}}')
         )
         (agent_dir / "extensions/dot-notify.ts").write_text(
             chezmoi(
@@ -678,6 +637,109 @@ class HarnessConfigTests(unittest.TestCase):
             "gemini-4-argon",
             "high",
         )
+
+        # A secondary provider's API key must not hijack defaultProvider or downgrade thinkingLevel.
+        with_secondary = subprocess.run(
+            [pi, "--mode", "json", "--no-session", "--no-tools", "-p", "hi"],
+            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project", "OPENAI_API_KEY": "sk-synthetic"},
+            cwd=self.home,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        secondary_events = [json.loads(line) for line in with_secondary.stdout.splitlines() if line.startswith("{")]
+        [secondary_reply] = [
+            event["message"]
+            for event in secondary_events
+            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
+        ]
+        assert (secondary_reply["provider"], secondary_reply["model"], secondary_reply["thinkingLevel"]) == (
+            "google-vertex",
+            "gemini-4-argon",
+            "high",
+        )
+
+        # Resumed sessions keep their saved Vertex model and thinking level instead of resetting to defaults.
+        saved_session = self.home / "resumed.jsonl"
+        saved_session.write_text(
+            "\n".join(
+                json.dumps(entry)
+                for entry in (
+                    {
+                        "type": "session",
+                        "version": 3,
+                        "id": "s1",
+                        "timestamp": "2026-01-01T00:00:00.000Z",
+                        "cwd": str(self.home),
+                    },
+                    {
+                        "type": "model_change",
+                        "id": "m1",
+                        "parentId": None,
+                        "timestamp": "2026-01-01T00:00:00.000Z",
+                        "provider": "google-vertex",
+                        "modelId": "gemini-3.8-flash",
+                    },
+                    {
+                        "type": "thinking_level_change",
+                        "id": "t1",
+                        "parentId": "m1",
+                        "timestamp": "2026-01-01T00:00:00.000Z",
+                        "thinkingLevel": "low",
+                    },
+                    {
+                        "type": "message",
+                        "id": "u1",
+                        "parentId": "t1",
+                        "timestamp": "2026-01-01T00:00:01.000Z",
+                        "message": {"role": "user", "content": "hi", "timestamp": 1767225601000},
+                    },
+                )
+            )
+            + "\n"
+        )
+        resumed = subprocess.run(
+            [pi, "--mode", "json", "--session", str(saved_session), "--no-tools", "-p", "hi"],
+            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project", "OPENAI_API_KEY": "sk-synthetic"},
+            cwd=self.home,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        resumed_events = [json.loads(line) for line in resumed.stdout.splitlines() if line.startswith("{")]
+        [resumed_reply] = [
+            event["message"]
+            for event in resumed_events
+            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
+        ]
+        assert (resumed_reply["provider"], resumed_reply["model"], resumed_reply["thinkingLevel"]) == (
+            "google-vertex",
+            "gemini-3.8-flash",
+            "low",
+        )
+
+        # Explicit --model flags take precedence over the configured defaultModel.
+        explicit_model = subprocess.run(
+            [pi, "--mode", "json", "--no-session", "--no-tools", "--model", "openai/gpt-4o", "-p", "hi"],
+            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project", "OPENAI_API_KEY": "sk-synthetic"},
+            cwd=self.home,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        explicit_events = [json.loads(line) for line in explicit_model.stdout.splitlines() if line.startswith("{")]
+        [explicit_reply] = [
+            event["message"]
+            for event in explicit_events
+            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
+        ]
+        assert (explicit_reply["provider"], explicit_reply["model"]) == ("openai", "gpt-4o")
 
     def test_pi_settings_seed_the_model_once_and_keep_host_state(self):
         template = "private_dot_pi/private_agent/modify_private_settings.json"

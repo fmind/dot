@@ -176,7 +176,7 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("--yes", "-y", action="store_true")
     args = parser.parse_args()
     os.chdir(ROOT)

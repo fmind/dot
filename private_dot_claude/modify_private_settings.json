@@ -76,25 +76,13 @@
   }
 }
 `) -}}
-{{- /* Inject the brain's SessionStart hook only when checked out, and drop any stale copy
-       when the brain is absent while preserving host-owned hook events and entries. */ -}}
+{{- /* Preserve host-owned hook events (such as SessionStart) while replacing managed Notification entries. */ -}}
 {{- $current := dict -}}
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
 {{- $currentHooks := get $current "hooks" | default dict -}}
 {{- if not (kindIs "map" $currentHooks) }}{{ fail "hooks must be an object" }}{{ end -}}
 {{- range $event, $entries := $currentHooks -}}
-{{-   if and (ne $event "Notification") (ne $event "SessionStart") }}{{ $_ := set $managedConfig.hooks $event $entries }}{{ end -}}
+{{-   if ne $event "Notification" }}{{ $_ := set $managedConfig.hooks $event $entries }}{{ end -}}
 {{- end -}}
-{{- $sessionStart := get $currentHooks "SessionStart" | default list -}}
-{{- if not (kindIs "slice" $sessionStart) }}{{ fail "hooks.SessionStart must be an array" }}{{ end -}}
-{{- $sessionContext := joinPath .chezmoi.homeDir "fmind/brain/settings/hooks/session-context.py" -}}
-{{- $command := printf "%s %s" $sessionContext (joinPath .chezmoi.homeDir "fmind/brain") -}}
-{{- $entry := fromJson (printf `{"hooks": [{"type": "command", "command": %s, "timeout": 30}]}` (toJson $command)) -}}
-{{- $keptSessionStart := list -}}
-{{- range $item := $sessionStart -}}
-{{-   if not (deepEqual $item $entry) }}{{ $keptSessionStart = append $keptSessionStart $item }}{{ end -}}
-{{- end -}}
-{{- if stat $sessionContext }}{{ $keptSessionStart = append $keptSessionStart $entry }}{{ end -}}
-{{- if $keptSessionStart }}{{ $_ := set $managedConfig.hooks "SessionStart" $keptSessionStart }}{{ end -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "replace" (list "hooks")) -}}

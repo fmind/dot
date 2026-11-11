@@ -24,6 +24,7 @@ from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     DUPLICATE_GUIDANCE,
     context_report,
+    parse_frontmatter,
 )
 from fmind_dot.errors import DotError
 
@@ -151,27 +152,19 @@ def _discover_skills(root: Path) -> tuple[list[tuple[str, Path]], list[str]]:
 def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, list[str]]:
     relative = _relative(root, path)
     try:
-        data = path.read_bytes()
-    except OSError as error:
-        return None, "", [f"{relative}: cannot read: {error}"]
-    try:
-        text = data.decode()
+        text = path.read_bytes().decode()
     except UnicodeDecodeError as error:
         return None, "", [f"{relative}: is not UTF-8: {error}"]
+    except OSError as error:
+        return None, "", [f"{relative}: cannot read: {error}"]
     if unsafe := _unsafe_text_finding(relative, text):
         return None, text, [unsafe]
     if len(text.splitlines()) > MAX_SKILL_LINES:
         return None, text, [f"{relative}: exceeds the {MAX_SKILL_LINES}-line limit"]
-    normalized = text.replace("\r\n", "\n")
-    if not normalized.startswith("---\n") or "\n---\n" not in normalized[4:]:
-        return None, text, [f"{relative}: frontmatter must be bounded by --- lines"]
-    raw, body = normalized[4:].split("\n---\n", 1)
     try:
-        metadata = yaml.safe_load(raw)
-    except (yaml.YAMLError, RecursionError) as error:
-        return None, body, [f"{relative}: invalid frontmatter: {error}"]
-    if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
-        return None, body, [f"{relative}: frontmatter must be a string-keyed mapping"]
+        metadata, body = parse_frontmatter(text, relative)
+    except DotError as error:
+        return None, text, [str(error)]
     return metadata, body, []
 
 
@@ -281,6 +274,8 @@ def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
             )
         if metadata.get("name") != name:
             findings.append(f"{_relative(root, path)}: guide name must match {name!r}")
+        if f"-{skill.parent.name}-" in f"-{name}-":
+            findings.append(f"{_relative(root, path)}: guide name {name!r} must not repeat its parent skill")
         if name in names:
             findings.append(f"{_relative(root, skill)}: duplicate guide {name!r}")
         names.add(name)
@@ -485,7 +480,7 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
         raise ValueError(msg) from error
     if git_entries is not None:
         for path in git_entries:
-            if path.name in {"allowed_signers", "personal.gitconfig", "theme.gitconfig"}:
+            if path.name in {"allowed_signers", "colors.gitconfig", "personal.gitconfig", "theme.gitconfig"}:
                 continue
             try:
                 if not stat.S_ISREG(path.stat().st_mode):
@@ -607,14 +602,14 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
     return sorted(set(findings))
 
 
-def repository_findings(root: Path) -> list[str]:
-    """Return every deterministic catalog, package, and budget finding."""
+def _repository_check(root: Path) -> tuple[list[str], int]:
     root = root.resolve()
     discovered, findings = _discover_skills(root)
 
     for name, path in sorted(discovered):
         findings.extend(_skill_findings(root, name, path))
-    findings.extend(privacy_findings(root))
+    if root == ROOT:
+        findings.extend(privacy_findings(root))
     # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
     try:
         context = context_report(root, source=root)
@@ -634,7 +629,12 @@ def repository_findings(root: Path) -> list[str]:
             + f"; {DUPLICATE_GUIDANCE}"
             for item in context["duplicates"]
         )
-    return sorted(set(findings))
+    return sorted(set(findings)), len(discovered)
+
+
+def repository_findings(root: Path) -> list[str]:
+    """Return every deterministic catalog, package, and budget finding."""
+    return _repository_check(root)[0]
 
 
 def main() -> int:
@@ -656,12 +656,12 @@ def main() -> int:
                 if updated != text:
                     path.write_text(updated, encoding="utf-8")
         return 0
-    findings = repository_findings(root)
+    findings, count = _repository_check(root)
     if findings:
         for finding in findings:
             sys.stderr.write(f"error: {finding}\n")
         return 1
-    sys.stdout.write(f"Validated {len(_discover_skills(root)[0])} first-party skills.\n")
+    sys.stdout.write(f"Validated {count} first-party skills.\n")
     return 0
 
 

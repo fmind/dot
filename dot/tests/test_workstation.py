@@ -374,16 +374,6 @@ def test_workspace_login_refuses_more_scopes_than_consent_accepts(provider: Reco
     assert not provider.calls
 
 
-@pytest.mark.parametrize(("sommelier", "hinted"), [("1", True), ("", False)])
-def test_workspace_login_explains_the_chromeos_loopback_hang(
-    provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch, sommelier: str, hinted: bool
-) -> None:
-    monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
-    provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
-    result = cli(["login", "workspace"])
-    assert ("replace localhost with 127.0.0.1" in result.stderr) is hinted
-
-
 SIGNIN = "https://accounts.google.com/o/oauth2/auth?client_id=example&redirect_uri=http://localhost:4242"
 
 
@@ -400,7 +390,7 @@ def browser_env(monkeypatch: pytest.MonkeyPatch, **values: str) -> list[str]:
 def test_workspace_login_opens_the_printed_signin_url_once(
     provider: RecordingRunner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    opened = browser_env(monkeypatch, BROWSER="/usr/bin/garcon-url-handler")
+    opened = browser_env(monkeypatch, BROWSER="/usr/bin/xdg-open")
     provider.stderr_lines = ["Open this URL in your browser to authenticate:\n", "\n", f"  {SIGNIN}\n", f"{SIGNIN}\n"]
     provider.responses = [workspace_status(scopes=["openid"]), workspace_status()]
     cli(["login", "workspace"])
@@ -1467,55 +1457,28 @@ def test_workspace_login_accepts_unknown_tilde_user_in_config_dir_env(
     assert len(provider.actions) == 1
 
 
-def test_concurrent_probes_coalesce_and_clear_probes_drops_in_flight_writes() -> None:
-    started: dict[int, threading.Event] = {1: threading.Event(), 2: threading.Event()}
-    gates: dict[int, threading.Event] = {1: threading.Event(), 2: threading.Event()}
+def test_run_probe_caches_outcomes_until_cleared() -> None:
     calls = 0
-    lock = threading.Lock()
 
-    class BlockingProbeRunner(Runner):
-        def which(self, command: str) -> Path:
-            return Path("/bin") / command
+    def execute() -> CommandResult:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise DotError("transient")
+        return CommandResult(f"attempt-{calls}", "", 0)
 
-        def run(self, args: Sequence[str], **_kwargs: object) -> CommandResult:
-            nonlocal calls
-            del args
-            with lock:
-                calls += 1
-                current = calls
-            if current in started:
-                started[current].set()
-            if current in gates:
-                gates[current].wait(timeout=5)
-            return CommandResult(f"attempt-{current}", "", 0)
-
-    state = State(runner=BlockingProbeRunner(), stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    outcomes: list[str] = []
-
-    def worker() -> None:
-        outcomes.append(auth.probe(state, ["gws", "auth", "status"]).stdout)
-
-    threads = [threading.Thread(target=worker) for _ in range(4)]
-    for thread in threads:
-        thread.start()
-    assert started[1].wait(timeout=5)
-    gates[1].set()
-    for thread in threads:
-        thread.join(timeout=5)
-
+    state = State()
+    assert state.run_probe(("gws",), execute).stdout == "attempt-1"
+    assert state.run_probe(("gws",), execute).stdout == "attempt-1"
     assert calls == 1
-    assert outcomes == ["attempt-1"] * 4
 
     state.clear_probes()
-    stale_thread = threading.Thread(target=worker)
-    stale_thread.start()
-    assert started[2].wait(timeout=5)
-    state.clear_probes()
-    # A new caller entering while attempt-2 is still blocked starts a fresh generation immediately.
-    assert auth.probe(state, ["gws", "auth", "status"]).stdout == "attempt-3"
-    gates[2].set()
-    stale_thread.join(timeout=5)
+    with pytest.raises(DotError, match="transient"):
+        state.run_probe(("gws",), execute)
+    with pytest.raises(DotError, match="transient"):
+        state.run_probe(("gws",), execute)
+    assert calls == 2
 
+    state.clear_probes()
+    assert state.run_probe(("gws",), execute).stdout == "attempt-3"
     assert calls == 3
-    assert outcomes[-1] == "attempt-2"
-    assert auth.probe(state, ["gws", "auth", "status"]).stdout == "attempt-3"

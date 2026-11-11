@@ -9,12 +9,9 @@ import pytest
 
 from fmind_dot.archive import store
 from fmind_dot.archive.parsers import parse_claude_session
-from fmind_dot.archive.store import SessionSource, ingest_session
-from fmind_dot.archive.sync import sync_sessions
+from fmind_dot.archive.store import SessionLog, SessionSource, ingest_session
 from fmind_dot.archive.usage import UsageRecord, aggregate_usage, iter_usage_records, write_usage_stats
 from fmind_dot.cli import app
-from fmind_dot.errors import DotError
-from fmind_dot.state import State
 from tests.fakes import CliRunner
 
 
@@ -188,24 +185,15 @@ def test_archived_codex_samples_split_months_and_models() -> None:
     ]
 
 
-def test_public_monthly_report_and_retired_billing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_public_monthly_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     record = session(request("2026-08-31T23:00:00Z"), request("2026-09-01T23:00:00Z"))
     ingest_session("codex", "one", [], usage=record.to_dict())
-    runner = CliRunner()
-    report = runner.invoke(app, ["agent", "stats", "--tokens-only", "--monthly", "--json"])
+    report = CliRunner().invoke(app, ["agent", "stats", "--tokens-only", "--monthly", "--json"])
     assert report.exit_code == 0, report.output
     result = json.loads(report.output)
     assert result["prompts"] is None
     assert len(result["usage"]) == 2
-    assert "subscription_usd" not in result["usage"][0]
-    assert runner.invoke(app, ["agent", "stats", "--tokens-only", "--billing"]).exit_code == 2
-    config = tmp_path / "config.yaml"
-    config.write_text("agent:\n  subscriptions:\n    codex:\n      renewal_day: 15\n")
-    invalid = runner.invoke(app, ["--config", str(config), "config", "show"])
-    assert invalid.exit_code == 1
-    assert isinstance(invalid.exception, DotError)
-    assert "agent.subscriptions" in str(invalid.exception)
 
 
 def test_usage_query_rejects_invalid_usage_and_mismatched_identity() -> None:
@@ -284,41 +272,96 @@ def test_window_skips_only_families_measured_outside_it() -> None:
         list(iter_usage_records())
 
 
-def test_sync_upgrades_schema_3_bundles_in_place() -> None:
-    usage = _usage("one", "2026-09-01T00:00:00Z")
+def test_reports_include_whole_until_day_and_exact_timestamp() -> None:
+    for identity, timestamp in [("day", "2026-09-15T12:00:00Z"), ("next", "2026-09-16T00:00:00Z")]:
+        usage = UsageRecord(timestamp=timestamp, harness="codex", session_id=identity, input_tokens=10).finalize(
+            fallback_timestamp="2026-09-01T00:00:00Z"
+        )
+        ingest_session(
+            "codex",
+            identity,
+            [SessionLog(timestamp, "codex", identity, "user", "hello", "/work")],
+            usage=usage.to_dict(),
+        )
+    runner = CliRunner()
+    for command in [["agent", "stats"], ["agent", "stats", "--prompts-only"], ["agent", "stats", "--tokens-only"]]:
+        result = runner.invoke(app, [*command, "--since", "2026-09-15", "--until", "2026-09-15", "--json"])
+        assert result.exit_code == 0, result.output
+        document = json.loads(result.stdout)
+        assert document["schema"] == "dot.agent.stats/v4"
+        if "--tokens-only" not in command:
+            assert document["prompts"]["prompts"] == 1
+        if "--prompts-only" not in command:
+            assert document["usage"][0]["total_tokens"] == 10
+    result = runner.invoke(app, ["agent", "stats", "--until", "2026-09-15T00:00:00Z", "--json"])
+    document = json.loads(result.stdout)
+    assert document["prompts"]["prompts"] == 0
+    assert document["usage"] == []
+
+
+@pytest.mark.parametrize("flag", ["--agent", "-a"])
+def test_agent_filter_aliases_select_the_same_usage(flag: str) -> None:
+    for agent in ["agy", "claude"]:
+        record = UsageRecord(
+            timestamp="2026-09-15T12:00:00Z", harness=agent, session_id=agent, input_tokens=10
+        ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+        ingest_session(agent, agent, [], usage=record.to_dict())
+    result = CliRunner().invoke(app, ["agent", "stats", "--sessions", flag, "agy", "--limit", "0", "--json"])
+    assert result.exit_code == 0, result.output
+    assert [record["harness"] for record in json.loads(result.stdout)["records"]] == ["agy"]
+
+
+def test_stats_are_readable_in_a_narrow_terminal_and_preserve_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COLUMNS", "60")
+    timestamp = "2026-09-15T12:00:00Z"
+    record = UsageRecord(
+        timestamp=timestamp,
+        harness="codex",
+        session_id="readable",
+        model="unknown-model",
+        input_tokens=1234567,
+        measurement_kind="provider-reported",
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
     ingest_session(
-        "claude", "one", [store.SessionLog("2026-09-01T00:00:00Z", "claude", "one", "user", "hi")], usage=usage
+        "codex",
+        "readable",
+        [SessionLog(timestamp, "codex", "readable", "user", "private words")],
+        usage=record.to_dict(),
     )
-    path = store.session_bundle_path("claude", "one")
-    header, _, *records = path.read_text().splitlines()
-    legacy = json.loads(header) | {"schema_version": 3, "usage": usage}
-    for key in ("usage_first_timestamp", "usage_last_timestamp"):
-        legacy.pop(key)
-    path.write_text("\n".join([json.dumps(legacy), *records]) + "\n")
-    manifest, logs = store.read_session_bundle(path)
-    assert (manifest.schema_version, manifest.usage) == (3, usage)
-    state = State(stdout=io.StringIO(), stderr=io.StringIO())
-
-    sync_sessions(state, agent="claude", dry_run=True)
-    assert store.read_session_manifest(path).schema_version == 3
-    sync_sessions(state, agent="claude")
-
-    upgraded, upgraded_logs = store.read_session_bundle(path)
-    assert (upgraded.schema_version, upgraded.usage, upgraded_logs) == (4, usage, logs)
-    assert (upgraded.ingested_at, upgraded.source_fingerprint) == (manifest.ingested_at, manifest.source_fingerprint)
-    assert "usage" not in json.loads(path.read_text().splitlines()[0])
+    runner = CliRunner()
+    human = runner.invoke(app, ["agent", "stats", "--by-model"])
+    assert human.exit_code == 0, human.output
+    assert "Prompt activity" in human.stdout
+    assert "Total tokens: 1,234,567" in human.stdout
+    assert "API equivalent: unknown" in human.stdout
+    assert "Recorded cost: unknown" in human.stdout
+    assert "private words" not in human.stdout
+    assert "\t" not in human.stdout
+    assert max(map(len, human.stdout.splitlines())) <= 60
+    document = json.loads(runner.invoke(app, ["agent", "stats", "--by-model", "--json"]).stdout)
+    assert document["schema"] == "dot.agent.stats/v4"
+    assert document["usage"][0]["total_tokens"] == 1234567
+    assert document["usage"][0]["api_equivalent_usd"] is None
+    assert document["prompts"]["prompts"] == 1
 
 
-def test_unreadable_legacy_bundle_fails_sync_without_failing_the_capture(tmp_path: Path) -> None:
-    (tmp_path / ".claude/projects").mkdir(parents=True)
-    ingest_session("claude", "one", [store.SessionLog("2026-09-01T00:00:00Z", "claude", "one", "user", "hi")])
-    path = store.session_bundle_path("claude", "one")
-    header = json.loads(path.read_text().splitlines()[0]) | {"schema_version": 3, "usage": None}
-    path.write_text(json.dumps(header) + "\nnot json\n")
-    stderr = io.StringIO()
-    state = State(stdout=io.StringIO(), stderr=stderr)
-
-    assert sync_sessions(state, agent="claude", quiet=True).failed == 1
-    assert "upgrade session bundle" in stderr.getvalue()
-    sync_state = json.loads((store.session_store_root() / "claude/.sync.json").read_text())
-    assert sync_state["failed"] == 0
+def test_mixed_models_unknown_cost_and_comparable_statistics() -> None:
+    # An archived Codex session that switched models without dated requests stays one mixed measurement.
+    record = UsageRecord(
+        harness="codex", session_id="example", measurement_kind="provider-reported", input_tokens=150, total_tokens=150
+    )
+    for model in ("first", "second"):
+        record.observe_model(model)
+    record = record.finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+    assert record.model == "mixed"
+    assert record.total_tokens == 150
+    assert record.to_dict()["cost_usd"] is None
+    estimate = UsageRecord(
+        harness="agy", session_id="estimate", measurement_kind="estimated", total_tokens=50
+    ).finalize(fallback_timestamp="2026-09-01T00:00:00Z")
+    stats = aggregate_usage([record, estimate], by_model=True)
+    output = io.StringIO()
+    write_usage_stats(output, stats, by_model=True)
+    assert "unknown" in output.getvalue()
+    assert "No combined total" in output.getvalue()
+    assert all(row.to_dict()["cost_usd"] is None for row in stats)

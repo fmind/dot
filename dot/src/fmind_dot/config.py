@@ -365,22 +365,29 @@ class Config(StrictModel):
     privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
 
 
-def expand_path(value: str | Path) -> Path:
+def expand_path(value: str | Path, *, home: Path | None = None) -> Path:
     text = os.fspath(value)
     if text == "~":
-        return Path.home()
+        return home or Path.home()
     if text.startswith("~/"):
-        return Path.home() / text[2:]
+        return (home or Path.home()) / text[2:]
     return Path(text)
 
 
-def xdg_dir(name: str, default: str) -> Path:
-    """Resolve an XDG base-directory override; empty or relative values fall back to ~/<default>."""
+def env_path(name: str, default: Path, *, expand_vars: bool = True) -> Path:
+    """Resolve an environment path override, expanding `~/` and optional `$VARS`."""
+    if raw := os.environ.get(name):
+        return expand_path(os.path.expandvars(raw) if expand_vars else raw)
+    return default
+
+
+def xdg_dir(name: str, default: str | Path) -> Path:
+    """Resolve an XDG base-directory override; empty or relative values fall back to `default`."""
     if raw := os.environ.get(name):
         candidate = expand_path(os.path.expandvars(raw))
         if candidate.is_absolute():
             return candidate
-    return Path.home() / default
+    return default if isinstance(default, Path) else Path.home() / default
 
 
 def config_file_path(path: str | Path | None) -> tuple[Path, bool]:

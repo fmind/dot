@@ -267,6 +267,10 @@ def test_invalid_roots_fail_explicitly(tmp_path: Path) -> None:
         context_report(tmp_path, source=tmp_path)
     with pytest.raises(DotError, match="invalid path"):
         context_report(Path("~no-such-user-dot-test/project"))
+    for flag in ("--project", "--source"):
+        bad = runner.invoke(app, ["agent", "context", flag, "~no-such-user-dot-test/project"])
+        assert bad.exit_code == 2
+        assert flag in bad.stderr
 
 
 def test_nonregular_instruction_input_fails_without_opening_it(tmp_path: Path) -> None:

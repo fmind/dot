@@ -7,6 +7,7 @@ import sqlite3
 import sys
 from contextlib import closing
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -15,8 +16,11 @@ from fmind_dot import agent as agent_module
 from fmind_dot import cli as cli_module
 from fmind_dot.archive import sync as archive_sync_module
 from fmind_dot.archive.parsers import AgentAdapter, ParsedSession, SessionParser
+from fmind_dot.archive.query import SessionQuery, query_session_summaries, show_session
+from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.store import (
     SessionLog,
+    SessionSource,
     ingest_session,
     read_session_bundle,
     read_session_manifest,
@@ -656,8 +660,6 @@ def test_usage_and_session_empty_cli_contracts() -> None:
     assert usage.stdout == "No usage records found.\n"
     assert shown.exit_code == 2
     assert "the following arguments are required: SESSION" in shown.stderr
-    for removed in (["compact", "--apply"], ["ingest", "claude", "session-id"], ["show", "x", "--latest"]):
-        assert CliRunner().invoke(app, ["agent", "session", *removed]).exit_code == 2
 
 
 @pytest.mark.parametrize(
@@ -798,3 +800,98 @@ def test_subagent_transcripts_count_once_with_their_parent_session(tmp_path: Pat
     sessions = {item["session_id"]: item for item in json.loads(listed.stdout)["sessions"]}
     assert sessions["agent-b2"]["parent_session_id"] == "moved-id"
     assert "agent-b2-moved-id" not in sessions
+
+
+def test_recaptured_sessions_and_statistics_do_not_double_count() -> None:
+    logs = [
+        SessionLog("2026-09-01T10:00:00Z", "codex", "example", "user", "private two words", "/work"),
+        SessionLog("2026-09-01T10:00:01Z", "codex", "example", "assistant", "private answer", "/work"),
+    ]
+    ingest_session("codex", "example", logs, SessionSource(fingerprint="b" * 64, skipped=4))
+    ingest_session("codex", "example", logs, SessionSource(fingerprint="a" * 64, skipped=4))
+    assert len(query_session_summaries()) == 1
+    assert show_session(SessionQuery(identity="example"), include_content=True).records == logs
+    prompts = prompt_statistics(
+        SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC), until=datetime(2026, 9, 2, tzinfo=UTC))
+    )
+    assert prompts["prompts"] == 1
+    assert prompts["rows"][0]["words"] == 3
+    assert prompts["rows"][0]["responses"] == 1
+    assert "private" not in json.dumps(prompts)
+    assert prompt_statistics(SessionQuery(since=datetime(2026, 9, 3, tzinfo=UTC)))["prompts"] == 0
+
+
+def test_project_dot_and_prompt_json_contract(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    ingest_session(
+        "codex",
+        "project",
+        [SessionLog("2026-09-09T10:00:00Z", "codex", "project", "user", "hidden text", str(tmp_path))],
+    )
+    runner = CliRunner()
+    listing = runner.invoke(app, ["agent", "session", "list", "--project", ".", "--json"])
+    assert listing.exit_code == 0
+    assert len(json.loads(listing.stdout)["sessions"]) == 1
+    result = runner.invoke(app, ["agent", "stats", "--prompts-only", "--project", ".", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["prompts"]["prompts"] == 1
+    assert "hidden text" not in result.stdout
+
+
+def test_targeted_sync_preview_preserves_archive(tmp_path: Path) -> None:
+    source = tmp_path / "claude"
+    source.mkdir()
+    (source / "selected.jsonl").write_text(
+        json.dumps({"type": "user", "timestamp": "2026-09-01T10:00:00Z", "message": {"content": "hidden"}}) + "\n",
+        encoding="utf-8",
+    )
+    state = make_state()
+    state.config.agent.sources["claude"] = str(source)
+    assert sync_sessions(state, agent="claude", session="selected", dry_run=True, as_json=True).selected == 1
+    assert isinstance(state.stdout, io.StringIO)
+    assert json.loads(state.stdout.getvalue())["selected"] == 1
+    assert not (tmp_path / ".agents/sessions").exists()
+    with pytest.raises(DotError, match="unknown"):
+        sync_sessions(state, agent="typo")
+
+
+def test_prompt_stats_treat_offsetless_timestamps_as_utc() -> None:
+    ingest_session("codex", "naive-time", [SessionLog("2026-09-02T10:00:00", "codex", "naive-time", "user", "text")])
+    report = prompt_statistics(SessionQuery(since=datetime(2026, 9, 2, 9, tzinfo=UTC)))
+    assert report["invalid_timestamps"] == 0
+    assert report["prompts"] == 1
+
+
+def test_prompt_stats_report_timestamp_and_archive_gaps() -> None:
+    ingest_session("codex", "missing-time", [SessionLog("", "codex", "missing-time", "user", "text")])
+    bounded = SessionQuery(since=datetime(2026, 9, 1, tzinfo=UTC))
+    report = prompt_statistics(bounded, by_project=True)
+    assert report["invalid_timestamps"] == 1
+    assert not report["complete"]
+    assert not report["prompts"]
+    # The CLI boundary rejects an inverted window; the library selects nothing for it.
+    inverted = SessionQuery(since=datetime(2026, 9, 2, tzinfo=UTC), until=datetime(2026, 9, 1, tzinfo=UTC))
+    assert prompt_statistics(inverted)["prompts"] == 0
+
+
+def test_prompt_stats_validate_selected_sessions_and_report_corruption() -> None:
+    logs = [SessionLog("2026-09-09T10:00:00Z", "claude", "example", "user", "private text")]
+    ingest_session("claude", "example", logs, SessionSource(fingerprint="a" * 64))
+    other = [SessionLog("2026-09-09T10:00:00Z", "agy", "other", "user", "other text")]
+    ingest_session("agy", "other", other)
+    path = session_bundle_path("claude", "example")
+    header = path.read_bytes().split(b"\n", 1)[0]
+    assert prompt_statistics(SessionQuery(agent="claude"))["complete"]
+    human = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--agent", "claude"])
+    assert human.exit_code == 0
+    assert "Prompt activity · 1 archived user messages" in human.stdout
+    assert "Sessions: 1 · Prompts: 1 · Responses: 0" in human.stdout
+    assert "Prompt coverage: complete" in human.stdout
+    assert "private text" not in human.stdout
+    path.write_bytes(header + b"\ncorrupt\n")
+    broken = CliRunner().invoke(app, ["agent", "stats", "--prompts-only", "--json", "--agent", "claude"])
+    assert broken.exit_code != 0
+    document = json.loads(broken.stdout)["prompts"]
+    assert not document["complete"]
+    assert document["excluded_sessions"] == 1
+    assert not document["prompts"]

@@ -3,6 +3,7 @@
        Host owns account/model choices after setup; `dot trust` owns trustedWorkspaces.
        Native notifications stay unset (off by default; agy omits false on save, and its OSC 9
        alert doubled dot's notify hook in Ghostty and never shows in ttyd). */ -}}
+{{- $defaults := dict "pickerGrouping" "grouped" -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://antigravity.google/schemas/v1/settings.json",
@@ -16,11 +17,11 @@
 }
 ` -}}
 {{- /* State-only renderers: exec replaces sh -c so 300ms cancellation closes pipes; -I -S skips site startup. */ -}}
-{{- $display := printf "exec python3 -I -S %s" (joinPath .chezmoi.homeDir ".agents/skills/agy/scripts/display.py" | shellQuote) -}}
+{{- $display := printf "exec python3 -I -S %s" (joinPath .chezmoi.homeDir ".gemini/antigravity-cli/display.py" | shellQuote) -}}
 {{- $_ := set $managedConfig "statusLine" (dict "type" "command" "command" (printf "%s statusline" $display) "enabled" true) -}}
 {{- $_ := set $managedConfig "title" (dict "type" "command" "command" (printf "%s title" $display) "enabled" true) -}}
 {{- $gcp_project := env "ANTIGRAVITY_CLOUD_PROJECT" -}}
 {{- if $gcp_project -}}
 {{- $_ := set $managedConfig "gcp" (dict "project" $gcp_project "location" (env "ANTIGRAVITY_CLOUD_LOCATION" | default "global")) -}}
 {{- end -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig) -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

@@ -2,7 +2,7 @@
 // Replaces the built-in default layout: same tab and status bars, but new panes tile as equal
 // columns. Wide screens (21:9 and 32:9 glasses) have columns to spare and few rows, and the
 // built-in arrangement stacks extra panes on the right. Cycle to half-stacked for narrow
-// screens with Ctrl b, Space; ChromeOS keeps Alt [ and Alt ] for window snapping.
+// screens with Ctrl b, Space.
 layout {
     default_tab_template {
         pane size=1 borderless=true {

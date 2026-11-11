@@ -1090,3 +1090,18 @@ def test_copilot_non_string_session_columns_isolate_usage_error_without_losing_t
     assert [(log.role, log.content) for log in parsed.logs] == [("user", "ask"), ("assistant", "reply")]
     assert parsed.usage is None
     assert isinstance(parsed.usage_error, ValueError)
+
+
+@pytest.mark.parametrize("separator", ["\u0085", "\u2028", "\u2029"])
+def test_jsonl_unicode_preserves_valid_conversation(separator: str, tmp_path: Path) -> None:
+    path = tmp_path / "session.jsonl"
+    content = f"private{separator}message"
+    raw = {
+        "type": "user",
+        "timestamp": "2026-09-09T10:00:00Z",
+        "message": {"content": [{"type": "text", "text": content}]},
+    }
+    path.write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8")
+    parsed = parse_claude_session(path, "test-session")
+    assert parsed.malformed == 0
+    assert [log.content for log in parsed.logs] == [content]

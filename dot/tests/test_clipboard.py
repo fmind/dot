@@ -48,13 +48,12 @@ def backend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, names: tuple[str, .
 
 
 @pytest.mark.parametrize(
-    ("platform", "names", "display", "wayland", "sommelier", "expected"),
+    ("platform", "names", "display", "wayland", "expected"),
     [
-        ("darwin", ("pbcopy", "pbpaste"), "", "", "", "pbcopy"),
-        # Both displays: ChromeOS Sommelier prefers X11; other desktops prefer native Wayland.
-        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "wayland-0", "1", "xclip"),
-        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "wayland-0", "", "wl-copy"),
-        ("linux", ("wl-copy", "wl-paste"), "", "wayland-0", "", "wl-copy"),
+        ("darwin", ("pbcopy", "pbpaste"), "", "", "pbcopy"),
+        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "wayland-0", "wl-copy"),
+        ("linux", ("xclip", "wl-copy", "wl-paste"), ":0", "", "xclip"),
+        ("linux", ("wl-copy", "wl-paste"), "", "wayland-0", "wl-copy"),
     ],
 )
 def test_native_round_trip_preserves_literal_utf8(
@@ -65,17 +64,12 @@ def test_native_round_trip_preserves_literal_utf8(
     names: tuple[str, ...],
     display: str,
     wayland: str,
-    sommelier: str,
     expected: str,
 ) -> None:
     store = backend(tmp_path, monkeypatch, names)
     monkeypatch.setattr(sys, "platform", platform)
     monkeypatch.setenv("DISPLAY", display)
     monkeypatch.setenv("WAYLAND_DISPLAY", wayland)
-    if sommelier:
-        monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
-    else:
-        monkeypatch.delenv("SOMMELIER_VERSION", raising=False)
     payload = "Médéric 🦊\n`literal` $(touch should-not-exist)\n\n".encode()
     result = clipboard.copy_text(payload)
     assert store.read_bytes() == payload[:-1]
@@ -169,30 +163,6 @@ def test_main_handles_limit_with_a_final_newline(
 
     assert clipboard.main(["--keep-final-newline"] if keep else []) == (1 if keep else 0)
     assert store.read_bytes() == (b"preserve" if keep else b"x" * clipboard.LIMIT)
-
-
-@pytest.mark.parametrize(
-    ("names", "sommelier", "expected"),
-    [
-        (("xclip", "wl-copy", "wl-paste"), "0.20", "xclip"),
-        (("xclip", "wl-copy", "wl-paste"), "", "wl-copy"),
-        (("wl-copy", "wl-paste"), "0.20", "wl-copy"),
-    ],
-)
-def test_linux_backend_prefers_x11_only_on_crostini(
-    clipboard: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    names: tuple[str, ...],
-    sommelier: str,
-    expected: str,
-) -> None:
-    backend(tmp_path, monkeypatch, names)
-    monkeypatch.setattr(sys, "platform", "linux")
-    monkeypatch.setenv("DISPLAY", ":0")
-    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
-    monkeypatch.setenv("SOMMELIER_VERSION", sommelier)
-    assert expected in clipboard.copy_text(b"text")
 
 
 def test_backend_failure_reports_native_diagnostics(

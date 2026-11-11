@@ -1,0 +1,1 @@
+# Placeholder so chezmoi creates ~/.config/colab-cli/ with 0700 permissions before colab writes colab.log.

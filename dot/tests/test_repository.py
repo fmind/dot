@@ -10,107 +10,29 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import chain, repeat
 from pathlib import Path
 from threading import Barrier, Lock, Thread
-from typing import Any
 
 import pytest
 
+from fmind_dot.cli import app
 from fmind_dot.config import Config, PullConfig
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 from fmind_dot.repository import (
+    RepositoryStatus,
     find_git_repositories,
     gather_status,
     git_failure,
     run_pull,
     run_status,
 )
-from tests.fakes import make_state
+from tests.fakes import CliRunner, ScriptedRunner, make_state
 
 
-class RecordingRunner(Runner):
-    def __init__(
-        self,
-        responses: dict[tuple[str, ...], list[CommandResult]],
-        tools: set[str],
-    ) -> None:
-        super().__init__()
-        self.responses = responses
-        self.tools = tools
-        self.calls: list[tuple[tuple[str, ...], Path | None, str | None]] = []
-
-    def which(self, command: str) -> Path | None:
-        return Path(f"/tools/{command}") if command in self.tools else None
-
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: object = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        del env, timeout
-        key = tuple(args)
-        self.calls.append((key, cwd, input_text))
-        result = self.responses[key].pop(0)
-        if check and result.returncode:
-            raise DotError(f"command failed ({result.returncode}): {args[0]}")
-        return result
-
-
-class ConcurrentPullRunner(RecordingRunner):
-    def __init__(self) -> None:
-        super().__init__({}, {"git"})
-        self.barrier = Barrier(2)
-        self.lock = Lock()
-        self.concurrent_fetches: set[str] = set()
-
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: object = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        del input_text, env, timeout, check
-        assert cwd is not None
-        command = tuple(args)
-        if command == STATUS_V2:
-            return v2()
-        if command == ("git", "fetch", "--prune"):
-            with self.lock:
-                self.concurrent_fetches.add(cwd.name)
-            self.barrier.wait(timeout=2)
-            return result()
-        raise AssertionError(f"unexpected command: {command}")
-
-
-class InterruptingPullRunner(RecordingRunner):
-    def run(
-        self,
-        args: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        input_text: str | None = None,
-        env: object = None,
-        timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
-        if tuple(args) == ("git", "fetch", "--prune"):
-            raise KeyboardInterrupt
-        return super().run(
-            args,
-            cwd=cwd,
-            input_text=input_text,
-            env=env,
-            timeout=timeout,
-            check=check,
-        )
+def git_runner(
+    responses: Mapping[tuple[str, ...], Sequence[CommandResult]],
+    tools: set[str],
+) -> ScriptedRunner:
+    return ScriptedRunner(tools, responses=responses)
 
 
 def _git(runner: Runner, path: Path, *args: str) -> str:
@@ -148,7 +70,7 @@ def test_repository_discovery_does_not_follow_workspace_symlinks(tmp_path: Path)
     linked.symlink_to(external, target_is_directory=True)
     config = Config(pull=PullConfig(directories=[str(workspace)]))
 
-    assert find_git_repositories(make_state(RecordingRunner({}, set()), config)) == [local]
+    assert find_git_repositories(make_state(git_runner({}, set()), config)) == [local]
     assert linked.is_symlink()
 
 
@@ -160,7 +82,7 @@ def test_repository_discovery_normalizes_and_deduplicates_home_workspace_paths(
     monkeypatch.setenv("HOME", str(tmp_path))
     config = Config(pull=PullConfig(directories=["~/work", str(tmp_path / "work") + "/"]))
 
-    assert find_git_repositories(make_state(RecordingRunner({}, set()), config)) == [repository]
+    assert find_git_repositories(make_state(git_runner({}, set()), config)) == [repository]
 
 
 def test_pull_fast_forwards_a_local_remote_and_rejects_divergence(
@@ -207,7 +129,7 @@ def test_repository_discovery_reports_unreadable_paths(tmp_path: Path, blocked: 
     inaccessible.chmod(0)
     try:
         with pytest.raises(DotError, match="failed to inspect repository"):
-            find_git_repositories(make_state(RecordingRunner({}, set()), config))
+            find_git_repositories(make_state(git_runner({}, set()), config))
     finally:
         inaccessible.chmod(0o700)
 
@@ -216,7 +138,7 @@ def test_pull_skips_a_dirty_repository_before_fetching_or_pushing(tmp_path: Path
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2(dirty=True)],
         },
@@ -228,7 +150,7 @@ def test_pull_skips_a_dirty_repository_before_fetching_or_pushing(tmp_path: Path
 
     assert results[0].dirty
     assert results[0].skipped == "dirty worktree"
-    assert not any(call[0][:2] in {("git", "fetch"), ("git", "push")} for call in runner.calls)
+    assert not any(tuple(call[:2]) in {("git", "fetch"), ("git", "push")} for call in runner.calls)
 
 
 def test_pull_rechecks_worktree_after_fetch_before_push(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -360,7 +282,7 @@ def test_pull_reports_status_failure_after_fetch_instead_of_claiming_no_upstream
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2(), result("", returncode=128)],
             ("git", "fetch", "--prune"): [result()],
@@ -381,7 +303,7 @@ def test_pull_timeout_during_upstream_probe_is_a_failure(monkeypatch: pytest.Mon
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2()],
             ("git", "fetch", "--prune"): [result()],
@@ -407,7 +329,7 @@ def test_pull_classifies_a_deleted_upstream_as_no_upstream(tmp_path: Path) -> No
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2(), v2(gone=True)],
             ("git", "fetch", "--prune"): [result()],
@@ -419,14 +341,14 @@ def test_pull_classifies_a_deleted_upstream_as_no_upstream(tmp_path: Path) -> No
     results = run_pull(make_state(runner, config))
 
     assert results[0].no_upstream
-    assert not any(call[0][1] in {"merge", "push"} for call in runner.calls)
+    assert not any(call[1] in {"merge", "push"} for call in runner.calls)
 
 
 def test_status_emits_machine_readable_repository_state(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [result(_V2_HEADER + "# branch.ab +0 -0\n")],
             ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
@@ -461,7 +383,7 @@ def test_status_flags_an_interrupted_git_operation(tmp_path: Path, marker: str, 
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git" / marker).mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [result(_V2_HEADER + "# branch.ab +0 -0\n")],
             ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
@@ -480,7 +402,7 @@ def test_status_flags_an_interrupted_git_operation(tmp_path: Path, marker: str, 
 
 
 def test_status_omits_empty_optional_json_fields(tmp_path: Path) -> None:
-    runner = RecordingRunner({}, {"git"})
+    runner = git_runner({}, {"git"})
     config = Config(pull=PullConfig(directories=[str(tmp_path)]))
     state = make_state(runner, config)
 
@@ -513,7 +435,7 @@ def test_status_fetch_refreshes_remote_refs_without_merging(tmp_path: Path) -> N
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {("git", "fetch", "--prune"): [result()], **_clean_status_responses(repository)},
         {"git"},
     )
@@ -521,7 +443,7 @@ def test_status_fetch_refreshes_remote_refs_without_merging(tmp_path: Path) -> N
 
     run_status(state, as_json=True, fetch=True)
 
-    commands = [call[0] for call in runner.calls]
+    commands = [tuple(call) for call in runner.calls]
     assert commands[0] == ("git", "fetch", "--prune")
     assert not any("merge" in command for command in commands)
     assert isinstance(state.stdout, io.StringIO)
@@ -535,7 +457,7 @@ def test_status_fetch_refreshes_remote_refs_without_merging(tmp_path: Path) -> N
 def test_status_fetch_failure_marks_inspection_incomplete(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     (workspace / "sample" / ".git").mkdir(parents=True)
-    runner = RecordingRunner({("git", "fetch", "--prune"): [result(returncode=128)]}, {"git"})
+    runner = git_runner({("git", "fetch", "--prune"): [result(returncode=128)]}, {"git"})
     state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
 
     with pytest.raises(DotError, match="repository inspection is incomplete"):
@@ -554,7 +476,7 @@ def test_status_needs_attention_confirms_an_all_clear_workspace(tmp_path: Path) 
     (repository / ".git").mkdir(parents=True)
     responses = _clean_status_responses(repository)
     responses[STATUS_V2] = [result(_V2_HEADER + "# branch.ab +0 -0\n")]
-    state = make_state(RecordingRunner(responses, {"git"}), Config(pull=PullConfig(directories=[str(workspace)])))
+    state = make_state(git_runner(responses, {"git"}), Config(pull=PullConfig(directories=[str(workspace)])))
 
     run_status(state, needs_attention=True)
 
@@ -566,7 +488,7 @@ def test_status_needs_attention_confirms_an_all_clear_workspace(tmp_path: Path) 
 
 def test_pull_with_no_repositories_reports_a_clean_noop(tmp_path: Path) -> None:
     state = make_state(
-        RecordingRunner({}, {"git"}),
+        git_runner({}, {"git"}),
         Config(pull=PullConfig(directories=[str(tmp_path)])),
     )
 
@@ -586,7 +508,7 @@ def test_pull_pushes_ahead_branch_to_its_exact_upstream(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2("feature"), v2("feature", ahead=2), v2("feature", ahead=2)],
             ("git", "fetch", "--prune"): [result()],
@@ -610,7 +532,7 @@ def test_pull_reports_push_failure_after_a_successful_fetch(tmp_path: Path) -> N
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2(), v2(ahead=1), v2(ahead=1)],
             ("git", "fetch", "--prune"): [result()],
@@ -635,7 +557,7 @@ def test_pull_pushes_the_branch_checked_out_after_the_fetch(tmp_path: Path) -> N
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
     # Another process switches main to feature during the fetch: only feature's own upstream may move.
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2("main"), v2("feature", ahead=1), v2("feature", ahead=1)],
             ("git", "fetch", "--prune"): [result()],
@@ -665,7 +587,7 @@ def test_pull_refuses_to_push_where_plain_git_push_would_not(tmp_path: Path, tar
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
     # No push is scripted: an attempt would fail the lookup instead of the expected refusal.
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2(), v2(ahead=1), v2(ahead=1)],
             ("git", "fetch", "--prune"): [result()],
@@ -680,7 +602,7 @@ def test_pull_refuses_to_push_where_plain_git_push_would_not(tmp_path: Path, tar
 
     assert isinstance(state.stdout, io.StringIO)
     assert "Push failed: cannot resolve the upstream push target for main; push it manually" in state.stdout.getvalue()
-    assert not any(call[0][1] == "push" for call in runner.calls)
+    assert not any(call[1] == "push" for call in runner.calls)
 
 
 def test_pull_never_merges_a_diverged_branch(tmp_path: Path) -> None:
@@ -688,7 +610,7 @@ def test_pull_never_merges_a_diverged_branch(tmp_path: Path) -> None:
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
     # Only status and fetch are scripted: a merge or push attempt would fail the lookup.
-    runner = RecordingRunner(
+    runner = git_runner(
         {STATUS_V2: [v2(), v2(ahead=1, behind=2)], ("git", "fetch", "--prune"): [result()]},
         {"git"},
     )
@@ -697,14 +619,14 @@ def test_pull_never_merges_a_diverged_branch(tmp_path: Path) -> None:
     with pytest.raises(DotError, match="failed to pull 1 repositories"):
         run_pull(state, push=True)
 
-    assert [call[0][:2] for call in runner.calls if call[0][1] in {"merge", "push"}] == []
+    assert [call[:2] for call in runner.calls if call[1] in {"merge", "push"}] == []
 
 
 def test_pull_reports_a_fetch_failure_before_inspecting_the_upstream(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2()],
             ("git", "fetch", "--prune"): [result(returncode=1)],
@@ -716,7 +638,7 @@ def test_pull_reports_a_fetch_failure_before_inspecting_the_upstream(tmp_path: P
 
     with pytest.raises(DotError, match="failed to pull 1 repositories"):
         run_pull(state)
-    assert [command for command, _, _ in runner.calls].count(STATUS_V2) == 1
+    assert [tuple(call) for call in runner.calls].count(STATUS_V2) == 1
     assert isinstance(state.stdout, io.StringIO)
     assert "failed to fetch repository" in state.stdout.getvalue()
     assert "skipped" not in state.stdout.getvalue()
@@ -726,57 +648,64 @@ def test_pull_runs_independent_repositories_concurrently(tmp_path: Path) -> None
     workspace = tmp_path / "work"
     for name in ("one", "two"):
         (workspace / name / ".git").mkdir(parents=True)
-    runner = ConcurrentPullRunner()
+    barrier = Barrier(2)
+    lock = Lock()
+    concurrent_fetches: set[str] = set()
+
+    def concurrent(command: list[str], cwd: Path | None, *_rest: object) -> CommandResult:
+        assert cwd is not None
+        if tuple(command) == STATUS_V2:
+            return v2()
+        if tuple(command) == ("git", "fetch", "--prune"):
+            with lock:
+                concurrent_fetches.add(cwd.name)
+            barrier.wait(timeout=2)
+            return result()
+        raise AssertionError(f"unexpected command: {command}")
+
+    runner = ScriptedRunner({"git"}, run=concurrent)
     config = Config(pull=PullConfig(directories=[str(workspace)]))
 
     results = run_pull(make_state(runner, config))
 
     assert [item.path.name for item in results] == ["one", "two"]
-    assert runner.concurrent_fetches == {"one", "two"}
+    assert concurrent_fetches == {"one", "two"}
 
 
 def test_pull_propagates_user_cancellation(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = InterruptingPullRunner(
-        {
-            STATUS_V2: [v2()],
-        },
-        {"git"},
-    )
+
+    def interrupt(command: list[str], *_rest: object) -> CommandResult:
+        if tuple(command) == ("git", "fetch", "--prune"):
+            raise KeyboardInterrupt
+        return v2()
+
+    runner = ScriptedRunner({"git"}, run=interrupt)
     config = Config(pull=PullConfig(directories=[str(workspace)]))
 
     with pytest.raises(KeyboardInterrupt):
         run_pull(make_state(runner, config))
 
 
-def test_status_human_output_shows_dirty_repository_without_probing_docker(tmp_path: Path) -> None:
+def test_status_human_output_shows_dirty_repository(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    docker_info = (
-        "/tools/docker",
-        "info",
-        "--format",
-        "{{.Name}} (Containers: {{.Containers}}, Running: {{.ContainersRunning}})",
-    )
-    runner = RecordingRunner(
+    runner = git_runner(
         {
-            docker_info: [result("desktop (Containers: 3, Running: 2)\n")],
             STATUS_V2: [result(_V2_HEADER + "# branch.ab +0 -0\n1 .M N... 100644 100644 100644 0 0 changed.py\n")],
             ("git", "rev-parse", "--absolute-git-dir"): [result(str(repository / ".git"))],
         },
-        {"git", "docker"},
+        {"git"},
     )
     state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
 
     status = run_status(state)
 
-    assert not any("docker" in str(call[0][0]) for call in runner.calls)
     assert status[0].dirty
     assert isinstance(state.stdout, io.StringIO)
-    assert "Docker" not in state.stdout.getvalue()
     assert "work/sample [main] [dirty]" in state.stdout.getvalue()
 
 
@@ -784,14 +713,13 @@ def test_status_json_reports_repository_failures(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     repository = workspace / "sample"
     (repository / ".git").mkdir(parents=True)
-    runner = RecordingRunner({STATUS_V2: [result(returncode=1)]}, {"git"})
+    runner = git_runner({STATUS_V2: [result(returncode=1)]}, {"git"})
     state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
 
     with pytest.raises(DotError, match="inspection is incomplete"):
         run_status(state, as_json=True)
     assert isinstance(state.stdout, io.StringIO)
     document = json.loads(state.stdout.getvalue())
-    assert "docker" not in document
     assert not document["complete"]
     assert document["repositories"][0]["branch"] == ""
     assert document["repositories"][0]["error"] == "git status failed (1)"
@@ -799,14 +727,13 @@ def test_status_json_reports_repository_failures(tmp_path: Path) -> None:
 
 def test_status_human_output_reports_empty_workspace(tmp_path: Path) -> None:
     state = make_state(
-        RecordingRunner({}, {"git"}),
+        git_runner({}, {"git"}),
         Config(pull=PullConfig(directories=[str(tmp_path)])),
     )
 
     run_status(state)
 
     assert isinstance(state.stdout, io.StringIO)
-    assert "Docker" not in state.stdout.getvalue()
     assert "No repositories found" in state.stdout.getvalue()
 
 
@@ -872,14 +799,7 @@ def test_status_names_an_explicit_path_outside_a_work_tree(tmp_path: Path, monke
 def test_pull_never_waits_on_credential_prompts(tmp_path: Path) -> None:
     workspace = tmp_path / "work"
     (workspace / "sample" / ".git").mkdir(parents=True)
-    environments: dict[tuple[str, ...], object] = {}
-
-    class EnvironmentRunner(RecordingRunner):
-        def run(self, args: Sequence[str], *, env: object = None, **options: Any) -> CommandResult:
-            environments[tuple(args)] = env
-            return super().run(args, **options)
-
-    runner = EnvironmentRunner(
+    runner = git_runner(
         {
             STATUS_V2: [v2()],
             ("git", "fetch", "--prune"): [result(returncode=128)],
@@ -892,7 +812,7 @@ def test_pull_never_waits_on_credential_prompts(tmp_path: Path) -> None:
         run_pull(make_state(runner, config))
 
     # Concurrent fetches fail instead of opening a terminal or askpass prompt.
-    assert environments[("git", "fetch", "--prune")] == {
+    assert runner.envs[("git", "fetch", "--prune")] == {
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_ASKPASS": "",
         "SSH_ASKPASS_REQUIRE": "never",
@@ -976,3 +896,43 @@ def test_status_reads_branch_divergence_and_detached_heads_from_real_git(
     git(checkout, "checkout", "--detach")
     [detached] = run_status(state, paths=[checkout])
     assert detached.branch == git(checkout, "rev-parse", "--short", "HEAD")
+
+
+def test_real_repository_selection_and_attention_statistics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    runner = Runner()
+    git = partial(_git, runner)
+    checkout = tmp_path / "repository"
+    checkout.mkdir()
+    git(checkout, "init", "-b", "main")
+    git(checkout, "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture")
+    git(checkout, "update-ref", "refs/remotes/origin/main", "HEAD")
+    git(checkout, "config", "remote.origin.url", str(tmp_path / "nonexistent-remote"))
+    git(checkout, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
+    git(checkout, "config", "branch.main.remote", "origin")
+    git(checkout, "config", "branch.main.merge", "refs/heads/main")
+    git(checkout, "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "ahead")
+    state = make_state(config=Config(pull=PullConfig(directories=[str(checkout)])))
+    assert find_git_repositories(state) == [checkout]
+    report = run_status(state, paths=[checkout], as_json=True)
+    assert report[0].ahead == 1
+    assert isinstance(state.stdout, io.StringIO)
+    assert json.loads(state.stdout.getvalue())["repositories"][0]["ahead"] == 1
+    state.stdout = io.StringIO()
+    run_pull(state, paths=[checkout], dry_run=True, as_json=True)
+    assert json.loads(state.stdout.getvalue())["repositories"] == [str(checkout)]
+    assert not (checkout / ".git/FETCH_HEAD").exists()
+    (checkout / "dirty.txt").write_text("local changes", encoding="utf-8")
+    state.stdout = io.StringIO()
+    pulled = run_pull(state, paths=[checkout], as_json=True)
+    assert pulled[0].skipped == "dirty worktree"
+    assert not (checkout / ".git/FETCH_HEAD").exists()
+
+
+def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
+    status = [RepositoryStatus("repo", "work", error="inspection failed")]
+    monkeypatch.setattr("fmind_dot.repository.gather_status", lambda *_args, **_kwargs: status)
+    cli_result = CliRunner().invoke(app, ["status", "--json"])
+    assert cli_result.exit_code != 0
+    assert json.loads(cli_result.stdout)["complete"] is False

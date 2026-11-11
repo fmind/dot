@@ -10,7 +10,7 @@ from typing import IO, Any, Literal
 import yaml
 
 from fmind_dot.command import Parser, add_json
-from fmind_dot.errors import DotError
+from fmind_dot.errors import DotError, UsageError
 from fmind_dot.reporting import display_path, write_json
 from fmind_dot.state import State
 
@@ -68,21 +68,29 @@ def _read(path: Path) -> str:
         raise DotError(f"cannot read context input: {path}; check its link, permissions, and UTF-8 encoding") from error
 
 
-def _skill_entry(path: Path, scope: Scope, *, catalog: Path) -> ContextEntry:
-    text = _read(path)
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].strip() != "---":
-        raise DotError(f"missing skill frontmatter: {path}; add name and description")
-    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
-    if end is None:
-        raise DotError(f"unclosed skill frontmatter: {path}; add the closing --- delimiter")
+def parse_frontmatter(text: str, path: Path | str) -> tuple[dict[str, Any], str]:
+    """Parse bounded YAML frontmatter into a string-keyed mapping and body without leaking source text."""
+    normalized = text.replace("\r\n", "\n")
+    if not normalized.startswith("---\n"):
+        raise DotError(f"{path}: frontmatter must be bounded by --- lines")
+    if normalized.endswith("\n---"):
+        normalized += "\n"
+    if "\n---\n" not in normalized[4:]:
+        raise DotError(f"{path}: frontmatter must be bounded by --- lines")
+    raw, body = normalized[4:].split("\n---\n", 1)
     try:
-        metadata = yaml.safe_load("".join(lines[1:end]))
+        metadata = yaml.safe_load(raw)
     except (yaml.YAMLError, RecursionError) as error:
         # YAML exceptions can contain source text. Keep private instructions out of errors.
-        raise DotError(f"invalid skill frontmatter: {path}; repair its YAML") from error
-    if not isinstance(metadata, dict):
-        raise DotError(f"invalid skill frontmatter: {path}; expected a mapping")
+        raise DotError(f"{path}: invalid frontmatter; repair its YAML") from error
+    if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
+        raise DotError(f"{path}: frontmatter must be a string-keyed mapping")
+    return metadata, body
+
+
+def _skill_entry(path: Path, scope: Scope, *, catalog: Path) -> ContextEntry:
+    text = _read(path)
+    metadata, _ = parse_frontmatter(text, path)
     name, description = metadata.get("name"), metadata.get("description")
     if not isinstance(name, str) or name != path.parent.name:
         raise DotError(f"invalid skill name: {path}; match its directory name")
@@ -259,6 +267,12 @@ def _check_summary(report: dict[str, Any]) -> str:
 
 
 def _context(state: State, args: argparse.Namespace) -> None:
+    for flag, value in (("--project", args.project), ("--source", args.source)):
+        if value is not None:
+            try:
+                value.expanduser()
+            except RuntimeError as error:
+                raise UsageError(f"{flag}: {error}") from None
     check = args.check
     report = context_report(args.project, source=args.source)
     if args.as_json:

@@ -4,7 +4,6 @@
 # antigravity-cli-daemon: {{ include "dot_config/systemd/user/antigravity-cli-daemon.service.d/path.conf" | sha256sum }}
 # antigravity-cli-daemon-update.timer: {{ include "dot_config/systemd/user/antigravity-cli-daemon-update.timer" | sha256sum }}
 # antigravity-cli-daemon-update.service: {{ include "dot_config/systemd/user/antigravity-cli-daemon-update.service" | sha256sum }}
-# cros-garcon: {{ include "dot_config/systemd/user/cros-garcon.service.d/oom-policy.conf" | sha256sum }}
 set -eu
 command -v systemctl >/dev/null 2>&1 || exit 0
 # No user manager (containers, CI, SSH without lingering): the next login loads the drop-ins

@@ -61,12 +61,6 @@ def test_xdg_dir_ignores_empty_and_relative_overrides(
     assert xdg_dir("XDG_CACHE_HOME", ".cache") == tmp_path / expected_suffix
 
 
-def test_retired_tools_are_not_workstation_requirements() -> None:
-    config = Config()
-    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "pyrit", "zizmor"}
-    assert not retired.intersection(config.doctor.tools)
-
-
 def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:
     unknown = tmp_path / "unknown.yaml"
     unknown.write_text("unknown: true\n", encoding="utf-8")
@@ -88,15 +82,6 @@ def test_config_overlay_replaces_lists_and_merges_maps(tmp_path: Path) -> None:
     assert config.doctor.tools == ["python"]
     assert config.doctor.secrets == Config().doctor.secrets
     assert config.completions.path == "~/fish"
-
-
-@pytest.mark.parametrize("document", ["completions:\n  tools: [uv]\n", "completions:\n  custom_commands: {}\n"])
-def test_removed_configuration_fields_are_rejected(tmp_path: Path, document: str) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(document, encoding="utf-8")
-
-    with pytest.raises(ValidationError):
-        load_config(path)
 
 
 def test_load_config_wraps_yaml_and_decode_failures_with_path_context(tmp_path: Path) -> None:

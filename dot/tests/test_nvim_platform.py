@@ -45,24 +45,21 @@ def run_lua(tmp_path: Path, script: str, **variables: str) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-CROSTINI_KERNEL = "6.6.99-crostini-fixture"
+LINUX_KERNEL = "6.12.99-generic-fixture"
 ANDROID_KERNEL = "6.12.93-android16-6-fixture"
 
 
 @pytest.mark.parametrize(
-    ("platform", "display", "sommelier", "kernel", "expected"),
+    ("platform", "display", "kernel"),
     [
-        ("linux", "", "", CROSTINI_KERNEL, "native"),
-        ("linux", ":0", "", CROSTINI_KERNEL, "native"),
-        ("linux", ":0", "1", CROSTINI_KERNEL, "xclip"),
-        ("linux", ":0", "1", ANDROID_KERNEL, "native"),
-        ("mac", ":0", "1", CROSTINI_KERNEL, "native"),
+        ("linux", "", LINUX_KERNEL),
+        ("linux", ":0", LINUX_KERNEL),
+        ("linux", ":0", ANDROID_KERNEL),
+        ("mac", ":0", LINUX_KERNEL),
     ],
-    ids=["linux-wayland", "wayland-desktop", "crostini", "android-vm-wayland", "mac"],
+    ids=["linux-wayland", "wayland-desktop", "android-vm-wayland", "mac"],
 )
-def test_clipboard_keeps_native_wayland_selection_outside_crostini(
-    tmp_path: Path, platform: str, display: str, sommelier: str, kernel: str, expected: str
-) -> None:
+def test_clipboard_keeps_native_wayland_selection(tmp_path: Path, platform: str, display: str, kernel: str) -> None:
     binary = tmp_path / "bin"
     binary.mkdir()
     for tool in ("xclip", "wl-copy", "wl-paste"):
@@ -78,22 +75,16 @@ vim.fn.has = function(feature)
   return has(feature)
 end
 dofile(vim.env.OPTIONS_CONFIG)
-if vim.env.EXPECTED == "xclip" then
-  assert(vim.g.clipboard.name == "xclip", "Crostini X display should use xclip")
-else
-  assert(vim.g.clipboard == nil, "configuration overrode the native clipboard provider")
-  -- Neovim's Vimscript provider calls the real has('mac'), so only a Linux host reaches Wayland.
-  if vim.env.TEST_PLATFORM == "linux" and has("linux") == 1 then
-    assert(vim.fn["provider#clipboard#Executable"]() == "wl-copy", "Wayland provider was lost")
-  end
+assert(vim.g.clipboard == nil, "configuration overrode the native clipboard provider")
+-- Neovim's Vimscript provider calls the real has('mac'), so only a Linux host reaches Wayland.
+if vim.env.TEST_PLATFORM == "linux" and has("linux") == 1 then
+  assert(vim.fn["provider#clipboard#Executable"]() == "wl-copy", "Wayland provider was lost")
 end
 """,
         PATH=f"{binary}:{os.environ['PATH']}",
         DISPLAY=display,
-        SOMMELIER_VERSION=sommelier,
         WAYLAND_DISPLAY="wayland-fixture",
         TEST_KERNEL=kernel,
-        EXPECTED=expected,
         TEST_PLATFORM=platform,
         OPTIONS_CONFIG=str(ROOT / "dot_config/nvim/lua/config/options.lua"),
     )
@@ -102,11 +93,11 @@ end
 @pytest.mark.parametrize(
     ("display", "kernel", "ssh", "tmux", "expected"),
     [
-        ("", CROSTINI_KERNEL, "", "", "osc52-write"),
+        ("", LINUX_KERNEL, "", "", "osc52-write"),
         (":0", ANDROID_KERNEL, "", "", "osc52-write"),
-        (":0", CROSTINI_KERNEL, "", "", "xclip"),
-        ("", CROSTINI_KERNEL, "10.0.0.1 1 10.0.0.2 22", "", "none"),
-        ("", CROSTINI_KERNEL, "", "tmux-socket,1,0", "none"),
+        (":0", LINUX_KERNEL, "", "", "xclip"),
+        ("", LINUX_KERNEL, "10.0.0.1 1 10.0.0.2 22", "", "none"),
+        ("", LINUX_KERNEL, "", "tmux-socket,1,0", "none"),
     ],
     ids=["no-display", "android-vm", "x11-desktop", "ssh", "tmux"],
 )
@@ -143,7 +134,6 @@ assert(vim.deep_equal(vim.g.clipboard.paste["*"](), {}), "primary selection must
         PATH=f"{binary}:{os.environ['PATH']}",
         DISPLAY=display,
         TEST_KERNEL=kernel,
-        SOMMELIER_VERSION="",
         WAYLAND_DISPLAY="",
         SSH_CONNECTION=ssh,
         TMUX=tmux,

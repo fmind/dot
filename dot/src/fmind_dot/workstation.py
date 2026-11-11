@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import IO, Any, get_args
 
 from fmind_dot.command import Parser, add_json
-from fmind_dot.config import CacheProvider, PruneProvider, expand_path, xdg_dir
+from fmind_dot.config import CacheProvider, PruneProvider, env_path, xdg_dir
 from fmind_dot.errors import CancelledError, CommandTimeoutError, DotError
 from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
@@ -78,25 +78,15 @@ def add_dry_run(parser: Parser) -> None:
     )
 
 
-def _expand_env_path(name: str, default: Path) -> Path:
-    if raw := os.environ.get(name):
-        return expand_path(os.path.expandvars(raw))
-    return default
-
-
 def _ensure_hf_cache_dir() -> None:
     # Match huggingface_hub's precedence and expansion before the native CLI runs.
-    hf_home = _expand_env_path("HF_HOME", xdg_dir("XDG_CACHE_HOME", ".cache") / "huggingface")
-    legacy = _expand_env_path("HUGGINGFACE_HUB_CACHE", hf_home / "hub")
-    _expand_env_path("HF_HUB_CACHE", legacy).mkdir(parents=True, exist_ok=True)
+    hf_home = env_path("HF_HOME", xdg_dir("XDG_CACHE_HOME", ".cache") / "huggingface")
+    legacy = env_path("HUGGINGFACE_HUB_CACHE", hf_home / "hub")
+    env_path("HF_HUB_CACHE", legacy).mkdir(parents=True, exist_ok=True)
 
 
 def _mise_tracked_configs_dir() -> Path:
-    if state_dir := os.environ.get("MISE_STATE_DIR"):
-        expanded = expand_path(os.path.expandvars(state_dir))
-        if expanded.is_absolute():
-            return expanded / "tracked-configs"
-    return xdg_dir("XDG_STATE_HOME", ".local/state") / "mise" / "tracked-configs"
+    return xdg_dir("MISE_STATE_DIR", xdg_dir("XDG_STATE_HOME", ".local/state") / "mise") / "tracked-configs"
 
 
 def _prune_mise_tracked_configs() -> None:

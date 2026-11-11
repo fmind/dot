@@ -9,7 +9,7 @@ Run an on-demand live headroom audit without deleting shared state or historical
 
 ## Workflow
 
-1. **Check filesystem headroom**: `dot doctor --headroom` checks workspace, `$HOME`, `/var/tmp`, and explicit `TMPDIR` in one line, warning below 20 GiB free and exiting 1 below 10 GiB disk or 1 GiB memory (`dot doctor` uses the same disk thresholds). Defer large optional builds or downloads unless projected peak usage leaves ≥20 GiB available (check available bytes, never summed directory sizes; on ChromeOS, ask the user to verify host storage separately, and ignore full read-only auxiliary mounts).
+1. **Check filesystem headroom**: `dot doctor --headroom` checks workspace, `$HOME`, `/var/tmp`, and explicit `TMPDIR` in one line, warning below 20 GiB free and exiting 1 below 10 GiB disk or 1 GiB memory (`dot doctor` uses the same disk thresholds). Defer large optional builds or downloads unless projected peak usage leaves ≥20 GiB available (check available bytes, never summed directory sizes, and ignore full read-only auxiliary mounts).
 1. **Locate growth safely**: run bounded single-filesystem `du -x` checks across cache, data, and workspace roots, recording missing or unreadable paths as unverified (CoW/hardlink sharing means `du` totals exceed reclaimable bytes).
 1. **Inspect native caches**: run `dot cache`, then `dot cache docker` (check Docker context first), `dot cache hf`, or `dot cache uv`, distinguishing uninstalled CLIs, stopped daemons, and missing directories from zero usage.
 1. **Audit tool drift read-only**: compare declarations, locks, backends, and installed versions per [upgrade-tools](../../upgrade-tools/SKILL.md) without editing pins or installing.
@@ -23,4 +23,4 @@ Run an on-demand live headroom audit without deleting shared state or historical
 
 ## References
 
-- [ChromeOS storage](https://support.google.com/chromebook/answer/1061547) · [mise pruning](https://mise.jdx.dev/cli/prune.html) · [uv caching](https://docs.astral.sh/uv/concepts/cache/) · [Docker storage inspection](https://docs.docker.com/reference/cli/docker/system/df/)
+- [mise pruning](https://mise.jdx.dev/cli/prune.html) · [uv caching](https://docs.astral.sh/uv/concepts/cache/) · [Docker storage inspection](https://docs.docker.com/reference/cli/docker/system/df/)

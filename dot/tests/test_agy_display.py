@@ -1,5 +1,6 @@
 """Check terminal rendering and managed settings without a provider or real home."""
 
+import ast
 import json
 import os
 import runpy
@@ -11,9 +12,13 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "skills/agy/scripts/display.py"
+SCRIPT = ROOT / "private_dot_gemini/private_antigravity-cli/display.py"
 display = runpy.run_path(str(SCRIPT))
 render = display["render"]
+
+
+def test_display_script_parses_as_python_3_9() -> None:
+    ast.parse(SCRIPT.read_text(encoding="utf-8"), filename=str(SCRIPT), feature_version=(3, 9))
 
 
 def state() -> dict[str, object]:

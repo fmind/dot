@@ -156,10 +156,10 @@ MANAGED_COMPLETIONS: frozenset[str] = frozenset({"agy.fish"})
 
 
 def _generate_completion(state: State, tool: str) -> str:
-    custom = COMPLETION_SOURCES.get(tool)
-    binary = custom.binary if custom and custom.binary else tool
     if tool == "dot":
         return FISH_COMPLETION
+    custom = COMPLETION_SOURCES.get(tool)
+    binary = custom.binary if custom and custom.binary else tool
     if not _completion_available(state, tool):
         raise FileNotFoundError(tool)
     if custom and custom.package:

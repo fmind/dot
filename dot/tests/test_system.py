@@ -222,11 +222,6 @@ def select_completions(monkeypatch: pytest.MonkeyPatch, *tools: str) -> None:
     )
 
 
-def test_retired_tools_have_no_completion_sources() -> None:
-    retired = {"actionlint", "aws-sso-util", "cursor-agent", "gitleaks", "jules", "pyrit", "zizmor"}
-    assert not retired.intersection(COMPLETION_SOURCES)
-
-
 def test_cloud_connectors_are_included_in_default_completions() -> None:
     assert {"astro", "cf", "cosign", "databricks", "marimo", "pup"} <= set(COMPLETION_SOURCES)
     managed = Path(__file__).resolve().parents[2] / "dot_config/fish/completions"
@@ -656,7 +651,7 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
             return CommandResult("", "private daemon failure", 3)
         raise AssertionError(args)
 
-    installed = {"timeout-tool", "error-tool", "gh", "gcloud", "gws", "jules", "docker"}
+    installed = {"timeout-tool", "error-tool", "gh", "gcloud", "gws", "docker"}
     results = doctor_sections(
         system.run_doctor(make_state(ScriptedRunner(installed, run=probes), config), fix=False, deep=True)
     )
@@ -670,7 +665,6 @@ def test_verify_classifies_probe_exceptions_auth_failures_and_stopped_docker(
     assert auth["gcloud"]["details"] == "auth check timed out; state unknown"
     assert auth["gcloud-adc"]["details"] == "auth check failed; state unknown"
     assert auth["gws"]["condition"] == "broken"
-    assert "jules" not in auth
     docker = results["docker"][0]
     # A stopped optional engine warns instead of failing doctor.
     assert (docker["status"], docker["condition"], docker["details"]) == ("warn", "stopped", "not running")

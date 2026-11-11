@@ -117,6 +117,8 @@ def main() -> int:
     """Refresh or upgrade the source-owned workstation tool baseline."""
     parser = argparse.ArgumentParser(
         description=__doc__,
+        allow_abbrev=False,
+        suggest_on_error=True,
         epilog=(
             "Right after an upstream release, mise can still serve the previous latest version from "
             "its cache: run `mise cache clear` (or `mise cache clear TOOL`), check `mise latest TOOL`, "

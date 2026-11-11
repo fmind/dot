@@ -31,7 +31,7 @@ neovim = "aqua:neovim/neovim"
 
 [env]
 # agents-cli 1.9.0 turned usage telemetry on by default; keep pypi:google-agents-cli out of global
-# [tools] while 1.13.0 caps pyopenssl<26.2 (cryptography<48) and litellm<1.97.0 (4 HIGH CVEs).
+# [tools] while 1.13.0 caps pyopenssl<26.2 (cryptography<48, 4 HIGH CVEs).
 AGENTS_CLI_TELEMETRY = "0"
 # The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
 # vendor skills go through the vendor-skill policy instead.
@@ -64,7 +64,7 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 # Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
 # "feature flags off", which disables Remote Control; scope them to single commands.
 
-# Selection rule: "Choose global tools for agent coding" in fmind/dot's AGENTS.md; a project tool kept global says why in its comment.
+# Selection rule: "Global tools and generated locks" in fmind/dot's AGENTS.md; a project tool kept global says why in its comment.
 [tools]
 "conda:file" = "latest" # File type detection for agents and Yazi; includes its magic database
 # macOS ships both natively (mandoc renders man pages there).
@@ -101,7 +101,7 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 acli = "latest"
 age = "latest"
 ast-grep = "latest"
-astro = "latest"
+astro = "latest" # Airflow DAG dev/parse outside projects; projects pin their own
 atuin = "latest"
 awscli = "latest"
 bat = "latest"

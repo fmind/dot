@@ -5,7 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -89,16 +89,12 @@ def invoke_inprocess(
     installed: set[str] | None = None,
     captured_env: list[Mapping[str, str] | None] | None = None,
 ) -> CliResult:
-    class SecretRunner(ScriptedRunner):
-        def interactive(self, args: Sequence[str], *, env: Mapping[str, str] | None = None, **_kwargs: object) -> int:
-            self.calls.append(list(args))
-            if captured_env is not None:
-                captured_env.append(env)
-            return 0
-
-    fake = SecretRunner(installed if installed is not None else {"python"})
+    fake = ScriptedRunner(installed if installed is not None else {"python"})
     monkeypatch.setattr("fmind_dot.cli.State", lambda **kwargs: State(runner=fake, **kwargs))
-    return cli_runner.invoke(app, ["secret", "run", *args])
+    result = cli_runner.invoke(app, ["secret", "run", *args])
+    if captured_env is not None:
+        captured_env.extend(fake.interactive_envs)
+    return result
 
 
 def test_customer_environment_wins_without_reading_personal_file(
