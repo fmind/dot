@@ -89,7 +89,7 @@ See the [Dot CLI guide](skills/dot-cli/SKILL.md) for all commands and recovery w
 Keyboard ergonomics:
 
 - **Fish abbreviations:** `a` `agy` (`ac` continue, `ai` interactive, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, `h` `dot` (`hd` doctor, `hh` headroom, `hs` fetched dirty status, `hp` pull, `ho` orphans, `hc` caches, `ha` agent stats).
-- **Zellij:** `Alt a` Antigravity, `Alt g` lazygit, `Alt y` yazi, `Alt /` session manager; `Alt n` tiles up to four ultrawide columns before half-stacking (`Ctrl b`, `Space`); detach with `Ctrl o`, `d`.
+- **Zellij:** `Alt a` Antigravity, `Alt g` lazygit, `Alt y` yazi, `Alt /` session manager, `Alt i` next attention; `Alt n` tiles up to four ultrawide columns before half-stacking (`Ctrl b`, `Space`); detach with `Ctrl o`, `d`.
 - **Neovim:** `<leader>gm` diffs buffer against default-branch merge-base, `Tab` accepts completions, `Enter` inserts newline, and `mise lsp` validates `mise.toml`.
 
 ### Dot configuration
