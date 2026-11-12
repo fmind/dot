@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/model-providers
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-12"
 ---
 
 # Model Providers
@@ -17,7 +17,7 @@ Configure provider auth, endpoints, and model selection. Default new integration
 ## Workflow
 
 1. **Choose the provider before checking credentials**: ambient keys never dictate the provider. Read only the matching guide; [gcloud](../gcloud/SKILL.md) owns IAM and [agent-harnesses](../agent-harnesses/SKILL.md) owns host configs.
-1. **Pick tier, then verify exact GA ID**: default to workhorse (latest GA Flash) for agents, tool calls, extraction, and latency/volume work; escalate to frontier (Gemini 4 Argon or Carbon; Argon GA since 2026-10-13) for hard reasoning, coding, or analysis. Look up exact IDs from the live provider catalog, never memory.
+1. **Pick tier, then verify exact GA ID**: default to **Gemini 4 Hydrogen** (`gemini-4-hydrogen`, GA 2026-11-12) for coding, agents, tool calls, and everyday execution (keep `gemini-3.8-flash` for half-price high-volume extraction); escalate to frontier (`Gemini 4 Argon` or `Carbon`; Argon GA 2026-10-13, Carbon GA 2026-11-10) for hard reasoning, architecture, or deep analysis. Look up exact IDs from the live provider catalog, never memory.
 1. **Pin backend and scope secrets**: set the backend explicitly so ambient Google keys or env vars cannot hijack routing; inject keys per process via secret manager, native store, or `dot secret run NAME -- COMMAND`, never in code or config files.
 1. **Probe read-only and fail closed**: separate auth, model access, and bounded/timed inference checks; never silently switch providers or billing projects on failure.
 

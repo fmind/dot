@@ -210,7 +210,7 @@ class HarnessConfigTests(unittest.TestCase):
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
-        assert data["model"] == "openrouter/google/gemini-3.8-flash"
+        assert data["model"] == "openrouter/google/gemini-4-hydrogen"
         assert data["small_model"] == data["model"]
         assert data["share"] == "disabled"
         assert data["autoupdate"] is False
@@ -461,7 +461,7 @@ class HarnessConfigTests(unittest.TestCase):
         target.parent.mkdir(parents=True)
         original = """{
           // Host-owned provider timeout, in OpenCode's supported JSONC format.
-          "model": "openrouter/google/gemini-3.8-flash",
+          "model": "openrouter/google/gemini-4-hydrogen",
           "provider": {"openrouter": {"options": {"timeout": 65432}}},
         }"""
         environment = {
@@ -489,7 +489,7 @@ class HarnessConfigTests(unittest.TestCase):
             # 2.x lists config sources and normalizes 1.x keys (provider.options -> providers.settings).
             [config] = [source["info"] for source in json.loads(result.stdout) if source.get("path") == str(target)]
             assert config["providers"]["openrouter"]["settings"]["timeout"] == 65432
-            assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-3.8-flash"}
+            assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-4-hydrogen"}
 
     def test_trust_hook_passes_source_path_literally_during_apply(self):
         executable = self.home / ".local/bin/dot"

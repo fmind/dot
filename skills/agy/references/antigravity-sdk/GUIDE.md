@@ -12,7 +12,7 @@ Embed the local Antigravity harness with `google-antigravity` when harness capab
 1. **Inspect without importing**: check `uv pip show google-antigravity` and read installed `.venv` source before coding (imports run code); keep the local SDK distinct from the `agy` CLI.
 1. **Authenticate**: default to GCP Agent Platform with ADC per [model-providers](../../../model-providers/SKILL.md); see [sdk-usage.md](references/sdk-usage.md) for version pins, billing, explicit API keys, and [local/OpenAI-compatible models](references/sdk-usage.md#5-local-and-openai-compatible-models).
 1. **Bound the run**: set explicit tools, policies, token/call budgets, subagent roster/depth, and output schemas, enforcing side-effect gates inside custom tools.
-1. **Minimize topology**: adapt [orchestrator.py](templates/orchestrator.py) (`gemini-3.8-flash`, `global`, high thinking, metadata-only logging) only when isolated workers help.
+1. **Minimize topology**: adapt [orchestrator.py](templates/orchestrator.py) (`gemini-4-hydrogen`, `global`, high thinking, metadata-only logging) only when isolated workers help.
 1. **Verify**: test against local fakes before authorized live runs, recording calls, denials, errors, usage, and `stop_reason`.
 
 ## Gotchas

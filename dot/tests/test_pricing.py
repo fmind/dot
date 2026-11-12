@@ -287,6 +287,7 @@ def test_codex_cache_writes_are_priced_as_a_subset_of_input() -> None:
         ("claude", "claude-haiku-5-5", 0.6),
         ("pi", "gemini-4-argon", 12),
         ("pi", "gemini-4-carbon", 12),
+        ("pi", "gemini-4-hydrogen", 9),
         ("pi", "gemini-3.8-flash", 4.5),
         ("pi", "gemini-3.5-flash-lite", 2.8),
         ("pi", "gemini-3.1-pro-preview", 14),

@@ -235,5 +235,12 @@ def test_quota_matches_active_model_family_and_skips_disabled_buckets() -> None:
         terminal_width=200,
     )
     assert "quota 62% left ↻ 5d13h" in render(payload, "statusline")
+    for candidate in (
+        {"id": "Orchestrator", "display_name": "Orchestrator"},
+        {"id": "gemini-pro-orchestrator", "display_name": "Orchestrator"},
+        {"id": "Gemini 4 Hydrogen (XHigh)", "display_name": "Gemini 4 Hydrogen (XHigh)"},
+    ):
+        payload.update(model=candidate)
+        assert "quota 62% left ↻ 5d13h" in render(payload, "statusline")
     payload.update(model={"id": "Claude Opus 5.5 (High)", "display_name": "Claude Opus 5.5 (High)"})
     assert "quota 0% left ↻ 2d11h" in render(payload, "statusline")

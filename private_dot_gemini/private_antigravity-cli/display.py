@@ -192,7 +192,11 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
         and (fraction := number(item.get("remaining_fraction"), 1)) is not None
     ]
     model_key = f"{clean(model.get('id'))} {model_name}".lower()
-    family = ("gemini-" if "gemini" in model_key or "flash" in model_key else "3p-") if model_name else ""
+    family = (
+        ("gemini-" if "gemini" in model_key or "flash" in model_key or "orchestrator" in model_key else "3p-")
+        if model_name
+        else ""
+    )
     # Prefer the active model family's enabled buckets (gemini-* vs 3p-*); fall back to all enabled buckets.
     quotas = [q for key, q in buckets if family and key.startswith(family)] or [q for _, q in buckets]
     if quotas:

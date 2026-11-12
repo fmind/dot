@@ -1,5 +1,5 @@
 # Docs: https://developers.openai.com/api/docs/pricing
-as_of: "2026-11-10"
+as_of: "2026-11-12"
 basis: Standard short-context USD per million tokens (active introductory rates where published); OpenAI model-default
   cache writes, Claude 5-minute writes and separate Claude 1-hour writes. Excludes long-context, priority/fast, cache
   storage, regional and tool fees, discounts, taxes and subscriptions. Applies current rates to historical usage; not an invoice.
@@ -248,6 +248,11 @@ models:
     input: 2
     output: 10
     cache_read: 0.1
+    cache_write: null
+  gemini-4-hydrogen:
+    input: 1.5
+    output: 7.5
+    cache_read: 0.075
     cache_write: null
   gemini-3.8-flash:
     input: 0.75

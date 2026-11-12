@@ -68,7 +68,7 @@ def build(workspace: str) -> LocalAgentConfig:
     project = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
     if not project:
         raise ValueError("set GOOGLE_CLOUD_PROJECT to the authorized ADC project")
-    model = os.environ.get("ANTIGRAVITY_MODEL", "gemini-3.8-flash").strip()
+    model = os.environ.get("ANTIGRAVITY_MODEL", "gemini-4-hydrogen").strip()
     location = os.environ.get("GOOGLE_CLOUD_LOCATION", "global").strip()
     if not model or not location:
         raise ValueError("model and location overrides must be nonempty")

@@ -6,8 +6,8 @@
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "openrouter/google/gemini-3.8-flash",
-  "small_model": "openrouter/google/gemini-3.8-flash",
+  "model": "openrouter/google/gemini-4-hydrogen",
+  "small_model": "openrouter/google/gemini-4-hydrogen",
   "share": "disabled",
   "autoupdate": false,
   "compaction": {"auto": true},
