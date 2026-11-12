@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [15.12.0] - 2026-11-12
+
+### 🚀 Features
+
+- _(zellij)_ Configure attention inbox, Alt i jump, and pane TERM
+- Adopt Gemini 4 Hydrogen and agy Orchestrator across skills and harnesses
+
 ## [15.11.2] - 2026-11-11
 
 ### 🐛 Bug Fixes
