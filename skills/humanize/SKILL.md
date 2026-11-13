@@ -18,7 +18,7 @@ Respect human time. Turn raw technical output into scannable, visually structure
 
 1. **Signal first, zero noise**: before drafting, choose the **1–3 insights or decisions** that change what this reader does. Cut implementation plumbing, intermediate reasoning, tool logs, and caveats that do not alter the decision (move deep evidence into collapsible sections or annexes).
 1. **Write for humans, not terminals**:
-   - **Zero backtick spam**: never wrap product names, services, cloud regions, environments, statuses, metrics, or field concepts in backticks. Reserve monospace strictly for literal commands or paths an engineer must copy-paste.
+   - **Targeted backticks only**: reserve backticks strictly for literal code, CLI commands, file paths, or rare disambiguating identifiers — never wrap product names, services, cloud regions, environments, statuses, or metrics.
    - **Plain words, zero jargon**: translate internal architecture into cost, latency, reliability, or user effect. Ban arrow chains (`A -> B -> C`), slash-stacked nouns, coined labels, throat-clearing intros, and agent session trailers (`Verification`, `Decisions`, `Suggestions`, tool names, local paths, bare IDs).
 1. **Format visually for the medium (never send a grey wall of plain text)**:
    - **Highlight** the decisive number, phrase, or ask (`<mark>` / highlight pills, colored callout banners, bold lead-ins).

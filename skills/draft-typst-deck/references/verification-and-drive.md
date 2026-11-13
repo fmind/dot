@@ -4,18 +4,18 @@
 
 1. Always pass `--expected-slides <N>` (and `--pptx` when building a `.pptx` / Google Slides deck) to [build_typst_deck.py](../scripts/build_typst_deck.py) `check`. Any content spill changes page count and fails immediately.
 1. Theme fonts (`Google Sans`, `Google Sans Code`) are auto-discovered from `assets/fonts/`, `~/.local/share/fonts`, or `~/Library/Fonts`; missing-font warnings fail closed (`--allow-font-warnings` opts out explicitly).
-1. Inspect every `_preview/<stem>-*.png` frame before sharing: confirm generous margins, zero clipped chart labels, ≤30 on-slide words, zero prose backticks, and one scannable takeaway per slide.
+1. Inspect every `_preview/<stem>-*.png` frame before sharing: confirm generous margins, zero clipped chart labels, ≤30 on-slide words, no prose backticks (reserve backticks strictly for literal code), and one scannable takeaway per slide.
 1. Audit chart accuracy: equal comparison criteria, stated sample sizes on bars and headlines, conservative rounded ranges, and zero secrets or internal identifiers.
 
 ## 2. Google Slides Compatibility & Alternatives
 
 Typst outputs PDF, PNG, SVG, and queryable JSON metadata — never native editable Google Slides objects directly:
 
-| Goal                                       | Recommended path                                                                                                               | Trade-off & security boundary                                                                   |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **Pixel-perfect Typst deck in Slides URL** | `check --pptx` → `upload deck.pptx --google-slides --source-dir .`                                                             | Preserves exact Fmind visuals + **editable speaker notes** cleanly; slide canvas is Retina PNG. |
-| **Stakeholders edit slide text directly**  | Build `.pptx` with `uv run --with python-pptx` (`Google Sans` native boxes + Typst `figures/*.png`) → `upload --google-slides` | Text/tables stay editable in Slides; slightly looser layout fidelity than pure Typst.           |
-| **Never do this**                          | `gws slides ... createImage` or unpinned `typ2pptx`                                                                            | `createImage` requires public world-readable image URLs; `typ2pptx` is unpinned/experimental.   |
+| Goal                                       | Recommended path                                                                                                                 | Trade-off & security boundary                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Pixel-perfect Typst deck in Slides URL** | `check --pptx` → `upload deck.pptx --google-slides --source-dir .`                                                               | Preserves exact Fmind visuals + **editable speaker notes** cleanly; slide canvas is Retina PNG. |
+| **Stakeholders edit slide text directly**  | Adapt [editable_deck.py](../templates/editable_deck.py) (`Google Sans` native cards + Typst `figures/*.png`) → `--google-slides` | Text/cards stay editable in Slides; slightly looser layout fidelity than pure Typst.            |
+| **Never do this**                          | `gws slides ... createImage` or unpinned `typ2pptx`                                                                              | `createImage` requires public world-readable image URLs; `typ2pptx` is unpinned/experimental.   |
 
 ## 3. Isolated `gws` Drive & Google Slides Upload
 

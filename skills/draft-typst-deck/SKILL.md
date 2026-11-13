@@ -19,13 +19,13 @@ Build crisp **16:9 (`960pt x 540pt`) Typst slide decks** and **branded visual ca
 Apply [humanize](../humanize/SKILL.md) and its [slides guide](../humanize/references/slides.md) on every deck:
 
 1. **Typst PDF / Retina PPTX → Private Google Slides (default)**: author [fmind-slides.typ](templates/fmind-slides.typ) + [deck.typ](templates/deck.typ), include `#speaker-note("...")`, export `--pptx`, and upload with `--google-slides`. Drive converts the `.pptx` privately (`ppt/media/` + speaker notes) into a Google Slides URL without exposing public image links.
-1. **Editable-shape Google Slides**: when stakeholders must edit on-slide text boxes directly in Slides, generate native `Google Sans` text/card shapes + 2× Typst `figures/*.typ` PNG visuals via `uv run --with python-pptx` and upload the `.pptx` with `--google-slides` (keeping `.typ` sources via `--source-dir`).
+1. **Editable-shape Google Slides**: when stakeholders must edit on-slide text boxes directly in Slides, adapt [editable_deck.py](templates/editable_deck.py) (`Google Sans` native cards + 2× Typst `figures/*.typ` PNGs via `uv run --script`) and upload with `--google-slides --source-dir .`.
 1. **Standalone branded images**: compile `figures/*.typ` (2× Retina PNG/SVG) via `--render-figures` for Google Docs ([draft-doc](../draft-doc/SKILL.md)), reports, or web/social cards ([diagrams-as-code](../diagrams-as-code/references/typst.md)).
 
 ## Slide Restraint Rules (Zero Slide Dumps)
 
 - **One idea, one visual centerpiece per slide**: pair an action-led headline with **one** focal block (`kpi-card` strip, `bar-panel`, `split-cards`, or `step-card` flow).
-- **≤30 words & zero backticks on slides**: emphasize key asks/figures with `#hl[...]` or `#pill(...)` — move explanations, caveats, and formulas to `#speaker-note("...")` or a linked doc.
+- **≤30 words & no prose backticks**: emphasize key asks or metrics with `#hl[...]` or `#pill(...)` and reserve backticks strictly for literal code or CLI syntax; move explanations and formulas to `#speaker-note("...")`.
 - **Readable minimums & escaping**: titles `26pt`, cards `15–16pt`, chart labels `>=12pt`; follow [charts-and-diagrams.md](references/charts-and-diagrams.md#typst-escaping-rules) (`$`, `~`, `*` differ between `"..."` and `[...]`).
 
 ## Workflow (`check`, inspect, `upload`)

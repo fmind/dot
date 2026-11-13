@@ -157,7 +157,7 @@ description = "Lint, format-check, type-check, and validate Python packaging and
 run = [
   "uv run --frozen --project dot ruff check .",
   "uv run --frozen --project dot ruff format --check .",
-  "uv run --frozen --project dot ty check --project dot dot skills --exclude 'skills/*/references/*/templates'",
+  "uv run --frozen --project dot ty check --project dot dot skills --exclude 'skills/*/references/*/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
   "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py",
   "uv run --frozen --directory dot deptry .",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",

@@ -179,3 +179,26 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             _run(outside, *command, expected_code=2)
         # The CLI profile ships on the standard library alone.
         assert [line for line in requirements.splitlines() if line and not line.startswith("#")] == []
+
+
+@pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
+def test_editable_pptx_script_builds_valid_deck(tmp_path: Path) -> None:
+    import importlib.util
+    import zipfile
+
+    script = ROOT / "skills" / "draft-typst-deck" / "templates" / "editable_deck.py"
+    out = tmp_path / "editable.pptx"
+    _run(tmp_path, "uv", "run", "--script", str(script), "-o", str(out))
+    assert out.is_file()
+
+    helper_path = ROOT / "skills" / "draft-typst-deck" / "scripts" / "build_typst_deck.py"
+    spec = importlib.util.spec_from_file_location("build_typst_deck", helper_path)
+    assert spec
+    assert spec.loader
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
+    assert helper.inspect_pptx_slide_count(out) == 3
+
+    with zipfile.ZipFile(out, "r") as zf:
+        notes1 = zf.read("ppt/notesSlides/notesSlide1.xml").decode()
+        assert "20 seconds" in notes1

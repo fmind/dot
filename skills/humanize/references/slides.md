@@ -5,7 +5,7 @@ Build high-signal visual decks busy audiences grasp in 5 seconds per slide. Appl
 ## Visual Rules (Zero AI Slide Dumps)
 
 - **One idea, one visual centerpiece per slide**: pair a **takeaway headline** (`Caching cut p95 latency by 42%`, never `Architecture Overview`) with **one** focal visual (KPI strip, 2-card contrast, 3-step flow, or comparative bar chart).
-- **Radical density cap**: target `4–10` slides, **≤30 on-slide words** (`≤50` for comparison tables), **zero backticks**, `≥35%` open whitespace, ≥15 pt body text, and dark-on-light contrast (`≥4.5:1`). Move backup tables and explanations to **speaker notes** or a linked memo.
+- **Radical density cap**: target `4–10` slides, **≤30 on-slide words** (`≤50` for comparison tables), **no prose backticks** (reserve backticks strictly for actual code or literal CLI syntax; use `#hl[...]` or `#pill(...)` for emphasis), `≥35%` open whitespace, ≥15 pt body text, and dark-on-light contrast (`≥4.5:1`). Move backup tables and explanations to **speaker notes** or a linked memo.
 - **Highlight selectively**: use one tinted pill (`#pill`), highlight span (`#hl`), or left-accent callout per slide so the eye knows where to land immediately.
 
 ## Format and Tooling Choice

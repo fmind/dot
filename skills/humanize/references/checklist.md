@@ -10,7 +10,7 @@ Review as a busy reader before sharing. Items marked **firm** never bend.
 
 ## 2. Clean Prose & Rich Visuals
 
-- **Zero backtick spam**: backticks appear only on copyable CLI commands or paths — never on product names, statuses, configs, or metrics.
+- **Clean backtick discipline**: backticks appear strictly on literal code, CLI commands, paths, or rare disambiguating identifiers — never on product names, statuses, regions, or metrics.
 - **Zero terminal jargon**: no arrow chains (`->`), slash-stacked nouns, or agent session headers (`Verification`, `Decisions`, `Suggestions`, tool names, bare IDs).
 - **Visual hierarchy applied**: the draft uses the medium's highlights (`<mark>`, alerts/callouts), dividers, KPI/status blocks, tables, or Typst/Mermaid visuals — never a flat grey wall of text.
 

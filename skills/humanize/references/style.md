@@ -18,7 +18,7 @@ Curate insight, write plainly, and use every visual primitive the destination su
 
 ### Example 2 — Code prose & backtick discipline
 
-Reserve backticks solely for exact CLI commands or file paths a technical reader will run or open. Never backtick product names, regions, configs, metrics, or status words (`europe-west1`, `Recommended`, `retention_days=30`, `v16.1.0`).
+Reserve backticks strictly for literal code, CLI commands, file paths, or rare disambiguating identifiers. Never backtick product names, regions, configs, metrics, or status words (`europe-west1`, `Recommended`, `retention_days=30`, `v16.1.0`).
 
 ## Visual Formatting Matrix by Medium
 

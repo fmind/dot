@@ -16,6 +16,7 @@ from tests.fakes import native_binary
 
 SCRIPT = Path(__file__).resolve().parents[2] / "skills/draft-typst-deck/scripts/build_typst_deck.py"
 TEMPLATE_DECK = Path(__file__).resolve().parents[2] / "skills/draft-typst-deck/templates/deck.typ"
+EDITABLE_TEMPLATE = Path(__file__).resolve().parents[2] / "skills/draft-typst-deck/templates/editable_deck.py"
 
 
 @pytest.fixture
@@ -520,3 +521,9 @@ def test_upload_cli_converts_pptx_to_google_slides_and_syncs_sources(
     )
     assert mod.main(["upload", str(pptx), "--drive-folder", "folder_1", "--google-slides"]) == 1
     assert "slide-count mismatch" in capsys.readouterr().err
+
+
+def test_editable_deck_template_compiles_valid_python_syntax() -> None:
+    source = EDITABLE_TEMPLATE.read_text(encoding="utf-8")
+    assert "python-pptx==1.0.2" in source
+    compile(source, str(EDITABLE_TEMPLATE), "exec")
