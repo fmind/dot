@@ -2355,27 +2355,27 @@ conda_deps = [
 ]
 
 [[tools.copilot]]
-version = "1.0.110"
+version = "1.0.111"
 backend = "aqua:github/copilot-cli"
 specifiers = ["latest"]
 
 [tools.copilot."platforms.linux-arm64"]
-checksum = "sha256:4edd232fa4597064c46f84a1e87d69dff94fa4618b49e50209ac697e1b7f6f41"
+checksum = "sha256:203ffacb01d40383d34427fac7577eb7c847d77cd88b45b2c7ab560e044d9613"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.110/copilot-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/741407947"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.111/copilot-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/743798009"
 
 [tools.copilot."platforms.linux-x64"]
-checksum = "sha256:0c8eaeded78ecb87a403c3e447e4ce0fe9d6d90c13605872873dbe2f9c2f92c4"
+checksum = "sha256:33ea4378ccc829bc18520648ad97c8fb1d9de4ba478ebff8eb2ad890aa0a95c8"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.110/copilot-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/741408226"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.111/copilot-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/743798618"
 
 [tools.copilot."platforms.macos-arm64"]
-checksum = "sha256:7c5265fd7ab45ea3c4a1aa586288b757281293612f346f8fa7fecc114153f001"
+checksum = "sha256:398b49ebeafa67231151347794e07c4665a0ec904708645ca4992c917565a901"
 checksum_source = "mise-versions"
-url = "https://github.com/github/copilot-cli/releases/download/v1.0.110/copilot-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/741407946"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.111/copilot-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/743798013"
 
 [[tools.cosign]]
 version = "3.1.4"
@@ -3805,7 +3805,7 @@ specifiers = ["latest"]
 
 [[tools."npm:firebase-tools"]]
 version = "15.36.0"
-aube = { path = "locks/npm-firebase-tools/15.36.0~d4a69271", digest = "sha256:8e1575068464a99632dfcf47a9f246688c4232e691676af61fca93763620a882" }
+aube = { path = "locks/npm-firebase-tools/15.36.0~d4a69271", digest = "sha256:886d86088f22ece8c16f3468fd51268e73146619dce95aca3024c9f271c2669d" }
 backend = "npm:firebase-tools"
 specifiers = ["latest"]
 
@@ -4225,27 +4225,27 @@ url = "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.7
 url_api = "https://api.github.com/repos/aquasecurity/trivy/releases/assets/713400755"
 
 [[tools.ty]]
-version = "0.0.102"
+version = "0.0.103"
 backend = "aqua:astral-sh/ty"
 specifiers = ["latest"]
 
 [tools.ty."platforms.linux-arm64"]
-checksum = "sha256:c026cb215269f1c0f62e49afb722f1945cf0c868f54da1c94a8f7cf4c7365f9d"
+checksum = "sha256:84bbe5123489d8177874f1d66f94bff66baf688eae34fb03362e4e8ae0a6309a"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.102/ty-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/741278045"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.103/ty-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/743525515"
 
 [tools.ty."platforms.linux-x64"]
-checksum = "sha256:2ffb60d6b2f83cb02cfb183af86fefcb411dd5f6f710eac699dc25a19105b563"
+checksum = "sha256:9c29e9e082fa87f1be1015c2bdadd77524cebd4793512c1ccf72bc019befb9e2"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.102/ty-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/741278340"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.103/ty-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/743525773"
 
 [tools.ty."platforms.macos-arm64"]
-checksum = "sha256:da0fead6652ab9e5b1837e0ed057123e478ffc022292fce041e6b4513a63b6b7"
+checksum = "sha256:dab6a1ec6ca888c25988ab8e8928f03f6663e970ff68c9e99d26b1debc0ea68f"
 checksum_source = "mise-versions"
-url = "https://github.com/astral-sh/ty/releases/download/0.0.102/ty-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/741278006"
+url = "https://github.com/astral-sh/ty/releases/download/0.0.103/ty-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/ty/releases/assets/743525464"
 
 [[tools.typos]]
 version = "1.52.2"
