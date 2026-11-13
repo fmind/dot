@@ -13,8 +13,11 @@ show_startup_tips false
 // Prevent mouse scrolling from implicitly entering and exiting Scroll mode.
 scroll_mode_sync false
 
+// Keep pane OSC 9/777/99 alerts in Zellij's attention inbox without forwarding OS popups to Ghostty.
+host_notification_protocol "off"
+
 // Keep frame/tab attention markers and the on-demand Inbox, but skip the
-// startup popup, global quiet-output noise, and duplicate OS notifications.
+// startup popup, global quiet-output noise, and standalone desktop popups.
 attention {
     startup_card "never"
     idle_rule "watched"
@@ -34,6 +37,7 @@ keybinds {
         bind "Alt g" { Run "lazygit" { floating true; close_on_exit true; x "1%"; y "1%"; width "98%"; height "98%"; }; }
         bind "Alt /" { LaunchOrFocusPlugin "session-manager" { floating true; move_to_focused_tab true; }; }
         bind "Alt i" { GoToNextAttention; }
+        bind "Alt Shift i" { ToggleSessionCard; }
     }
     shared_except "locked" {
         unbind "Ctrl h" // Conflicts with nvim

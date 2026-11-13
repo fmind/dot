@@ -1,8 +1,7 @@
-// Managed by fmind/dot (private_dot_pi/private_agent/extensions/dot-notify.ts.tmpl); edit the source, not this copy.
+// Managed by fmind/dot (private_dot_pi/private_agent/extensions/google-vertex.ts); edit the source, not this copy.
 // Docs: https://pi.dev/docs/latest/extensions
 // Defaults Agent Platform to `global` when a dynamic GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT is set,
-// and sends one desktop alert when an interactive run settles (`agent_end` fires before retries).
-import { spawn } from "node:child_process";
+// and refreshes `google-vertex` model/thinking selection after startup auth evaluation.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const defaultedLocation =
@@ -81,17 +80,5 @@ export default function (pi: ExtensionAPI) {
 		if (!hasThinkingFlag && targetThinking && pi.getThinkingLevel() !== targetThinking) {
 			pi.setThinkingLevel(targetThinking);
 		}
-	});
-
-	pi.on("agent_settled", (event, ctx) => {
-		// Print, JSON, and RPC runs have nobody waiting; after Escape the user is already there.
-		if (ctx.mode !== "tui" || event.aborted) return;
-		const child = spawn("{{ includeTemplate "dot-bin.tmpl" . }}", ["agent", "hook", "notify", "pi", "stop"], {
-			stdio: ["pipe", "ignore", "ignore"],
-		});
-		// A failed notification never fails the turn.
-		child.on("error", () => {});
-		child.stdin.on("error", () => {});
-		child.stdin.end(JSON.stringify({ cwd: ctx.cwd }));
 	});
 }

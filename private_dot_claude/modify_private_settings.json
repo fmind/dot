@@ -3,11 +3,9 @@
        Seed model/effort via `defaults` (preserving `/model` and `/effort`; Opus 5.5 needs per-model effortLevel);
        `dot trust` owns folder trust and `permissions.additionalDirectories`. Suppress updates, telemetry,
        claude.ai connectors/plugins/skills, and git/gh/gcloud prompts; force session persistence under
-       CLAUDE_CODE_CHILD_SESSION; use `light-ansi` for Ghostty's palette; notify on stale/disabled
-       quota auto-resume (no `idle_prompt` follows). */ -}}
-{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
+       CLAUDE_CODE_CHILD_SESSION; use `light-ansi` for Ghostty's palette. */ -}}
 {{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-fable-5-2" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) -}}
-{{- $managedConfig := fromJson (replace "@dot@" $dot `
+{{- $managedConfig := fromJson `
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "agentPushNotifEnabled": true,
@@ -34,30 +32,6 @@
     "sonnet"
   ],
   "feedbackSurveyRate": 0,
-  "hooks": {
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "command": "@dot@ agent hook notify claude needs-input",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "^(permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input|quota_auto_resume_stale|quota_auto_resume_disabled)$"
-      },
-      {
-        "hooks": [
-          {
-            "command": "@dot@ agent hook notify claude ready",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "^idle_prompt$"
-      }
-    ]
-  },
   "inputNeededNotifEnabled": true,
   "permissions": {
     "defaultMode": "bypassPermissions"
@@ -75,14 +49,16 @@
     "baseRef": "head"
   }
 }
-`) -}}
-{{- /* Preserve host-owned hook events (such as SessionStart) while replacing managed Notification entries. */ -}}
+` -}}
+{{- /* Preserve host-owned hook events (such as SessionStart) while retiring managed Notification entries. */ -}}
 {{- $current := dict -}}
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
 {{- $currentHooks := get $current "hooks" | default dict -}}
 {{- if not (kindIs "map" $currentHooks) }}{{ fail "hooks must be an object" }}{{ end -}}
+{{- $preservedHooks := dict -}}
 {{- range $event, $entries := $currentHooks -}}
-{{-   if ne $event "Notification" }}{{ $_ := set $managedConfig.hooks $event $entries }}{{ end -}}
+{{-   if ne $event "Notification" }}{{ $_ := set $preservedHooks $event $entries }}{{ end -}}
 {{- end -}}
+{{- if gt (len $preservedHooks) 0 }}{{ $_ := set $managedConfig "hooks" $preservedHooks }}{{ end -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "replace" (list "hooks")) -}}

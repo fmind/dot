@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Develop Dot
@@ -30,7 +30,6 @@ Modules live in `dot/src/fmind_dot/` and tests in `dot/tests/` (`test_<module>.p
 - `cli.py`, `command.py`, `state.py`, `config.py`, `process.py`, `private_files.py`, `reporting.py` → `test_cli.py`, `test_config.py`, `test_process.py`: stdlib `argparse`; `cli.build_parser()` registers commands alphabetically via `Parser.group()` / `Parser.command()` with `handler(state, args)`, raising `UsageError` (exit 2) on invalid flag combinations. `command.FISH_COMPLETION` invokes `dot` with `_DOT_COMPLETE` so `command.candidates()` completes from the live parser without regenerating scripts.
 - `auth.py`, `workstation.py`, `repository.py`, `orphan.py`, `trust.py` → `test_workstation.py`, `test_repository.py`, `test_orphan.py`, `test_trust.py`: synthetic provider probes only; never run live login/setup/prune as a test gate.
 - `secrets.py` → `test_secrets.py`: rejects personal `UV_PUBLISH_TOKEN` (PyPI uses Trusted Publishing); synthetic fixtures only, never print secret values.
-- `hooks.py` → `test_agent_hooks.py`.
 - `system.py` (`dot doctor`, `dot completion`) → `test_system.py`: `COMPLETION_SOURCES` maps native generators (`binary` + `args`), bundled mise `<tool>.fish` (`package`), or default `<tool> completion fish` (`completions.path` is the only config key). Missing binaries and inactive shims skip cleanly; `agy` uses `dot_config/fish/completions/` and `acli` has none (dropped in 1.3.39); Atuin omits its AI `?` binding.
 - `agent.py`, `agent_doctor.py`, `context_budget.py` → `test_agent_workflows.py`, `test_agent_doctor.py`, `test_context_budget.py`, `test_usage.py`, `test_session_query.py`.
 - `archive/`: `parsers.py` → `test_agent_parsers.py`, `store.py` → `test_session_store.py`, `query.py` → `test_session_query.py`, `sync.py` & `statistics.py` → `test_agent_workflows.py`, `usage.py` & `pricing.py` → `test_usage.py`; `test_archive_transaction.py` (replacement/retention) and `test_usage_periods.py` (dedup, model switches, date windows, legacy recapture).

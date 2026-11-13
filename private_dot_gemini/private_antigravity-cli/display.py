@@ -79,7 +79,7 @@ STATES = {
     "background": ("\uf017", "33"),
     "idle": ("\uf00c", "32"),
 }
-# Title glyphs mirror Claude Code's (✳ when idle) so dot notifications strip them and keep the topic.
+# Title glyphs mirror Claude Code's (✳ when idle) for consistent pane and tab titles.
 TITLE_GLYPHS = {"idle": "✳", "needs input": "⚠", "background": "◷"}
 # Keyed by the first letter so labels such as "-- V-LINE --" share the visual color.
 VIM_COLORS = {"N": "34", "I": "32", "V": "35"}

@@ -1,17 +1,14 @@
 ---
 name: notifications
-description: "Diagnose or change managed turn notifications and brain session-context hooks per host."
+description: "Configure Zellij OSC 7501 turn attention, mobile push settings, and brain session-context hooks."
 ---
 
-# Turn Notifications
+# Turn Attention and Hooks
 
-On `fmind/dot`, notifications signal that the main session is idle or awaiting input. Restart open harnesses after config changes.
+On `fmind/dot`, Zellij 0.46's built-in `attention` mode tracks coding-agent turns directly via OSC 7501 instead of desktop toast popups or sound chimes. Restart open harnesses after config changes.
 
-- **Claude**: `Notification` hooks route `idle_prompt` (~60s idle) to “Your turn” and permission, question, and stalled/disabled quota-auto-resume events to “Needs your input”; informational and background-agent events are ignored, and no `Stop` hook is managed (runs before continuation decisions).
-- **Copilot**: native attention notifications are enabled (relying on terminal/OS focus); no `Stop`/`agentStop` hooks are managed.
-- **Antigravity**: managed `Stop` requires `fullyIdle: true` and skips subagents, unfinished background work, and print runs (`dot` inspects the nearest agy ancestor's `-p`/`--print`/`--prompt`). Native `notifications` stay off (default; unmanaged because agy drops `false` on save, and OSC 9 doubled Ghostty alerts while failing in ttyd).
-- **OpenCode**: native desktop attention alerts skip child sessions; sounds stay off because child completions trigger them.
-- **Pi**: `~/.pi/agent/extensions/dot-notify.ts` fires on `agent_settled` (after retries/queued messages; also resolves dynamic GCP Agent Platform project/location on `session_start`) and skips print, JSON, RPC, and user-aborted runs; `dot agent doctor` reports `hooks=absent` if missing.
-- **OS delivery**: Linux uses `notify-send` (`libnotify-bin`); macOS uses `osascript`. When `agent.notify.sound` is on (default), macOS plays `Glass` and Linux suppresses server sound to play `~/.cache/dot/notify.wav` via `pw-play` or `paplay`. `dot` resolves `DBUS_SESSION_BUS_ADDRESS` else `$XDG_RUNTIME_DIR/bus`, skipping delivery without a bus and playing chime-only when no notification daemon exists (containers, Android Linux VM). On macOS, `usernoted` mutes `osascript` until `Script Editor.app` registers once: run `display notification "test" with title "Script Editor" sound name "Glass"` (`Cmd+R`) in `Script Editor.app` and enable Banners/Alerts + sound + Always previews in `System Settings > Notifications > Script Editor`.
-- **Short, private content**: titles show status (✅ your turn, ⏳ needs input), harness, and project (<=80 chars). In Zellij, `zellij action list-panes` supplies session/tab (`agent.notify.tab`) and stripped pane title (`agent.notify.title`, macOS subtitle), both default on (disable on shared screens); otherwise the body reads “Your turn” or “Needs your input”. Alerts have no click actions, never read prompts/transcripts, and log one stderr line with exit 0 on failure so turns never abort.
+- **Zellij attention (`dot_config/zellij/config.kdl`)**: sets `host_notification_protocol "off"` (keeps pane OSC alerts inside Zellij without forwarding OS banners to Ghostty), `attention.startup_card "never"`, `attention.idle_rule "watched"`, and `attention.desktop_notifications` all `false`; binds `Alt i` (`GoToNextAttention`) and `Alt Shift i` (`ToggleSessionCard`) in `shared` so both work in Locked mode (`Ctrl g`).
+- **Native OSC 7501 harnesses (`agy`, `claude`, `copilot`, `opencode`, `pi`)**: all five emit OSC 7501 attention states natively inside Zellij; no `dot` notification hooks or sound chimes remain.
+- **Disabled local desktop/sound alerts**: `copilot` enforces `notifications: false` (since `true` sends OS desktop toasts directly), `opencode` enforces `attention: {notifications: false, sound: false}`, `agy` leaves native `notifications` unset (off by default), and apply retires legacy `notify` (`~/.gemini/config/hooks.json`), `Notification` (`~/.claude/settings.json`), `~/.pi/agent/extensions/dot-notify.ts`, and `~/.cache/dot/notify.wav`.
+- **Preserved mobile / Remote Control push**: `claude` keeps `inputNeededNotifEnabled: true` and `agentPushNotifEnabled: true`, and Antigravity Remote Control keeps `enableNotificationsForSpecialEvents: true`.
 - **Brain session context**: `fmind/brain`'s `mise run setup` registers `~/fmind/brain/settings/hooks/session-context.py` as a 30s Claude `SessionStart` hook (no matcher) and `~/fmind/brain/settings/hooks/agy-context.py` as agy's 30s `brain-context` `SessionStart` hook injecting a persistent `systemMessage` ([agy cli](../../agy/references/cli/GUIDE.md) explains why `PreInvocation` is unsuitable); `dot` preserves both on apply.

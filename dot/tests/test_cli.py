@@ -145,7 +145,6 @@ def test_root_command_tree_has_only_the_canonical_runtime_commands() -> None:
         (["config"], ["edit", "path", "show"]),
         (["agent"], ["context", "doctor", "session", "stats"]),
         (["agent", "session"], ["list", "show", "sync"]),
-        (["agent", "hook"], ["notify"]),
     ],
 )
 def test_help_lists_commands_alphabetically(path: list[str], names: list[str]) -> None:
@@ -155,16 +154,9 @@ def test_help_lists_commands_alphabetically(path: list[str], names: list[str]) -
     assert rows == names
 
 
-def test_agent_command_tree_keeps_hooks_internal_and_sync_as_the_only_capture() -> None:
+def test_agent_command_tree_keeps_sync_as_the_only_capture() -> None:
     agent = build_parser().children["agent"]
-    assert {name for name, child in agent.children.items() if not child.hidden} == {
-        "context",
-        "doctor",
-        "session",
-        "stats",
-    }
-    assert agent.children["hook"].hidden
-    assert set(agent.children["hook"].children) == {"notify"}
+    assert set(agent.children) == {"context", "doctor", "session", "stats"}
     assert set(agent.children["session"].children) == {"list", "show", "sync"}
 
 
@@ -574,7 +566,7 @@ def test_fish_candidates_keep_complete_summaries_and_hide_internal_commands() ->
     summaries = dict(candidates(build_parser(), [""]))
     assert summaries["orphan"] == "List files chezmoi deployed but no longer manages (read-only; never deletes)"
     assert "completion" not in summaries
-    assert "hook" not in dict(candidates(build_parser(), ["agent", ""]))
+    assert set(dict(candidates(build_parser(), ["agent", ""]))) == {"context", "doctor", "session", "stats"}
 
 
 def test_fish_candidates_complete_options_choices_and_nothing_after_a_separator() -> None:

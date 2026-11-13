@@ -7,7 +7,7 @@ description: "Resolve configuration, JSON output, exit codes, and session archiv
 
 Config precedence: `--config` → `DOT_CONFIG_PATH` → `~/.config/dot.yaml` (missing default uses built-ins; explicit missing path fails). `dot config show` prints `schema_version: 3` defaults (`agent`, `auth`, `cache`, `completions`, `doctor`, `privacy`, `prune`, `pull`, `trust`, including machine-local `privacy.allowed_tokens`); scope lists replace defaults, native CLIs own credentials, and unknown/retired keys fail with their key path (`dot config edit` and `--help` still work when malformed).
 
-Stdout carries requested data; stderr carries progress, prompts, and errors. Exit codes: `0` success, `1` operational failure or incomplete result, `2` usage error (including unknown agents or zero durations like `0d`), `130` interruption. JSON reports use a versioned `schema` envelope (indented on TTY, compact when piped) and never turn pre-report failures into empty success. `orphan` and `secret` ignore config; notify hooks read only `agent.notify` (falling back with one stderr line on bad config) and always exit `0`.
+Stdout carries requested data; stderr carries progress, prompts, and errors. Exit codes: `0` success, `1` operational failure or incomplete result, `2` usage error (including unknown agents or zero durations like `0d`), `130` interruption. JSON reports use a versioned `schema` envelope (indented on TTY, compact when piped) and never turn pre-report failures into empty success. `orphan` and `secret` ignore config.
 
 ## JSON selectors
 
@@ -25,7 +25,7 @@ Stdout carries requested data; stderr carries progress, prompts, and errors. Exi
 | `dot trust --json`                  | `dot.trust/v1`                | `.folders[]` (`path`, `changed`), `.skipped[]`, `.harnesses`, `.agy_projects[]`, `.claude_directories[]`.                |
 | `dot agent stats --json`            | `dot.agent.stats/v4`          | `.prompts`, `.usage[]`, `.pricing` (`as_of`, `basis`, `sources`), `.time_basis` (null on `--prompts-only`).              |
 
-Diagnostics use `dot.diagnostics/v1` (`agent doctor` reports `agent`, `hooks`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, `next`, `discovery`, and advisory `note`). `retained_usage_sessions` marks sessions keeping usage from an earlier smaller capture (`usage_complete: false`, `cost_complete: false`). `dot login <provider> --check` prints `provider: ready | login needed | unknown (...)` and exits `1` unless all are ready.
+Diagnostics use `dot.diagnostics/v1` (`agent doctor` reports `agent`, `source`, `last_sync`, `sync_failures`, `sync_retained`, `archive`, `sessions`, `healthy`, `next`, `discovery`, and advisory `note`). `retained_usage_sessions` marks sessions keeping usage from an earlier smaller capture (`usage_complete: false`, `cost_complete: false`). `dot login <provider> --check` prints `provider: ready | login needed | unknown (...)` and exits `1` unless all are ready.
 
 ## Session archive
 

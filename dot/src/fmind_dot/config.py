@@ -77,17 +77,6 @@ def default_pricing() -> PricingConfig:
     return _parsed_default_pricing().model_copy(deep=True)
 
 
-class NotifyConfig(StrictModel):
-    """Turn notifications: every field defaults on and turns one part off."""
-
-    # Play a short chime: macOS uses a system sound; Linux plays dot's chime with pw-play or paplay.
-    sound: bool = True
-    # Inside Zellij, name the session and tab that ran the harness.
-    tab: bool = True
-    # Inside Zellij, show the pane title the harness sets, such as Claude Code's session topic.
-    title: bool = True
-
-
 class AgentConfig(StrictModel):
     sources: dict[str, WorkspacePath] = Field(
         default_factory=lambda: {
@@ -99,7 +88,6 @@ class AgentConfig(StrictModel):
         }
     )
     pricing: PricingConfig = Field(default_factory=default_pricing)
-    notify: NotifyConfig = Field(default_factory=NotifyConfig)
 
     @field_validator("sources")
     @classmethod

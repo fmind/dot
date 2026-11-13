@@ -1,9 +1,6 @@
-"""Read-only agent checks: discovery, notify hooks, last sync state, and archive readability; nothing is captured or rewritten."""
+"""Read-only agent checks: discovery, last sync state, and archive readability; nothing is captured or rewritten."""
 
-import json
 import os
-import shlex
-from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -21,57 +18,31 @@ from fmind_dot.process import run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
 from fmind_dot.state import State
 
-_CLI_NAME = "dot"
-
 
 @dataclass(frozen=True)
 class HostDeployment:
-    """What the chezmoi source deploys for one agent host: notify hooks and discovery links."""
+    """What the chezmoi source deploys for one agent host: discovery links."""
 
-    # Path to the host's notification config or extension file.
-    config_path: str
-    notify_events: tuple[str, ...]
     persona: str
     # Host link to the shared skills; empty when the host reads ~/.agents/skills natively.
-    skills: str
-    # The native switch that silences notifications, named in the repair hint.
-    notify_switch: str = "notifications"
+    skills: str = ""
 
 
 _SHARED_PERSONA = "~/.agents/AGENTS.md"
 _SHARED_SKILLS = "~/.agents/skills"
 # One row per AGENT_ADAPTERS entry; test_agent_doctor checks they stay aligned.
 HOSTS = {
-    "agy": HostDeployment(
-        "~/.gemini/config/hooks.json",
-        ("stop",),
-        "~/.gemini/GEMINI.md",
-        "~/.gemini/config/skills",
-    ),
-    "claude": HostDeployment(
-        "~/.claude/settings.json",
-        ("needs-input", "ready"),
-        "~/.claude/CLAUDE.md",
-        "~/.claude/skills",
-        "disableAllHooks",
-    ),
-    "copilot": HostDeployment(
-        "~/.copilot/settings.json",
-        ("native",),
-        "~/.copilot/copilot-instructions.md",
-        "",
-    ),
-    # OpenCode collection is database-based; this integration does not install notification hooks.
-    "opencode": HostDeployment("", (), "~/.config/opencode/AGENTS.md", ""),
-    # Pi has no command hooks: a managed extension runs the notifier when a run settles.
-    "pi": HostDeployment("~/.pi/agent/extensions/dot-notify.ts", ("extension",), "~/.pi/agent/AGENTS.md", ""),
+    "agy": HostDeployment("~/.gemini/GEMINI.md", "~/.gemini/config/skills"),
+    "claude": HostDeployment("~/.claude/CLAUDE.md", "~/.claude/skills"),
+    "copilot": HostDeployment("~/.copilot/copilot-instructions.md"),
+    "opencode": HostDeployment("~/.config/opencode/AGENTS.md"),
+    "pi": HostDeployment("~/.pi/agent/AGENTS.md"),
 }
 
 
 @dataclass(frozen=True)
 class AgentDoctorResult:
     agent: str
-    hooks: str
     source: str
     last_sync: str
     sync_failures: int
@@ -83,75 +54,6 @@ class AgentDoctorResult:
     discovery: str = "ok"
     # Advisory about the caller's environment; it never affects `healthy`.
     note: str = ""
-
-
-def _command_hooks(config: Mapping[str, object], agent: str) -> Iterator[tuple[str, tuple[str, ...]]]:
-    """Read executable command fields from native event structures, never arbitrary metadata."""
-    events = config.get("notify" if agent == "agy" else "hooks")
-    if not isinstance(events, Mapping):
-        return
-    for event, groups in events.items():
-        if not isinstance(event, str) or not isinstance(groups, list):
-            continue
-        for group in groups:
-            if not isinstance(group, Mapping):
-                continue
-            handlers = [group] if agent == "agy" else group.get("hooks")
-            if not isinstance(handlers, list):
-                continue
-            for handler in handlers:
-                if not isinstance(handler, Mapping) or handler.get("type") != "command":
-                    continue
-                command = handler.get("command")
-                if isinstance(command, str) and (arguments := _dot_arguments(command)):
-                    yield event, arguments
-
-
-def _dot_arguments(command: str) -> tuple[str, ...] | None:
-    """Return the arguments of a `dot` invocation, by bare name or absolute path."""
-    try:
-        fields = shlex.split(command)
-    except ValueError:
-        return None
-    if not fields or not (
-        fields[0] == _CLI_NAME or (Path(fields[0]).is_absolute() and Path(fields[0]).name == _CLI_NAME)
-    ):
-        return None
-    return tuple(fields[1:])
-
-
-def _check_hooks(agent: str, definition: HostDeployment) -> str:
-    path = expand_path(definition.config_path)
-    try:
-        content = path.read_bytes()
-    except FileNotFoundError:
-        return "absent"
-    except OSError:
-        return "unreadable"
-    if definition.notify_events == ("extension",):
-        # The extension spawns dot with an argument array; its presence in the source is the wiring.
-        return "configured" if f'"agent", "hook", "notify", "{agent}", "stop"'.encode() in content else "malformed"
-    try:
-        config = json.loads(content)
-    except UnicodeError, ValueError, RecursionError:
-        return "malformed"
-    if not isinstance(config, dict):
-        return "malformed"
-    if agent == "claude" and config.get("disableAllHooks") is True:
-        return "disabled"
-    if definition.notify_events == ("native",):
-        return "configured" if config.get("notifications") is True else "disabled"
-    configured = set(_command_hooks(config, agent))
-    missing = [
-        event
-        for event in definition.notify_events
-        if (
-            "Notification" if event in {"needs-input", "ready"} else "Stop",
-            ("agent", "hook", "notify", agent, event),
-        )
-        not in configured
-    ]
-    return f"missing:{','.join(missing)}" if missing else "configured"
 
 
 def _same_file(path: Path, target: Path) -> bool:
@@ -235,18 +137,12 @@ def _check_archive(root: Path, agent: str) -> tuple[str, int]:
 
 
 def _inspect_agent(state: State, root: Path, name: str) -> AgentDoctorResult:
-    definition = HOSTS[name]
-    hooks = _check_hooks(name, definition) if definition.notify_events else "not-required"
     discovery = _check_discovery(name)
     source, last_sync, failures, retained = _check_sync(state, root, name)
     archive, sessions = _check_archive(root, name)
     synced = last_sync != "unreadable" and (last_sync not in {"never", "stale"} or source == "missing")
     if discovery != "ok":
         hint = "chezmoi status to find the undeployed host files, then chezmoi apply --force"
-    elif hooks == "disabled":
-        hint = f"review {definition.notify_switch} in the chezmoi source for {definition.config_path}"
-    elif hooks not in {"configured", "not-required"}:
-        hint = f"chezmoi diff {definition.config_path}, then chezmoi apply --force {definition.config_path}"
     elif archive not in {"readable", "empty"}:
         hint = f"inspect the unreadable bundles under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
     elif source == "unreadable":
@@ -257,7 +153,6 @@ def _inspect_agent(state: State, root: Path, name: str) -> AgentDoctorResult:
         hint = ""
     return AgentDoctorResult(
         agent=name,
-        hooks=hooks,
         source=source,
         last_sync=last_sync,
         sync_failures=failures,
@@ -294,7 +189,7 @@ def run_agent_doctor(state: State, *, as_json: bool = False, agent: str = "") ->
         for result in results:
             mark = "✓" if result.healthy else "✗"
             state.stdout.write(
-                f"{mark} {result.agent}: hooks={result.hooks} source={result.source} "
+                f"{mark} {result.agent}: source={result.source} "
                 f"last_sync={result.last_sync} sync_failures={result.sync_failures} "
                 f"sync_retained={result.sync_retained} archive={result.archive} sessions={result.sessions} "
                 f"discovery={result.discovery}\n"

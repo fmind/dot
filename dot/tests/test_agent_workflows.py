@@ -31,7 +31,6 @@ from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import RETIRED_AGENTS, UsageRecord, iter_usage_records
 from fmind_dot.cli import app
 from fmind_dot.errors import DotError
-from fmind_dot.hooks import notification_workspace
 from fmind_dot.state import State
 from tests.fakes import COPILOT_SCHEMA, CliRunner, make_state
 
@@ -516,20 +515,6 @@ def test_session_sync_main_normalizes_empty_copilot_database_error(
         "agent-session-sync: done (1 failed)\n"
         "dot: session sync recorded 1 failure(s); see errors above\n"
     )
-
-
-def test_notification_workspace_accepts_host_aliases_and_honors_guards() -> None:
-    aliased = io.StringIO(json.dumps({"workspacePaths": [None, "/work/project"], "fullyIdle": True}))
-    assert notification_workspace(aliased, "agy") == "/work/project"
-    assert notification_workspace(io.StringIO(json.dumps({"cwd": "/work/direct"})), "claude") == "/work/direct"
-    assert notification_workspace(io.StringIO(""), "copilot") is None
-    assert notification_workspace(io.StringIO('{"stop_hook_active":true}'), "claude") is None
-    assert notification_workspace(io.StringIO('{"cwd":"/work"}'), "agy") is None
-
-    with pytest.raises(DotError, match="expected a JSON object"):
-        notification_workspace(io.StringIO("[]"), "copilot")
-    with pytest.raises(DotError, match="fullyIdle must be a boolean"):
-        notification_workspace(io.StringIO('{"fullyIdle":"yes"}'), "agy")
 
 
 def test_sync_failures_name_the_agent_operation_and_redact_session_ids(

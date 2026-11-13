@@ -6,7 +6,6 @@ from collections.abc import Iterator
 
 import pytest
 
-import fmind_dot.hooks
 from tests.fakes import native_binary
 
 # Tests import skill scripts from skills/, which harnesses read through ~/.agents/skills:
@@ -60,12 +59,6 @@ def isolated_home(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatc
     """
     if request.node.get_closest_marker("real_home") is None:
         monkeypatch.setenv("HOME", str(request.getfixturevalue("tmp_path")))
-
-
-@pytest.fixture(autouse=True)
-def interactive_agy(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A suite launched by a headless agy run must still exercise agy notifications."""
-    monkeypatch.setattr(fmind_dot.hooks, "agy_print_mode", lambda *_, **__: False)
 
 
 @pytest.fixture(autouse=True)

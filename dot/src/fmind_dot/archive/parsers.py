@@ -62,8 +62,6 @@ class AgentAdapter:
     database: bool
     parser: SessionParser
     enumerate: SessionEnumerator
-    # Desktop notification title; hosts brand themselves differently from their CLI name.
-    notify_label: str = ""
     # The CWD comes from metadata outside the transcript file, so it joins the source signature.
     external_cwd: bool = False
 
@@ -848,9 +846,9 @@ def _enumerate_pi(root: Path) -> list[SessionCandidate]:
 
 
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
-    "agy": AgentAdapter("agy", "agy", False, parse_agy_session, _enumerate_agy, "Antigravity", external_cwd=True),
-    "claude": AgentAdapter("claude", "Claude", False, parse_claude_session, _enumerate_claude, "Claude Code"),
-    "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session, _enumerate_copilot, "Copilot"),
-    "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session, _enumerate_opencode, "OpenCode"),
-    "pi": AgentAdapter("pi", "Pi", False, parse_pi_session, _enumerate_pi, "Pi"),
+    "agy": AgentAdapter("agy", "agy", False, parse_agy_session, _enumerate_agy, external_cwd=True),
+    "claude": AgentAdapter("claude", "Claude", False, parse_claude_session, _enumerate_claude),
+    "copilot": AgentAdapter("copilot", "Copilot", True, parse_copilot_session, _enumerate_copilot),
+    "opencode": AgentAdapter("opencode", "OpenCode", True, parse_opencode_session, _enumerate_opencode),
+    "pi": AgentAdapter("pi", "Pi", False, parse_pi_session, _enumerate_pi),
 }

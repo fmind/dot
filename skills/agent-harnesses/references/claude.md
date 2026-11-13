@@ -5,14 +5,14 @@ description: "Claude Code sessions, managed settings, headless flags, hooks, and
 
 # Claude Code (`claude`)
 
-Operate Claude Code alongside `fmind/dot` managed configuration; [agent-project](../../agent-project/SKILL.md) owns repo bridges, [mcp-setup](mcp-setup.md) owns MCP servers, and [notifications](notifications.md) owns turn alerts.
+Operate Claude Code alongside `fmind/dot` managed configuration; [agent-project](../../agent-project/SKILL.md) owns repo bridges, [mcp-setup](mcp-setup.md) owns MCP servers, and [notifications](notifications.md) owns turn attention and preserved hooks.
 
 ## Managed Setup (`fmind/dot`)
 
 `private_dot_claude/modify_private_settings.json` merges `~/.claude/settings.json`:
 
 - **Seeded defaults** (changeable via `/model` and `/effort`): `model: "fable"`, `fallbackModel: ["sonnet"]`, and `effortLevel: "high"` on `claude-fable-5-1`, `claude-fable-5-2`, and `claude-opus-5-5`.
-- **Managed keys** (re-applied on `chezmoi apply --force`): `permissions.defaultMode: "bypassPermissions"`, `editorMode: "vim"`, `theme: "light-ansi"`, `tui: "fullscreen"`, `worktree.baseRef: "head"`, `respectGitignore: false`, `autoContinueAtUsageLimit: true`, `remoteControlAtStartup: true`, empty commit/PR attribution, disabled `claude.ai` connectors/plugins/skills sync, non-interactive CLI env (`GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED=1`, `CLOUDSDK_CORE_DISABLE_PROMPTS=1`), and `dot` `Notification` hooks (preserving host `SessionStart` hooks).
+- **Managed keys** (re-applied on `chezmoi apply --force`): `permissions.defaultMode: "bypassPermissions"`, `editorMode: "vim"`, `theme: "light-ansi"`, `tui: "fullscreen"`, `worktree.baseRef: "head"`, `respectGitignore: false`, `autoContinueAtUsageLimit: true`, `remoteControlAtStartup: true`, `agentPushNotifEnabled: true`, `inputNeededNotifEnabled: true`, empty commit/PR attribution, disabled `claude.ai` connectors/plugins/skills sync, and non-interactive CLI env (`GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED=1`, `CLOUDSDK_CORE_DISABLE_PROMPTS=1`), preserving host `SessionStart` hooks and retiring legacy `Notification` turn hooks.
 - **Global links & trust**: `~/.claude/CLAUDE.md` → `~/.agents/AGENTS.md`, `~/.claude/skills` → `~/.agents/skills`; `dot trust` manages workspace trust and `permissions.additionalDirectories`.
 
 ## Workflow

@@ -1,20 +1,5 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/hooks/
-       `/hooks` shares this file; each top-level key is an independent named hook, so merging
-       keeps host hooks while enforcing managed ones. */ -}}
-{{- $dot := includeTemplate "dot-bin.tmpl" . -}}
-{{- $managedConfig := fromJson (replace "@dot@" $dot `
-{
-  "notify": {
-    "Stop": [
-      {
-        "type": "command",
-        "command": "@dot@ agent hook notify agy stop",
-        "timeout": 30
-      }
-    ]
-  }
-}
-`) -}}
-{{- /* Replace managed named hooks whole so dropped events do not linger; host hooks stay untouched. */ -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "replace" (list "notify")) -}}
+       `/hooks` and host-installed hooks (such as `brain-context`) share this file; retire the
+       legacy `notify` entry while keeping host hooks untouched. */ -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" dict "replace" (list "notify")) -}}

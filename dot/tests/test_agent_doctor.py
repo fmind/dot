@@ -1,4 +1,4 @@
-"""Agent doctor: notify hooks, session sync, and archive readability per agent."""
+"""Agent doctor: discovery, session sync, and archive readability per agent."""
 
 from __future__ import annotations
 
@@ -26,42 +26,9 @@ def _text(stream: IO[str]) -> str:
     return stream.getvalue()
 
 
-NOTIFY = {
-    "agy": ["stop"],
-    "claude": ["needs-input", "ready"],
-}
-
-
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-
-
-def _configure_hooks(home: Path, binary: str = "dot") -> None:
-    def commands(agent: str) -> list[str]:
-        return [f"{binary} agent hook notify {agent} {event}" for event in NOTIFY[agent]]
-
-    _write(
-        home / ".gemini/config/hooks.json",
-        json.dumps({"notify": {"Stop": [{"type": "command", "command": commands("agy")[0]}]}}),
-    )
-    _write(
-        home / ".claude/settings.json",
-        json.dumps(
-            {
-                "hooks": {
-                    "Notification": [
-                        {"hooks": [{"type": "command", "command": command} for command in commands("claude")]}
-                    ],
-                }
-            }
-        ),
-    )
-    _write(home / ".copilot/settings.json", json.dumps({"notifications": True}))
-    _write(
-        home / ".pi/agent/extensions/dot-notify.ts",
-        f'spawn("{binary}", ["agent", "hook", "notify", "pi", "stop"], {{}});\n',
-    )
 
 
 def _configure_discovery(home: Path) -> None:
@@ -85,7 +52,6 @@ def _configure_discovery(home: Path) -> None:
 def _state(monkeypatch: pytest.MonkeyPatch, home: Path) -> State:
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "1")
-    _configure_hooks(home)
     _configure_discovery(home)
     state = State(stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO())
     for agent in state.config.agent.sources:
@@ -103,7 +69,7 @@ def _claude_source(state: State, session_id: str = "fixture-id") -> Path:
     return source
 
 
-def test_doctor_reports_three_checks_per_agent_without_content(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_doctor_reports_checks_per_agent_without_content(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     state = _state(monkeypatch, tmp_path)
     _claude_source(state)
     sync_sessions(state, agent="claude")
@@ -111,11 +77,9 @@ def test_doctor_reports_three_checks_per_agent_without_content(monkeypatch: pyte
     results = {result.agent: result for result in run_agent_doctor(state)}
 
     assert list(results) == ["agy", "claude", "copilot", "opencode", "pi"]
-    assert results["opencode"].hooks == "not-required"
-    assert results["pi"].hooks == "configured"
     claude = results["claude"]
-    assert (claude.hooks, claude.source, claude.archive, claude.sessions, claude.sync_failures) == (
-        "configured",
+    assert (claude.discovery, claude.source, claude.archive, claude.sessions, claude.sync_failures) == (
+        "ok",
         "present",
         "readable",
         1,
@@ -136,107 +100,8 @@ def test_doctor_asks_for_sync_when_a_present_source_was_never_synced(
     with pytest.raises(DotError, match="unhealthy"):
         run_agent_doctor(state, agent="claude")
 
-    assert "✗ claude: hooks=configured source=present last_sync=never" in _text(state.stdout)
+    assert "✗ claude: source=present last_sync=never" in _text(state.stdout)
     assert "next: dot agent session sync --agent claude" in _text(state.stdout)
-
-
-@pytest.mark.parametrize(
-    ("content", "status"),
-    [
-        (None, "absent"),
-        ("{", "malformed"),
-        (json.dumps({"hooks": {}}), "missing:needs-input,ready"),
-        (json.dumps({"hooks": ["dot agent hook notify claude stop"]}), "missing:needs-input,ready"),
-        (json.dumps({"hooks": ["/usr/bin/graphviz agent hook notify claude stop"]}), "missing:needs-input,ready"),
-    ],
-)
-def test_doctor_reads_notify_hooks_statically(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, content: str | None, status: str
-) -> None:
-    state = _state(monkeypatch, tmp_path)
-    settings = tmp_path / ".claude/settings.json"
-    if content is None:
-        settings.unlink()
-    else:
-        settings.write_text(content)
-
-    [result] = gather_agent_doctor(state, agent="claude")
-
-    assert result.hooks == status
-    assert not result.healthy
-    assert result.next.startswith("chezmoi diff ~/.claude/settings.json")
-
-
-@pytest.mark.parametrize(("content", "status"), [(None, "absent"), ("export default function () {}\n", "malformed")])
-def test_doctor_requires_the_pi_notify_extension(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, content: str | None, status: str
-) -> None:
-    state = _state(monkeypatch, tmp_path)
-    extension = tmp_path / ".pi/agent/extensions/dot-notify.ts"
-    if content is None:
-        extension.unlink()
-    else:
-        extension.write_text(content, encoding="utf-8")
-
-    [result] = gather_agent_doctor(state, agent="pi")
-
-    assert result.hooks == status
-    assert not result.healthy
-    assert result.next.startswith("chezmoi diff ~/.pi/agent/extensions/dot-notify.ts")
-
-
-def test_doctor_accepts_an_absolute_dot_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    state = _state(monkeypatch, tmp_path)
-    _configure_hooks(tmp_path, binary=str(tmp_path / ".local/bin/dot"))
-
-    assert {result.hooks for result in gather_agent_doctor(state)} == {"configured", "not-required"}
-
-
-@pytest.mark.parametrize("problem", ["disabled", "wrong-event", "metadata-only", "wrong-type"])
-def test_doctor_rejects_inactive_claude_hooks(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, problem: str) -> None:
-    _state(monkeypatch, tmp_path)
-    path = tmp_path / ".claude/settings.json"
-    config = json.loads(path.read_text())
-    if problem == "disabled":
-        config["disableAllHooks"] = True
-    elif problem == "wrong-event":
-        config["hooks"]["SessionStart"] = config["hooks"].pop("Notification")
-    elif problem == "metadata-only":
-        config["description"] = config.pop("hooks")
-    else:
-        config["hooks"]["Notification"][0]["hooks"][1]["type"] = "prompt"
-    path.write_text(json.dumps(config))
-
-    outcome = CliRunner().invoke(app, ["agent", "doctor", "--agent", "claude", "--json"])
-
-    assert outcome.exit_code == 1
-    document = json.loads(outcome.stdout)
-    assert document["passed"] is False
-    details = document["checks"][0]["details"]
-    assert details["healthy"] is False
-    assert details["hooks"] == (
-        "disabled"
-        if problem == "disabled"
-        else {
-            "wrong-event": "missing:needs-input,ready",
-            "metadata-only": "missing:needs-input,ready",
-            "wrong-type": "missing:ready",
-        }[problem]
-    )
-    if problem == "disabled":
-        assert "disableAllHooks" in details["next"]
-
-
-@pytest.mark.parametrize("value", ["false", '"true"', "1"], ids=["disabled", "string", "number"])
-def test_doctor_requires_native_attention_notifications(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
-) -> None:
-    state = _state(monkeypatch, tmp_path)
-    (tmp_path / ".copilot/settings.json").write_text(f'{{"notifications": {value}}}')
-    [result] = gather_agent_doctor(state, agent="copilot")
-    assert result.hooks == "disabled"
-    assert not result.healthy
-    assert "notifications" in result.next
 
 
 def test_doctor_reports_unreadable_archives_and_failed_syncs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -305,7 +170,7 @@ def test_doctor_json_is_a_diagnostic_envelope(monkeypatch: pytest.MonkeyPatch, t
     assert document["schema"] == "dot.diagnostics/v1"
     assert document["passed"] is True
     assert [check["name"] for check in document["checks"]] == ["agy"]
-    assert document["checks"][0]["details"]["hooks"] == "configured"
+    assert document["checks"][0]["details"]["discovery"] == "ok"
 
 
 def test_doctor_cli_keeps_only_json_and_agent_options() -> None:
@@ -403,15 +268,6 @@ def test_doctor_reports_a_sync_by_another_parser_as_stale(
     assert result.next == ("dot agent session sync --agent agy" if source_present else "")
 
 
-def test_doctor_reports_deeply_nested_settings_as_malformed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    state = _state(monkeypatch, tmp_path)
-    (tmp_path / ".copilot/settings.json").write_text("[" * 1_000_000 + "]" * 1_000_000)
-
-    (result,) = gather_agent_doctor(state, agent="copilot")
-
-    assert result.hooks == "malformed"
-
-
 def _sync_state(
     agent: str, name: str, synced_at: str, *, failed: int = 0, retained: int = 0, parser: str = SESSION_PARSER_VERSION
 ) -> None:
@@ -488,6 +344,5 @@ def test_doctor_notes_opencode_duplicate_skills_without_failing(
     assert "  note: this environment lacks OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in _text(state.stdout)
 
 
-def test_every_agent_adapter_has_one_host_deployment_and_notification_label() -> None:
+def test_every_agent_adapter_has_one_host_deployment() -> None:
     assert list(HOSTS) == list(AGENT_ADAPTERS)
-    assert all(adapter.notify_label for adapter in AGENT_ADAPTERS.values())

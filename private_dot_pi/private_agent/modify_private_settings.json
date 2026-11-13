@@ -2,7 +2,7 @@
 {{- /* Docs: https://pi.dev/docs/latest/settings
        Persona (symlinked AGENTS.md) and skills (~/.agents/skills) load natively; Pi has no tool
        prompts, and `dot trust` owns trust.json. Provider, model, and thinking level seed missing keys
-       only (Agent Platform via ADC with dynamic GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT; dot-notify.ts
+       only (Agent Platform via ADC with dynamic GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT; google-vertex.ts
        defaults GOOGLE_CLOUD_LOCATION to `global`, else Pi picks the first credentialed provider).
        enableInstallTelemetry drops attribution headers, paired with PI_TELEMETRY=0 and PI_SKIP_VERSION_CHECK=1 in mise. */ -}}
 {{- $defaults := dict "defaultProvider" "google-vertex" "defaultModel" "gemini-4-argon" "defaultThinkingLevel" "high" -}}

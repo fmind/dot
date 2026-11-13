@@ -22,7 +22,7 @@
   "defaultPermissionMode": "allow-all",
   "editorMode": "vim",
   "includeCoAuthoredBy": false,
-  "notifications": true,
+  "notifications": false,
   "remoteExport": false,
   "remoteSessions": false,
   "respectGitignore": false,

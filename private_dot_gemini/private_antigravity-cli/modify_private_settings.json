@@ -1,8 +1,8 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/settings?tab=cli
        Host owns account/model choices after setup; `dot trust` owns trustedWorkspaces.
-       Native notifications stay unset (off by default; agy omits false on save, and its OSC 9
-       alert doubled dot's notify hook in Ghostty and never shows in ttyd). */ -}}
+       Native notifications stay unset (off by default; Zellij's attention inbox reads `agy`'s
+       OSC 7501 status directly without forwarding OS popups). */ -}}
 {{- $defaults := dict "pickerGrouping" "grouped" -}}
 {{- $managedConfig := fromJson `
 {

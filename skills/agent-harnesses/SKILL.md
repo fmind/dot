@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Agent Harnesses
@@ -27,7 +27,7 @@ Operate the selected coding-agent host without mixing another host's settings, p
 - [claude](references/claude.md): Claude Code sessions, managed settings, headless flags, hooks, and background tasks.
 - [copilot](references/copilot/GUIDE.md): Copilot sessions and extensions.
 - [mcp-setup](references/mcp-setup.md): Add, vet, or fix MCP servers across coding hosts and verify live access.
-- [notifications](references/notifications.md): Diagnose or change managed turn notifications and brain session-context hooks per host.
+- [notifications](references/notifications.md): Configure Zellij OSC 7501 turn attention, mobile push settings, and brain session-context hooks.
 - [opencode](references/opencode/GUIDE.md): OpenCode sessions and provider configuration.
 - [pi](references/pi.md): Pi sessions, providers, project trust, extensions, and headless runs.
 

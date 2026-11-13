@@ -2,7 +2,6 @@
 
 import argparse
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from fmind_dot.agent_doctor import run_agent_doctor
@@ -15,7 +14,7 @@ from fmind_dot.archive.query import (
 )
 from fmind_dot.archive.statistics import prompt_statistics
 from fmind_dot.archive.store import session_bundle_path
-from fmind_dot.archive.sync import bounded_failure, sync_sessions
+from fmind_dot.archive.sync import sync_sessions
 from fmind_dot.archive.usage import (
     RETIRED_AGENTS,
     USAGE_TIME_BASIS,
@@ -27,10 +26,8 @@ from fmind_dot.archive.usage import (
     write_usage_stats,
 )
 from fmind_dot.command import Parser, add_json, non_negative
-from fmind_dot.config import NotifyConfig
 from fmind_dot.context_budget import register as register_context
 from fmind_dot.errors import DotError, UsageError
-from fmind_dot.hooks import build_notification, notification_workspace, send_notification, zellij_pane
 from fmind_dot.reporting import write_json, write_report_line
 from fmind_dot.state import State
 
@@ -179,28 +176,6 @@ def _print_prompt_statistics(state: State, document: dict[str, Any]) -> None:
             f"Excluded sessions: {document['excluded_sessions']:,} · Invalid timestamps: {document['invalid_timestamps']:,}"
         )
     write(f"Prompt coverage: {'complete' if document['complete'] else 'INCOMPLETE'} within the selected archive.")
-
-
-def _hook_notify(state: State, args: argparse.Namespace) -> None:
-    agent, event = args.agent, args.event
-    try:
-        # Consume the hook payload so re-entrant and mid-turn events remain quiet.
-        workspace = notification_workspace(state.stdin, agent, event, runner=state.runner)
-        if workspace is None:
-            return
-        cwd = Path(workspace) if workspace else None
-        try:
-            settings = state.config.agent.notify
-        except (OSError, ValueError, DotError) as error:
-            # A broken config must not silence the turn alert; it only loses its overrides.
-            state.stderr.write(f"agent hook notify used default settings: {bounded_failure(error)}\n")
-            settings = NotifyConfig()
-        pane = zellij_pane(state.runner) if settings.tab or settings.title else None
-        notification = build_notification(agent, event, cwd, pane=pane, tab=settings.tab, title=settings.title)
-        send_notification(state, notification, sound=settings.sound)
-    except (OSError, ValueError, DotError) as error:
-        # Notifications are best effort: a failing hook would surface as a failed agent turn.
-        state.stderr.write(f"agent hook notify failed: {bounded_failure(error)}\n")
 
 
 def _print_session_usage(state: State, records: list[UsageRecord]) -> None:
@@ -391,16 +366,11 @@ def register(commands: Parser) -> None:
     register_context(group)
     doctor = group.command(
         "doctor",
-        "Check discovery, notify hooks, session sync, and archive readability per agent",
+        "Check discovery, session sync, and archive readability per agent",
         _agent_doctor,
         epilog="Exit 1 when any agent is unhealthy; each failing agent names its next command.",
     )
     doctor.add_argument("-a", "--agent", choices=tuple(AGENT_ADAPTERS), default="", help="Inspect only one agent")
     add_json(doctor)
-    # Native harness hooks call this; it stays out of everyday help and never needs a valid dot.yaml.
-    hook = group.group("hook", "Run native agent notification hooks", hidden=True)
-    notify = hook.command("notify", "Send a desktop notification for a native agent event", _hook_notify, config=False)
-    notify.add_argument("agent", help="Agent adapter name")
-    notify.add_argument("event", help="Native hook event name")
     _register_session(group)
     _register_stats(group)

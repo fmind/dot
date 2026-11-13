@@ -16,14 +16,6 @@ from tests.chezmoi_helpers import chezmoi
 from tests.fakes import ROOT, native_binary
 
 
-def _strings(value: object) -> list[str]:
-    if isinstance(value, dict):
-        return [item for child in value.values() for item in _strings(child)]
-    if isinstance(value, list):
-        return [item for child in value for item in _strings(child)]
-    return [value] if isinstance(value, str) else []
-
-
 class HarnessConfigTests(unittest.TestCase):
     temp: tempfile.TemporaryDirectory[str]
     home: Path
@@ -118,24 +110,27 @@ class HarnessConfigTests(unittest.TestCase):
         rendered = self.render("dot_config/git/personal.gitconfig.tmpl", "")
         assert 'email = "github@fmind.dev"' in rendered
 
-    def test_claude_preserves_host_session_start_hooks_while_replacing_notifications(self):
+    def test_claude_preserves_host_session_start_hooks_while_retiring_notifications(self):
         template = "private_dot_claude/modify_private_settings.json"
         fresh = json.loads(self.render(template, ""))
-        assert "SessionStart" not in fresh["hooks"]
+        assert "hooks" not in fresh
+        assert fresh["agentPushNotifEnabled"] is True
+        assert fresh["inputNeededNotifEnabled"] is True
         host_session = [{"hooks": [{"type": "command", "command": "/synthetic/host", "timeout": 30}]}]
         stale_notify = [{"hooks": [{"type": "command", "command": "old"}]}]
+        only_notify = json.loads(self.render(template, json.dumps({"hooks": {"Notification": stale_notify}})))
+        assert "hooks" not in only_notify
         rendered = self.render(
             template,
             json.dumps({"hooks": {"SessionStart": host_session, "Notification": stale_notify}}),
         )
         hooks = json.loads(rendered)["hooks"]
-        assert hooks["SessionStart"] == host_session
-        assert hooks["Notification"] != stale_notify
+        assert hooks == {"SessionStart": host_session}
         assert self.render(template, rendered) == rendered
 
-    def test_agy_replaces_managed_notify_hook_while_preserving_host_hooks(self):
+    def test_agy_retires_legacy_notify_hook_while_preserving_host_hooks(self):
         template = "private_dot_gemini/private_config/modify_private_hooks.json"
-        assert "brain-context" not in json.loads(self.render(template, ""))
+        assert json.loads(self.render(template, "")) == {}
         host = {
             "brain-context": {"SessionStart": [{"type": "command", "command": "/synthetic/brain", "timeout": 30}]},
             "notify": {"Stop": [], "PreToolUse": []},
@@ -143,9 +138,7 @@ class HarnessConfigTests(unittest.TestCase):
         }
         rendered = self.render(template, json.dumps(host))
         upgraded = json.loads(rendered)
-        assert upgraded["brain-context"] == host["brain-context"]
-        assert list(upgraded["notify"]) == ["Stop"]
-        assert upgraded["custom"] == {"Stop": []}
+        assert upgraded == {"brain-context": host["brain-context"], "custom": {"Stop": []}}
         assert self.render(template, rendered) == rendered
 
     def test_claude_merge_preserves_host_environment_and_permissions(self):
@@ -245,7 +238,7 @@ class HarnessConfigTests(unittest.TestCase):
         data = json.loads(rendered)
         assert data["$schema"] == "https://opencode.ai/v2/cli.json"
         assert data["theme"] == {"name": "fmind", "mode": "dark"}
-        assert data["attention"] == {"notifications": True, "sound": False}
+        assert data["attention"] == {"notifications": False, "sound": False}
         assert data["keybinds"] == original["keybinds"]
         assert data["scroll"] == original["scroll"]
         assert self.render(template, rendered) == rendered
@@ -272,7 +265,7 @@ class HarnessConfigTests(unittest.TestCase):
             "model": "account-model",
             "effortLevel": "medium",
             "banner": "always",
-            "notifications": False,
+            "notifications": True,
             "askUser": False,
             "autoUpdate": True,
             "includeCoAuthoredBy": True,
@@ -286,7 +279,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["banner"] == original["banner"]
         assert data["trusted_folders"] == []
         assert data["customOption"] is False
-        assert data["notifications"] is True
+        assert data["notifications"] is False
         assert data["askUser"] is True
         assert data["autoUpdate"] is False
         assert data["includeCoAuthoredBy"] is False
@@ -526,53 +519,29 @@ class HarnessConfigTests(unittest.TestCase):
                     assert data["ai"] == {"mode": "manual"}
                 assert self.render(template, rendered) == rendered
 
-    def test_hooks_only_notify(self):
-        # Hooks name the CLI absolutely: a harness may start without ~/.local/bin on PATH.
-        dot = str(self.home / ".local/bin/dot")
-
-        claude_template = "private_dot_claude/modify_private_settings.json"
-        claude = json.loads(self.render(claude_template, "{}"))["hooks"]
-        assert set(claude) == {"Notification"}
-        assert claude["Notification"][1]["matcher"] == "^idle_prompt$"
-        assert claude["Notification"][1]["hooks"][0]["command"] == f"{dot} agent hook notify claude ready"
-        assert claude["Notification"][0]["matcher"] == (
-            "^(permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input|quota_auto_resume_stale|quota_auto_resume_disabled)$"
-        )
-        assert [hook["command"] for hook in claude["Notification"][0]["hooks"]] == [
-            f"{dot} agent hook notify claude needs-input"
-        ]
-
-        agy = json.loads(self.render("private_dot_gemini/private_config/modify_private_hooks.json", ""))
-        assert set(agy) == {"notify"}
-        # agy's /hooks writes named hooks to the same file; apply keeps them and enforces notify.
-        user_hook = {"type": "command", "command": "echo user", "timeout": 5}
-        merged = json.loads(
-            self.render(
-                "private_dot_gemini/private_config/modify_private_hooks.json",
-                json.dumps({"custom": {"Stop": [user_hook]}, "notify": {"Stop": []}}),
-            )
-        )
-        assert merged["custom"] == {"Stop": [user_hook]}
-        assert merged["notify"] == agy["notify"]
-
-        # Every hook notifies and names the CLI absolutely; none relies on PATH order.
-        commands = [value for config in (claude, agy) for value in _strings(config) if " agent hook " in value]
-        assert len(commands) == 3
-        assert all(command.startswith(f"{dot} agent hook notify ") for command in commands)
-
-        # Pi has no command hooks: its managed extension spawns the same notifier without a shell.
-        extension = chezmoi(
-            self.source,
-            "execute-template",
-            "--file",
-            str(ROOT / "private_dot_pi/private_agent/extensions/dot-notify.ts.tmpl"),
-            config=self.config,
-            env=dict(os.environ, HOME=str(self.home)),
-        )
-        assert f'spawn("{dot}", ["agent", "hook", "notify", "pi", "stop"]' in extension
+    def test_pi_extension_sets_google_vertex_location_without_notify_hooks(self):
+        extension = (ROOT / "private_dot_pi/private_agent/extensions/google-vertex.ts").read_text(encoding="utf-8")
         assert 'pi.on("session_start"' in extension
-        assert 'pi.on("agent_settled"' in extension
         assert 'process.env.GOOGLE_CLOUD_LOCATION = "global"' in extension
+        assert "agent_settled" not in extension
+        assert "node:child_process" not in extension
+
+    def test_zellij_config_uses_silent_attention_mode_and_validates_natively(self):
+        config_path = ROOT / "dot_config/zellij/config.kdl"
+        content = config_path.read_text(encoding="utf-8")
+        assert 'host_notification_protocol "off"' in content
+        assert 'bind "Alt Shift i" { ToggleSessionCard; }' in content
+        zellij = native_binary("zellij")
+        if zellij is None:
+            pytest.skip("Zellij native validation requires the workstation tool")
+        result = subprocess.run(
+            [str(zellij), "-c", str(config_path), "setup", "--check"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        )
+        assert "[CONFIG FILE]: Well defined." in result.stdout
 
     def test_pi_dynamic_google_cloud_project_resolves_vertex_without_static_project(self):
         pi = native_binary("pi")
@@ -583,15 +552,9 @@ class HarnessConfigTests(unittest.TestCase):
         (agent_dir / "settings.json").write_text(
             self.render("private_dot_pi/private_agent/modify_private_settings.json", '{"retry": {"enabled": false}}')
         )
-        (agent_dir / "extensions/dot-notify.ts").write_text(
-            chezmoi(
-                self.source,
-                "execute-template",
-                "--file",
-                str(ROOT / "private_dot_pi/private_agent/extensions/dot-notify.ts.tmpl"),
-                config=self.config,
-                env=dict(os.environ, HOME=str(self.home)),
-            )
+        shutil.copyfile(
+            ROOT / "private_dot_pi/private_agent/extensions/google-vertex.ts",
+            agent_dir / "extensions/google-vertex.ts",
         )
         adc = self.home / "adc.json"
         adc.write_text("{}")
@@ -771,13 +734,3 @@ class HarnessConfigTests(unittest.TestCase):
         assert (merged["lastChangelogVersion"], merged["packages"]) == ("1.5.0", ["npm:synthetic-package"])
         rendered = self.render(template, json.dumps(merged, indent=2) + "\n")
         assert rendered == json.dumps(merged, indent=2) + "\n"
-
-    def test_hook_commands_reject_home_directories_that_need_shell_quoting(self):
-        self.home = self.home / "home with spaces"
-        self.home.mkdir()
-        for template in [
-            "private_dot_claude/modify_private_settings.json",
-            "private_dot_gemini/private_config/modify_private_hooks.json",
-        ]:
-            with self.subTest(template=template), pytest.raises(RuntimeError, match="not shell-safe"):
-                self.render(template, "")

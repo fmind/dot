@@ -161,6 +161,7 @@ def test_config_document_requires_a_mapping(tmp_path: Path) -> None:
         "agent:\n  sources:\n    claude: relative/projects\n",
         "agent:\n  sources:\n    codex: ~/.codex/sessions\n",
         "agent:\n  sources:\n    claud: ~/.claude/projects\n",
+        "agent:\n  notify:\n    sound: false\n",
         "doctor:\n  secrets:\n    - path: relative/key.txt\n",
     ],
 )

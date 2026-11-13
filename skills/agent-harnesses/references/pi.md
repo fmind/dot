@@ -12,7 +12,7 @@ Operate Pi (`pi`), a minimal harness (`read`, `bash`, `edit`, `write`) with no a
 Follow the shared [workflow](../SKILL.md#workflow); host specifics:
 
 1. **Read bundled docs first**: inspect `"$(mise where pi)/pi/docs"` and `pi/examples/extensions` before web docs, since minors change flags, settings, and session formats.
-1. **Resolve the provider** via [model-providers](../../model-providers/SKILL.md). Managed default is `google-vertex` (ADC, high thinking): set `GOOGLE_CLOUD_PROJECT` (or `GCLOUD_PROJECT`) per shell or project (`dot-notify.ts` defaults `GOOGLE_CLOUD_LOCATION` to `global` when unset; pass `GOOGLE_CLOUD_LOCATION=global` explicitly for `pi auth check --provider google-vertex --json`, which skips extensions). `/login` is user-owned; credentials resolve as `--api-key` > `auth.json` > `models.json` `apiKey` > env.
+1. **Resolve the provider** via [model-providers](../../model-providers/SKILL.md). Managed default is `google-vertex` (ADC, high thinking): set `GOOGLE_CLOUD_PROJECT` (or `GCLOUD_PROJECT`) per shell or project (`google-vertex.ts` defaults `GOOGLE_CLOUD_LOCATION` to `global` when unset; pass `GOOGLE_CLOUD_LOCATION=global` explicitly for `pi auth check --provider google-vertex --json`, which skips extensions). `/login` is user-owned; credentials resolve as `--api-key` > `auth.json` > `models.json` `apiKey` > env.
 1. **Close stdin on headless runs**: `pi -p` blocks on open stdin; append `</dev/null`:
 
    ```bash
@@ -30,7 +30,7 @@ Follow the shared [workflow](../SKILL.md#workflow); host specifics:
 User state lives in `~/.pi/agent/` (`PI_CODING_AGENT_DIR`): `settings.json` (rewritten by Pi while preserving unknown keys; edit `private_dot_pi/` for managed keys, see [settings](https://pi.dev/docs/latest/settings)), `auth.json`, `trust.json`, `mcp.json`, `models.json`, `extensions/`, and `sessions/`.
 
 - **Project trust gates code, not context files**: trust enables `.pi/settings.json`, `.pi/mcp.json`, `.pi/{extensions,skills,prompts,themes}`, `.pi` system prompts, and `.agents/skills` for the folder and all subdirectories—`dot trust` writes repo roots only; never trust a parent directory holding third-party clones.
-- **Extensions run in-process**: TypeScript in `~/.pi/agent/extensions/`, trusted `.pi/extensions/`, and `pi install <source>` packages run with full permissions at startup; vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md). Managed `dot-notify.ts` handles [notifications](notifications.md).
+- **Extensions run in-process**: TypeScript in `~/.pi/agent/extensions/`, trusted `.pi/extensions/`, and `pi install <source>` packages run with full permissions at startup; vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md). Managed `google-vertex.ts` resolves dynamic Vertex location and startup model/thinking state.
 - **Built-in MCP**: `pi mcp add`/`list` and `~/.pi/agent/mcp.json` (`mcpServers`, stdio or streamable HTTP; `--no-mcp` disables per run) per [mcp-setup](mcp-setup.md).
 - **JSONL session trees**: `~/.pi/agent/sessions/--<cwd>--/<timestamp>_<session-id>.jsonl` stores branches; `/fork` and `/clone` copy prior entries, which `dot agent session sync` deduplicates with the parent.
 

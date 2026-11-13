@@ -380,12 +380,14 @@ def test_skills_guide_can_be_promoted_with_its_owned_resources(tmp_path: Path) -
 
 def test_python_only_owned_sources() -> None:
     retired_suffixes = {".go", ".js", ".jsx", ".ts", ".tsx"}
+    # Pi loads host extensions only as TypeScript modules in ~/.pi/agent/extensions/.
+    host_extensions = {"private_dot_pi/private_agent/extensions/google-vertex.ts"}
     owned = subprocess.check_output(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, text=True, timeout=30
     ).splitlines()
-    active = [path for path in owned if Path(path).suffix in retired_suffixes and (ROOT / path).exists()]
+    active = {path for path in owned if Path(path).suffix in retired_suffixes and (ROOT / path).exists()}
 
-    assert active == []
+    assert active == host_extensions
 
 
 @pytest.mark.parametrize("fetched", [False, True])
