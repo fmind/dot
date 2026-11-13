@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [16.0.0] - 2026-11-13
+
+### 🚀 Features
+
+- [**breaking**] Replace desktop turn notifications with Zellij attention
+
 ## [15.12.0] - 2026-11-12
 
 ### 🚀 Features
