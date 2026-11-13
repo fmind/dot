@@ -9,7 +9,7 @@ Hand-authored, diffable `<svg>` files for geometric logos/marks (`96–128 px`),
 
 ## Workflow
 
-1. **Pick one concept**: loop, before/after, mapping, boundary, or layers—at most 3–7 items per group (split instead of shrinking); READMEs earn a hero plus one SVG per core concept.
+1. **Pick one concept**: loop, before/after, mapping, boundary, or layers—at most 3–7 items per group (split instead of shrinking; one diagram per core concept).
 1. **Apply the brand**: use customer branding when applicable (ask if missing; never guess or mix brands), else `~/.agents/DESIGN.md`.
 1. **Copy [illustration.svg](templates/illustration.svg)**: place in `docs/assets/<concept>.svg` (or dot-prefixed `.github/assets/` in chezmoi repos). Its `<style>` maps `DESIGN.md` roles (`chip`, `box`, `tile`, `config`, `err`, `step`, `flow`, `arrowhead`, `mask`, `label`, `muted`) inside a `#FFFFFF` card with `#DADCE0` border for dark-mode legibility; swap only hex values and font names for customer brands, and preserve the 960px `viewBox` (600px for Google Docs per [draft-doc](../../../draft-doc/SKILL.md)), `role="img"`, `<title>`, and `<desc>`.
 1. **Compose on the grid**: columns at `x=32, 320, 704` (64px gutters) or even 2/3-column splits, 34px chips stepping by 42, numbered flow badges, sentence-case headings, code font only for commands/paths/fields, real source names, synthetic examples, and zero invented metrics.

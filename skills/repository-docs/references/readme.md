@@ -5,10 +5,10 @@ Answer three questions fast: **Is this for me? What will I get? How do I try it?
 ## Workflow
 
 1. **Inspect**: check manifests, entry points, supported platforms, install paths, and public anchors; separate shipped behavior from roadmap.
-1. **Structure the journey** (adapt [README starter](../templates/README.md); use [README assets](readme-assets.md) for logos, SVGs, and badges):
-   - **Opening**: SVG logo, name, 1-sentence purpose, verified badges, short nav (**Try it** + 3–4 links), hero SVG.
+1. **Structure the journey** (adapt [README starter](../templates/README.md); use [README assets](readme-assets.md) for logos, illustrations, and badges):
+   - **Opening**: SVG logo, name, 1-sentence purpose, verified badges, short nav (**Try it** + 3–4 links), hero illustration (Typst 2× PNG + `.typ` or SVG).
    - **Result & Quickstart** (mergeable for small CLIs/libs): real input → output example, prerequisites → single recommended install → minimal config → first command → observed output (keep contributor setup separate).
-   - **Why / How it works / Fit & limits / Next steps**: 3–5 concrete benefits, brief mechanism + SVG or layout, honest platform/cost/data limits, and task-oriented doc links.
+   - **Why / How it works / Fit & limits / Next steps**: 3–5 concrete benefits, brief mechanism + diagram or layout, honest platform/cost/data limits, and task-oriented doc links.
 1. **Verify**: execute the install and quickstart in a clean environment with synthetic data, then check light/dark rendering at desktop and mobile widths and confirm every badge/link resolves.
 
 ## Reference patterns

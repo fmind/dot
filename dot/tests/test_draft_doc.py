@@ -627,8 +627,20 @@ def test_cli_rejects_output_path_equal_to_source(
     src_md = tmp_path / "report.md"
     src_md.write_text("# Report\n\nKeep source intact.\n", encoding="utf-8")
     assert mod.main([str(src_md), "-o", str(src_md)]) == 1
-    assert "Output path must differ from source Markdown" in capsys.readouterr().err
+    assert "Output path must differ from source" in capsys.readouterr().err
     assert src_md.read_text(encoding="utf-8") == "# Report\n\nKeep source intact.\n"
+
+    src_typ = tmp_path / "card.typ"
+    src_typ.write_text("#box[Keep Typst source intact.]\n", encoding="utf-8")
+    assert mod.main([str(src_typ), "-o", str(src_typ)]) == 1
+    assert "Output path must differ from source" in capsys.readouterr().err
+    assert src_typ.read_text(encoding="utf-8") == "#box[Keep Typst source intact.]\n"
+
+    src_svg = tmp_path / "card.svg"
+    src_svg.write_text(VALID_SVG, encoding="utf-8")
+    assert mod.main([str(src_svg), "-o", str(src_svg)]) == 1
+    assert "Output path must differ from source" in capsys.readouterr().err
+    assert src_svg.read_text(encoding="utf-8") == VALID_SVG
 
 
 def test_compile_handles_crlf_fences_bracketed_captions_and_nested_output_dir(
@@ -685,9 +697,17 @@ def test_typst_figure_compilation_width_cap_warnings_and_companion_assets(
     }
     assert "![Figure 1 — Typst Card][fig-1]" in out_md.read_text(encoding="utf-8")
 
-    # Single .typ CLI modes (--check-only and -o) and fail-closed on stderr font warnings.
-    assert mod.main([str(typ_file), "--check-only", "--json"]) == 0
-    assert json.loads(capsys.readouterr().out)["dimensions_px"] == [800, 120]
+    # Single .typ CLI modes (bare validate, --check-only with -o, and -o) + fail-closed on warnings.
+    assert mod.main([str(typ_file), "--json"]) == 0
+    bare_payload = json.loads(capsys.readouterr().out)
+    assert bare_payload["output"] is None
+    assert bare_payload["dimensions_px"] == [800, 120]
+
+    ignored_out = tmp_path / "unused.png"
+    assert mod.main([str(typ_file), "--check-only", "-o", str(ignored_out), "--json"]) == 0
+    check_payload = json.loads(capsys.readouterr().out)
+    assert check_payload["output"] is None
+    assert not ignored_out.exists()
 
     monkeypatch.setattr(
         mod.subprocess,
@@ -697,13 +717,57 @@ def test_typst_figure_compilation_width_cap_warnings_and_companion_assets(
             mod.subprocess.CompletedProcess(cmd, 0, "", "warning: unknown font family: foo\n"),
         )[1],
     )
-    assert mod.main([str(typ_file), "--check-only"]) == 1
+    assert mod.main([str(typ_file)]) == 1
     assert "typst emitted warnings" in capsys.readouterr().err
 
-    # Path traversal outside document directory is rejected before execution.
+    # Width-cap exhaustion and _typst_command fallbacks.
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kw: (Path(cmd[-1]).write_bytes(_png(900, 100)), mod.subprocess.CompletedProcess(cmd, 0, "", ""))[
+            1
+        ],
+    )
+    with pytest.raises(RuntimeError, match="stayed 900px wide after rescaling"):
+        mod.render_typst_png(typ_file, tmp_path / "wide.png", max_width_px=600)
+
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/bin/mise" if name == "mise" else None)
+    mise_cmds: list[list[str]] = []
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kw: (
+            mise_cmds.append(cmd),
+            Path(cmd[-1]).write_bytes(_png(400, 100)),
+            mod.subprocess.CompletedProcess(cmd, 0, "", ""),
+        )[2],
+    )
+    assert mod.render_typst_png(typ_file, tmp_path / "mise.png") == (400, 100)
+    assert mise_cmds[0][:5] == ["/bin/mise", "exec", "--quiet", "typst", "--"]
+
+    monkeypatch.setattr(mod.shutil, "which", lambda _name: None)
+    with pytest.raises(RuntimeError, match="Neither `typst` nor `mise`"):
+        mod.render_typst_png(typ_file, tmp_path / "missing.png")
+
+    # Path traversal outside document directory (including symlinked companion fmind.typ) is rejected.
     outside = tmp_path / "outside.typ"
-    outside.write_text("Hello\n", encoding="utf-8")
+    outside.write_text("SECRET_OUTSIDE\n", encoding="utf-8")
     sub = tmp_path / "sub"
     sub.mkdir()
     with pytest.raises(ValueError, match="Typst path escapes document directory"):
         mod.compile_markdown("# Doc\n\n![Card](../outside.typ)\n", sub)
+
+    (sub / "fmind.typ").symlink_to(outside)
+    (sub / "local.typ").write_text("// mentions fmind.typ in a comment only\n#box[Safe]\n", encoding="utf-8")
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/bin/typst" if name == "typst" else None)
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kw: (Path(cmd[-1]).write_bytes(_png(400, 100)), mod.subprocess.CompletedProcess(cmd, 0, "", ""))[
+            1
+        ],
+    )
+    sub_assets = sub / "assets"
+    _, sub_figs = mod.compile_markdown("# Doc\n\n![Card](local.typ)\n", sub, assets_dir=sub_assets)
+    assert "companion_assets" not in sub_figs[0]
+    assert not (sub_assets / "fmind.typ").exists()

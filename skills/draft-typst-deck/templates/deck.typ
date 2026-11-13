@@ -17,7 +17,7 @@
 
 #slide(
   kicker: "Executive summary",
-  title: "Promote Track B to cut nightly unit cost by 62%",
+  title: "Promote Worker v3 to cut nightly unit cost by 62%",
   takeaway: "Headless batch execution lowers spend to EUR 0.42 per run while meeting the 99% verification SLA.",
 )[
   #grid(
@@ -47,19 +47,19 @@
 #slide(
   kicker: "Comparative benchmark",
   title: "Higher pass rate with 8x fewer manual escalations",
-  takeaway: "Track B eliminates manual retries while keeping monthly spend under the EUR 200 cap.",
+  takeaway: "Worker v3 eliminates manual retries while keeping monthly spend under the EUR 200 cap.",
 )[
   #grid(
     columns: (1fr, 1fr),
     column-gutter: 18pt,
     bar-panel(
       "Validated completions (out of 50)",
-      "Track B native (43) + fallback check (7) = 50 / 50",
+      "Worker v3 native (43) + fallback check (7) = 50 / 50",
       (
         stacked-bar-row("Legacy v1", ((24.0, colors.muted),), "12  (24%)", val-color: colors.muted),
         stacked-bar-row("Baseline v2", ((74.0, colors.focus),), "37  (74%)", val-color: colors.primary),
         stacked-bar-row(
-          "Track B",
+          "Worker v3",
           ((86.0, colors.primary), (14.0, colors.success)),
           "43 + 7 (100%)",
           label-weight: "bold",
@@ -71,10 +71,10 @@
       "Manual escalations required",
       "Lower is better · broken bar = legacy outlier",
       (
-        broken-bar-row("Legacy v1", 100, colors.error, "185  (out of scale)", val-color: colors.error, broken: true),
+        broken-bar-row("Legacy v1", 100, colors.error, "140  (out of scale)", val-color: colors.error, broken: true),
         broken-bar-row("Baseline v2", 44, colors.warning, "22  (non-blocking)", val-color: colors.warning),
         broken-bar-row(
-          "Track B",
+          "Worker v3",
           14,
           colors.success,
           "7  (scoped queue)",
@@ -105,7 +105,7 @@
         "Run worker",
         "Executes deterministic checks inside an isolated container.",
       ),
-      flow-arrow("SARIF"),
+      flow-arrow("Report"),
       step-card(
         2,
         "Owner review",

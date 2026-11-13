@@ -41,7 +41,7 @@ Stay in this file for chat, email, status updates, and PR/issue text:
 Load deeper guides only when drafting formal deliverables or fact-checking:
 
 1. **Frame reader and outline**: pick the decider's lens and structure from [outlines](references/outlines.md) (or [slides](references/slides.md) for decks). Ask when an unknown reader or goal changes content.
-1. **Style and visuals**: apply [style](references/style.md) (numbers, section-opening bold conclusions, accessible links, conclusion-captioned SVG/Mermaid/matplotlib figures) and render with [HTML](templates/report.html) or [Markdown](templates/report.md) templates plus `~/.agents/DESIGN.md` or customer branding.
+1. **Style and visuals**: apply [style](references/style.md) (numbers, section-opening bold conclusions, accessible links, conclusion-captioned Typst/D2/Mermaid/SVG/matplotlib figures) and render with [HTML](templates/report.html) or [Markdown](templates/report.md) templates plus `~/.agents/DESIGN.md` or customer branding.
 1. **Cut and verify**: run the [checklist](references/checklist.md) and check rendered output ([playwright](../playwright/SKILL.md)). For fact-checks, run the checklist's Trust section and report dated findings without rewriting unless asked.
 
 ## Gotchas

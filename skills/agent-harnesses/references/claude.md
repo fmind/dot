@@ -11,8 +11,8 @@ Operate Claude Code alongside `fmind/dot` managed configuration; [agent-project]
 
 `private_dot_claude/modify_private_settings.json` merges `~/.claude/settings.json`:
 
-- **Seeded defaults** (changeable via `/model` and `/effort`): `model: "fable"`, `fallbackModel: ["sonnet"]`, and `effortLevel: "high"` on `claude-fable-5-1`, `claude-fable-5-2`, and `claude-opus-5-5`.
-- **Managed keys** (re-applied on `chezmoi apply --force`): `permissions.defaultMode: "bypassPermissions"`, `editorMode: "vim"`, `theme: "light-ansi"`, `tui: "fullscreen"`, `worktree.baseRef: "head"`, `respectGitignore: false`, `autoContinueAtUsageLimit: true`, `remoteControlAtStartup: true`, `agentPushNotifEnabled: true`, `inputNeededNotifEnabled: true`, empty commit/PR attribution, disabled `claude.ai` connectors/plugins/skills sync, and non-interactive CLI env (`GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED=1`, `CLOUDSDK_CORE_DISABLE_PROMPTS=1`), preserving host `SessionStart` hooks and retiring legacy `Notification` turn hooks.
+- **Seeded defaults** (host-overridable via `/model`, `/effort`, or `/config`): `model: "fable"`, `effortLevel: "high"` on `claude-fable-5-1`, `claude-fable-5-2`, and `claude-opus-5-5`, and `remoteControlAtStartup: true`.
+- **Managed keys** (re-applied on `chezmoi apply --force`): `permissions.defaultMode: "bypassPermissions"`, `fallbackModel: ["sonnet"]`, `editorMode: "vim"`, `theme: "light-ansi"`, `tui: "fullscreen"`, `worktree.baseRef: "head"`, `respectGitignore: false`, `autoContinueAtUsageLimit: true`, `agentPushNotifEnabled: true`, `inputNeededNotifEnabled: true`, empty commit/PR attribution, disabled `claude.ai` connectors/plugins/skills sync, and non-interactive CLI env (`GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED=1`, `CLOUDSDK_CORE_DISABLE_PROMPTS=1`), preserving host `SessionStart` hooks and retiring legacy `Notification` turn hooks.
 - **Global links & trust**: `~/.claude/CLAUDE.md` → `~/.agents/AGENTS.md`, `~/.claude/skills` → `~/.agents/skills`; `dot trust` manages workspace trust and `permissions.additionalDirectories`.
 
 ## Workflow

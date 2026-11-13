@@ -12,7 +12,7 @@ Pure-Typst graphics compile crisply in vector or Retina resolution with zero `@p
 ## Layout & Label Budgets
 
 1. **Minimum font size**: never drop chart labels or footnotes below `12pt` (`11.5pt` absolute floor for compact multi-legend subtitles).
-1. **Reserve metric column width**: when `val-text` combines counts and sub-metrics (for example `"187 (120 code + 67 edge)"`), size `right-width` to at least `230pt` on full-width (`876pt`) panels or `112pt–136pt` on half-width (`429pt`) panels so numbers never wrap mid-digit.
+1. **Reserve metric column width**: when `val-text` combines counts and sub-metrics (for example `"48 (32 core + 16 batch)"`), size `right-width` to at least `230pt` on full-width (`876pt`) panels or `112pt–136pt` on half-width (`429pt`) panels so numbers never wrap mid-digit.
 1. **Standalone `figures/*.typ` vs inline**: author standalone figures in `figures/*.typ` (with `#set page(width: auto, height: auto, margin: 4pt, fill: colors.canvas)`) when stakeholders also need standalone SVG/PNG exports for docs ([diagrams-as-code Typst guide](../../diagrams-as-code/references/typst.md)); run [build_typst_deck.py](../scripts/build_typst_deck.py) `check --render-figures` before compiling the main deck.
 
 ## Typst Escaping Rules

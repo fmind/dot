@@ -16,8 +16,8 @@ Before sharing an executive or benchmark deck externally, check every slide and 
 1. **Verified vs partial checks**: distinguish syntax/build verification from live integration or runtime execution. Never imply full end-to-end verification when only partial checks ran.
 1. **Proposed vs adopted outcomes**: distinguish open/draft deliverables from merged, approved, or adopted production changes, noting pending metrics explicitly.
 1. **Apples-to-apples chart units**: when compared tools report different granularities (for example raw occurrences vs deduplicated units), state the unit difference directly in the panel `subtitle` or callout.
-1. **Sub-cohort attribution**: when a baseline only ran on a subset (`45` of `83` workloads), put the exact sample size on both the bar annotation and the slide takeaway.
-1. **Symmetrical scope breakdown**: if mitigations or exclusions (`edge`, `allowlist`) are separated on one option, apply the same split to every compared option.
+1. **Sub-cohort attribution**: when a baseline only ran on a subset (`18` of `30` workloads), put the exact sample size on both the bar annotation and the slide takeaway.
+1. **Symmetrical scope breakdown**: if exclusions or fallbacks (`cache`, `retry`) are separated on one option, apply the same split to every compared option.
 1. **Privacy & data classification**: keep internal tokens, customer identifiers, credentials, and hostnames out of public or untrusted shares.
 
 ## 3. Isolated `gws` Drive PDF Upload

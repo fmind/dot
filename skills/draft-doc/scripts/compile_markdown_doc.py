@@ -217,13 +217,18 @@ def render_typst_png(
     root_dir: Path | None = None,
 ) -> tuple[int, int]:
     """Compile a single-page Typst figure to PNG, failing on font warnings and capping width when requested."""
+    resolved_typ = typ_path.resolve()
+    resolved_out = out_png.resolve()
+    if resolved_out == resolved_typ:
+        msg = f"Output path must differ from source: {out_png}"
+        raise ValueError(msg)
     command, timeout = _typst_command()
-    resolved_root = (root_dir or typ_path.parent).resolve()
-    out_png.parent.mkdir(parents=True, exist_ok=True)
+    resolved_root = (root_dir or resolved_typ.parent).resolve()
+    resolved_out.parent.mkdir(parents=True, exist_ok=True)
     ppi = 96.0 * scale
     width = 0
     for _ in range(3):
-        out_png.unlink(missing_ok=True)
+        resolved_out.unlink(missing_ok=True)
         proc = subprocess.run(  # noqa: S603 - fixed CLI command and local paths
             [
                 *command,
@@ -234,8 +239,8 @@ def render_typst_png(
                 "png",
                 "--ppi",
                 f"{ppi:g}",
-                str(typ_path),
-                str(out_png.resolve()),
+                str(resolved_typ),
+                str(resolved_out),
             ],
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -244,13 +249,13 @@ def render_typst_png(
             check=False,
         )
         detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
-        if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
+        if proc.returncode != 0 or not resolved_out.is_file() or resolved_out.stat().st_size == 0:
             msg = f"typst failed to compile {typ_path.name} (exit {proc.returncode}): {detail}"
             raise RuntimeError(msg)
         if proc.stderr.strip():
             msg = f"typst emitted warnings while compiling {typ_path.name}: {detail}"
             raise RuntimeError(msg)
-        width, height = png_size(out_png)
+        width, height = png_size(resolved_out)
         if not max_width_px or width <= max_width_px:
             return width, height
         ppi *= max_width_px / width
@@ -453,11 +458,12 @@ def compile_markdown(
                 if (
                     is_typ
                     and (theme_file := fig_path.parent / "fmind.typ").is_file()
+                    and (resolved_theme := theme_file.resolve()).is_relative_to(resolved_base)
                     and "fmind.typ" in fig_path.read_text(encoding="utf-8")
                 ):
                     theme_asset = assets_dir / "fmind.typ"
-                    if theme_asset.resolve() != theme_file.resolve():
-                        shutil.copy2(theme_file, theme_asset)
+                    if theme_asset.resolve() != resolved_theme:
+                        shutil.copy2(resolved_theme, theme_asset)
                     claimed_asset_names.add(theme_asset.name)
                     fig_entry["companion_assets"] = [str(theme_asset)]
             figures.append(fig_entry)
@@ -820,7 +826,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--check-only",
         action="store_true",
-        help="Validate Google Docs .md dialect or SVG rules without rendering.",
+        help="Validate Google Docs .md dialect, SVG, or Typst rules without writing output.",
     )
     parser.add_argument(
         "-s",
@@ -855,6 +861,9 @@ def main(argv: list[str] | None = None) -> int:
         if not source.is_file():
             msg = f"File not found: {source}"
             raise FileNotFoundError(msg)
+        if output is not None and output.resolve() == source.resolve():
+            msg = f"Output path must differ from source: {output}"
+            raise ValueError(msg)
 
         if source.suffix.lower() == ".svg":
             problems = check_svg(source, expected_width=args.svg_width)
@@ -866,21 +875,20 @@ def main(argv: list[str] | None = None) -> int:
             payload: dict[str, Any] = {
                 "status": "ok",
                 "source": str(source),
-                "output": str(output) if output else None,
+                "output": str(output) if (output is not None and not args.check_only) else None,
                 "dimensions_px": list(rendered_size) if rendered_size else None,
             }
         elif source.suffix.lower() == ".typ":
-            rendered_size = None
-            if args.check_only:
+            if args.check_only or output is None:
                 with tempfile.TemporaryDirectory(prefix=".typ-check-") as tmp:
                     rendered_size = render_typst_png(source, Path(tmp) / "check.png", scale=args.scale)
-            elif output is not None:
+            else:
                 rendered_size = render_typst_png(source, output, scale=args.scale)
             payload = {
                 "status": "ok",
                 "source": str(source),
-                "output": str(output) if output else None,
-                "dimensions_px": list(rendered_size) if rendered_size else None,
+                "output": str(output) if (output is not None and not args.check_only) else None,
+                "dimensions_px": list(rendered_size),
             }
         else:
             text = source.read_text(encoding="utf-8")
@@ -896,7 +904,7 @@ def main(argv: list[str] | None = None) -> int:
                     else f"{source.stem}.gdoc.md"
                 )
                 if out_path.resolve() == source.resolve():
-                    raise ValueError(f"Output path must differ from source Markdown: {out_path}")
+                    raise ValueError(f"Output path must differ from source: {out_path}")
                 # One private directory for every gws call of this run: see upload_to_drive.
                 with tempfile.TemporaryDirectory(prefix="draft-doc-") as tmp:
                     gws_dir = Path(tmp)
