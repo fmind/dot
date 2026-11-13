@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-11-10"
+  updated: "2026-11-13"
 ---
 
 # Scheduled Jobs
@@ -22,7 +22,7 @@ Schedule bounded commands via native user schedulers and verify triggered runs (
 
 ## Owner conventions
 
-- **`fmind/dot` user units**: store in `dot_config/systemd/user/`, enable via `timers.target.wants` symlinks, and register unit hashes in `run_onchange_after_systemd-user-reload.sh.tmpl` (`systemctl --user daemon-reload` on apply).
+- **`fmind/dot` user units (Linux only)**: store in `dot_config/systemd/user/`, enable via `timers.target.wants` symlinks, and register unit hashes in `run_onchange_after_systemd-user-reload.sh.tmpl` (`systemctl --user daemon-reload` on apply; ignored outside Linux).
 - **Never restart the `agy` daemon during apply**: it may host the active Remote Control session, so the reload hook only prints the restart command.
 
 ## Gotchas

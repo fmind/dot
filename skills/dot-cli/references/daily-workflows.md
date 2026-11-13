@@ -15,7 +15,7 @@ dot doctor --headroom
 dot agent doctor --agent agy
 ```
 
-`dot doctor` checks tools, secret file modes (`key.txt`, signing keypair, `~/.private.fish`), disk headroom, installation, and chezmoi orphans (warning only); `--deep` probes provider auth, and `--headroom` prints one-line disk/memory headroom. `dot agent doctor` checks persona/skills links (noting missing `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` on OpenCode without failing), `last_sync` (`failed`/`retained`), and archive readability (`dot.diagnostics/v1`). In `fmind/dot`, `mise run doctor` chains `dot doctor`, `chezmoi doctor`, and `mise doctor`.
+`dot doctor` checks tools, secret file modes (`doctor.secrets` — defaulting to `key.txt` and signing key; omit `key.txt` on keyless work machines — plus `~/.private.fish`), disk headroom, installation, and chezmoi orphans (warning only); `--deep` probes configured `auth.login` providers, and `--headroom` prints one-line disk/memory headroom. `dot agent doctor` checks persona/skills links (noting missing `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` on OpenCode without failing), `last_sync` (`failed`/`retained`), and archive readability (`dot.diagnostics/v1`). In `fmind/dot`, `mise run doctor` chains `dot doctor`, `chezmoi doctor`, and `mise doctor`.
 
 ## Repositories
 

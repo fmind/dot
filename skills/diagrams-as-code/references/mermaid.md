@@ -44,7 +44,7 @@ Default technical-doc diagram format: one portable source renders in GitHub Mark
 - **Set a stable font stack**: declare root `config.fontFamily` so late web fonts do not clip labels; pass `--no-font-embed` when the host page provides fonts (`mmdc` 12 embeds ~170 KB of default fonts).
 - **Pin layout and look across Mermaid 11/12**: Mermaid 12 (`mmdc`, Zensical 0.0.73+) defaults to ELK (ignoring `flowchart.diagramPadding`) and `neo`; set root `config.layout: dagre` and `config.look: classic` to match Mermaid 11 renderers.
 - **Disable HTML labels for non-browser SVG consumers**: set root `config.htmlLabels: false` (omit deprecated `flowchart.htmlLabels`) before importing into docs, ImageMagick, or librsvg, which drop `<foreignObject>` text.
-- **Keep source portable and grounded**: no remote images, JS callbacks, renderer plugins, cryptic IDs, or unverified components/metrics; split crowded diagrams (`LR` for processes, `TD` for hierarchies).
+- **Keep source portable and grounded**: no HTML tags (`<br/>`, which strict previews strip into `Line1Line2`—use single-line `"Title (Detail)"` labels instead of multi-bullet boxes), remote images, JS callbacks, renderer plugins, cryptic IDs, or unverified components/metrics; split crowded diagrams (`LR` for processes, `TD` for hierarchies).
 
 ## Documentation
 
