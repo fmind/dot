@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [16.2.0] - 2026-11-13
+
+### 🚀 Features
+
+- _(skills)_ Overhaul humanize and draft-typst-deck with Google Slides support
+- _(skills)_ Add pup and cf connectors and streamline catalog
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade global tools, uv dependencies, and nvim plugins
+
 ## [16.1.0] - 2026-11-13
 
 ### 🚀 Features
