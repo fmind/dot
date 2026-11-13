@@ -33,10 +33,10 @@ neovim = "aqua:neovim/neovim"
 # agents-cli 1.9.0 turned usage telemetry on by default; keep pypi:google-agents-cli out of global
 # [tools] while 1.13.0 caps pyopenssl<26.2 (cryptography<48, 4 HIGH CVEs).
 AGENTS_CLI_TELEMETRY = "0"
+ASTRO_TELEMETRY_DISABLED = "1"
 # The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
 # vendor skills go through the vendor-skill policy instead.
 AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
-ASTRO_TELEMETRY_DISABLED = "1"
 CF_SEND_TELEMETRY = "0"
 # Also covers ad-hoc chrome-devtools-mcp runs that omit --no-usage-statistics.
 CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
@@ -82,7 +82,11 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
 # npm, not aqua: upstream's standalone macOS binary is x86_64-only, so it would need Rosetta on Apple Silicon.
-"npm:firebase-tools" = "latest" # Official Firebase CLI (firebase) for Hosting, Firestore, Auth, and Rules
+# encodeurl@1.0.3 (pillarjs/encodeurl@c669d95) and encodeurl@2.0.2 (pillarjs/encodeurl@f805c3e) were manually backported by blakeembrey after 3.0.0 enabled OIDC provenance.
+"npm:firebase-tools" = { version = "latest", trust_policy_excludes = [
+  "encodeurl@1.0.3",
+  "encodeurl@2.0.2",
+] } # Official Firebase CLI (firebase) for Hosting, Firestore, Auth, and Rules
 "npm:skills" = "latest" # Agent Skills CLI manager
 # Bind pypi tools to the global Python minor so project python pins neither re-hash them nor hit missing 3.15 wheels.
 "pypi:brain-framework" = { version = "latest", python = "3.14" } # Brain Framework CLI (bf)

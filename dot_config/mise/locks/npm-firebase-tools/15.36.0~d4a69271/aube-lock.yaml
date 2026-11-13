@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       firebase-tools:
-        specifier: 15.35.0
-        version: 15.35.0(@types/node@26.6.6)(bare-buffer@3.7.1)(supports-color@7.2.0)
+        specifier: 15.36.0
+        version: 15.36.0(@types/node@26.6.6)(bare-buffer@3.7.1)(supports-color@7.2.0)
 
 packages:
 
@@ -40,8 +40,8 @@ packages:
   '@electric-sql/pglite@0.3.16':
     resolution: {integrity: sha512-mZkZfOd9OqTMHsK+1cje8OSzfAQcpD7JmILXTl5ahdempjUDdmg4euf1biDex5/LfQIDJ3gvCu6qDgdnDxfJmA==}
 
-  '@google-cloud/cloud-sql-connector@1.12.1':
-    resolution: {integrity: sha512-Vilc4J0L+rU+4yjxZpBFn8+bvPoibfcnP4cAAFUsON/GiT0p9qwqLKh7J2q4DaG8WnAgesfn/F2Hb+CkEZn3VA==}
+  '@google-cloud/cloud-sql-connector@1.13.0':
+    resolution: {integrity: sha512-DAjtzUnKBsJrZTnfernOOCndi7RGFvwRk4drNBD60SJ64jx1T0+U6gyWVfbTHWTG8Nr6XwgBcGVK2W2unUzA1g==}
     engines: {node: '>=22'}
 
   '@google-cloud/paginator@6.1.0':
@@ -64,13 +64,13 @@ packages:
     resolution: {integrity: sha512-xXAQBVVrFviWz8L8yDKEqv1ziVw/gMSpYHt3IxSYRSY0fTyjis+xOrKJILj8dd8PAUHGnGiAIYuTprflkE9jsQ==}
     engines: {node: '>=18'}
 
-  '@google-cloud/sql@0.25.0':
-    resolution: {integrity: sha512-OKAA98q2M25rQcqcFvbQniix4zTFcbeSyauj+PcPd+6ngn7eXvAUqpuCRVxbIGmA8r5OtE6Ru/oCJ1xwcUR2vA==}
-    engines: {node: '>=18'}
+  '@google-cloud/sql@0.32.0':
+    resolution: {integrity: sha512-s60hH8oXRPc2FMNVfCUEfO8FqlY3cKbbNpmlKuoIVAeMxWbKV0ngncvU5f/A8xLTQoKHkvk3pa5pvcB7nh/qCQ==}
+    engines: {node: '>=22'}
 
-  '@googleapis/sqladmin@38.1.1':
-    resolution: {integrity: sha512-piWbtan+dw/cYzGopUsFH131mVx23osOeBAFSM78fgTzgRJjehgA5QnGGZiGYn+zgSNqdnf+7/ZzdHN1XkUAEg==}
-    engines: {node: '>=12.0.0'}
+  '@googleapis/sqladmin@42.0.0':
+    resolution: {integrity: sha512-ptSB/ayrMyXH7j7v37664EqxlJLHR4Wo64Wl6/Cn2zC5fHZecCWIhj+JQgZtLtZGGT6WijcGXrYs+Xu4S/k7Nw==}
+    engines: {node: '>=22.0.0'}
 
   '@grpc/grpc-js@1.14.7':
     resolution: {integrity: sha512-W4W/fcBMGRVtG6dW2c7cw2mnpS3hvbBd+oQXjh2iYFTZDk1JJmcNqkM5KSaPubQpamlUUurrlb7G1s9NJeERmQ==}
@@ -81,8 +81,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  '@hono/node-server@2.1.6':
-    resolution: {integrity: sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==}
+  '@hono/node-server@2.1.7':
+    resolution: {integrity: sha512-Wr0E6S+v2Bw9FkpGNP5BQ5QbJvclUa06UVehd65WFZe6XeJwbrKQQ5wPDevc0IC+QyzbO7v3Llh5uo45IZcSnA==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
@@ -497,11 +497,11 @@ packages:
     resolution: {integrity: sha512-9gYgQKXx+1nP8mP7CzFyaUARhg7D3n1dF/FnErWmu9l6JvGpNUN278h0aSb+QjoiKSWG+iZ3uHrcqk0qrY9RQQ==}
     engines: {node: '>=10'}
 
-  brace-expansion@1.1.21:
-    resolution: {integrity: sha512-9zeA+KLZNNzglF2TPKRQEDyx6Yby7daAkuy8MiPzpXPsYDWi/DRM8jmwUDxokQjYqBpv5DgPiwD4h4ZZSy1Ujw==}
+  brace-expansion@1.1.22:
+    resolution: {integrity: sha512-CKLDTuSsN0+r1ThM0WkzzBI7dnPI6xEGfa/JnVYIK9JNBA1N1NyPwXVHor//NKD/y3sDxp764sZdLhFK7pH8XQ==}
 
-  brace-expansion@2.1.7:
-    resolution: {integrity: sha512-uZbew1NqdmPDTMJ8ah1y+b+9QEJrfkXFk3RcTQw3X0jW/xRUvFKsg1CfQdSYGdTbXZWExtU3J3ccxtnfw1Fi0g==}
+  brace-expansion@2.1.8:
+    resolution: {integrity: sha512-BnlDzDYQoplTsZSvPi86CNzmbcb07X8ufR8fk1zivaiEJlXJkiq1MQyDCVmlWcsWbj6aWXqHnrwwevbrm/Saig==}
 
   buffer-crc32@1.0.0:
     resolution: {integrity: sha512-Db1SbgBS/fg/392AblrMJk97KggmvYhr4pB5ZIMTWtaivCPMWLkmb7m21cJvpvgK+J3nsU2CmmixNBZx4vFj/w==}
@@ -812,12 +812,12 @@ packages:
   enabled@2.0.0:
     resolution: {integrity: sha512-AKrN98kuwOzMIdAizXGI86UFBoo26CL21UM763y1h/GMSJ4/OHU9k2YlsmBpyScFo/wbLzWQJBMCW4+IO3/+OQ==}
 
-  encodeurl@1.0.2:
-    resolution: {integrity: sha512-TPJXq8JqFaVYm2CWmPvnP2Iyo4ZSM7/QKcSmuMLDObfpH5fi7RUGmd/rTDf+rut/saiDiQEeVTNgAmJEdAOx0w==}
+  encodeurl@1.0.3:
+    resolution: {integrity: sha512-+fJBWq727Q95HcN9heYd69iKTsWPAz4ASPbawvphyHhtDZoO+q+eYNBHCk0hW1b9/+z7w6HMrw70pFsfC3XjSg==}
     engines: {node: '>= 0.8'}
 
-  encodeurl@2.0.1:
-    resolution: {integrity: sha512-Ev/hIyePLZtpL98x562lvPtenrUfGr0lfaf44HFZ+hDEwso7ccV9QAZrEVLg0hxNAzygaAFxy2dYaAKKM0G06A==}
+  encodeurl@2.0.2:
+    resolution: {integrity: sha512-ddmxiyS6ETq/v5/+mdA4fykK7JgEmqcShrGmQFTaKf5o43tL8XLuMzNLLsspuIC3/qGupS7Ci2TF+feJRkYY0w==}
     engines: {node: '>= 0.8'}
 
   end-of-stream@1.4.5:
@@ -949,8 +949,8 @@ packages:
     resolution: {integrity: sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==}
     engines: {node: '>= 18.0.0'}
 
-  firebase-tools@15.35.0:
-    resolution: {integrity: sha512-grcjoqNsJoWTTu+YEuM8BScOM7c5lM1XCFenmz0RhNEyJVoj8dTslPy7sx5Hct69+9OAKJb70qZ3JTHZFw+3zQ==}
+  firebase-tools@15.36.0:
+    resolution: {integrity: sha512-z1fnT75IkGmARzRSP9Blb4BzAnYJOhwoSbe/lKpUKy/hpQzLhUM39KUesAfUM5U1PnDu6syFdwV1JsSGcdQ32w==}
     engines: {node: '>=20.0.0 || >=22.0.0 || >=24.0.0'}
     hasBin: true
 
@@ -1063,6 +1063,10 @@ packages:
     resolution: {integrity: sha512-M4vpZcXQIC1gqIVGQ7eaU3jXQA6zecStyTXu514TYfThlgSurYJOxHZo9fzU6hAgwPWvuEynAVHWyaIk80VeEA==}
     engines: {node: '>=18'}
 
+  google-gax@6.17.0:
+    resolution: {integrity: sha512-qitOd0t2mqRFaP2KGRVL+/refKafCVwbXQVodICQX93x/WbKyopMz0r5mdBsEjwctQ22ITZyrQeabRddpFeHXQ==}
+    engines: {node: '>=22'}
+
   google-logging-utils@0.0.2:
     resolution: {integrity: sha512-NEgUnEcBiP5HrPzufUkBzJOD/Sxsco3rLNo1F1TNf7ieU8ryUzBhqba8r756CjLX7rn3fHl6iLEwPYuqpoKgQQ==}
     engines: {node: '>=14'}
@@ -1128,8 +1132,8 @@ packages:
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
-  hono@4.13.17:
-    resolution: {integrity: sha512-vZIcbkvjOR5hHRWERbGkr8fGfF0GGM1ooYkuH448iO3b2AdVEr3AXZSw4Z3Kn+1L5z0CVoVeyV29VGYmFh05kQ==}
+  hono@4.13.18:
+    resolution: {integrity: sha512-H9q/E1XizaWstJxUW881dmLxEj+t/TrGGnyxINkm4+sK0qUwsMtFdo2BWI9Vs3cIS19MU6b6iCijoUoEf4f3DA==}
     engines: {node: '>=16.9.0'}
 
   http-errors@2.0.1:
@@ -1728,6 +1732,10 @@ packages:
     resolution: {integrity: sha512-E1sbAYg3aEbXrq0n1ojJkRHQJGE1kaE/O6GLA94y8rnJBfgvOPTOd1b9hOceQK1FFZI9qMh1vBERCyO2ifubcw==}
     engines: {node: '>=18'}
 
+  proto3-json-serializer@4.1.0:
+    resolution: {integrity: sha512-Z0Blk2BTZTPp9ZXOWnRG/P3bkEs53FtMv59sl4xU44xcDdYhKlVO/AqAHTYXAlW9HdislqQxjSornP3457wkag==}
+    engines: {node: '>=22'}
+
   protobufjs@7.6.6:
     resolution: {integrity: sha512-dYDWdjSl5RNb7SgPxGQcRU+GtvP7s2fpkrY0r432PcOIaZ0/rBcxEZnQN67iJhFuQiVw754JDoPruPCNdGsbjg==}
     engines: {node: '>=12.0.0'}
@@ -1816,6 +1824,10 @@ packages:
   retry-request@8.0.4:
     resolution: {integrity: sha512-pI6/7eabUYkZxamkOq0g0uMxKLLGnjzhefY+vL8bVXag5rto4OU2YBTPytWLuHH7aEKD6fn7kJycQfid0Mwnkw==}
     engines: {node: '>=18'}
+
+  retry-request@9.1.0:
+    resolution: {integrity: sha512-FILyVbis+DTo3KRbtKceqpj1595wIF+XQFW/+AVOBdCQmxwNDgcNXXr2FNM0Ej2qD7zVXbJGfH7lo4jB0wwhKA==}
+    engines: {node: '>=22'}
 
   retry@0.13.1:
     resolution: {integrity: sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg==}
@@ -1998,8 +2010,8 @@ packages:
   tar-stream@3.2.2:
     resolution: {integrity: sha512-+8NeqHRjQWH9nYlwo2gamAMImZCVzI4UoEgDpWorBt9OEfppiZn+uSkskzQKPWIZyji/C8fpWO7u69G0DX0tbg==}
 
-  tar@7.5.22:
-    resolution: {integrity: sha512-MFO/QzvtAOmJbkhOaCTvbGcFN9L9b+JunIsDwaKljSOdcLMea3NJ1k9Usz/rjdfSXTq4dfzfeS7W4p4YOAAHeA==}
+  tar@7.5.23:
+    resolution: {integrity: sha512-lkukzdoGngZHJZXxW4S/E4Fp9ghTDlyZXrQGRNoJ/LXvDKcXUTq2sg5yQe74po7Voea6n/IN09+wE/QvJMiifA==}
     engines: {node: '>=18'}
 
   tcp-port-used@1.0.3:
@@ -2276,10 +2288,10 @@ snapshots:
 
   '@electric-sql/pglite@0.3.16': {}
 
-  '@google-cloud/cloud-sql-connector@1.12.1(supports-color@7.2.0)':
+  '@google-cloud/cloud-sql-connector@1.13.0(supports-color@7.2.0)':
     dependencies:
-      '@google-cloud/sql': 0.25.0(supports-color@7.2.0)
-      '@googleapis/sqladmin': 38.1.1(supports-color@7.2.0)
+      '@google-cloud/sql': 0.32.0(supports-color@7.2.0)
+      '@googleapis/sqladmin': 42.0.0(supports-color@7.2.0)
       '@grpc/grpc-js': 1.14.7
       gaxios: 8.3.2(supports-color@7.2.0)
       google-auth-library: 11.3.4(supports-color@7.2.0)
@@ -2319,13 +2331,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@google-cloud/sql@0.25.0(supports-color@7.2.0)':
+  '@google-cloud/sql@0.32.0(supports-color@7.2.0)':
     dependencies:
-      google-gax: 5.0.8(supports-color@7.2.0)
+      google-gax: 6.17.0(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@googleapis/sqladmin@38.1.1(supports-color@7.2.0)':
+  '@googleapis/sqladmin@42.0.0(supports-color@7.2.0)':
     dependencies:
       googleapis-common: 9.3.1(supports-color@7.2.0)
     transitivePeerDependencies:
@@ -2343,9 +2355,9 @@ snapshots:
       protobufjs: 7.6.6
       yargs: 17.7.3
 
-  '@hono/node-server@2.1.6(hono@4.13.17)':
+  '@hono/node-server@2.1.7(hono@4.13.18)':
     dependencies:
-      hono: 4.13.17
+      hono: 4.13.18
 
   '@inquirer/ansi@1.0.2': {}
 
@@ -2491,7 +2503,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.2(supports-color@7.2.0)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.6(hono@4.13.17)
+      '@hono/node-server': 2.1.7(hono@4.13.18)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -2501,7 +2513,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0(supports-color@7.2.0)
       express-rate-limit: 8.7.4(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0)
-      hono: 4.13.17
+      hono: 4.13.18
       jose: 6.2.17
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -2761,12 +2773,12 @@ snapshots:
       widest-line: 3.1.0
       wrap-ansi: 7.0.0
 
-  brace-expansion@1.1.21:
+  brace-expansion@1.1.22:
     dependencies:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@2.1.7:
+  brace-expansion@2.1.8:
     dependencies:
       balanced-match: 1.0.2
 
@@ -3054,9 +3066,9 @@ snapshots:
 
   enabled@2.0.0: {}
 
-  encodeurl@1.0.2: {}
+  encodeurl@1.0.3: {}
 
-  encodeurl@2.0.1: {}
+  encodeurl@2.0.2: {}
 
   end-of-stream@1.4.5:
     dependencies:
@@ -3153,7 +3165,7 @@ snapshots:
       cookie-signature: 1.0.7
       debug: 2.6.9
       depd: 2.0.0
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       etag: 1.8.1
       finalhandler: 1.3.2
@@ -3186,7 +3198,7 @@ snapshots:
       cookie-signature: 1.2.2
       debug: 4.4.3(supports-color@7.2.0)
       depd: 2.0.0
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       etag: 1.8.1
       finalhandler: 2.1.1(supports-color@7.2.0)
@@ -3232,7 +3244,7 @@ snapshots:
   finalhandler@1.1.2:
     dependencies:
       debug: 2.6.9
-      encodeurl: 1.0.2
+      encodeurl: 1.0.3
       escape-html: 1.0.3
       on-finished: 2.3.0
       parseurl: 1.3.3
@@ -3242,7 +3254,7 @@ snapshots:
   finalhandler@1.3.2:
     dependencies:
       debug: 2.6.9
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       on-finished: 2.4.2
       parseurl: 1.3.3
@@ -3252,7 +3264,7 @@ snapshots:
   finalhandler@2.1.1(supports-color@7.2.0):
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       on-finished: 2.4.2
       parseurl: 1.3.3
@@ -3260,11 +3272,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  firebase-tools@15.35.0(@types/node@26.6.6)(bare-buffer@3.7.1)(supports-color@7.2.0):
+  firebase-tools@15.36.0(@types/node@26.6.6)(bare-buffer@3.7.1)(supports-color@7.2.0):
     dependencies:
       '@electric-sql/pglite': 0.3.16
       '@electric-sql/pglite-tools': 0.2.21(@electric-sql/pglite@0.3.16)
-      '@google-cloud/cloud-sql-connector': 1.12.1(supports-color@7.2.0)
+      '@google-cloud/cloud-sql-connector': 1.13.0(supports-color@7.2.0)
       '@google-cloud/pubsub': 5.3.1(supports-color@7.2.0)
       '@inquirer/prompts': 7.10.1(@types/node@26.6.6)
       '@modelcontextprotocol/sdk': 1.32.2(supports-color@7.2.0)(zod@4.6.7)
@@ -3317,7 +3329,7 @@ snapshots:
       stream-chain: 4.4.2
       stream-json: 3.9.0
       superstatic: 10.0.0(supports-color@7.2.0)
-      tar: 7.5.22
+      tar: 7.5.23
       tcp-port-used: 1.0.3(supports-color@7.2.0)
       tmp: 0.2.7
       triple-beam: 1.4.1
@@ -3530,6 +3542,22 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  google-gax@6.17.0(supports-color@7.2.0):
+    dependencies:
+      '@grpc/grpc-js': 1.14.7
+      '@grpc/proto-loader': 0.8.1
+      '@opentelemetry/api': 1.9.1
+      duplexify: 4.1.3
+      google-auth-library: 11.3.4(supports-color@7.2.0)
+      google-logging-utils: 2.2.0
+      node-fetch: 3.3.2
+      object-hash: 3.0.0
+      proto3-json-serializer: 4.1.0
+      protobufjs: 7.6.6
+      retry-request: 9.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   google-logging-utils@0.0.2: {}
 
   google-logging-utils@1.1.3: {}
@@ -3588,7 +3616,7 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
-  hono@4.13.17: {}
+  hono@4.13.18: {}
 
   http-errors@2.0.1:
     dependencies:
@@ -3869,19 +3897,19 @@ snapshots:
 
   minimatch@3.1.5:
     dependencies:
-      brace-expansion: 1.1.21
+      brace-expansion: 1.1.22
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 2.1.7
+      brace-expansion: 2.1.8
 
   minimatch@6.2.3:
     dependencies:
-      brace-expansion: 2.1.7
+      brace-expansion: 2.1.8
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.7
+      brace-expansion: 2.1.8
 
   minimist@1.2.8: {}
 
@@ -3960,7 +3988,7 @@ snapshots:
       nopt: 10.0.1
       proc-log: 7.0.0
       semver: 7.8.6
-      tar: 7.5.22
+      tar: 7.5.23
       tinyglobby: 0.2.17
       undici: 8.12.4
       which: 7.0.0
@@ -4130,6 +4158,10 @@ snapshots:
     dependencies:
       protobufjs: 7.6.6
 
+  proto3-json-serializer@4.1.0:
+    dependencies:
+      protobufjs: 7.6.6
+
   protobufjs@7.6.6:
     dependencies:
       '@protobufjs/aspromise': 1.1.2
@@ -4251,6 +4283,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  retry-request@9.1.0:
+    dependencies:
+      extend: 3.0.2
+
   retry@0.13.1: {}
 
   rimraf@5.0.10:
@@ -4288,7 +4324,7 @@ snapshots:
       debug: 2.6.9
       depd: 2.0.0
       destroy: 1.2.0
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       etag: 1.8.1
       fresh: 0.5.2
@@ -4302,7 +4338,7 @@ snapshots:
   send@1.2.1(supports-color@7.2.0):
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       etag: 1.8.1
       fresh: 2.0.0
@@ -4317,14 +4353,14 @@ snapshots:
 
   serve-static@1.16.3:
     dependencies:
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       parseurl: 1.3.3
       send: 0.19.2
 
   serve-static@2.2.1(supports-color@7.2.0):
     dependencies:
-      encodeurl: 2.0.1
+      encodeurl: 2.0.2
       escape-html: 1.0.3
       parseurl: 1.3.3
       send: 1.2.1(supports-color@7.2.0)
@@ -4496,7 +4532,7 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  tar@7.5.22:
+  tar@7.5.23:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
