@@ -3,26 +3,26 @@
 lockfile_version = 4
 
 [[tools.betterleaks]]
-version = "1.10.0"
+version = "1.10.1"
 backend = "aqua:betterleaks/betterleaks"
 specifiers = ["latest"]
 
 [tools.betterleaks."platforms.linux-arm64"]
-checksum = "sha256:3d7585cbe4f947aef6e31662f65beb5b43b104381a691b6b81b157ebfbb0c02d"
-url = "https://github.com/betterleaks/betterleaks/releases/download/v1.10.0/betterleaks_1.10.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/betterleaks/betterleaks/releases/assets/710841284"
+checksum = "sha256:62a63199f9f61a6b5e5a6f58f048493db20fbc8c770014f4d903a4d97886e1bf"
+url = "https://github.com/betterleaks/betterleaks/releases/download/v1.10.1/betterleaks_1.10.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/betterleaks/betterleaks/releases/assets/740237676"
 provenance = "cosign"
 
 [tools.betterleaks."platforms.linux-x64"]
-checksum = "sha256:9d9ad503cd5d80d18a939352266c3fcca52f10da9b83cd5cfe646989b13940fe"
-url = "https://github.com/betterleaks/betterleaks/releases/download/v1.10.0/betterleaks_1.10.0_linux_x64.tar.gz"
-url_api = "https://api.github.com/repos/betterleaks/betterleaks/releases/assets/710841396"
+checksum = "sha256:c174b42d7aa60caf58c0c3e555c0e4bed01fe6b0d99a412bce777b5af4ce913e"
+url = "https://github.com/betterleaks/betterleaks/releases/download/v1.10.1/betterleaks_1.10.1_linux_x64.tar.gz"
+url_api = "https://api.github.com/repos/betterleaks/betterleaks/releases/assets/740237681"
 provenance = "cosign"
 
 [tools.betterleaks."platforms.macos-arm64"]
-checksum = "sha256:91eaea97709d3308c7712574a56260539c65fbd0672711537aa68d566ea630b3"
-url = "https://github.com/betterleaks/betterleaks/releases/download/v1.10.0/betterleaks_1.10.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/betterleaks/betterleaks/releases/assets/710841276"
+checksum = "sha256:ca91eb3b006f15478411f235b5e2712fb15cea74f6701ebadc2364efe0af1403"
+url = "https://github.com/betterleaks/betterleaks/releases/download/v1.10.1/betterleaks_1.10.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/betterleaks/betterleaks/releases/assets/740237732"
 provenance = "cosign"
 
 [[tools.chezmoi]]
@@ -91,26 +91,26 @@ url = "https://github.com/fish-shell/fish-shell/releases/download/4.9.3/fish-4.9
 url_api = "https://api.github.com/repos/fish-shell/fish-shell/releases/assets/551147059"
 
 [[tools.gh]]
-version = "2.103.3"
+version = "2.104.0"
 backend = "aqua:cli/cli"
 specifiers = ["latest"]
 
 [tools.gh."platforms.linux-arm64"]
-checksum = "sha256:ee32df2323c8847f5fac6cb6b4b69ca75828e9329a8f22f677021f7b3306ce63"
-url = "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/679195636"
+checksum = "sha256:cb34cefc6f4e77b90731374a2b737516bb8f3033c6ca46aa949e5344f68069e3"
+url = "https://github.com/cli/cli/releases/download/v2.104.0/gh_2.104.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/740718938"
 provenance = "github-attestations"
 
 [tools.gh."platforms.linux-x64"]
-checksum = "sha256:4c806978ffce1cec70853302a56d70ac6da4f19bae7adca4e1a8ab00633dd91d"
-url = "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/679195621"
+checksum = "sha256:98cb101ad87dbbd3f6b2f2bfcbd43197ccd07643140121d8a9cfaa91eadbc24e"
+url = "https://github.com/cli/cli/releases/download/v2.104.0/gh_2.104.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/740718892"
 provenance = "github-attestations"
 
 [tools.gh."platforms.macos-arm64"]
-checksum = "sha256:d700207eae9ae98fe2b89535c2c087c07823d4628c56364695a5a07ef311c062"
-url = "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_macOS_arm64.zip"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/679195704"
+checksum = "sha256:23b12706219b9892e44236f988444a24adcf29284e16b35e03ba5b863fb6eb8e"
+url = "https://github.com/cli/cli/releases/download/v2.104.0/gh_2.104.0_macOS_arm64.zip"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/740719079"
 provenance = "github-attestations"
 
 [[tools.git-cliff]]
@@ -135,25 +135,25 @@ url = "https://github.com/orhun/git-cliff/releases/download/v2.14.2/git-cliff-2.
 url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/573487203"
 
 [[tools.jactionlint]]
-version = "2.5.0"
+version = "2.6.0"
 backend = "packslip:github.com/jdx/jactionlint"
 specifiers = ["latest"]
 
 [tools.jactionlint."platforms.linux-arm64"]
-checksum = "sha256:ad7e33b6264cea16b7e83ad2bb004824d5b1c15aedb35ba0dc84917f791c5525"
-url = "https://github.com/jdx/jactionlint/releases/download/v2.5.0/jactionlint_2.5.0_linux_arm64.tar.gz"
+checksum = "sha256:c726185a85f26d09aa94ea556509a19827979074b35d65f357f3a4947573e934"
+url = "https://github.com/jdx/jactionlint/releases/download/v2.6.0/jactionlint_2.6.0_linux_arm64.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/jactionlint/.github/workflows/release.yaml"
 repository_ids = { repository = "1404951382" }
 
 [tools.jactionlint."platforms.linux-x64"]
-checksum = "sha256:5ac307b0499bb0eab45ae99c23e8e0790874fbc667c75224410954e0e3c6e0f5"
-url = "https://github.com/jdx/jactionlint/releases/download/v2.5.0/jactionlint_2.5.0_linux_amd64.tar.gz"
+checksum = "sha256:d5400967b8f0d3a5ae9a4cee21f56400a50eb3f05d0cbb4ef17184f17f0760c8"
+url = "https://github.com/jdx/jactionlint/releases/download/v2.6.0/jactionlint_2.6.0_linux_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/jactionlint/.github/workflows/release.yaml"
 repository_ids = { repository = "1404951382" }
 
 [tools.jactionlint."platforms.macos-arm64"]
-checksum = "sha256:15b47d53e3b1aafbd674cca0e8fff0d5952f3cf2a7d7501a8f67576ef76397b4"
-url = "https://github.com/jdx/jactionlint/releases/download/v2.5.0/jactionlint_2.5.0_darwin_arm64.tar.gz"
+checksum = "sha256:c3f373c7eac668aacb390b9c802cf4b5e2ad1a11b0b0c0aea6b04ca0cfa0c018"
+url = "https://github.com/jdx/jactionlint/releases/download/v2.6.0/jactionlint_2.6.0_darwin_arm64.tar.gz"
 signer = "sigstore-oidc:https://github.com/jdx/jactionlint/.github/workflows/release.yaml"
 repository_ids = { repository = "1404951382" }
 
@@ -350,24 +350,24 @@ url = "https://github.com/crate-ci/typos/releases/download/v1.52.2/typos-v1.52.2
 url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/733789873"
 
 [[tools.uv]]
-version = "0.13.7"
+version = "0.13.8"
 backend = "aqua:astral-sh/uv"
 specifiers = ["latest"]
 
 [tools.uv."platforms.linux-arm64"]
-checksum = "sha256:71279f8d3c67241e807b9d8db872d1bf541579fb9f08b7d1eb1682196d1e57dc"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/704009469"
+checksum = "sha256:74f2f5c6024d397481db228db8fc25eed420db192243f88438c118e7e013e585"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313629"
 provenance = "github-attestations"
 
 [tools.uv."platforms.linux-x64"]
-checksum = "sha256:c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/704009823"
+checksum = "sha256:5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313966"
 provenance = "github-attestations"
 
 [tools.uv."platforms.macos-arm64"]
-checksum = "sha256:81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731"
-url = "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/704009442"
+checksum = "sha256:6b71028a6b904f2ae3340ef52e595512de807d06c0a20eaef2f692581b246558"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.8/uv-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/740313603"
 provenance = "github-attestations"
