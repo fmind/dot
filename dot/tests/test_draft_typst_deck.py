@@ -335,3 +335,20 @@ def test_upload_cli_paginates_stages_in_private_dir_and_verifies_md5(
     )
     assert mod.main(["upload", str(pdf_path), "--file-id", "direct_id_77", "--json"]) == 1
     assert "Integrity mismatch" in capsys.readouterr().err
+
+
+def test_check_cli_rejects_output_overwriting_typst_source(
+    mod: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    deck = tmp_path / "deck.typ"
+    deck.write_text("#text[Keep deck source intact]\n", encoding="utf-8")
+    theme = tmp_path / "fmind-slides.typ"
+    theme.write_text("// theme\n", encoding="utf-8")
+
+    for bad_out in (deck, theme, tmp_path / "other.typ"):
+        assert mod.main(["check", str(deck), "-o", str(bad_out)]) == 1
+        assert "Output PDF path must differ from Typst source files" in capsys.readouterr().err
+    assert deck.read_text(encoding="utf-8") == "#text[Keep deck source intact]\n"
+    assert theme.read_text(encoding="utf-8") == "// theme\n"

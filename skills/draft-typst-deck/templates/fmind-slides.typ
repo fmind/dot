@@ -67,6 +67,8 @@
   )
   set text(font: sans-font, size: 16pt, fill: colors.foreground)
   set par(leading: 0.6em, spacing: 0.75em)
+  set raw(theme: none)
+  show raw: set text(font: mono-fonts)
   show raw.where(block: false): it => text(
     font: mono-fonts,
     size: 0.88em,

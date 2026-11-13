@@ -322,6 +322,10 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
                 rendered_figures.append(str(fig_out))
 
     pdf_path = (args.output or deck_path.with_suffix(".pdf")).resolve()
+    source_typ_paths = {deck_path, *(p.resolve() for p in collect_typ_files(deck_dir))}
+    if pdf_path in source_typ_paths or pdf_path.suffix.lower() == ".typ":
+        msg = f"Output PDF path must differ from Typst source files: {args.output or pdf_path}"
+        raise ValueError(msg)
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     preview_dir = (args.png_dir or (deck_dir / "_preview")).resolve()
     preview_dir.mkdir(parents=True, exist_ok=True)
