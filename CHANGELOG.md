@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented in this file.
 
+## [16.1.0] - 2026-11-13
+
+### 🚀 Features
+
+- _(skills)_ Honor PORT override in Zensical serve:docs starters
+- _(diagrams)_ Adopt Typst globally and pin fmind.typ theme
+- _(skills)_ Add draft-typst-deck skill for 16:9 Typst PDF decks
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Harden macOS shell startup and multi-machine isolation
+- _(dot)_ Harden doctor colab auth, git origin overrides, and privacy
+- _(skills)_ Harden Typst figure validation and align skill docs
+- _(skills)_ Guard Typst deck output path and disable raw syntax colors
+
+### ⚡ Performance
+
+- _(cli)_ Avoid git subprocesses for repo metadata and origin checks
+
+### 📚 Documentation
+
+- _(skills)_ Align Zensical, Mermaid, agy, and macOS workflow guides
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade uv.lock to latest
+- _(deps)_ Upgrade repository mise.lock to latest
+- _(deps)_ Upgrade global mise tools to latest
+- _(deps)_ Upgrade lazy-lock.json to latest
+
 ## [16.0.0] - 2026-11-13
 
 ### 🚀 Features
