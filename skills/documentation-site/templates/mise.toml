@@ -46,8 +46,8 @@ description = "Build the documentation site strictly (Zensical)"
 run = "uv run --locked zensical build --clean --strict"
 
 [tasks."serve:docs"]
-description = "Preview the documentation site"
-run = "uv run --locked zensical serve"
+description = "Preview the documentation site (override port via PORT=8001)"
+run = "uv run --locked zensical serve -a 127.0.0.1:${PORT:-8000}"
 
 [tasks.check]
 description = "Run all static and documentation checks"

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Mise
@@ -46,7 +46,7 @@ Start Python projects from [python-stack](../python-stack/references/foundation/
 
 ## Gotchas
 
-- **Load `.env` only when needed**: `[env]` `_.file = ".env"` loads dotenv variables (`_.source` sources a shell script).
+- **Load `.env` only when needed, without shadowing caller overrides**: `[env]` keys and `_.file = ".env"` (`_.source` for shell scripts) override inherited process variables, so keep task-overridable defaults like `PORT` in `${PORT:-8000}` rather than `[env]` or `.env`.
 - **Keep gates side-effect-free**: `check`, `test`, `build`, and `all` must never publish, deploy, or spend; keep consequential tasks explicit.
 - **Isolate `mise run all` on dirty trees**: `all` inspects the full tree without rewriting files while `format` mutates files; when unrelated edits exist, test a materialized snapshot via [git-worktree](../git-delivery/references/git-worktree/GUIDE.md).
 - **Pin project tools in the project**: global workstation tools never replace project pins; declare every tool (`kubectl`, `opentofu`, etc.) in the project's `mise.toml` via `mise use --pin <tool>` ([tool-versions.md](references/tool-versions.md)), and ask before adding `mise.toml` to a non-mise client repo.

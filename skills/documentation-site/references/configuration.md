@@ -10,7 +10,7 @@ Adjust the starter's `[project.theme].features` only for a concrete need ([navig
 - **Tabs need ≥3 top-level sections**: `navigation.tabs` appears above 1220 px.
 - **Conflicting pairs**: `navigation.indexes` conflicts with `toc.integrate`; `navigation.prune` (for large sites) conflicts with `navigation.expand`.
 - **Copy as Markdown needs `llmstxt`**: `content.action.copy` renders only on pages matched by `llmstxt.sections`.
-- **Scope link previews**: prefer targeted previews over global `navigation.instant.preview`:
+- **Scope link previews**: prefer targeted previews over global `navigation.instant.preview` (exclude Mermaid-leading pages, which leak raw diagram source into hover tooltips, and hero `.md-button` CTAs):
 
   ```toml
   [[project.markdown_extensions.zensical.extensions.preview.configurations]]

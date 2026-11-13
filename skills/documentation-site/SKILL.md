@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/documentation-site
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Documentation Sites
@@ -26,7 +26,7 @@ Use Zensical by default for project docs, courses, and blogs; keep an existing g
 1. **Apply the starter**: copy [zensical.toml](templates/zensical.toml), [index.md](templates/index.md) (`docs/index.md`), `~/.agents/themes/zensical/fmind.css` (`docs/stylesheets/fmind.css`, or customer brand variables), and [abbreviations.md](templates/abbreviations.md) (`includes/abbreviations.md`); delete `docs/markdown.md`. Fill `<placeholder>` values, set `site_url` with its hosting prefix, and prune unused sections. See [configuration](references/configuration.md) for starter defaults and optional plugins (blog, tags, redirects, API docs, versions, offline).
 1. **Write under `docs/`**: one H1 per page, explicit `nav`, section `index.md` overviews, relative `.md` links, and frontmatter `description` ([authoring](references/authoring.md)). Courses start from the [lesson template](templates/lesson.md), prefer local exercises (live models/cloud need authority and budget), and pair [VHS](../diagrams-as-code/references/recording/GUIDE.md) demos with a static fallback.
 1. **Wire tasks and ignores**: merge [mise.toml](templates/mise.toml), ignore `site/` and `.cache/`, format Markdown with [dprint](../mise/references/dprint.md), and test executable examples per [python-stack](../python-stack/references/foundation/GUIDE.md).
-1. **Validate**: `uv run --locked zensical build --clean --strict` must exit 0 with `No issues found`. Preview via `uv run --locked zensical serve` (`localhost:8000`) across navigation, search, light/dark palettes, 390 px width, keyboard, and code copy (screenshot with [playwright](../playwright/SKILL.md)); run lesson code and external link checks separately.
+1. **Validate**: `uv run --locked zensical build --clean --strict` must exit 0 with `No issues found`. Preview via `uv run --locked zensical serve -a 127.0.0.1:${PORT:-8000}` across navigation, search, light/dark palettes, 390 px width, keyboard, and code copy (screenshot with [playwright](../playwright/SKILL.md)); run lesson code and external link checks separately.
 1. **Publish**: replace `.github/workflows/docs.yml` with pinned [docs.yml](templates/docs.yml) ([github-actions](../github-actions/references/ci-cd/GUIDE.md) owns pins); enabling GitHub Pages or deploying requires publication authority.
 
 ## Gotchas

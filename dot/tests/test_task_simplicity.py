@@ -19,6 +19,10 @@ STARTERS = {
     "python-stack": "skills/python-stack/references/foundation/templates/mise.toml",
     "terraform": "skills/infra-as-code/templates/mise.toml",
 }
+DOCS_STARTERS = (
+    "skills/documentation-site/templates/mise.toml",
+    "skills/python-stack/references/foundation/templates/mise.toml",
+)
 # A hung task must fail its own test instead of consuming the CI job limit.
 TIMEOUT_SECONDS = 120
 
@@ -208,3 +212,43 @@ def test_terraform_formatter_forwards_files_and_failures(tmp_path: Path) -> None
     assert json.loads((tmp_path / "args.json").read_text()) == ["fmt", "-recursive"]
     env["TOFU_EXIT"] = "1"
     assert run(tmp_path, env, "mise", "run", "format:tofu", selected).returncode != 0
+
+
+@pytest.mark.parametrize("starter_path", DOCS_STARTERS)
+def test_docs_serve_starters_validate_and_honor_port_override(tmp_path: Path, starter_path: str) -> None:
+    shutil.copy2(ROOT / starter_path, tmp_path / "mise.toml")
+    mise = shutil.which("mise")
+    assert mise is not None
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env python3\nimport json, sys\nfrom pathlib import Path\n"
+        'Path("uv_args.json").write_text(json.dumps(sys.argv[1:]))\n'
+    )
+    uv.chmod(0o755)
+    base_env = {
+        "PATH": os.pathsep.join([str(bin_dir), str(Path(mise).parent), str(Path(sys.executable).parent), os.defpath]),
+        "HOME": str(tmp_path),
+        "MISE_CONFIG_DIR": str(tmp_path / "config"),
+        "MISE_TRUSTED_CONFIG_PATHS": str(tmp_path),
+    }
+    assert run(tmp_path, base_env, "mise", "tasks", "validate").returncode == 0
+    assert run(tmp_path, base_env, "mise", "run", "serve:docs").returncode == 0
+    assert json.loads((tmp_path / "uv_args.json").read_text()) == [
+        "run",
+        "--locked",
+        "zensical",
+        "serve",
+        "-a",
+        "127.0.0.1:8000",
+    ]
+    assert run(tmp_path, base_env | {"PORT": "9123"}, "mise", "run", "serve:docs").returncode == 0
+    assert json.loads((tmp_path / "uv_args.json").read_text()) == [
+        "run",
+        "--locked",
+        "zensical",
+        "serve",
+        "-a",
+        "127.0.0.1:9123",
+    ]
