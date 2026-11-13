@@ -6,7 +6,7 @@ Build executive briefings, architecture reviews, talk decks, and client workshop
 
 1. **Self-contained HTML/CSS deck (default for standalone shares, PDF export, and talks)**: single `.html` (`16:9` `1280x720`, `@page { size: 1280px 720px; margin: 0; }`, keyboard arrow navigation, embedded WOFF2 Google Sans + Google Sans Code, and Typst/D2/SVG/Mermaid diagrams via [diagrams-as-code](../../diagrams-as-code/SKILL.md)). Exports pixel-exact PDFs via headless Chrome (`--print-to-pdf`).
 1. **Google Slides (`gws slides`) for collaborative Workspace decks**: inspect IDs and master layouts first with `gws slides presentations get --params '{"presentationId":"<ID>"}'`, validate atomic `presentations.batchUpdate` payloads (`createSlide`, `insertText`, `replaceAllText`, `createImage`) with `--dry-run`, apply under user authority, and read back to verify ([gws services](../../gws/references/services.md#calendar-and-slides)). Never send Markdown to Slides API; store editable Typst/D2/SVG/Mermaid sources in Drive `assets/` ([diagrams-as-code](../../diagrams-as-code/SKILL.md)).
-1. **Typst (`fmind.typ` / `touying` / `polylux`) or Marp**: use when a course or talk repository standardizes on `.typ` or Marp Markdown; commit editable `.typ`/`.md` sources beside exported `.pdf`.
+1. **Typst PDF slide deck ([draft-typst-deck](../../draft-typst-deck/SKILL.md), `fmind-slides.typ` / `touying` / `polylux`) or Marp**: use when stakeholders want a crisp deterministic 16:9 PDF deck from readable `.typ`/`.md` sources with pure-Typst comparative visuals and overflow verification; keep editable sources beside exported `.pdf`.
 
 ## Slide Structure and Pacing
 

@@ -11,7 +11,7 @@ Build calm, branded concept illustrations, cards, and step flows with the Typst 
 
 1. **Pick one concept**: loop, before/after, mapping, boundary, or pipeline (`3–7` items per group; split dense views instead of shrinking type).
 1. **Stage the theme module**: for Fmind work, copy `~/.agents/themes/typst/fmind.typ` next to your `.typ` sources (`docs/assets/fmind.typ` or `.github/assets/fmind.typ`) so `typst compile` resolves `#import "fmind.typ": *` inside `--root`. For customer work, define their brand colors and fonts instead (ask if missing; never mix brands).
-1. **Compose with stdlib + `fmind.typ` helpers**: apply `#show: fmind-diagram` (auto-sized `#FFFFFF` canvas, `Google Sans` + `Google Sans Code`) and combine `grid`, `stack`, `frame`, `section-label`, `chip`, `tile`, `flow-arrow`, `loop-back`, `status-badge`, and the seven `DESIGN.md` `diagram-*` shapes (`diagram-group`, `diagram-container`, `diagram-component`, `diagram-actor`, `diagram-external`, `diagram-step`, `diagram-terminal`). Target ~~`680–720pt` total width (~~`900–960px` at 1×) for READMEs/docs, or ≤`440pt` for Google Docs ([draft-doc](../../draft-doc/SKILL.md)):
+1. **Compose with stdlib + `fmind.typ` helpers**: apply `#show: fmind-diagram` (auto-sized `#FFFFFF` canvas, `Google Sans` + `Google Sans Code`) and combine `grid`, `stack`, `frame`, `section-label`, `chip`, `tile`, `flow-arrow`, `loop-back`, `status-badge`, and the seven `DESIGN.md` `diagram-*` shapes (`diagram-group`, `diagram-container`, `diagram-component`, `diagram-actor`, `diagram-external`, `diagram-step`, `diagram-terminal`). Target `~680–720pt` total width (`~900–960px` at 1×) for READMEs/docs, or ≤`440pt` for Google Docs ([draft-doc](../../draft-doc/SKILL.md)):
 
    ```typst
    #import "fmind.typ": *
@@ -68,4 +68,4 @@ Build calm, branded concept illustrations, cards, and step flows with the Typst 
 ## Documentation
 
 - [Typst styling](https://typst.app/docs/reference/styling/) · [Layout](https://typst.app/docs/reference/layout/) · [Visualize](https://typst.app/docs/reference/visualize/)
-- Companions: [d2](d2.md) (routed technical graphs), [svg](svg/GUIDE.md) (logos and raw `<svg>` marks), [draft-doc](../../draft-doc/SKILL.md) (Google Docs `.typ` figures).
+- Companions: [d2](d2.md) (routed technical graphs), [svg](svg/GUIDE.md) (logos and raw `<svg>` marks), [draft-doc](../../draft-doc/SKILL.md) (Google Docs `.typ` figures), [draft-typst-deck](../../draft-typst-deck/SKILL.md) (16:9 PDF slide decks).
