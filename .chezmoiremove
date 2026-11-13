@@ -30,9 +30,9 @@
 {{- if and $dotCacheInfo (eq $dotCacheInfo.type "dir") (has (output "ls" "-A" $dotCache | trim) (list "" "notify.wav")) }}
 .cache/dot
 {{- end }}
-# Skills merged in recent releases (2026-11-10..2026-11-11). List a name only while it is still
+# Skills merged or renamed in recent releases. List a name only while it is still
 # this checkout's link, so apply never deletes a same-named package installed by another tool.
-{{- range list "agent-evaluation" "dprint" "fmind-visuals" "google-developer" "lesson-learned" "mcp-setup" }}
+{{- range list "agent-evaluation" "dprint" "fmind-visuals" "google-developer" "lesson-learned" "mcp-setup" "stakeholder-writing" }}
 {{-   $path := joinPath $.chezmoi.destDir ".agents/skills" . }}
 {{-   $info := lstat $path }}
 {{-   if and $info (eq $info.type "symlink") }}

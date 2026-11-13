@@ -5,12 +5,17 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
+import zipfile
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
+from tests.fakes import native_binary
+
 SCRIPT = Path(__file__).resolve().parents[2] / "skills/draft-typst-deck/scripts/build_typst_deck.py"
+TEMPLATE_DECK = Path(__file__).resolve().parents[2] / "skills/draft-typst-deck/templates/deck.typ"
 
 
 @pytest.fixture
@@ -352,3 +357,166 @@ def test_check_cli_rejects_output_overwriting_typst_source(
         assert "Output PDF path must differ from Typst source files" in capsys.readouterr().err
     assert deck.read_text(encoding="utf-8") == "#text[Keep deck source intact]\n"
     assert theme.read_text(encoding="utf-8") == "// theme\n"
+
+
+def test_build_pptx_packages_16x9_slides_and_speaker_notes(mod: ModuleType, tmp_path: Path) -> None:
+    slides = []
+    for idx in range(1, 3):
+        img = tmp_path / f"s-{idx}.png"
+        img.write_bytes(b"\x89PNG\r\n\x1a\n" + f"slide-{idx}".encode())
+        slides.append(img)
+
+    out_pptx = tmp_path / "out" / "review.pptx"
+    built = mod.build_pptx(
+        slides,
+        out_pptx,
+        title="Executive Review",
+        speaker_notes={1: "Open with CTA.", 2: "Line 1 & <tag>\nLine 2"},
+    )
+    assert built == out_pptx
+    assert mod.inspect_pptx_slide_count(out_pptx) == 2
+
+    with zipfile.ZipFile(out_pptx, "r") as zf:
+        names = set(zf.namelist())
+        assert {
+            "[Content_Types].xml",
+            "ppt/presentation.xml",
+            "ppt/slides/slide1.xml",
+            "ppt/slides/slide2.xml",
+            "ppt/media/slide-01.png",
+            "ppt/media/slide-02.png",
+            "ppt/notesSlides/notesSlide1.xml",
+            "ppt/notesSlides/notesSlide2.xml",
+        } <= names
+        pres_xml = zf.read("ppt/presentation.xml").decode()
+        assert '<p:sldSz cx="9144000" cy="5143500" type="screen16x9"/>' in pres_xml
+        notes2 = zf.read("ppt/notesSlides/notesSlide2.xml").decode()
+        assert "Line 1 &amp; &lt;tag&gt;" in notes2
+        assert "Line 2" in notes2
+
+
+def test_check_cli_compiles_template_deck_to_pptx_and_extracts_notes(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    typst_bin = native_binary("typst")
+    if typst_bin is None:
+        pytest.skip("typst CLI unavailable")
+    monkeypatch.setenv("PATH", f"{typst_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    deck_dir = tmp_path / "deck"
+    deck_dir.mkdir()
+    for name in ("fmind-slides.typ", "deck.typ"):
+        (deck_dir / name).write_text((TEMPLATE_DECK.parent / name).read_text(encoding="utf-8"), encoding="utf-8")
+    # Ensure check doesn't fail on a headless host lacking preinstalled Google Sans fonts.
+    rc = mod.main(
+        [
+            "check",
+            str(deck_dir / "deck.typ"),
+            "--expected-slides",
+            "4",
+            "--pptx",
+            "--allow-font-warnings",
+            "--json",
+        ]
+    )
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["slide_count"] == 4
+    assert payload["speaker_notes_slides"] == [1, 2, 3, 4]
+    pptx_path = Path(payload["pptx"])
+    assert pptx_path.is_file()
+    assert mod.inspect_pptx_slide_count(pptx_path) == 4
+
+
+def test_upload_cli_converts_pptx_to_google_slides_and_syncs_sources(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    src_dir = tmp_path / "deck"
+    src_dir.mkdir()
+    (src_dir / "deck.typ").write_text("#text[Slide]\n", encoding="utf-8")
+    png = tmp_path / "slide-1.png"
+    png.write_bytes(b"\x89PNG\r\n\x1a\nimg")
+    pptx = mod.build_pptx([png], src_dir / "deck.pptx", title="Deck", speaker_notes={1: "Note 1"})
+
+    pdf = tmp_path / "deck.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    assert mod.main(["upload", str(pdf), "--drive-folder", "folder_1", "--google-slides"]) == 1
+    assert "--google-slides requires a .pptx" in capsys.readouterr().err
+
+    def fake_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        prefix = tuple(args[:3])
+        if prefix == ("drive", "files", "list"):
+            return {"files": []}
+        if prefix == ("drive", "files", "create"):
+            body = json.loads(args[args.index("--json") + 1])
+            mime = body["mimeType"]
+            if mime == mod.FOLDER_MIME:
+                return {"id": f"folder_{body['name']}"}
+            if mime == mod.GOOGLE_SLIDES_MIME:
+                staged = cwd / args[args.index("--upload") + 1]
+                assert staged.is_file()
+                return {"id": "slides_123"}
+            staged_src = cwd / args[args.index("--upload") + 1]
+            return {"id": f"src_{staged_src.name}"}
+        if prefix == ("drive", "files", "get"):
+            file_id = json.loads(args[args.index("--params") + 1])["fileId"]
+            if file_id == "slides_123":
+                return {
+                    "id": "slides_123",
+                    "name": "deck",
+                    "mimeType": mod.GOOGLE_SLIDES_MIME,
+                    "webViewLink": "https://docs.google.com/presentation/d/slides_123/edit",
+                    "trashed": False,
+                    "parents": ["folder_1"],
+                }
+            src_bytes = (src_dir / "deck.typ").read_bytes()
+            src_md5 = hashlib.md5(src_bytes).hexdigest()  # noqa: S324
+            return {"id": file_id, "md5Checksum": src_md5, "size": str(len(src_bytes))}
+        if prefix == ("slides", "presentations", "get"):
+            return {"presentationId": "slides_123", "title": "deck", "slides": [{"objectId": "p1"}]}
+        msg = f"Unexpected gws args: {args}"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(mod, "_run_gws", fake_gws)
+    rc = mod.main(
+        [
+            "upload",
+            str(pptx),
+            "--drive-folder",
+            "folder_1",
+            "--google-slides",
+            "--source-dir",
+            str(src_dir),
+            "--json",
+        ]
+    )
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["file_id"] == "slides_123"
+    assert out["mimeType"] == mod.GOOGLE_SLIDES_MIME
+    assert out["slide_count"] == 1
+    assert out["synced_sources"] == [{"name": "deck.typ", "file_id": "src_deck.typ", "operation": "created"}]
+
+    # Trashed or slide-count-mismatched Slides read-back fails closed.
+    monkeypatch.setattr(
+        mod,
+        "_run_gws",
+        lambda args, **_kw: (
+            {"files": []}
+            if args[:3] == ["drive", "files", "list"]
+            else {"id": "slides_123"}
+            if args[:3] == ["drive", "files", "create"]
+            else {"id": "slides_123", "mimeType": mod.GOOGLE_SLIDES_MIME, "trashed": False}
+            if args[:3] == ["drive", "files", "get"]
+            else {"presentationId": "slides_123", "slides": []}
+        ),
+    )
+    assert mod.main(["upload", str(pptx), "--drive-folder", "folder_1", "--google-slides"]) == 1
+    assert "slide-count mismatch" in capsys.readouterr().err

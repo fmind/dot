@@ -1,6 +1,6 @@
 ---
 name: draft-typst-deck
-description: Create 16:9 Typst executive PDF slide decks with pure-Typst charts, overflow and font verification, and isolated gws Drive upload.
+description: "Create 16:9 Typst slides, branded visual cards, PDF decks, and private Google Slides via gws."
 license: MIT
 metadata:
   kind: task
@@ -12,41 +12,42 @@ metadata:
 
 # Draft Typst Slide Deck
 
-Produce calm, high-contrast **16:9 (`960pt x 540pt`) Typst PDF slide decks** paired with editable `.typ` sources, fixed-height layout primitives, pure-Typst comparative visuals, overflow/font checks, and optional Google Drive upload via [gws](../gws/SKILL.md). Apply the Fmind Theme (`~/.agents/DESIGN.md`, light `#FFFFFF` canvas, `#174EA6` primary accent, `Google Sans` + `Google Sans Code`) by default, or substitute a client's brand tokens and fonts when working for a customer (never mix brands).
+Build crisp **16:9 (`960pt x 540pt`) Typst slide decks** and **branded visual cards** with editable `.typ` sources, compiled PDF/PNG/PPTX outputs, speaker notes, and optional Google Drive / Google Slides publishing via [gws](../gws/SKILL.md). Default to the Fmind Theme (`~/.agents/DESIGN.md`: `#FFFFFF` canvas, `#174EA6` accent, `Google Sans`), or substitute a client's brand tokens and fonts (never mix brands).
 
-## When to Use vs Sibling Skills
+## Format Choice (PDF vs Google Slides vs Editable Shapes)
 
-- Use **`draft-typst-deck`** when stakeholders need a concise, fixed-pagination **PDF slide deck** compiled deterministically from readable `.typ` sources ([fmind-slides.typ](templates/fmind-slides.typ), [deck.typ](templates/deck.typ)).
-- Use [stakeholder-writing slides guidance](../stakeholder-writing/references/slides.md) when an HTML/CSS or Google Slides deck is preferred, or when structuring story arcs and comparison tables.
-- Use [draft-doc](../draft-doc/SKILL.md) for narrative Google Docs reports and memos (`gws` native Markdown `.md`).
+Apply [humanize](../humanize/SKILL.md) and its [slides guide](../humanize/references/slides.md) on every deck:
 
-## Deck Architecture & Layout Budgets
+1. **Typst PDF / Retina PPTX → Private Google Slides (default)**: author [fmind-slides.typ](templates/fmind-slides.typ) + [deck.typ](templates/deck.typ), include `#speaker-note("...")`, export `--pptx`, and upload with `--google-slides`. Drive converts the `.pptx` privately (`ppt/media/` + speaker notes) into a Google Slides URL without exposing public image links.
+1. **Editable-shape Google Slides**: when stakeholders must edit on-slide text boxes directly in Slides, generate native `Google Sans` text/card shapes + 2× Typst `figures/*.typ` PNG visuals via `uv run --with python-pptx` and upload the `.pptx` with `--google-slides` (keeping `.typ` sources via `--source-dir`).
+1. **Standalone branded images**: compile `figures/*.typ` (2× Retina PNG/SVG) via `--render-figures` for Google Docs ([draft-doc](../draft-doc/SKILL.md)), reports, or web/social cards ([diagrams-as-code](../diagrams-as-code/references/typst.md)).
 
-1. **Keep `.typ` sources beside the compiled PDF**: copy [fmind-slides.typ](templates/fmind-slides.typ) and [deck.typ](templates/deck.typ) into the target directory so `--root` resolves imports offline with zero external `@preview/...` packages.
-1. **Strict density ceiling**: aim for `4–8` slides (`25–45` words per slide, max `3–4` short bullets per card, zero crowded prose). Put detail tables or methodology formulas into backup slides or linked memos.
-1. **Readable typography & spacing**: titles `26pt` (`38pt` cover), body/cards `15.5–16pt`, comparative bar labels `>=12pt` (`11.5pt` floor only on dense sub-captions), generous padding, and fixed card heights (`128pt`, `164pt`) to prevent vertical spill.
-1. **At most 3 comparative visuals per deck**: use pure-Typst `bar-panel`, `stacked-bar-row`, `broken-bar-row`, `step-card`, and `flow-arrow` helpers documented in [charts-and-diagrams.md](references/charts-and-diagrams.md). Follow [charts-and-diagrams.md#typst-escaping-rules](references/charts-and-diagrams.md#typst-escaping-rules) (`$`, `~`, `*` differ between `"..."`, `` `...` ``, and `[...]`).
+## Slide Restraint Rules (Zero Slide Dumps)
 
-## Workflow (`check`, visual inspection, `upload`)
+- **One idea, one visual centerpiece per slide**: pair an action-led headline with **one** focal block (`kpi-card` strip, `bar-panel`, `split-cards`, or `step-card` flow).
+- **≤30 words & zero backticks on slides**: emphasize key asks/figures with `#hl[...]` or `#pill(...)` — move explanations, caveats, and formulas to `#speaker-note("...")` or a linked doc.
+- **Readable minimums & escaping**: titles `26pt`, cards `15–16pt`, chart labels `>=12pt`; follow [charts-and-diagrams.md](references/charts-and-diagrams.md#typst-escaping-rules) (`$`, `~`, `*` differ between `"..."` and `[...]`).
 
-Run [build_typst_deck.py](scripts/build_typst_deck.py) via isolated Python stdlib (`python3 -I`) — no third-party dependencies or network fetches required:
+## Workflow (`check`, inspect, `upload`)
 
-1. **Validate escaping, compile PDF + PNGs, and verify exact slide count**:
+Run [build_typst_deck.py](scripts/build_typst_deck.py) with isolated Python stdlib (`python3 -I`, zero external packages):
+
+1. **Validate, compile PDF + PNGs (+ `.pptx` with speaker notes), and verify slide count**:
 
    ```bash
    python3 -I ~/.agents/skills/draft-typst-deck/scripts/build_typst_deck.py check deck.typ \
-     --expected-slides 4 --json
+     --expected-slides 4 --pptx --json
    ```
 
-   Pass `--render-figures` when standalone diagrams live in `figures/*.typ`. The gate fails on unexpected escapes (`\$`, `\~`, `\*` in strings/backticks), empty bold stars (`**...**`), `unknown font family` warnings, or any slide count mismatch (`Overflow/mismatch`).
+   Pass `--render-figures --figure-format png` to export standalone `figures/*.typ` cards. Fails closed on bad Typst escapes, empty `*bold*` stars, missing fonts, or slide overflow.
 
-1. **Inspect every PNG slide before sharing**: read `_preview/<stem>-1.png` .. `_preview/<stem>-N.png` and complete the pre-share checklist in [verification-and-drive.md](references/verification-and-drive.md).
+1. **Inspect every PNG (`_preview/<stem>-*.png`)** for spacing, label fit, and visual calm per [verification-and-drive.md](references/verification-and-drive.md).
 
-1. **Dry-run and upload to Google Drive (only after user sign-off)**:
+1. **Dry-run and publish to Drive / Google Slides (after explicit approval)**:
 
    ```bash
-   python3 -I ~/.agents/skills/draft-typst-deck/scripts/build_typst_deck.py upload deck.pdf \
-     --file-id "<FILE_ID>" --dry-run --json
+   python3 -I ~/.agents/skills/draft-typst-deck/scripts/build_typst_deck.py upload deck.pptx \
+     --drive-folder "<FOLDER_ID>" --google-slides --source-dir . --dry-run --json
    ```
 
-   Then rerun without `--dry-run` (or use `--drive-folder "<FOLDER_ID>"` to create/upsert by name, plus `--protect-copy` to restrict viewer downloads). Upload stages the PDF in a private temp directory, verifies `%PDF-` magic bytes, and checks remote `md5Checksum` + byte size parity before reporting success.
+   Rerun without `--dry-run` (or upload `deck.pdf` / `--file-id "<ID>"`). Verify remote integrity (MD5+size for PDF/binary `.pptx`; Drive type + `gws slides` slide-count parity for `--google-slides`).

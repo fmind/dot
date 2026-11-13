@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate, compile, preview, and safely upload Typst 16:9 PDF slide decks to Google Drive."""
+"""Validate, compile, export PPTX/PNGs, and safely upload Typst 16:9 slide decks to Drive/Google Slides."""
 
 from __future__ import annotations
 
@@ -11,13 +11,28 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape as xml_escape
 
 DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,128}$")
 FORBIDDEN_RAW_ESCAPE_RE = re.compile(r"\\[$~*]")
 ODD_STRING_ESCAPE_RE = re.compile(r"(?<!\\)(?:\\\\)*\\([$~*])")
 ALLOWED_FIGURE_FORMATS = frozenset({"svg", "png"})
+
+PDF_MIME = "application/pdf"
+PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+GOOGLE_SLIDES_MIME = "application/vnd.google-apps.presentation"
+FOLDER_MIME = "application/vnd.google-apps.folder"
+SLIDE_CX = 9144000  # 10 in at 914400 EMU/in (16:9 widescreen)
+SLIDE_CY = 5143500  # 5.625 in
+
+_NS_CT = "http://schemas.openxmlformats.org/package/2006/content-types"
+_NS_REL = "http://schemas.openxmlformats.org/package/2006/relationships"
+_NS_OD_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main"
+_NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
 def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
@@ -34,7 +49,6 @@ def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
             i += 1
             continue
 
-        # Skip Typst line comments (// ...)
         if ch == "/" and i + 1 < n and source[i + 1] == "/":
             end = source.find("\n", i + 2)
             if end == -1:
@@ -42,7 +56,6 @@ def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
             i = end
             continue
 
-        # Skip Typst block comments (/* ... */, supports nesting)
         if ch == "/" and i + 1 < n and source[i + 1] == "*":
             depth = 1
             i += 2
@@ -60,7 +73,6 @@ def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
                 i += 1
             continue
 
-        # Raw code spans (`...` or ```...```)
         if ch == "`":
             tick_count = 1
             while i + tick_count < n and source[i + tick_count] == "`":
@@ -83,7 +95,6 @@ def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
             i = close_idx + tick_count
             continue
 
-        # Double-quoted string literals ("...")
         if ch == '"':
             start_line = line
             i += 1
@@ -145,7 +156,7 @@ def discover_font_paths(deck_path: Path, extra_paths: list[Path] | None = None) 
 
 
 def collect_typ_files(deck_dir: Path) -> list[Path]:
-    """Collect deck-root and figures .typ files for static validation."""
+    """Collect deck-root and figures .typ files for static validation or source archival."""
     files = sorted(p for p in deck_dir.glob("*.typ") if p.is_file())
     figures_dir = deck_dir / "figures"
     if figures_dir.is_dir():
@@ -180,6 +191,301 @@ def _run_typst(args: list[str]) -> subprocess.CompletedProcess[str]:
         timeout=timeout,
         check=False,
     )
+
+
+def query_speaker_notes(deck_path: Path, deck_dir: Path, font_args: list[str]) -> dict[int, str]:
+    """Extract per-slide speaker notes declared with `<fmind-speaker-note>` via `typst eval`."""
+    proc = _run_typst(
+        [
+            "eval",
+            "query(<fmind-speaker-note>).map(it => it.value)",
+            "--root",
+            str(deck_dir),
+            *font_args,
+            "--in",
+            str(deck_path),
+            "--format",
+            "json",
+        ]
+    )
+    if proc.returncode != 0:
+        detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
+        msg = f"Typst speaker-note query failed: {detail}"
+        raise RuntimeError(msg)
+    raw = proc.stdout.strip()
+    entries = json.loads(raw) if raw else []
+    notes_by_page: dict[int, list[str]] = {}
+    if isinstance(entries, list):
+        for entry in entries:
+            if isinstance(entry, dict) and isinstance(entry.get("page"), int) and isinstance(entry.get("note"), str):
+                text = entry["note"].strip()
+                if text:
+                    notes_by_page.setdefault(entry["page"], []).append(text)
+    return {page: "\n\n".join(parts) for page, parts in sorted(notes_by_page.items())}
+
+
+def _rels_xml(entries: list[tuple[str, str, str]]) -> bytes:
+    items = "".join(
+        f'<Relationship Id="{xml_escape(rid)}" Type="{xml_escape(rtype)}" Target="{xml_escape(target)}"/>'
+        for rid, rtype, target in entries
+    )
+    return (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="{_NS_REL}">{items}</Relationships>'
+    ).encode()
+
+
+def _notes_slide_xml(note_text: str) -> bytes:
+    paragraphs = note_text.splitlines() if note_text else []
+    if not paragraphs:
+        p_xml = '<a:p><a:endParaRPr lang="en-US"/></a:p>'
+    else:
+        p_xml = "".join(
+            f'<a:p><a:r><a:rPr lang="en-US"/><a:t>{xml_escape(line)}</a:t></a:r></a:p>'
+            if line
+            else '<a:p><a:endParaRPr lang="en-US"/></a:p>'
+            for line in paragraphs
+        )
+    return (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<p:notes xmlns:a="{_NS_A}" xmlns:r="{_NS_OD_REL}" xmlns:p="{_NS_P}">'
+        "<p:cSld><p:spTree>"
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image"/><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>'
+        '<p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>'
+        f"<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>{p_xml}</p:txBody></p:sp>"
+        "</p:spTree></p:cSld></p:notes>"
+    ).encode()
+
+
+def _slide_xml(index: int) -> bytes:
+    return (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<p:sld xmlns:a="{_NS_A}" xmlns:r="{_NS_OD_REL}" xmlns:p="{_NS_P}">'
+        "<p:cSld><p:spTree>"
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        f'<p:pic><p:nvPicPr><p:cNvPr id="2" name="Slide {index}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>'
+        '<p:blipFill><a:blip r:embed="rId2" cstate="print"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>'
+        f'<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{SLIDE_CX}" cy="{SLIDE_CY}"/></a:xfrm>'
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>'
+        "</p:spTree></p:cSld></p:sld>"
+    ).encode()
+
+
+def build_pptx(
+    slide_pngs: list[Path],
+    output_pptx: Path,
+    *,
+    title: str,
+    speaker_notes: dict[int, str] | None = None,
+) -> Path:
+    """Pack rendered 16:9 PNG slides and optional per-slide speaker notes into a stdlib OOXML .pptx."""
+    if not slide_pngs:
+        msg = "Cannot build .pptx with zero slide PNGs."
+        raise ValueError(msg)
+    notes = speaker_notes or {}
+    output_pptx.parent.mkdir(parents=True, exist_ok=True)
+    n = len(slide_pngs)
+
+    content_overrides = [
+        ("/ppt/presentation.xml", "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"),
+        (
+            "/ppt/slideMasters/slideMaster1.xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml",
+        ),
+        (
+            "/ppt/slideLayouts/slideLayout1.xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml",
+        ),
+        (
+            "/ppt/notesMasters/notesMaster1.xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml",
+        ),
+        ("/ppt/theme/theme1.xml", "application/vnd.openxmlformats-officedocument.theme+xml"),
+        ("/docProps/core.xml", "application/vnd.openxmlformats-package.core-properties+xml"),
+    ]
+    for idx in range(1, n + 1):
+        content_overrides.append(
+            (f"/ppt/slides/slide{idx}.xml", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml")
+        )
+        content_overrides.append(
+            (
+                f"/ppt/notesSlides/notesSlide{idx}.xml",
+                "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml",
+            )
+        )
+    content_types = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="{_NS_CT}">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Default Extension="png" ContentType="image/png"/>'
+        + "".join(f'<Override PartName="{p}" ContentType="{ct}"/>' for p, ct in content_overrides)
+        + "</Types>"
+    ).encode("utf-8")
+
+    pres_rels = [("rId1", f"{_NS_OD_REL}/slideMaster", "slideMasters/slideMaster1.xml")]
+    sld_ids = []
+    for idx in range(1, n + 1):
+        rid = f"rId{idx + 1}"
+        pres_rels.append((rid, f"{_NS_OD_REL}/slide", f"slides/slide{idx}.xml"))
+        sld_ids.append(f'<p:sldId id="{255 + idx}" r:id="{rid}"/>')
+    notes_master_rid = f"rId{n + 2}"
+    theme_rid = f"rId{n + 3}"
+    pres_rels.append((notes_master_rid, f"{_NS_OD_REL}/notesMaster", "notesMasters/notesMaster1.xml"))
+    pres_rels.append((theme_rid, f"{_NS_OD_REL}/theme", "theme/theme1.xml"))
+
+    presentation_xml = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<p:presentation xmlns:a="{_NS_A}" xmlns:r="{_NS_OD_REL}" xmlns:p="{_NS_P}">'
+        '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>'
+        f'<p:notesMasterIdLst><p:notesMasterId r:id="{notes_master_rid}"/></p:notesMasterIdLst>'
+        f"<p:sldIdLst>{''.join(sld_ids)}</p:sldIdLst>"
+        f'<p:sldSz cx="{SLIDE_CX}" cy="{SLIDE_CY}" type="screen16x9"/><p:notesSz cx="6858000" cy="9144000"/>'
+        "</p:presentation>"
+    ).encode()
+
+    theme_xml = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="{_NS_A}" name="Fmind">'
+        '<a:themeElements><a:clrScheme name="Fmind">'
+        '<a:dk1><a:srgbClr val="202124"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>'
+        '<a:dk2><a:srgbClr val="595D62"/></a:dk2><a:lt2><a:srgbClr val="F1F3F4"/></a:lt2>'
+        '<a:accent1><a:srgbClr val="174EA6"/></a:accent1><a:accent2><a:srgbClr val="00636D"/></a:accent2>'
+        '<a:accent3><a:srgbClr val="934900"/></a:accent3><a:accent4><a:srgbClr val="0D652D"/></a:accent4>'
+        '<a:accent5><a:srgbClr val="681DA8"/></a:accent5><a:accent6><a:srgbClr val="A50E0E"/></a:accent6>'
+        '<a:hlink><a:srgbClr val="174EA6"/></a:hlink><a:folHlink><a:srgbClr val="681DA8"/></a:folHlink>'
+        '</a:clrScheme><a:fontScheme name="Fmind"><a:majorFont><a:latin typeface="Google Sans"/>'
+        '<a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Google Sans"/>'
+        '<a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>'
+        '<a:fmtScheme name="Fmind"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>'
+        '<a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>'
+        "<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>"
+        '<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>'
+        "</a:fmtScheme></a:themeElements></a:theme>"
+    ).encode()
+
+    slide_master_xml = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<p:sldMaster xmlns:a="{_NS_A}" xmlns:r="{_NS_OD_REL}" xmlns:p="{_NS_P}">'
+        '<p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg><p:spTree>'
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        "</p:spTree></p:cSld>"
+        '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" '
+        'accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>'
+        '<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>'
+        "</p:sldMaster>"
+    ).encode()
+
+    slide_layout_xml = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<p:sldLayout xmlns:a="{_NS_A}" xmlns:r="{_NS_OD_REL}" xmlns:p="{_NS_P}" type="blank" preserve="1">'
+        '<p:cSld name="Blank"><p:spTree>'
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        "</p:spTree></p:cSld></p:sldLayout>"
+    ).encode()
+
+    notes_master_xml = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<p:notesMaster xmlns:a="{_NS_A}" xmlns:r="{_NS_OD_REL}" xmlns:p="{_NS_P}">'
+        "<p:cSld><p:spTree>"
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        "</p:spTree></p:cSld>"
+        '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" '
+        'accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>'
+        "</p:notesMaster>"
+    ).encode()
+
+    core_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        f"<dc:title>{xml_escape(title)}</dc:title></cp:coreProperties>"
+    ).encode()
+
+    with zipfile.ZipFile(output_pptx, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr(
+            "_rels/.rels",
+            _rels_xml(
+                [
+                    ("rId1", f"{_NS_OD_REL}/officeDocument", "ppt/presentation.xml"),
+                    (
+                        "rId2",
+                        "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties",
+                        "docProps/core.xml",
+                    ),
+                ]
+            ),
+        )
+        zf.writestr("docProps/core.xml", core_xml)
+        zf.writestr("ppt/presentation.xml", presentation_xml)
+        zf.writestr("ppt/_rels/presentation.xml.rels", _rels_xml(pres_rels))
+        zf.writestr("ppt/theme/theme1.xml", theme_xml)
+        zf.writestr("ppt/slideMasters/slideMaster1.xml", slide_master_xml)
+        zf.writestr(
+            "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+            _rels_xml(
+                [
+                    ("rId1", f"{_NS_OD_REL}/slideLayout", "../slideLayouts/slideLayout1.xml"),
+                    ("rId2", f"{_NS_OD_REL}/theme", "../theme/theme1.xml"),
+                ]
+            ),
+        )
+        zf.writestr("ppt/slideLayouts/slideLayout1.xml", slide_layout_xml)
+        zf.writestr(
+            "ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+            _rels_xml([("rId1", f"{_NS_OD_REL}/slideMaster", "../slideMasters/slideMaster1.xml")]),
+        )
+        zf.writestr("ppt/notesMasters/notesMaster1.xml", notes_master_xml)
+        zf.writestr(
+            "ppt/notesMasters/_rels/notesMaster1.xml.rels",
+            _rels_xml([("rId1", f"{_NS_OD_REL}/theme", "../theme/theme1.xml")]),
+        )
+        for idx, png_path in enumerate(slide_pngs, start=1):
+            media_name = f"slide-{idx:02d}.png"
+            zf.writestr(f"ppt/media/{media_name}", png_path.read_bytes(), compress_type=zipfile.ZIP_STORED)
+            zf.writestr(f"ppt/slides/slide{idx}.xml", _slide_xml(idx))
+            zf.writestr(
+                f"ppt/slides/_rels/slide{idx}.xml.rels",
+                _rels_xml(
+                    [
+                        ("rId1", f"{_NS_OD_REL}/slideLayout", "../slideLayouts/slideLayout1.xml"),
+                        ("rId2", f"{_NS_OD_REL}/image", f"../media/{media_name}"),
+                        ("rId3", f"{_NS_OD_REL}/notesSlide", f"../notesSlides/notesSlide{idx}.xml"),
+                    ]
+                ),
+            )
+            zf.writestr(f"ppt/notesSlides/notesSlide{idx}.xml", _notes_slide_xml(notes.get(idx, "")))
+            zf.writestr(
+                f"ppt/notesSlides/_rels/notesSlide{idx}.xml.rels",
+                _rels_xml(
+                    [
+                        ("rId1", f"{_NS_OD_REL}/slide", f"../slides/slide{idx}.xml"),
+                        ("rId2", f"{_NS_OD_REL}/notesMaster", "../notesMasters/notesMaster1.xml"),
+                    ]
+                ),
+            )
+    return output_pptx
+
+
+def inspect_pptx_slide_count(pptx_path: Path) -> int:
+    try:
+        with zipfile.ZipFile(pptx_path, "r") as zf:
+            names = set(zf.namelist())
+    except zipfile.BadZipFile as exc:
+        msg = f"File is not a valid .pptx OOXML archive: {pptx_path}"
+        raise ValueError(msg) from exc
+    if "ppt/presentation.xml" not in names:
+        msg = f"Archive is missing ppt/presentation.xml: {pptx_path}"
+        raise ValueError(msg)
+    slides = [name for name in names if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)]
+    if not slides:
+        msg = f".pptx contains zero slides: {pptx_path}"
+        raise ValueError(msg)
+    return len(slides)
 
 
 def _validate_drive_id(value: str, label: str) -> str:
@@ -232,12 +538,16 @@ def _run_gws(args: list[str], *, cwd: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {"data": data}
 
 
-def _find_existing_file_in_folder(parent_id: str, name: str, *, cwd: Path) -> str | None:
+def _find_existing_file_in_folder(
+    parent_id: str,
+    name: str,
+    *,
+    mime_type: str | None = None,
+    cwd: Path,
+) -> str | None:
     valid_parent = _validate_drive_id(parent_id, "folder ID")
-    query = (
-        "trashed = false and mimeType != 'application/vnd.google-apps.folder' "
-        f"and '{valid_parent}' in parents and name = '{_escape_drive_q(name)}'"
-    )
+    mime_clause = f"mimeType = '{_escape_drive_q(mime_type)}'" if mime_type else f"mimeType != '{FOLDER_MIME}'"
+    query = f"trashed = false and {mime_clause} and '{valid_parent}' in parents and name = '{_escape_drive_q(name)}'"
     params: dict[str, Any] = {
         "pageSize": 100,
         "q": query,
@@ -245,15 +555,105 @@ def _find_existing_file_in_folder(parent_id: str, name: str, *, cwd: Path) -> st
         "includeItemsFromAllDrives": True,
         "fields": "nextPageToken,files(id,name)",
     }
+    matches: list[str] = []
     while True:
         resp = _run_gws(["drive", "files", "list", "--params", json.dumps(params)], cwd=cwd)
         files = resp.get("files") or []
-        if files:
-            return str(files[0]["id"])
+        matches.extend(str(item["id"]) for item in files)
         token = resp.get("nextPageToken")
         if not token:
-            return None
+            break
         params["pageToken"] = token
+    if len(matches) > 1:
+        msg = f"Multiple non-trashed Drive files named {name!r} in folder {valid_parent}: {matches}; pass --file-id explicitly."
+        raise RuntimeError(msg)
+    return matches[0] if matches else None
+
+
+def _ensure_drive_folder(parent_id: str, name: str, *, cwd: Path) -> str:
+    existing = _find_existing_file_in_folder(parent_id, name, mime_type=FOLDER_MIME, cwd=cwd)
+    if existing:
+        return existing
+    created = _run_gws(
+        [
+            "drive",
+            "files",
+            "create",
+            "--params",
+            json.dumps({"supportsAllDrives": True, "fields": "id,name"}),
+            "--json",
+            json.dumps({"name": name, "mimeType": FOLDER_MIME, "parents": [parent_id]}),
+        ],
+        cwd=cwd,
+    )
+    return str(created["id"])
+
+
+def _upload_binary_file(
+    local_path: Path,
+    *,
+    upload_name: str,
+    upload_mime: str,
+    target_mime: str,
+    parent_folder: str | None,
+    target_file_id: str | None,
+    protect_copy: bool,
+    rename: bool,
+    cwd: Path,
+    fields: str,
+) -> tuple[str, str]:
+    staged = cwd / upload_name
+    shutil.copyfile(local_path, staged)
+    resolved_id = target_file_id
+    if not resolved_id and parent_folder:
+        resolved_id = _find_existing_file_in_folder(parent_folder, upload_name, mime_type=target_mime, cwd=cwd)
+
+    if resolved_id:
+        meta_body: dict[str, Any] = {}
+        if rename:
+            meta_body["name"] = upload_name
+        if protect_copy:
+            meta_body["copyRequiresWriterPermission"] = True
+        cmd = [
+            "drive",
+            "files",
+            "update",
+            "--params",
+            json.dumps({"fileId": resolved_id, "supportsAllDrives": True, "fields": fields}),
+        ]
+        if meta_body:
+            cmd.extend(["--json", json.dumps(meta_body)])
+        cmd.extend(["--upload", staged.name, "--upload-content-type", upload_mime])
+        res = _run_gws(cmd, cwd=cwd)
+        return str(res["id"]), "updated"
+
+    if not parent_folder:
+        msg = "Cannot create a new Drive file without --drive-folder."
+        raise ValueError(msg)
+    create_body: dict[str, Any] = {
+        "name": upload_name,
+        "mimeType": target_mime,
+        "parents": [parent_folder],
+    }
+    if protect_copy:
+        create_body["copyRequiresWriterPermission"] = True
+    res = _run_gws(
+        [
+            "drive",
+            "files",
+            "create",
+            "--params",
+            json.dumps({"supportsAllDrives": True, "fields": fields}),
+            "--json",
+            json.dumps(create_body),
+            "--upload",
+            staged.name,
+            "--upload-content-type",
+            upload_mime,
+        ],
+        cwd=cwd,
+    )
+    return str(res["id"]), "created"
 
 
 def _file_md5_and_size(path: Path) -> tuple[str, int]:
@@ -275,7 +675,7 @@ def _emit(payload: dict[str, Any], *, json_output: bool) -> None:
 
 
 def run_check(args: argparse.Namespace) -> dict[str, Any]:
-    """Validate Typst escaping, compile figures and PDF/PNGs, and enforce slide count + warning gates."""
+    """Validate Typst escaping, compile figures/PDF/PNGs (+ optional .pptx), and check warnings."""
     deck_arg: Path = args.deck
     deck_path = deck_arg.resolve()
     if not deck_path.is_file() or deck_path.suffix.lower() != ".typ":
@@ -368,6 +768,17 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         msg = f"Typst produced zero PNG preview slides in {preview_dir}"
         raise RuntimeError(msg)
 
+    pptx_path: Path | None = None
+    notes_slides: list[int] = []
+    if args.pptx is not None:
+        pptx_target = pdf_path.with_suffix(".pptx") if str(args.pptx) == "__AUTO__" else args.pptx.resolve()
+        if pptx_target in source_typ_paths or pptx_target.suffix.lower() == ".typ":
+            msg = f"Output PPTX path must differ from Typst source files: {pptx_target}"
+            raise ValueError(msg)
+        notes = query_speaker_notes(deck_path, deck_dir, font_args)
+        pptx_path = build_pptx(png_files, pptx_target, title=stem, speaker_notes=notes)
+        notes_slides = sorted(notes)
+
     warnings = [line for line in (pdf_proc.stderr or "").splitlines() if "warning:" in line.lower()]
     syntax_warnings = [w for w in warnings if "no text within stars" in w.lower()]
     font_warnings = [w for w in warnings if "unknown font family" in w.lower()]
@@ -387,6 +798,9 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         "rendered_figures": rendered_figures,
         "warnings": warnings,
     }
+    if pptx_path is not None:
+        payload["pptx"] = str(pptx_path)
+        payload["speaker_notes_slides"] = notes_slides
     _emit(payload, json_output=args.json_output)
 
     if syntax_warnings:
@@ -409,104 +823,90 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def run_upload(args: argparse.Namespace) -> dict[str, Any]:
-    """Validate PDF bytes, stage in a private temp directory, upload via gws, and verify MD5/size parity."""
-    pdf_arg: Path = args.pdf
-    pdf_path = pdf_arg.resolve()
-    if not pdf_path.is_file() or pdf_path.suffix.lower() != ".pdf":
-        msg = f"Input must be an existing .pdf file: {pdf_arg}"
+    """Validate .pdf or .pptx bytes, stage in a private tempdir, upload via gws, and verify read-back."""
+    artifact_arg: Path = args.artifact
+    artifact_path = artifact_arg.resolve()
+    suffix = artifact_path.suffix.lower()
+    if not artifact_path.is_file() or suffix not in {".pdf", ".pptx"}:
+        msg = f"Input must be an existing .pdf or .pptx file: {artifact_arg}"
+        raise ValueError(msg)
+    if args.google_slides and suffix != ".pptx":
+        msg = "--google-slides requires a .pptx file (compile one with 'check --pptx' or python-pptx)."
         raise ValueError(msg)
     if not args.drive_folder and not args.file_id:
         msg = "Specify --file-id <FILE_ID> or --drive-folder <FOLDER_ID>."
         raise ValueError(msg)
 
-    with pdf_path.open("rb") as handle:
-        magic = handle.read(5)
-    if magic != b"%PDF-":
-        msg = f"File does not start with valid %PDF- header: {pdf_path}"
+    expected_slides: int | None = None
+    if suffix == ".pdf":
+        with artifact_path.open("rb") as handle:
+            if handle.read(5) != b"%PDF-":
+                msg = f"File does not start with valid %PDF- header: {artifact_path}"
+                raise ValueError(msg)
+        upload_mime = PDF_MIME
+        target_mime = PDF_MIME
+        default_name = artifact_path.name
+    else:
+        expected_slides = inspect_pptx_slide_count(artifact_path)
+        upload_mime = PPTX_MIME
+        target_mime = GOOGLE_SLIDES_MIME if args.google_slides else PPTX_MIME
+        default_name = artifact_path.stem if args.google_slides else artifact_path.name
+
+    local_md5, local_size = _file_md5_and_size(artifact_path)
+    if local_size == 0:
+        msg = f"Artifact file is empty: {artifact_path}"
         raise ValueError(msg)
 
-    local_md5, local_size = _file_md5_and_size(pdf_path)
-    if local_size == 0:
-        msg = f"PDF file is empty: {pdf_path}"
-        raise ValueError(msg)
+    source_files: list[Path] = []
+    if args.source_dir is not None:
+        source_root = args.source_dir.resolve()
+        if not source_root.is_dir():
+            msg = f"--source-dir does not exist or is not a directory: {args.source_dir}"
+            raise ValueError(msg)
+        source_files = collect_typ_files(source_root)
+        if not source_files:
+            msg = f"No .typ files found under --source-dir: {args.source_dir}"
+            raise ValueError(msg)
 
     valid_folder = _validate_drive_id(args.drive_folder, "folder ID") if args.drive_folder else None
     valid_file_id = _validate_drive_id(args.file_id, "file ID") if args.file_id else None
-    upload_name = _validate_upload_name(args.name or pdf_path.name)
+    upload_name = _validate_upload_name(args.name or default_name)
 
     if args.dry_run:
         payload: dict[str, Any] = {
             "dry_run": True,
-            "pdf": str(pdf_path),
+            "artifact": str(artifact_path),
             "name": upload_name,
+            "target_mime": target_mime,
+            "google_slides": args.google_slides,
             "target_file_id": valid_file_id,
             "drive_folder": valid_folder,
             "local_md5": local_md5,
             "local_size": local_size,
             "protect_copy": args.protect_copy,
         }
+        if expected_slides is not None:
+            payload["expected_slides"] = expected_slides
+        if source_files:
+            payload["source_files"] = [str(p.relative_to(args.source_dir.resolve())) for p in source_files]
         _emit(payload, json_output=args.json_output)
         return payload
 
-    fields = "id,name,mimeType,version,modifiedTime,webViewLink,md5Checksum,size,copyRequiresWriterPermission"
-    # gws reads `.env` from cwd upward and rejects `--upload` paths outside cwd; run every call from one private tempdir.
+    fields = "id,name,mimeType,version,modifiedTime,webViewLink,md5Checksum,size,copyRequiresWriterPermission,trashed,parents"
     with tempfile.TemporaryDirectory(prefix="typst-deck-upload-") as tmp_dir_str:
         gws_dir = Path(tmp_dir_str)
-        staged = gws_dir / upload_name
-        shutil.copyfile(pdf_path, staged)
-
-        target_id = valid_file_id
-        if not target_id and valid_folder:
-            target_id = _find_existing_file_in_folder(valid_folder, upload_name, cwd=gws_dir)
-
-        if target_id:
-            meta_body: dict[str, Any] = {}
-            if args.name:
-                meta_body["name"] = upload_name
-            if args.protect_copy:
-                meta_body["copyRequiresWriterPermission"] = True
-            update_cmd = [
-                "drive",
-                "files",
-                "update",
-                "--params",
-                json.dumps({"fileId": target_id, "supportsAllDrives": True, "fields": fields}),
-            ]
-            if meta_body:
-                update_cmd.extend(["--json", json.dumps(meta_body)])
-            update_cmd.extend(["--upload", staged.name, "--upload-content-type", "application/pdf"])
-            res = _run_gws(update_cmd, cwd=gws_dir)
-            operation = "updated"
-        else:
-            if not valid_folder:
-                msg = "Cannot create a new Drive file without --drive-folder."
-                raise ValueError(msg)
-            create_body: dict[str, Any] = {
-                "name": upload_name,
-                "mimeType": "application/pdf",
-                "parents": [valid_folder],
-            }
-            if args.protect_copy:
-                create_body["copyRequiresWriterPermission"] = True
-            res = _run_gws(
-                [
-                    "drive",
-                    "files",
-                    "create",
-                    "--params",
-                    json.dumps({"supportsAllDrives": True, "fields": fields}),
-                    "--json",
-                    json.dumps(create_body),
-                    "--upload",
-                    staged.name,
-                    "--upload-content-type",
-                    "application/pdf",
-                ],
-                cwd=gws_dir,
-            )
-            operation = "created"
-
-        uploaded_id = str(res["id"])
+        uploaded_id, operation = _upload_binary_file(
+            artifact_path,
+            upload_name=upload_name,
+            upload_mime=upload_mime,
+            target_mime=target_mime,
+            parent_folder=valid_folder,
+            target_file_id=valid_file_id,
+            protect_copy=args.protect_copy,
+            rename=bool(args.name),
+            cwd=gws_dir,
+            fields=fields,
+        )
         verified = _run_gws(
             [
                 "drive",
@@ -517,64 +917,125 @@ def run_upload(args: argparse.Namespace) -> dict[str, Any]:
             ],
             cwd=gws_dir,
         )
+        if verified.get("trashed") is True:
+            msg = f"Uploaded file is marked trashed in Drive: {uploaded_id}"
+            raise RuntimeError(msg)
 
-    remote_md5 = str(verified.get("md5Checksum") or "")
-    remote_size = int(verified.get("size") or 0)
-    if remote_md5 != local_md5 or remote_size != local_size:
-        msg = (
-            f"Integrity mismatch after upload: local ({local_md5}, {local_size} B) != "
-            f"remote ({remote_md5}, {remote_size} B)."
-        )
-        raise RuntimeError(msg)
+        slides_count: int | None = None
+        if args.google_slides:
+            remote_mime = str(verified.get("mimeType") or "")
+            if remote_mime != GOOGLE_SLIDES_MIME:
+                msg = f"Expected Google Slides mimeType {GOOGLE_SLIDES_MIME}, got {remote_mime!r}"
+                raise RuntimeError(msg)
+            slides_doc = _run_gws(
+                [
+                    "slides",
+                    "presentations",
+                    "get",
+                    "--params",
+                    json.dumps({"presentationId": uploaded_id, "fields": "presentationId,title,slides(objectId)"}),
+                ],
+                cwd=gws_dir,
+            )
+            slides_count = len(slides_doc.get("slides") or [])
+            if slides_count != expected_slides:
+                msg = f"Google Slides slide-count mismatch: expected {expected_slides}, got {slides_count}"
+                raise RuntimeError(msg)
+        else:
+            remote_md5 = str(verified.get("md5Checksum") or "")
+            remote_size = int(verified.get("size") or 0)
+            if remote_md5 != local_md5 or remote_size != local_size:
+                msg = (
+                    f"Integrity mismatch after upload: local ({local_md5}, {local_size} B) != "
+                    f"remote ({remote_md5}, {remote_size} B)."
+                )
+                raise RuntimeError(msg)
+
+        synced_sources: list[dict[str, str]] = []
+        if source_files:
+            parent_for_assets = valid_folder or next(iter(verified.get("parents") or []), None)
+            if not parent_for_assets:
+                msg = "Cannot sync --source-dir without a resolved parent Drive folder ID."
+                raise RuntimeError(msg)
+            assets_id = _ensure_drive_folder(str(parent_for_assets), "assets", cwd=gws_dir)
+            slug_folder_id = _ensure_drive_folder(assets_id, artifact_path.stem, cwd=gws_dir)
+            source_root = args.source_dir.resolve()
+            for src in source_files:
+                rel_name = src.relative_to(source_root).as_posix().replace("/", "__")
+                src_md5, src_size = _file_md5_and_size(src)
+                src_id, src_op = _upload_binary_file(
+                    src,
+                    upload_name=rel_name,
+                    upload_mime="text/plain",
+                    target_mime="text/plain",
+                    parent_folder=slug_folder_id,
+                    target_file_id=None,
+                    protect_copy=False,
+                    rename=False,
+                    cwd=gws_dir,
+                    fields="id,md5Checksum,size",
+                )
+                src_get = _run_gws(
+                    [
+                        "drive",
+                        "files",
+                        "get",
+                        "--params",
+                        json.dumps({"fileId": src_id, "supportsAllDrives": True, "fields": "id,md5Checksum,size"}),
+                    ],
+                    cwd=gws_dir,
+                )
+                if str(src_get.get("md5Checksum") or "") != src_md5 or int(src_get.get("size") or 0) != src_size:
+                    msg = f"Source integrity mismatch for {rel_name}"
+                    raise RuntimeError(msg)
+                synced_sources.append({"name": rel_name, "file_id": src_id, "operation": src_op})
 
     result: dict[str, Any] = {
         "ok": True,
         "operation": operation,
         "file_id": uploaded_id,
         "name": verified.get("name"),
+        "mimeType": verified.get("mimeType"),
         "web_view_link": verified.get("webViewLink"),
-        "md5Checksum": remote_md5,
-        "size": remote_size,
         "copyRequiresWriterPermission": verified.get("copyRequiresWriterPermission"),
         "reminder": "Verify ACLs via `gws drive permissions list` before widening access.",
     }
+    if args.google_slides:
+        result["slide_count"] = slides_count
+    else:
+        result["md5Checksum"] = str(verified.get("md5Checksum") or "")
+        result["size"] = int(verified.get("size") or 0)
+    if synced_sources:
+        result["synced_sources"] = synced_sources
     _emit(result, json_output=args.json_output)
     return result
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        allow_abbrev=False,
-        suggest_on_error=True,
-    )
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     check_p = subparsers.add_parser(
         "check",
-        help="Validate Typst escaping, compile figures/PDF/PNGs, and check slide count and font warnings.",
+        help="Validate Typst escaping, compile figures/PDF/PNGs (+ optional .pptx), and check warnings.",
         allow_abbrev=False,
     )
     check_p.add_argument("deck", type=Path, help="Main Typst deck source (.typ).")
     check_p.add_argument("-o", "--output", type=Path, default=None, help="Compiled PDF output path.")
     check_p.add_argument(
-        "--expected-slides",
-        type=int,
+        "--pptx",
+        nargs="?",
+        const=Path("__AUTO__"),
         default=None,
-        help="Fail if rendered page count differs from N.",
-    )
-    check_p.add_argument(
-        "--png-dir",
         type=Path,
-        default=None,
-        help="Directory for PNG slide previews (default: <deck_dir>/_preview).",
+        help="Also pack 16:9 PNGs + speaker notes into a .pptx file (default: <pdf_stem>.pptx).",
     )
-    check_p.add_argument("--ppi", type=int, default=192, help="PNG preview resolution (72-600, default: 192).")
     check_p.add_argument(
-        "--render-figures",
-        action="store_true",
-        help="Compile figures/*.typ before compiling the main deck.",
+        "--expected-slides", type=int, default=None, help="Fail if rendered page count differs from N."
     )
+    check_p.add_argument("--png-dir", type=Path, default=None, help="Directory for PNG slide previews.")
+    check_p.add_argument("--ppi", type=int, default=192, help="PNG preview resolution (72-600, default: 192).")
+    check_p.add_argument("--render-figures", action="store_true", help="Compile figures/*.typ before main deck.")
     check_p.add_argument(
         "--figure-format",
         default="svg",
@@ -582,11 +1043,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Figure output format when --render-figures is set (default: svg).",
     )
     check_p.add_argument(
-        "--font-path",
-        type=Path,
-        action="append",
-        default=None,
-        help="Additional Typst font directory (repeatable).",
+        "--font-path", type=Path, action="append", default=None, help="Additional Typst font directory."
     )
     check_p.add_argument(
         "--allow-font-warnings",
@@ -597,30 +1054,31 @@ def _build_parser() -> argparse.ArgumentParser:
 
     upload_p = subparsers.add_parser(
         "upload",
-        help="Stage a validated PDF in a private tempdir, upload via gws, and verify MD5/size parity.",
+        help="Stage a validated .pdf or .pptx in a private tempdir, upload via gws, and verify read-back.",
         allow_abbrev=False,
     )
-    upload_p.add_argument("pdf", type=Path, help="Compiled PDF file to upload to Google Drive.")
+    upload_p.add_argument("artifact", type=Path, help="Compiled .pdf or .pptx file to upload to Google Drive.")
+    upload_p.add_argument("--drive-folder", default=None, help="Target Google Drive folder ID.")
+    upload_p.add_argument("--file-id", default=None, help="Existing Google Drive file ID to update in place.")
+    upload_p.add_argument("--name", default=None, help="Remote Drive filename.")
     upload_p.add_argument(
-        "--drive-folder",
-        default=None,
-        help="Target Google Drive folder ID (creates or updates existing file by name).",
+        "--google-slides",
+        action="store_true",
+        help="Convert uploaded .pptx into a native Google Slides presentation (requires .pptx input).",
     )
     upload_p.add_argument(
-        "--file-id",
+        "--source-dir",
+        type=Path,
         default=None,
-        help="Existing Google Drive file ID to update in place (preserves URL).",
+        help="Optional deck directory whose *.typ / figures/*.typ sources sync to Drive assets/<slug>/.",
     )
-    upload_p.add_argument("--name", default=None, help="Remote Drive filename (defaults to PDF filename).")
     upload_p.add_argument(
         "--protect-copy",
         action="store_true",
         help="Set copyRequiresWriterPermission=true on the uploaded Drive file.",
     )
     upload_p.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Validate inputs and print plan without modifying Drive.",
+        "--dry-run", action="store_true", help="Validate inputs and print plan without modifying Drive."
     )
     upload_p.add_argument("--json", dest="json_output", action="store_true", help="Emit JSON on stdout.")
     return parser

@@ -6,23 +6,19 @@ Dialect and asset rules for native Drive Markdown (`mimeType: text/markdown`) op
 
 Verified via [`scripts/compile_markdown_doc.py`](../scripts/compile_markdown_doc.py) upload, `gws docs documents get` read-back, and PDF export of a `.gdoc` copy (Docs opens native `.md` in pageless mode).
 
-| Construct                                      | Status        | Evidence and rule                                                                                          |
-| ---------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------- |
-| ATX headings (`#`, `##`)                       | Verified      | `HEADING_1`, `HEADING_2`.                                                                                  |
-| Hard line break (`\` at line end)              | Verified      | Intra-paragraph break.                                                                                     |
-| Ordered list (`1.`)                            | Verified      | `DECIMAL` list.                                                                                            |
-| Checklist (`- [ ]`, `- [x]`)                   | Verified      | Checkbox list; checked state visible in `.gdoc` copy (unexposed in Docs API).                              |
-| GFM pipe table with alignment                  | Verified      | 3 × 2 table; right alignment preserved.                                                                    |
-| Footnote (`[^1]`)                              | Verified      | `footnoteReference` + footnote body.                                                                       |
-| Equations (`$x^2$`, `$$...$$`)                 | Verified      | `equation` elements (content unexposed in API); `.gdoc` conversion flattens them to literal `$...$`.       |
-| Base64 PNG reference image (`![alt][fig-N]`)   | Verified      | `inlineObjects` with alt description. Rendered at pixels × 0.75 pt (`pHYs` DPI ignored); capped at 600 px. |
-| `---` after blank line or list item            | Verified      | CommonMark `horizontalRule`.                                                                               |
-| HTML comment (`<!-- ... -->`)                  | Unsupported   | Literal text paragraph in native `.md` (hidden only after `.gdoc` conversion); rejected.                   |
-| Setext underline (`---`/`===` under paragraph) | CommonMark    | Turns paragraph into heading; rejected.                                                                    |
-| YAML frontmatter, GitHub alerts, raw HTML tags | Not re-tested | Rejected; closing frontmatter `---` parses as Setext heading.                                              |
-| Fenced `mermaid` blocks, `.typ`/`.svg` images  | Not re-tested | Compiled to PNG references; Docs has no Mermaid/Typst renderer.                                            |
-| Emphasis, links, code blocks, blockquotes      | Not tested    | Standard CommonMark; confirm via read-back when load-bearing.                                              |
-| `drive.files.export` on native `.md`           | Unsupported   | Fails ("Export only supports Docs Editors files"); download via `alt=media`.                               |
+| Construct                            | Status      | Evidence and rule                                                                       |
+| ------------------------------------ | ----------- | --------------------------------------------------------------------------------------- |
+| `#`, `##`                            | Verified    | `HEADING_1`, `HEADING_2`.                                                               |
+| `\` line break, `1.`, `- [ ]`/`[x]`  | Verified    | Line breaks, `DECIMAL` lists, checkboxes (checkbox state visible in `.gdoc` copy only). |
+| GFM table, footnote `[^1]`           | Verified    | Table alignment preserved; `footnoteReference` + footnote body.                         |
+| Equations `$x^2$`, `$$...$$`         | Verified    | `equation` elements (unexposed in API; `.gdoc` flattens to literal `$...$`).            |
+| Base64 PNG ref `![alt][fig-N]`       | Verified    | `inlineObjects` with alt text at pixels × 0.75 pt (`pHYs` ignored; 600 px cap).         |
+| `---` after blank line/list          | Verified    | CommonMark `horizontalRule`.                                                            |
+| HTML `<!-- ... -->`                  | Unsupported | Literal text paragraph in native `.md`; rejected.                                       |
+| Setext `---`/`===`, YAML frontmatter | Rejected    | Parses as Setext heading; YAML closing `---` breaks title.                              |
+| Raw HTML tags, GitHub alerts         | Rejected    | Avoid unportable constructs in native Docs `.md`.                                       |
+| `mermaid` blocks, `.typ`/`.svg`      | Compiled    | Pre-rendered to Base64 PNG refs.                                                        |
+| `drive.files.export` on `.md`        | Unsupported | Fails on native `.md`; download via `alt=media`.                                        |
 
 ## Figures and Drive Assets
 

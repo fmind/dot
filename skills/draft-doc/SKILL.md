@@ -12,7 +12,7 @@ metadata:
 
 # Draft Doc
 
-Create and update Google Docs deliverables in Drive with `gws`, following [stakeholder-writing](../stakeholder-writing/SKILL.md) ([outlines](../stakeholder-writing/references/outlines.md), [style](../stakeholder-writing/references/style.md), [checklist](../stakeholder-writing/references/checklist.md)). [gws](../gws/SKILL.md) owns auth, Drive queries, and request mechanics.
+Create and update Google Docs deliverables in Drive with `gws`, following [humanize](../humanize/SKILL.md) ([outlines](../humanize/references/outlines.md), [style](../humanize/references/style.md), [checklist](../humanize/references/checklist.md)). [gws](../gws/SKILL.md) owns auth, Drive queries, and request mechanics.
 
 ## Format Choice
 
@@ -62,4 +62,4 @@ Verified live on 2026-10-28 ([references/dialect.md](references/dialect.md)) and
 ## Documentation
 
 - [Docs Help: View and edit Markdown files in Google Docs](https://support.google.com/docs/answer/18289341) · [Workspace Updates, 2026-10-05: Markdown files natively across Drive and Docs](https://workspaceupdates.googleblog.com/2026/10/preview-edit-and-collaborate-on-Markdown-files-natively-across-Drive-and-Docs.html) · [dialect and figure reference](references/dialect.md)
-- Companions: [stakeholder-writing](../stakeholder-writing/SKILL.md) (structure, prose, and reader check), [diagrams-as-code](../diagrams-as-code/SKILL.md) (Typst, Mermaid, and SVG authoring), [gws](../gws/SKILL.md) (Workspace CLI and `.gdoc` `batchUpdate`), [draft-mail](../draft-mail/SKILL.md) (Gmail drafts).
+- Companions: [humanize](../humanize/SKILL.md) (signal curation, visual hierarchy, and reader check), [diagrams-as-code](../diagrams-as-code/SKILL.md) (Typst, Mermaid, and SVG authoring), [gws](../gws/SKILL.md) (Workspace CLI and `.gdoc` `batchUpdate`), [draft-mail](../draft-mail/SKILL.md) (Gmail drafts).

@@ -1,0 +1,140 @@
+<!doctype html>
+<!--
+  Standalone humanized report template styled with ~/.agents/DESIGN.md (Fmind Theme).
+  Replace {placeholders}, set lang, remove unused blocks, and inline Latin WOFF2 fonts + SVG/PNG figures for offline sharing.
+  Google Sans is licensed under SIL OFL 1.1 (https://github.com/googlefonts/googlesans); keep attribution intact.
+-->
+<html lang="{en}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{Clear title naming the subject}</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --canvas: #FFFFFF; --panel: #F1F3F4; --line: #D2D5D9; --border-strong: #9AA0A6; --muted: #595D62; --fg: #202124;
+        --primary: #174EA6; --selection: #D2E3FC;
+        --error: #A50E0E; --error-surface: #FAD2CF;
+        --warning: #934900; --warning-surface: #FEEFC3;
+        --success: #0D652D; --success-surface: #CEEAD6;
+        --series-1: #174EA6; --series-2: #00636D; --series-3: #934900;
+        --font: "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--canvas); color: var(--fg); font: 17px/1.625 var(--font); }
+      main { max-width: 48rem; margin: 0 auto; padding: 0 1.25rem 4rem; }
+      .band { height: 6px; background: var(--primary); }
+      header { padding: 2.25rem 0 0.75rem; border-bottom: 1px solid var(--line); }
+      .kicker { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--primary); margin: 0 0 0.45rem; }
+      h1 { font-size: 2.15rem; line-height: 1.2; margin: 0 0 1.25rem; font-weight: 700; }
+      h2 { font-size: 1.4rem; line-height: 1.3; margin: 2.5rem 0 0.9rem; color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 0.7rem; }
+      h2 .num { flex: none; display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 999px; background: var(--selection); font-size: 0.88rem; }
+      p, ul, ol { margin: 0 0 0.95rem; }
+      a { color: var(--primary); text-underline-offset: 2px; }
+      hr.divider { border: 0; border-top: 1px solid var(--line); margin: 2.25rem 0; }
+      mark, .hl { background: var(--warning-surface); color: var(--fg); padding: 0.08em 0.35em; border-radius: 5px; font-weight: 600; }
+      .meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0 0 0.75rem; padding: 0.85rem 1.15rem; background: var(--panel); border-radius: 12px; font-size: 0.9rem; align-items: center; }
+      .meta span strong { color: var(--muted); font-weight: 600; margin-right: 0.35rem; }
+      .summary { margin-top: 1.75rem; padding: 1.4rem 1.5rem; border-radius: 16px; background: var(--selection); border-left: 5px solid var(--primary); }
+      .summary h2 { margin: 0 0 0.5rem; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+      .takeaway { font-size: 1.25rem; line-height: 1.4; font-weight: 700; color: var(--primary); margin-bottom: 0.65rem; }
+      .ask { margin: 0.75rem 0 0; padding: 0.9rem 1.15rem; background: var(--canvas); border-radius: 10px; border-left: 4px solid var(--primary); }
+      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: 1rem; margin: 1.75rem 0 0; }
+      .tile { padding: 1rem 1.2rem; border-radius: 12px; background: var(--panel); border-top: 5px solid var(--c, var(--primary)); }
+      .tile .value { display: block; font-size: 2.1rem; font-weight: 700; line-height: 1.1; color: var(--c, var(--primary)); font-variant-numeric: tabular-nums; }
+      .tile .label { display: block; font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem; }
+      .table-wrap { overflow-x: auto; margin: 0.5rem 0 1.25rem; border: 1px solid var(--border-strong); border-radius: 12px; }
+      table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+      th, td { padding: 0.7rem 0.85rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+      tbody tr:last-child td { border-bottom: 0; }
+      thead th { background: var(--panel); font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+      td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      tr.recommended td { background: var(--selection); }
+      tr.recommended td:first-child { box-shadow: inset 4px 0 0 var(--primary); }
+      .opt { display: block; font-weight: 700; color: var(--primary); }
+      .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.1rem 0.65rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+      .ok { background: var(--success-surface); color: var(--success); }
+      .mid { background: var(--warning-surface); color: var(--warning); }
+      .bad { background: var(--error-surface); color: var(--error); }
+      .rec { background: var(--primary); color: #FFFFFF; }
+      .chart { margin: 1.25rem 0 1.5rem; padding: 1.25rem; border: 1px solid var(--border-strong); border-radius: 16px; }
+      .chart figcaption { font-weight: 700; margin-bottom: 0.75rem; }
+      .chart svg, .chart img { width: 100%; height: auto; display: block; border-radius: 8px; }
+      .chart .source { font-weight: 400; color: var(--muted); font-size: 0.84rem; margin: 0.7rem 0 0; }
+      .callout { margin: 1rem 0; padding: 0.95rem 1.2rem; border-radius: 12px; background: var(--warning-surface); border-left: 4px solid var(--warning); }
+      details.annex { margin-top: 1.5rem; padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+      details.annex summary { cursor: pointer; font-weight: 700; color: var(--primary); }
+      footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+      @media (max-width: 40rem) { body { font-size: 16px; } h1 { font-size: 1.7rem; } }
+      @media print { * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } main { max-width: none; padding: 0; } h2 { break-after: avoid; } .summary, .tiles, table, figure { break-inside: avoid; } }
+    </style>
+  </head>
+  <body>
+    <div class="band"></div>
+    <main>
+      <header>
+        <p class="kicker">{Decision memo}</p>
+        <h1>{Clear title naming the subject}</h1>
+        <div class="meta">
+          <span class="badge mid">{Draft}</span>
+          <span><strong>Audience</strong> {Reader role}</span>
+          <span><strong>Author</strong> {Author}</span>
+          <span><strong>As of</strong> {Date}</span>
+        </div>
+      </header>
+
+      <section class="summary" aria-labelledby="summary-title">
+        <h2 id="summary-title">Executive summary</h2>
+        <p class="takeaway">{Core signal and recommendation in one plain sentence.}</p>
+        <p>{Brief context with the decisive figure <mark>{highlighted against baseline}</mark> and inline source links.}</p>
+        <p class="ask"><strong>Decision needed:</strong> {Clear yes/no choice and target date.}</p>
+      </section>
+
+      <section class="tiles" aria-label="Key figures">
+        <div class="tile"><span class="value">{€X–Y}</span><span class="label">{Primary metric delta vs baseline}</span></div>
+        <div class="tile" style="--c: var(--series-2)"><span class="value">{N weeks}</span><span class="label">{Time to value}</span></div>
+        <div class="tile" style="--c: var(--success)"><span class="value">{Low}</span><span class="label">{Operational risk}</span></div>
+      </section>
+
+      <h2><span class="num">1</span>Options compared</h2>
+      <p><strong>{One-sentence comparison conclusion.}</strong></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Option</th><th scope="col">{Cost / Impact}</th><th scope="col">{Main risk}</th><th scope="col">Status</th></tr>
+          </thead>
+          <tbody>
+            <tr class="recommended"><td><span class="opt">{Recommended option}</span>{Brief scope}</td><td>{Range}</td><td>{Mitigated risk}</td><td><span class="badge rec">Recommended</span></td></tr>
+            <tr><td><span class="opt">{Alternative}</span>{Brief scope}</td><td>{Range}</td><td>{Trade-off}</td><td><span class="badge mid">Higher effort</span></td></tr>
+            <tr><td><span class="opt">Do nothing</span>{Keep baseline}</td><td>{Baseline}</td><td>{Status quo risk}</td><td><span class="badge bad">Not viable</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="chart" aria-labelledby="figure-1">
+        <figcaption id="figure-1">{Takeaway caption for the visual}</figcaption>
+        <svg viewBox="0 0 560 200" role="img" aria-label="{Accessible summary of key values}"></svg>
+        <p class="source">Source: <a href="{https://primary.source/page}">{Source name}</a>, {date}.</p>
+      </figure>
+
+      <div class="callout"><strong>Key risk to watch:</strong> {Top risk, mitigation, and what would flip the choice.}</div>
+
+      <hr class="divider">
+
+      <h2><span class="num">2</span>Next steps</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Action</th><th scope="col">Owner</th><th scope="col">Target date</th></tr></thead>
+          <tbody><tr><td>{Concrete next action}</td><td>{Owner}</td><td>{Date}</td></tr></tbody>
+        </table>
+      </div>
+
+      <details class="annex">
+        <summary>Methodology, assumptions, and sources</summary>
+        <p>{Concise formulas, uncertainty ranges, and <a href="{https://primary.source/page}">primary source links</a>.}</p>
+      </details>
+
+      <footer>{Author} · {Date}</footer>
+    </main>
+  </body>
+</html>

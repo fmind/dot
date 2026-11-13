@@ -102,12 +102,19 @@
   )
 }
 
+// Per-slide speaker note (string) extracted via `typst eval` when generating .pptx / Google Slides.
+#let speaker-note(note) = {
+  assert(type(note) == str, message: "speaker-note expects a plain string")
+  context [#metadata((page: here().page(), note: note)) <fmind-speaker-note>]
+}
+
 #let cover-slide(
   kicker: none,
   status-pill: "For decision",
   title: "",
   subtitle: "",
   meta: "",
+  note: none,
 ) = {
   set page(
     margin: (x: 54pt, y: 46pt),
@@ -168,12 +175,14 @@
       text(font: sans-font, size: 12pt, weight: "semibold", fill: colors.muted, meta),
     ),
   )
+  if note != none { speaker-note(note) }
 }
 
 #let slide(
   kicker: none,
   title: "",
   takeaway: none,
+  note: none,
   body,
 ) = {
   pagebreak(weak: true)
@@ -196,6 +205,7 @@
   line(length: 100%, stroke: 1pt + colors.border)
   v(14pt)
   body
+  if note != none { speaker-note(note) }
 }
 
 #let kpi-card(value, label, sublabel, role: "primary", height: auto) = {
@@ -413,5 +423,54 @@
       align(horizon, polygon(fill: colors.primary, (0pt, 0pt), (8pt, 4.5pt), (0pt, 9pt))),
     ),
     text(size: 12pt, weight: "semibold", fill: colors.primary, label),
+  ),
+)
+
+// Inline highlight pill for decisive numbers or asks without prose backticks.
+#let hl(body, role: "warning-surface") = {
+  let styles = (
+    warning-surface: (bg: colors.warning-surface, fg: colors.foreground),
+    selection: (bg: colors.selection, fg: colors.primary),
+    success-surface: (bg: colors.success-surface, fg: colors.success),
+    error-surface: (bg: colors.error-surface, fg: colors.error),
+  ).at(role, default: (bg: colors.warning-surface, fg: colors.foreground))
+  box(
+    fill: styles.bg,
+    radius: 5pt,
+    inset: (x: 5pt, y: 1.5pt),
+    outset: (y: 1.5pt),
+    text(font: sans-font, weight: "semibold", fill: styles.fg, body),
+  )
+}
+
+// Side-by-side two-card comparison helper with semantic contrast.
+#let split-cards(
+  left-title,
+  left-body,
+  right-title,
+  right-body,
+  left-badge: none,
+  right-badge: "Recommended",
+  height: 220pt,
+) = grid(
+  columns: (1fr, 1fr),
+  column-gutter: 18pt,
+  card(
+    title: left-title,
+    badge: left-badge,
+    badge-role: "muted",
+    fill: colors.panel,
+    stroke: 1pt + colors.border,
+    height: height,
+    left-body,
+  ),
+  card(
+    title: right-title,
+    badge: right-badge,
+    badge-role: "primary",
+    fill: colors.selection,
+    stroke: 1.5pt + colors.primary,
+    height: height,
+    right-body,
   ),
 )

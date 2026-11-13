@@ -12,12 +12,12 @@ metadata:
 
 # Trim
 
-Handle `/trim <path>` or verbosity complaints by cutting words, lines, and settings that carry nothing while keeping every fact, behavior, and the author's voice. For deliverables (articles, talks) without a requested length, tighten sentences without changing length class; for code, [full-review](../full-review/SKILL.md) owns dead code and abstractions (trim code only with behavior tests).
+Handle `/trim <path>` or verbosity complaints by cutting words, lines, and settings that carry nothing while keeping every fact, behavior, and the author's voice. For rewriting external communication for signal and visual hierarchy, use [humanize](../humanize/SKILL.md); for code dead-code/abstractions, use [full-review](../full-review/SKILL.md) (trim code only with behavior tests).
 
 ## Workflow
 
 1. **Measure baseline**: `wc -lwm <path>`, plus `dot agent context --project . --details` (add `--source .` in `fmind/dot`) for instructions and skills.
-1. **Inventory survivors**: list every claim, rule, number, command, flag, link, warning, and authority boundary. For configs, snapshot effective state first (`mise tasks ls --json --hidden`, `mise ls --current --json`, `mise env --json`, `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json`).
+1. **Inventory survivors**: list every claim, rule, number, command, flag, link, warning, and authority boundary. For configs, snapshot effective state first (`mise tasks ls --json --hidden`, `mise ls --current --json`, `mise env --json`, `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json` with `mikefarah/yq` v4).
 1. **Cut in order**:
    - **Duplication**: keep once at the canonical owner; link elsewhere.
    - **Restated defaults**: drop settings matching the installed version's verified default (unless a comment/commit pins them intentionally).
@@ -35,4 +35,4 @@ Handle `/trim <path>` or verbosity complaints by cutting words, lines, and setti
 
 ## Documentation
 
-- Companions: [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/SKILL.md#system-prompts).
+- Companions: [humanize](../humanize/SKILL.md), [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/SKILL.md#system-prompts).

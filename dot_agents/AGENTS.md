@@ -31,7 +31,7 @@ Every reply (including skill reports) stands alone — I may not see tool output
 
 ### To other people
 
-- **Write short and message-first for external readers**: load `stakeholder-writing` for external deliverables; lead with the point and concrete examples, omitting my reply format (verification, Decisions, Suggestions).
+- **Write short and message-first for external readers**: load `humanize` for external deliverables; curate high-value signals, drop jargon and prose backticks, format visually for the medium, and omit my reply format (verification, Decisions, Suggestions).
 
 ## Rigor
 

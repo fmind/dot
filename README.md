@@ -133,7 +133,7 @@ Setup links [`skills/`](skills/) into `~/.agents/skills/` beside standalone inst
 
 Common slash commands:
 
-- **Deliverables & writing:** `/clipboard` copies the last output ([clipboard](skills/clipboard/SKILL.md)); `/stakeholder-writing` drafts and fact-checks message-first prose; `/draft-doc` builds Google Docs; `/draft-mail` drafts Gmail replies without sending.
+- **Deliverables & writing:** `/clipboard` copies the last output ([clipboard](skills/clipboard/SKILL.md)); `/humanize` turns dense drafts into clear, visual human communication; `/draft-doc` builds Google Docs; `/draft-typst-deck` builds branded Typst PDF and Google Slides decks; `/draft-mail` drafts Gmail replies without sending.
 - **Engineering & maintenance:** `/full-review` audits a repo or PR and smoke-tests tasks; `/trim <path>` cuts tokens without losing facts; `/skillify` captures workflows and session lessons; `/auth-status` checks CLI logins; `/task-prompts` writes handoffs (`agy -c` resumes, `/compact` compacts).
 
 ## Credentials
