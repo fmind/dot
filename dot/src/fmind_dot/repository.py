@@ -381,6 +381,34 @@ def _branch_status(state: State, path: Path, deadline: float) -> tuple[str, bool
     return branch, dirty, upstream, _count(counts[0][1:], "upstream"), _count(counts[1][1:], "upstream")
 
 
+def resolve_git_metadata_dir(path: Path) -> Path | None:
+    """Resolve a repository's metadata directory without spawning git when .git is standard."""
+    dot_git = path / ".git"
+    try:
+        info = dot_git.lstat()
+    except OSError:
+        return None
+    if stat.S_ISDIR(info.st_mode):
+        return dot_git
+    if not stat.S_ISREG(info.st_mode) or info.st_size > 4096:
+        return None
+    try:
+        content = dot_git.read_text(encoding="utf-8")
+    except OSError, UnicodeDecodeError:
+        return None
+    line, _, rest = content.partition("\n")
+    if rest.strip() or not line.startswith("gitdir:"):
+        return None
+    target = line.removeprefix("gitdir:").strip()
+    if not target or "\r" in target:
+        return None
+    candidate = (path / target).resolve()
+    try:
+        return candidate if stat.S_ISDIR(candidate.stat().st_mode) else None
+    except OSError:
+        return None
+
+
 def _repository_status(state: State, path: Path, *, fetch: bool = False) -> RepositoryStatus:
     # Fetching contacts the remote, so it gets the network allowance that pull uses.
     deadline = monotonic() + (_PULL_TIMEOUT_SECONDS if fetch else _STATUS_TIMEOUT_SECONDS)
@@ -388,10 +416,12 @@ def _repository_status(state: State, path: Path, *, fetch: bool = False) -> Repo
         if fetch:
             _fetch(state, path, deadline)
         branch, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
-        git_directory = _git(state, path, ["rev-parse", "--absolute-git-dir"], deadline).strip()
-        if not git_directory:
-            raise DotError("Git returned an empty metadata directory")
-        metadata = Path(git_directory)
+        metadata = resolve_git_metadata_dir(path)
+        if metadata is None:
+            git_directory = _git(state, path, ["rev-parse", "--absolute-git-dir"], deadline).strip()
+            if not git_directory:
+                raise DotError("Git returned an empty metadata directory")
+            metadata = Path(git_directory)
         operation = next(
             (
                 label

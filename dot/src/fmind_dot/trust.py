@@ -17,7 +17,7 @@ from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import run_parallel
 from fmind_dot.reporting import write_json
-from fmind_dot.repository import find_git_repositories
+from fmind_dot.repository import find_git_repositories, resolve_git_metadata_dir
 from fmind_dot.state import State
 
 # Each harness stores trust in a file it also writes itself; preserve unrelated state.
@@ -298,21 +298,134 @@ def register_agy_projects(
     return added
 
 
+_GIT_SECTION_HEADER = re.compile(r'^\[(?P<name>[A-Za-z0-9-]+)(?:\s+"(?P<sub>[^"\\]*)")?\](?:\s*[#;].*)?$')
+_GIT_INSTEAD_OF = re.compile(r"(?mi)^\s*insteadof\s*(?:=|$)")
+_MAX_GIT_CONFIG_BYTES = 262_144
+
+
 def github_owner(origin: str) -> str | None:
     """Return the owner of a github.com origin URL, or None for any other remote."""
     match = _GITHUB_ORIGIN.fullmatch(origin.strip())
     return match.group("owner") if match else None
 
 
-def _allowed_origin(state: State, repository: Path) -> bool:
-    """Only an origin under a configured GitHub owner is trusted; unknown or unreadable remotes fail closed."""
+def _has_global_url_insteadof(home: Path) -> bool:
+    """Return True when global/system Git configuration may rewrite remote fetch URLs."""
+    if os.environ.get("GIT_CONFIG_COUNT"):
+        return True
+    candidates: list[Path] = []
+    if not os.environ.get("GIT_CONFIG_NOSYSTEM"):
+        candidates.append(Path(os.environ.get("GIT_CONFIG_SYSTEM", "/etc/gitconfig")))
+    if global_override := os.environ.get("GIT_CONFIG_GLOBAL"):
+        candidates.append(Path(global_override))
+    else:
+        xdg = Path(os.environ.get("XDG_CONFIG_HOME") or (home / ".config"))
+        candidates.extend((xdg / "git/config", home / ".gitconfig"))
+        git_dir = xdg / "git"
+        try:
+            candidates.extend(sorted(git_dir.iterdir()))
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return True
+    for candidate in candidates:
+        if candidate == Path(os.devnull):
+            continue
+        try:
+            info = candidate.stat()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return True
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        try:
+            if _GIT_INSTEAD_OF.search(candidate.read_text(encoding="utf-8")):
+                return True
+        except OSError, UnicodeDecodeError:
+            return True
+    return False
+
+
+def _local_origin_url(repository: Path) -> str | None:
+    """Read remote.origin.url directly from a standard .git/config, or return None to ask git."""
+    metadata = resolve_git_metadata_dir(repository)
+    if metadata is None or (metadata / "config.worktree").exists():
+        return None
+    commondir_file = metadata / "commondir"
+    common_dir = metadata
     try:
-        result = state.runner.run(
-            ["git", "remote", "get-url", "origin"], cwd=repository, timeout=_ORIGIN_TIMEOUT_SECONDS, check=False
-        )
-    except DotError, OSError:
-        return False
-    owner = github_owner(result.stdout) if result.returncode == 0 else None
+        commondir_info = commondir_file.lstat()
+    except FileNotFoundError:
+        commondir_info = None
+    except OSError:
+        return None
+    if commondir_info is not None:
+        if not stat.S_ISREG(commondir_info.st_mode) or commondir_info.st_size > 4096:
+            return None
+        try:
+            rel = commondir_file.read_text(encoding="utf-8").strip()
+        except OSError, UnicodeDecodeError:
+            return None
+        if not rel or "\n" in rel or "\r" in rel:
+            return None
+        common_dir = (metadata / rel).resolve()
+    config_path = common_dir / "config"
+    try:
+        info = config_path.lstat()
+    except OSError:
+        return None
+    if not stat.S_ISREG(info.st_mode) or info.st_size > _MAX_GIT_CONFIG_BYTES:
+        return None
+    try:
+        text = config_path.read_text(encoding="utf-8")
+    except OSError, UnicodeDecodeError:
+        return None
+    section: tuple[str, str] | None = None
+    urls: list[str] = []
+    for raw_line in text.splitlines():
+        if raw_line.endswith("\\"):
+            return None
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith(("#", ";")):
+            continue
+        if stripped.startswith("["):
+            header = _GIT_SECTION_HEADER.match(stripped)
+            if header is None:
+                return None
+            kind = header.group("name").lower()
+            if kind in {"include", "includeif", "url"}:
+                return None
+            section = (kind, header.group("sub") or "")
+            continue
+        if "=" not in stripped:
+            continue
+        key, _, raw_value = stripped.partition("=")
+        key_name = key.strip().lower()
+        if section == ("extensions", "") and key_name == "worktreeconfig":
+            return None
+        if section == ("remote", "origin") and key_name == "url":
+            value = raw_value.strip()
+            if any(ch in value for ch in ('"', "\\", "#", ";")):
+                return None
+            urls.append(value)
+    if len(urls) > 1:
+        return None
+    return urls[0] if urls else ""
+
+
+def _allowed_origin(state: State, repository: Path, *, fast_origin: bool = False) -> bool:
+    """Only an origin under a configured GitHub owner is trusted; unknown or unreadable remotes fail closed."""
+    origin = _local_origin_url(repository) if fast_origin else None
+    if origin is None:
+        try:
+            result = state.runner.run(
+                ["git", "remote", "get-url", "origin"], cwd=repository, timeout=_ORIGIN_TIMEOUT_SECONDS, check=False
+            )
+        except DotError, OSError:
+            return False
+        origin = result.stdout if result.returncode == 0 else ""
+    owner = github_owner(origin) if origin else None
     allowed = {name.casefold() for name in state.config.trust.github_owners}
     return owner is not None and owner.casefold() in allowed
 
@@ -338,9 +451,10 @@ def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
         roots = [expand_path(directory).resolve() for directory in state.config.pull.directories]
         trusted = {root for root in roots if root.is_dir()}
         candidates = [repository for repository in find_git_repositories(state) if repository not in trusted]
+        fast_origin = not _has_global_url_insteadof(home)
         allowed = run_parallel(
             state.runner,
-            lambda repository: _allowed_origin(state, repository),
+            lambda repository: _allowed_origin(state, repository, fast_origin=fast_origin),
             candidates,
             _ORIGIN_CONCURRENCY,
         )

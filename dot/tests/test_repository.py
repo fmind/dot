@@ -936,3 +936,19 @@ def test_status_failure_remains_json_and_exits_nonzero(monkeypatch: pytest.Monke
     cli_result = CliRunner().invoke(app, ["status", "--json"])
     assert cli_result.exit_code != 0
     assert json.loads(cli_result.stdout)["complete"] is False
+
+
+def test_status_resolves_gitfile_worktree_metadata_without_rev_parse(tmp_path: Path) -> None:
+    workspace = tmp_path / "work"
+    repository = workspace / "worktree-sample"
+    repository.mkdir(parents=True)
+    metadata = tmp_path / "common-git" / "worktrees" / "worktree-sample"
+    (metadata / "rebase-merge").mkdir(parents=True)
+    (repository / ".git").write_text(f"gitdir: {metadata}\n", encoding="utf-8")
+    runner = git_runner({STATUS_V2: [result(_V2_HEADER + "# branch.ab +0 -0\n")]}, {"git"})
+    state = make_state(runner, Config(pull=PullConfig(directories=[str(workspace)])))
+
+    [status] = run_status(state, as_json=True)
+
+    assert status.operation == "rebase"
+    assert runner.calls == [["git", *STATUS_V2[1:]]]

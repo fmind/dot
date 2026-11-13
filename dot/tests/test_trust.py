@@ -633,3 +633,53 @@ def test_agy_project_registry_rejects_symlinks(tmp_path: Path, link_registry: bo
 
     with pytest.raises(DotError, match="refusing symlinked"):
         register_agy_projects([repo], ["~/repo"], home=home)
+
+
+def test_trust_all_reads_standard_git_configs_without_spawning_git_and_falls_back_on_insteadof(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    workspace = home / "work"
+    common = tmp_path / "common-git"
+    worktree_meta = common / "worktrees" / "wt"
+    worktree_meta.mkdir(parents=True)
+    (worktree_meta / "commondir").write_text("../..\n", encoding="utf-8")
+    (common / "config").write_text(
+        '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n\turl = git@github.com:fmind/worktree.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n\tfetch = +refs/tags/*:refs/tags/*\n',
+        encoding="utf-8",
+    )
+    wt = workspace / "wt"
+    wt.mkdir(parents=True)
+    (wt / ".git").write_text(f"gitdir: {worktree_meta}\n", encoding="utf-8")
+
+    class CountingRunner(Runner):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = 0
+
+        def run(self, args: object, **_: object) -> CommandResult:
+            del args
+            self.calls += 1
+            return CommandResult("https://github.com/fmind/fallback.git\n", "", 0)
+
+    runner = CountingRunner()
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 0
+    assert json.loads(stdout.getvalue())["folders"] == [
+        {"path": str(workspace), "changed": []},
+        {"path": str(wt), "changed": []},
+    ]
+
+    # A global url.<base>.insteadOf rewrite delegates origin resolution back to git.
+    (home / ".gitconfig").write_text('[url "https://github.com/fmind/"]\n\tinsteadOf = gh:\n', encoding="utf-8")
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 1
