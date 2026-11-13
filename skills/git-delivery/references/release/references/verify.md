@@ -28,6 +28,17 @@ Read-only post-publication audit (never edits releases, moves tags, or re-upload
    gh run list -R "$repo" --commit "$release_sha" --limit 100 --json workflowName,attempt,headSha,status,conclusion,event,url
    ```
 
-1. **Verify assets and attestations** per [verify-assets](verify-assets.md).
+1. **Verify assets, checksums, and build provenance** in a fresh temp directory (fails closed on missing immutable release or asset):
+
+   ```bash
+   release_dir=$(mktemp -d)
+   gh release download "$tag" -R "$repo" --dir "$release_dir"
+   gh release verify "$tag" -R "$repo"
+   gh release verify-asset "$tag" "$release_dir/checksums.txt" -R "$repo"
+   (cd "$release_dir" && shasum -a 256 -c checksums.txt)
+   asset=project_vX.Y.Z_linux_amd64.tar.gz
+   gh release verify-asset "$tag" "$release_dir/$asset" -R "$repo"
+   gh attestation verify "$release_dir/$asset" --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" --source-ref "refs/tags/$tag" --source-digest "$release_sha"
+   ```
 1. **Smoke-test the shipped artifact** and its reported version ([containerize](../../../../docker/references/containerize/GUIDE.md) for `@sha256:` OCI, Cosign, and SBOM checks).
 1. **Report receipt**: highest proven rung on the [proof ladder](../../../../full-review/SKILL.md#proof-ladder), `release_sha`, tag object + peeled SHA, workflow URLs, release URL/state, asset/checksum/attestation results, and verified artifact version.

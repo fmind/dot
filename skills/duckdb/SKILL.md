@@ -1,31 +1,40 @@
 ---
 name: duckdb
-description: "Query and export CSV, Parquet, JSON, or SQLite data with DuckDB."
+description: "Query and export CSV, Parquet, JSON, SQLite, and PostgreSQL data with DuckDB and pgcli."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
-# DuckDB and SQLite
+# DuckDB, SQLite, and PostgreSQL
 
 Use DuckDB for local analytics across CSV, Parquet, JSON, and attached SQLite files; keep SQLite for embedded application state.
 
 ## Commands
 
 ```bash
-duckdb -no-init -light-mode -batch -bail -c "SELECT name, score FROM 'people.csv' WHERE score > 80 ORDER BY score DESC, name LIMIT 20"
-duckdb -no-init -light-mode -batch -bail -json -c "SELECT count(*) AS event_count FROM 'events/*.json'" # aggregate before displaying
-duckdb -no-init -light-mode -batch -bail lab.duckdb -c "CREATE OR REPLACE TABLE people AS FROM 'people.csv'"
-duckdb -no-init -light-mode -batch -bail -c "COPY (FROM 'people.csv') TO 'people.parquet'"        # durable derived data
+duckdb -no-init -light-mode -batch -bail -json -c "SELECT count(*) AS n FROM 'events/*.json'"
 duckdb -no-init -light-mode -batch -bail -c "ATTACH 'app.sqlite' AS s (TYPE sqlite, READ_ONLY); SELECT count(*) FROM s.users"
-duckdb -no-init -light-mode -batch -bail -c "SUMMARIZE FROM 'people.parquet'"                   # column statistics
 sqlite3 -init /dev/null -batch -bail -readonly app.sqlite '.schema'
 sqlite3 -init /dev/null -batch -bail -noheader -list -readonly app.sqlite 'PRAGMA integrity_check'
 ```
+
+## PostgreSQL (`pgcli`)
+
+Use `pgcli` non-interactively with explicit bounds and credentials outside `argv`:
+
+```bash
+pgcli --less-chatty -w --row-limit 0 --timeout 10 -D analytics --ping
+pgcli --less-chatty -w --row-limit 0 --timeout 10 -t -D analytics -c "SELECT id, status FROM events ORDER BY id DESC LIMIT 20"
+```
+
+- Pass `--less-chatty -w --row-limit 0 --timeout 10` so `pgcli` skips banners, never stalls on password/row prompts, and fails fast; use `-t` for unframed machine output.
+- Authenticate via `.pgpass`, `PGPASSFILE`, `PGSERVICE`, or configured alias (`-D`), never inline DSN passwords (`postgresql://user:pass@...`) in commands.
+- Require explicit user approval before `-y` (`--yes`) or write statements.
 
 Always suppress rc files (`duckdb -no-init -light-mode`, `sqlite3 -init /dev/null`; `-light-mode` skips DuckDB 2.0's 5s OSC 11 terminal background probe when `-no-init` bypasses `~/.duckdbrc`) and fail fast (`-batch -bail`). DuckDB 2.0 auto-enables compact agent Markdown previews (capped rows + count + hash + JSON errors); pass explicit `-json`, `-csv`, `-markdown`, or `-no-agent` for machine parsing. Verify `PRAGMA integrity_check` outputs `ok` (exit 0 alone does not prove integrity).
 

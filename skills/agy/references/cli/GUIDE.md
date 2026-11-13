@@ -5,13 +5,13 @@ description: "CLI sessions, managed settings and auth, custom agents, and comple
 
 # Antigravity (agy)
 
-Operate the CLI; route Python orchestration to [antigravity-sdk](../antigravity-sdk/GUIDE.md), browser tunnels to [remote-control](../remote-control.md), JSON-schema reviews to [headless-review](../headless-review.md), and prompt chrome to [statusline](../statusline.md).
+Operate the CLI; route Python orchestration to [antigravity-sdk](../antigravity-sdk/GUIDE.md), browser tunnels to [remote-control](../remote-control.md), JSON-schema reviews to [headless-review](../headless-review/GUIDE.md), and prompt chrome to [statusline](../statusline.md).
 
 ## Workflow
 
-1. **Check live references first**: inspect `agy --help`, `agy changelog`, and the built-in `antigravity-guide` skill, then docs (append `.md` before any `?tab=`), reporting discrepancies; [features.md](references/features.md) records workstation policy.
+1. **Check live references first**: inspect `agy --help`, `agy changelog`, and the built-in `antigravity-guide` skill, then docs (append `.md` before any `?tab=`), reporting discrepancies; [features.md](references/features.md) owns workstation model and feature policy (`Orchestrator`, `Hydrogen`, ACP, credits, sandboxes).
 1. **Inspect before configuring**: check current settings, `/skills`, and `agy plugin list --json` before adding anything; [agent-project](../../../agent-project/SKILL.md) owns discovery and [mcp-setup](../../../agent-harnesses/references/mcp-setup.md) owns MCP registration.
-1. **Use session flags and verify outcomes**: pass ephemeral `--model`, `--effort`, `--mode`, or `--settings '<json>'` instead of rewriting user preferences, and verify via artifacts, native panels, or service status rather than allow grants. `Orchestrator` (`--model Orchestrator` / `gemini-pro-orchestrator`, Google AI Ultra only—not ADC/Enterprise) pairs Gemini 4 Carbon read-only planning/review with Gemini 4 Hydrogen execution under a fixed config (`--effort`/`/effort` do not apply); standalone `Gemini 4 Hydrogen` defaults to `high` and adds `xhigh` (`Extra`; [models](https://antigravity.google/docs/models/)).
+1. **Use session flags and verify outcomes**: pass ephemeral `--model`, `--effort`, `--mode`, or `--settings '<json>'` instead of rewriting user preferences, and verify via artifacts, native panels, or service status rather than allow grants.
 
 ## Managed setup
 

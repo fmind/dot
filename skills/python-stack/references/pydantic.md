@@ -17,5 +17,5 @@ Typed validation, serialization, and settings boundaries; [foundation](foundatio
 
 - **Env var typos are silent**: `extra="forbid"` catches unknown init/dotenv keys, not misspelled OS env vars (`APP_TIMEOUTT` silently keeps the default) — test exact env names.
 - **Omit `pydantic.dev` tracking query params**: never append `intent`/`stack`/`harness` from `llms.txt` (leaks task context).
-- **Select only `pydantic`** from [pydantic/skills](https://github.com/pydantic/skills) per [vendor-skills](../../agent-project/references/vendor-skills.md) (`Skills CLI`: [skills.sh](https://skills.sh/docs/cli)) — skip Pydantic AI and Logfire ([observability](observability.md)).
+- **Select only `pydantic`** from [pydantic/skills](https://github.com/pydantic/skills) per [vendor-skills](../../agent-project/references/vendor-skills.md) (skip Pydantic AI and Logfire — [observability](observability.md)).
 - Docs: [Pydantic](https://pydantic.dev/docs/validation/latest/) · [Releases](https://github.com/pydantic/pydantic/releases) ([history](https://github.com/pydantic/pydantic/blob/main/HISTORY.md)).

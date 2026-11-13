@@ -9,10 +9,10 @@ Prefer the repository's native release task when defined; use this fallback only
    - List required CI workflows and matrix jobs (the final release commit itself must pass hosted CI).
    - Confirm the target tag exists neither locally nor on `origin`.
    - Confirm whether tag push, branch push, or `workflow_dispatch` owns GitHub Release creation.
-1. **Compute the next tag** (`feat` → minor, `fix`/others → patch, `!`/`BREAKING CHANGE` → major; stop if unchanged from latest tag):
+1. **Compute the next tag** (`feat` → minor, `fix`/others → patch, `!`/`BREAKING CHANGE` → major; keep the `v` prefix, start untagged repos at `v0.1.0`, and override `git-cliff` only for deliberate milestones):
 
    ```bash
-   tag=$(git-cliff --bumped-version)   # add --config pyproject.toml when configured there
+   tag=$(git-cliff --bumped-version)   # pass --config pyproject.toml when configured there; global ~/.config/git-cliff shadows [tool.git-cliff] otherwise
    ```
 
 1. **Bump static manifests**: run `uv version "${tag#v}" --no-sync` for static Python versions (`pyproject.toml` + `uv.lock`) and check OpenTofu version constants; skip for VCS-versioned (`hatch-vcs`) packages.

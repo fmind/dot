@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Chezmoi Source Standard
@@ -31,7 +31,7 @@ Pick the target type first, then attributes in [source-state reference](https://
 ## Gotchas
 
 - **Use `# chezmoi:modify-template`, not script modifiers**: modifiers read `.chezmoi.stdin` via `managed-block.tmpl` or `config-merge.tmpl` instead of `modify_*.tmpl` scripts.
-- **Keep secrets encrypted (`*.age`)**: never expose plaintext in sources, diffs, or logs; native seeds use `create_encrypted_private_*` and scoped keys live in `~/.config/dot/secrets/` ([secret setup](../../../README.md#secret-management), [code-security](../../../skills/code-security/references/code-review/GUIDE.md)).
+- **Keep secrets encrypted (`*.age`)**: never expose plaintext in sources, diffs, or logs; `~/.config/dot/secrets/` holds scoped secrets ([secret setup](../../../README.md#secret-management), [code-security](../../../skills/code-security/references/code-review/GUIDE.md)).
 - **Escape foreign `{{ ... }}` delimiters**: write ``{{`{{ .Destination }}`}}`` (including in `.chezmoi.toml.tmpl`); test with `chezmoi execute-template < file`.
 - **`.chezmoiignore`** uses templated doublestar patterns on target paths (not gitignore): skips repo-only paths (`dot/`, `skills/`, `AGENTS.md`) and age-dependent targets when the key is absent (dot-prefixed sources like `.github/` are skipped automatically). Leading `!` negates ignoring and wins regardless of order.
 - **Retire targets via `.chezmoiremove`**: deleting a source leaves its deployed target; list retired target globs in `.chezmoiremove` so apply deletes them recursively without prompting. Guard shared-directory entries (like skill links) with `lstat`/`readlink` checks to this checkout so third-party same-name packages survive; prune entries once retired everywhere.

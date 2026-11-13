@@ -1,3 +1,8 @@
+---
+name: deployment
+description: "Build, scan, sign, deploy private Cloud Run revisions, and verify IAM."
+---
+
 # Cloud Run Deployment Commands
 
 1. **Pin and install image tools**: pin exact stable versions in `mise.toml`, lock, and install before scanning or pushing ([upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades).

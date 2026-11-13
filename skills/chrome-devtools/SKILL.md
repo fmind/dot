@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Chrome DevTools
@@ -46,7 +46,7 @@ Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, scree
 
 ## Official Skills
 
-Upstream: [ChromeDevTools/chrome-devtools-mcp skills](https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills) (`DISABLE_TELEMETRY=1 skills add ChromeDevTools/chrome-devtools-mcp --list --json`). Select specific skills (`chrome-devtools-cli`, `a11y-debugging`, `memory-leak-debugging`) under [vendor-skill policy](../agent-project/references/vendor-skills.md); preview—never install—same-name `chrome-devtools` ([name collisions](../agent-project/references/vendor-skills.md#name-collisions)).
+Upstream: `ChromeDevTools/chrome-devtools-mcp` (`chrome-devtools-cli`, `a11y-debugging`, `memory-leak-debugging` — preview only and never install colliding `chrome-devtools` per [vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)).
 
 ## Documentation
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-13"
 ---
 
 # Kaggle CLI
@@ -17,7 +17,7 @@ Operate Kaggle competitions, datasets, kernels, and models via `kaggle` (auth, d
 ## Workflow
 
 1. **Verify account**: `kaggle auth login` (OAuth), env `KAGGLE_API_TOKEN`, or legacy `~/.kaggle/kaggle.json`; never run `kaggle auth print-access-token`.
-1. **Inspect before downloading**: check bounded listings, `kaggle competitions submission-limits <slug> --json`, and `kaggle competitions pages list list <slug> --content --page-name rules` (double `list` required by the parser; reading rules never authorizes accepting them).
+1. **Inspect before downloading**: check bounded listings, `kaggle competitions submission-limits <slug> --json`, and `kaggle competitions pages <slug> list --content --page-name rules` (reading rules never authorizes accepting them).
 1. **Download into gitignored `data/`** (accept competition rules in the browser first, else HTTP 403):
 
    ```bash
@@ -25,7 +25,7 @@ Operate Kaggle competitions, datasets, kernels, and models via `kaggle` (auth, d
    kaggle datasets download <owner>/<name> -p data/ --unzip
    ```
 
-1. **Check deadlines**: inspect `kaggle competitions pages list list <slug>` (`--page-name timeline`, else `description`) and offer—or schedule when asked—[gws](../gws/SKILL.md) Calendar reminders one week before entry/merger deadlines and on final submission day.
+1. **Check deadlines**: inspect `kaggle competitions pages <slug> list` (`--page-name timeline`, else `description`) and offer—or schedule when asked—[gws](../gws/SKILL.md) Calendar reminders one week before entry/merger deadlines and on final submission day.
 1. **Audit kernels before `push`**: `kaggle kernels init -p <dir>` creates `kernel-metadata.json`. Before authorized `kaggle kernels push -p <dir>`, verify upload files, target ID, data sources, `is_private: true` (default private), internet, `--accelerator`, `-t` timeout, `--no-run` (push executes immediately otherwise), and `kaggle quota`; check `kernels status <owner>/<slug>` and `kernels output <owner>/<slug> -p out/`.
 1. **Authorize submissions** (each counts against daily caps and posts to the leaderboard; `--wait` exits non-zero on scoring error/timeout after consuming the slot, or check `competitions submission <ref>`):
 

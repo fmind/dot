@@ -22,7 +22,7 @@
    - **Claude Code**: `.mcp.json` (`claude mcp add --scope project`).
    - **Copilot**: `.github/copilot-instructions.md` for Copilot-only additions.
    - **Cursor**: `.cursor/rules`, `.cursor/cli.json` (permissions), `.cursor/mcp.json`.
-   - **OpenCode**: `opencode.json`/`.jsonc` ([opencode](../../agent-harnesses/references/opencode/GUIDE.md)).
+   - **OpenCode**: `opencode.json`/`.jsonc` ([opencode](../../agent-harnesses/references/opencode.md)).
    - **Pi**: `.pi/settings.json` and `.pi/mcp.json`, loaded after trust ([pi](../../agent-harnesses/references/pi.md)).
 1. **Verify**: launch each CLI at the repo root and check loaded instructions, skills, and MCP via [host discovery](host-discovery.md).
 

@@ -14,7 +14,7 @@ Use OpenRouter (`https://openrouter.ai/api/v1`, `Authorization: Bearer $OPENROUT
 1. **Batch offline workloads**: `POST /api/v1/batches` ([Batch API](https://openrouter.ai/docs/batch-quickstart): normal model slug, 24h window, ~1m `GET /api/v1/batches/{id}` polling, `custom_id` matching) routes to the cheapest batch provider, reserves estimated credits upfront, and rejects models without batch support.
 1. **Classify failures without auto-switching**: separate bad keys, empty credit, rate limits (`Retry-After`), and upstream errors; never auto-switch models, accounts, or providers.
 
-For OpenCode ([guide](../../agent-harnesses/references/opencode/GUIDE.md)), sign in personally via `opencode auth login` (or `/connect` in the TUI), isolate customer keys via `provider.openrouter.options.apiKey` env/file refs or `XDG_DATA_HOME` ([credential precedence](../../dot-cli/references/authentication.md#customer-overrides-and-isolation)), and pin both `model` and `small_model` (no OpenRouter plugin needed).
+For OpenCode ([guide](../../agent-harnesses/references/opencode.md)), sign in personally via `opencode auth login` (or `/connect` in the TUI), isolate customer keys via `provider.openrouter.options.apiKey` env/file refs or `XDG_DATA_HOME` ([credential precedence](../../dot-cli/references/authentication.md#customer-overrides-and-isolation)), and pin both `model` and `small_model` (no OpenRouter plugin needed).
 
 ## Primary sources
 

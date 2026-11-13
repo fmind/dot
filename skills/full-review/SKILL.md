@@ -7,42 +7,33 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Full Review
 
-Handle "full review", "final check before release", "ready to ship", "review this diff or PR", "smoke-test everything", or repository upkeep. Whole-repo runs deliver a fixed, proven tree; diff/PR reviews deliver a read-only report. Defer to a repo-specific qualification skill (such as `dot-release` in `fmind/dot`) when present, covering only what it omits.
+Handle "full review", "final check before release", "ready to ship", "review this diff or PR", "smoke-test everything", or repo upkeep. Whole-repo runs deliver a fixed, proven tree; diff/PR reviews deliver a read-only report. Defer to a repo qualification skill (e.g., `dot-release` in `fmind/dot`) when present, covering only gaps.
 
 ## Arguments
 
-State the parsed scope, exclusions, depth, mode, and requested follow-ups (release, commit, propagation—none by default) in one opening line; ask only when ambiguity alters scope, cost, or reversibility.
+State scope, exclusions, depth, mode, and follow-ups (none by default) in one opening line; ask only when ambiguity alters scope, cost, or reversibility.
 
-- **Scope**: diffs, patches, branches, PRs, and self-reviews run [diff-review](references/diff-review.md); smoke-only runs [smoke](references/smoke/GUIDE.md); ignore-only runs [update-ignores](references/update-ignores/GUIDE.md); everything else runs the whole-repo workflow below.
-- **Depth**: `deep` (default) covers every in-scope tracked file; `upkeep` skips inventory and covers Current, Simple, Consistent, Documented, and security scans.
-- **Mode**: whole-repo defaults to `fix`; diff, PR, and smoke-only default to read-only `report` (run mutating checks like `mise run format` only in a disposable [snapshot](../git-delivery/references/git-worktree/GUIDE.md), skip Fix/Prove and diff/PR Inventory, and rank by [severity](#severity)).
+- **Scope**: diffs/PRs run [diff-review](references/diff-review.md); smoke-only runs [smoke](references/smoke.md); ignores run [update-ignores](references/update-ignores/GUIDE.md); otherwise run whole-repo below.
+- **Depth**: `deep` (default) reviews every tracked file; `upkeep` skips inventory.
+- **Mode**: whole-repo defaults to `fix`; diff, PR, and smoke default to read-only `report` (run mutating formatters in a [worktree](../git-delivery/references/git-worktree/GUIDE.md), skip Fix/Prove and Inventory, rank by [severity](#severity)).
 
 ## Workflow
 
-1. **Baseline**: inspect `git status --short`, staged/unstaged diffs, latest tag, and `git fetch` state (treat uncommitted work as part of the candidate—never discard or restage it), then run existing gates once to separate preexisting failures from regressions.
-1. **Load decisions**: read `AGENTS.md`, `README.md`, skills, changelog, memory, `## Decisions`, and ADRs; revisit settled decisions only when new changes reopen them.
-1. **Inventory**: group `git ls-files` (minus exclusions and generated/vendored paths) by area and track every area to reviewed—fan out read-only area passes to subagents on large repos, verifying every returned finding yourself.
-1. **Audit dimensions** (name any out-of-scope skip):
-   - **Works**: tasks and CLIs exit clean with zero warnings ([smoke](references/smoke/GUIDE.md)), deterministic failure/race tests pass, and authorized live endpoints respond read-only.
-   - **Current**: check tools, deps, actions, and runtimes against latest stable ([upgrade-tools](../upgrade-tools/SKILL.md)), upgrading when requested.
-   - **Simple**: delete dead code (vulture per [Ruff](../python-stack/references/foundation/GUIDE.md#ruff)), legacy paths, orphan files, stale config, unearned abstractions, and prose bloat ([trim](../trim/SKILL.md)).
-   - **Consistent**: align metadata and versions across code, `pyproject.toml`, docs, GitHub ([repository](../gh/references/repository/GUIDE.md)), site, changelog, and tags; match stack/[bootstrap](../project-scaffolding/references/bootstrap.md) layout ([python-stack](../python-stack/SKILL.md)); route hooks and CI through [mise](../mise/SKILL.md); confirm locks/indexes/formatters regenerate cleanly; audit ignores ([update-ignores](references/update-ignores/GUIDE.md)).
-   - **Secure and private**: audit secrets, permissions, dependencies, agent tools ([code-security](../code-security/SKILL.md)), repo visibility, and leak-free public content.
-   - **Documented**: sync concise `README.md`, `AGENTS.md`, skills, and docs ([repository-docs](../repository-docs/SKILL.md)); extract recurring procedures via [skillify](../skillify/SKILL.md).
-   - **Fast**: fix measured task, test, CI, or page bottlenecks ([performance](../python-stack/references/performance.md)).
-1. **Fix**: land minimal, revertable fixes with regression tests for behavior defects; hold back irreversible, outward-facing, costly, or architectural changes as decisions.
-1. **Prove**: rerun invalidated checks, then the full gate (`mise run all` or equivalent) on the exact candidate.
-1. **Report**: verdict (`ready`, `ready with caveats`, or `blocked`), highest proven [proof ladder](#proof-ladder) rung, `path:line` fixes/findings with evidence, held-back decisions, and uncovered areas/services/credentials.
-1. **Follow up on request**: commit/release via [git-delivery](../git-delivery/SKILL.md), propagate across repos, or resume at Fix on `"apply all"`.
+1. **Baseline & inventory**: inspect `git status --short`, diffs, latest tag, and `git fetch` state (preserve uncommitted work); run existing gates once to separate regressions. Read `AGENTS.md`, `README.md`, skills, changelog, and `## Decisions`, then fan out read-only `git ls-files` area reviews on large trees (verifying all findings).
+1. **Audit dimensions** (name any skip):
+   - **Works**: tasks/CLIs exit zero cleanly ([smoke](references/smoke.md)), failure/race tests pass, authorized endpoints respond.
+   - **Current & Simple**: upgrade outdated deps on request ([upgrade-tools](../upgrade-tools/SKILL.md)); delete dead code (`vulture src --exclude .venv,tests`), structural clones (`ast-grep`), orphan files, stale config, and prose bloat ([trim](../trim/SKILL.md)).
+   - **Consistent & Secure**: align versions, metadata, [repo settings](../gh/references/repository/GUIDE.md), and [bootstrap](../project-scaffolding/references/bootstrap.md); wire CI/hooks via [mise](../mise/SKILL.md); audit ignores ([update-ignores](references/update-ignores/GUIDE.md)); scan secrets/deps (`code-security`, `sonar analyze`); sync [docs](../repository-docs/SKILL.md) and fix bottlenecks ([performance](../python-stack/references/performance.md)).
+1. **Fix, prove, report**: land minimal fixes + regression tests (hold irreversible, costly, or architectural calls as decisions); rerun full gates (`mise run all`); report verdict (`ready`, `ready with caveats`, `blocked`), highest [proof ladder](#proof-ladder) rung, `path:line` evidence, held decisions, and gaps. Follow up via [git-delivery](../git-delivery/SKILL.md) only on request.
 
 ## Proof ladder
 
-Claim only the highest rung proven for this exact revision and environment (recording artifact ID, environment, command/observation, and timestamp; failed hard gates stay blocked, and list every gap above the rung):
+Claim only the highest proven rung (recording artifact ID, environment, command, timestamp; failed gates stay blocked, and list every unproven boundary):
 
 - `source-ready`: source and config are reviewable.
 - `local-green`: repository local gates pass.
@@ -65,7 +56,7 @@ State `path:line`, reachable trigger, evidence, impact, and minimal fix (or `"no
 <!-- guides:start -->
 
 - [diff-review](references/diff-review.md): Review a diff, branch, or PR read-only: test strength, scope creep, and ranked findings.
-- [smoke](references/smoke/GUIDE.md): Smoke-test every repo task and CLI command; warnings count as failures.
+- [smoke](references/smoke.md): Smoke-test every repo task and CLI command; warnings count as failures.
 - [update-ignores](references/update-ignores/GUIDE.md): Audit and fix .gitignore, .ignore, .dockerignore, and tool excludes for the stack.
 
 <!-- guides:end -->

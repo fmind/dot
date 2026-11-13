@@ -13,30 +13,29 @@ Apply to new solo-maintained repositories or explicit settings passes; preserve 
    python3 -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO
    ```
 
-1. **Apply** (requires explicit `--apply`; stops before writes on failed reads or duplicate rulesets):
+1. **Apply** (requires explicit `--apply`; aborts on failed reads or duplicate rulesets):
 
    ```bash
    python3 -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO --apply --disable wiki --disable projects --disable discussions
    ```
 
-1. **Verify JSON output**: `state`, `changed` (`[before, after]` on `--apply`), `notes`, and `drift` (exit `0` clean, `1` failed `gh`/duplicate rulesets/drift, `2` bad args). Pass identical flags on follow-up checks (rerun once if API propagation lags).
+1. **Verify JSON output**: `state`, `changed` (`[before, after]`), `notes`, and `drift` (exit `0` clean, `1` failed/drift, `2` bad args). Pass identical flags on follow-ups.
 
 ## Decisions
 
-| Setting                                                                             | Applied when                                                                                  |
-| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Squash-only merges (`PR_TITLE` + `PR_BODY`), auto-delete head branches, branch sync | Always                                                                                        |
-| Secret scanning and push protection                                                 | Public, or `security_and_analysis.secret_scanning` present; else noted                        |
-| Dependabot alerts and security updates                                              | Always (free on all plans; [dependabot](../../../../github-actions/references/dependabot.md)) |
-| Full-SHA action pins, read-only `GITHUB_TOKEN`, no PR approvals by Actions          | Actions enabled (writing `actions/permissions` when off would enable Actions)                 |
-| Outside-contributor fork PR approval required                                       | Public with Actions enabled                                                                   |
-| Immutable releases; `pypi` and `release` environments restricted to `v*` tags       | Public with an existing release or `pypi`/`release` environment                               |
-| Private vulnerability reporting; `Protect default branch` ruleset                   | Public                                                                                        |
+| Setting                                                                        | Applied when                                                               |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Squash-only merges (`PR_TITLE` + `PR_BODY`), auto-delete branches, branch sync | Always                                                                     |
+| Secret scanning & push protection                                              | Public, or `secret_scanning` enabled; else noted                           |
+| Dependabot alerts & security updates                                           | Always ([dependabot](../../../../github-actions/references/dependabot.md)) |
+| Full-SHA pins, read-only `GITHUB_TOKEN`, no Actions PR approvals               | Actions enabled                                                            |
+| Outside-contributor fork PR approval required                                  | Public with Actions enabled                                                |
+| Immutable releases; `pypi`/`release` environments restricted to `v*`           | Public with release or env                                                 |
+| Private vulnerability reporting; `Protect default branch` ruleset              | Public                                                                     |
 
-- **Upload release assets before publishing**: immutable releases freeze tags/assets on publish and attach release attestations (`gh release create` with assets, or publish drafts last). Rerun the baseline after a new repo's first release.
-- **Preserve environment reviewers**: environment `PUT` replaces settings, so the script carries forward reviewers, `prevent_self_review`, and `wait_timer`.
-- **Never auto-delete extra deployment policies**: leftover branch/tag policies on `pypi`/`release` still permit deploys; the script flags them in `drift` with `gh api --method DELETE` paths for user-approved removal.
-- **Keep direct pushes working**: `Protect default branch` blocks deletion and force-pushes without requiring PRs or signatures, updating in place or skipping creation if another ruleset enforces both; duplicate owned rulesets abort with IDs for user-approved cleanup.
+- **Upload release assets before publishing**: immutable releases freeze tags/assets on publish; rerun baseline after a new repo's first release.
+- **Preserve reviewers & extra deploy policies**: `PUT` carries forward reviewers/`prevent_self_review`/`wait_timer`; extra policies surface in `drift` with `DELETE` paths for user approval.
+- **Keep direct pushes working**: `Protect default branch` blocks deletion/force-pushes without requiring PRs or signatures; duplicate owned rulesets abort with IDs for user cleanup.
 
 ## Gotchas
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # GitHub CLI
@@ -39,7 +39,7 @@ Use `gh` for authenticated GitHub reads and writes. This connector owns account 
 
 ## Official Skills
 
-Upstream `cli/cli` ships agent skills including a same-name `gh`: preview only and never install under `gh` ([vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)); follow [official-skills](references/official-skills.md) for pinned installs.
+Upstream `cli/cli` ships `gh` (never install alongside this connector; collides cleanly per [vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)) and `gh-skill`. Preview pinned commits with `gh skill preview cli/cli <name>@<commit>` and install only reviewed snapshots.
 
 ## Documentation
 

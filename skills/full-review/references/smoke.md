@@ -5,9 +5,9 @@ description: "Smoke-test every repo task and CLI command; warnings count as fail
 
 # Smoke
 
-Exercise every exposed repo task and CLI entry point, reporting a matrix (runs in [full-review](../../SKILL.md) `report` mode unless fixes are requested).
+Exercise every exposed repo task and CLI entry point, reporting a matrix (runs in [full-review](../SKILL.md) `report` mode unless fixes are requested).
 
-1. **Discover**: inspect every mise task ([concise output](../../../mise/references/task-conventions.md#concise-output) covers `quiet = true`), `[project.scripts]`, and `README.md`/CI commands before running:
+1. **Discover**: inspect every mise task ([concise output](../../mise/references/task-conventions.md#concise-output) covers `quiet = true`), `[project.scripts]`, and `README.md`/CI commands before running:
 
    ```bash
    mise tasks ls --no-global --json --hidden | jq -r '.[] | [.name, ((.run // []) | join(" && "))] | @tsv'

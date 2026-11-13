@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Cloud Run Deployment
@@ -33,6 +33,15 @@ Deploy Python services to Cloud Run via immutable `@sha256:` digests, private IA
 - **Cap DB pools against `max_connections`**: keep `max_instances × (pool_size + max_overflow)` (SQLAlchemy defaults: `5 + 10` per worker) under `max_connections` minus admin headroom; add a pooler before raising limits.
 - **Keep `minScale: 0` unless cold starts justify idle spend**: for hard ceilings, propose a Cloud Billing [spend cap](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps) (requires billing authority, lags slightly, and halts Cloud Run when exceeded).
 - **Co-locate service and Artifact Registry** in the same project and region; WIF pools stay `global`.
+
+## Task guides
+
+<!-- guides:start -->
+
+- [bootstrap](references/bootstrap.md): Bootstrap Cloud Run project APIs, Artifact Registry, service accounts, and WIF.
+- [deployment](references/deployment.md): Build, scan, sign, deploy private Cloud Run revisions, and verify IAM.
+
+<!-- guides:end -->
 
 ## Official Skills
 

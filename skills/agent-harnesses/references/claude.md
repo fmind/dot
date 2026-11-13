@@ -11,7 +11,7 @@ Operate Claude Code alongside `fmind/dot` managed configuration; [agent-project]
 
 `private_dot_claude/modify_private_settings.json` merges `~/.claude/settings.json`:
 
-- **Seeded defaults** (host-overridable via `/model`, `/effort`, or `/config`): `model: "fable"`, `effortLevel: "high"` on `claude-fable-5-1`, `claude-fable-5-2`, and `claude-opus-5-5`, and `remoteControlAtStartup: true`.
+- **Seeded defaults** (host-overridable via `/model`, `/effort`, or `/config`): `model: "fable"`, `effortLevel: "high"` (supports `low|medium|high|xhigh|max` via `--effort`) on `claude-fable-5-1`, `claude-fable-5-2`, and `claude-opus-5-5`, and `remoteControlAtStartup: true`.
 - **Managed keys** (re-applied on `chezmoi apply --force`): `permissions.defaultMode: "bypassPermissions"`, `fallbackModel: ["sonnet"]`, `editorMode: "vim"`, `theme: "light-ansi"`, `tui: "fullscreen"`, `worktree.baseRef: "head"`, `respectGitignore: false`, `autoContinueAtUsageLimit: true`, `agentPushNotifEnabled: true`, `inputNeededNotifEnabled: true`, empty commit/PR attribution, disabled `claude.ai` connectors/plugins/skills sync, and non-interactive CLI env (`GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED=1`, `CLOUDSDK_CORE_DISABLE_PROMPTS=1`), preserving host `SessionStart` hooks and retiring legacy `Notification` turn hooks.
 - **Global links & trust**: `~/.claude/CLAUDE.md` → `~/.agents/AGENTS.md`, `~/.claude/skills` → `~/.agents/skills`; `dot trust` manages workspace trust and `permissions.additionalDirectories`.
 
@@ -34,6 +34,7 @@ Operate Claude Code alongside `fmind/dot` managed configuration; [agent-project]
 - **Project skills need `.claude/skills`**: Claude Code ignores `.agents/skills/` directly unless `.claude/skills -> ../.agents/skills` is linked ([agent-project](../../agent-project/SKILL.md)).
 - **MCP scope privacy**: `claude mcp add --scope local` (default) keeps credentials per-project in `~/.claude.json`; `--scope project` writes shared `.mcp.json` (requires approval; `claude mcp reset-project-choices` resets).
 - **Never export `DISABLE_TELEMETRY=1` globally**: Claude Code disables Remote Control when `DISABLE_TELEMETRY` is set in the environment; prefix `DISABLE_TELEMETRY=1` per command only for `skills`.
+- **Gate `/ultrareview`**: invoke `/ultrareview` only on explicit request due to heavy multi-pass quota cost.
 
 ## Documentation
 

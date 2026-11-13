@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-11-10"
+  updated: "2026-11-13"
 ---
 
 # Playwright
@@ -29,7 +29,7 @@ Browser automation and E2E testing ([python-testing](../python-stack/references/
 
 ## Official Skills
 
-Upstream: [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) (CLI exploration only, not Python API); review under the [vendor-skill policy](../agent-project/references/vendor-skills.md). Preview—never install—same-name `openai/skills` `playwright` ([name collisions](../agent-project/references/vendor-skills.md#name-collisions)). `uv run playwright` also bundles `playwright-cli` (`uv run playwright cli --help` prints its path), `playwright-trace`, and JS-only `playwright-component-testing`: audit `allowed-tools` before exposing (`playwright <1.64` and `playwright-cli <0.1.22` pre-approve all `npx`/`npm`; newer versions scope to `npx playwright`).
+Upstream `microsoft/playwright-cli` (`playwright-cli` only; collides with `openai/skills` `playwright` — see [vendor-skill policy](../agent-project/references/vendor-skills.md#name-collisions)). Audit `allowed-tools` on bundled CLI skills (`playwright <1.64` and `playwright-cli <0.1.22` pre-approve broad `npx`/`npm`).
 
 ## Documentation
 

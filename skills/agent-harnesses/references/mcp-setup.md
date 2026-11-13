@@ -15,25 +15,25 @@ Register only the MCP capability a task needs using the host's native CLI. [MCP]
 
 ## Native host commands
 
-Python stdio examples (for HTTP, substitute `--transport http <url>` in Claude/Copilot, `--url <url>` in OpenCode/Pi, or a bare URL in Antigravity):
+Python stdio examples (for HTTP, substitute `--transport http <url>` in Claude/Copilot, `--url <url>` in OpenCode/Pi, or a bare URL in Antigravity; Pi HTTP bearer tokens use `--bearer-token-env-var NAME`):
 
 ```bash
-agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                 # Antigravity CLI; flags before <name>
-claude mcp add --scope project <name> -e KEY=value -- uvx --from '<package>==<version>' <command> # -e is variadic: name first; default scope is local
+agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                 # Antigravity: user scope only
+claude mcp add --scope project <name> -e KEY=value -- uvx --from '<package>==<version>' <command> # -e is variadic: name first
 copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>             # user configuration
-opencode mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>            # OpenCode 2.x: project configuration unless --global
-pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                  # Pi: user configuration unless -l
+opencode mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>            # project config unless --global
+pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                  # user config unless -l
 ```
 
 - **Pin executables & local projects**: use `uvx --from '<package>==<version>'`, never bare `uvx <package>`. For local Python checkouts, point directly at the locked `.venv` binary (e.g., `agy mcp add brain -- <brain-checkout>/.venv/bin/bf mcp --brain <brain>`) because `uvx --from` pins only the top-level package and agy spawns `bash -c` without shell init files.
-- **Secrets**: `KEY=value` above is non-sensitive; supply credentials only via host env references, OAuth, or a scoped secret launcher—never CLI args or tracked files.
+- **Keep secrets out of args and tracked files**: `KEY=value` is non-sensitive only; supply credentials via host env refs (`{env:NAME}`, `${NAME}`, `--bearer-token-env-var`), OAuth, or `dot secret run`. Keep Claude's default `--scope local` (`~/.claude.json`) unless the user approves shared `.mcp.json` (`--scope project`; `claude mcp reset-project-choices` resets).
 - **OpenCode 2.x schema** ([docs](https://opencode.ai/v2/docs/mcp-servers/)): nest under `mcp.servers.<name>` (`type: "local"` with command array + `environment`, or `type: "remote"` with `url`); use `disabled` (not `enabled`) and `{env:NAME}` for secrets. Project entries replace same-name global entries wholesale.
 
 ## Configuration files
 
 | Host        | User scope                                           | Project scope                                   |
 | ----------- | ---------------------------------------------------- | ----------------------------------------------- |
-| Antigravity | `~/.gemini/config/mcp_config.json` (`agy mcp add`)   | Unverified: `agy mcp add` has no scope flag     |
+| Antigravity | `~/.gemini/config/mcp_config.json` (`agy mcp add`)   | Unsupported by `agy mcp add` (user-only)        |
 | Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                 |
 | Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited) |
 | OpenCode    | `~/.config/opencode/opencode.json` or `.jsonc`       | `opencode.json` or `.jsonc`                     |
@@ -41,8 +41,7 @@ pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>
 
 ## Gotchas
 
-- **Claude defaults to `local` scope** (`~/.claude.json` for this path); pass `--scope project` to share `.mcp.json`.
-- **Hold the trust boundary**: vet repo MCP configs before launching, restrict tools (`copilot mcp add --tools`), keep secrets out of argv and tracked files, and preserve approved autonomous writes while gating out-of-scope effects.
+- **Hold the trust boundary**: vet repo MCP configs before launching, restrict exposed tools (`copilot mcp add --tools`), and gate out-of-scope remote writes.
 
 ## Documentation
 

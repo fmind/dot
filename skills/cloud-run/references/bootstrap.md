@@ -1,3 +1,8 @@
+---
+name: bootstrap
+description: "Bootstrap Cloud Run project APIs, Artifact Registry, service accounts, and WIF."
+---
+
 # Cloud Run Project and Identity Setup
 
 Pass `--project=<project>` with the approved account per [gcloud](../../gcloud/SKILL.md). Pin numeric GitHub `repository_owner_id` and `repository_id` in federation conditions so renamed/reclaimed accounts cannot impersonate.

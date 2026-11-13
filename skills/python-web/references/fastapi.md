@@ -22,4 +22,4 @@ For existing or explicitly chosen FastAPI services (including [agents-cli](../..
 
 ## Official Skills & Docs
 
-Upstream: [fastapi/fastapi](https://github.com/fastapi/fastapi) (install via [vendor-skills](../../agent-project/references/vendor-skills.md) · [Skills CLI](https://skills.sh/docs/cli)). Docs: [FastAPI](https://fastapi.tiangolo.com/) · [release notes](https://fastapi.tiangolo.com/release-notes/) · [GitHub releases](https://github.com/fastapi/fastapi/releases).
+Upstream: [fastapi/fastapi](https://github.com/fastapi/fastapi) (per [vendor-skills](../../agent-project/references/vendor-skills.md)). Docs: [FastAPI](https://fastapi.tiangolo.com/) · [release notes](https://fastapi.tiangolo.com/release-notes/) · [GitHub releases](https://github.com/fastapi/fastapi/releases).

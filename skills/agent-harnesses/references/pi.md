@@ -22,7 +22,7 @@ Follow the shared [workflow](../SKILL.md#workflow); host specifics:
    pi -p --model google-vertex/<model-id>:high '<task>' </dev/null
    ```
 
-   Use `--session <id>`, `--fork <id>`, or `--no-session`. Untrusted project resources are skipped headlessly unless `-a` trusts them once (`-na` ignores them).
+   Use `--session <id>`, `--fork <id>`, or `--no-session`. For deterministic isolated runs, combine `--offline` (`PI_OFFLINE=1`) with `-nc` (`--no-context-files`), `-ns` (`--no-skills`), or `-ne` (`--no-extensions`); `-a` trusts cwd once (`-na` skips it).
 1. **Verify discovery and diffs**: Pi concatenates `~/.pi/agent/AGENTS.md` plus one file per ancestor directory from `/` to cwd (`AGENTS.override.md` > `AGENTS.md` > `CLAUDE.md`), and loads `~/.agents/skills` plus trusted `.agents/skills` (`/skill:<name>` forces one; startup header lists loaded items). Verify diffs and checks, not session files.
 
 ## Configuration

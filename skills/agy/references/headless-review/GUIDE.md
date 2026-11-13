@@ -5,12 +5,12 @@ description: "Run a structured headless agy review with JSON schema and fail-clo
 
 # Structured Headless Reviews
 
-Run from the target repository; [review.schema.json](cli/references/review.schema.json) enforces output shape only, so use a disposable snapshot when filesystem isolation from concurrent edits is needed.
+Run from the target repository; [review.schema.json](references/review.schema.json) enforces output shape only, so use a disposable snapshot when filesystem isolation from concurrent edits is needed.
 
 ```bash
 agy_review=$(mktemp /var/tmp/agy-review.XXXXXX)
 agy --print-timeout 20m --output-format json \
-  --json-schema ~/.agents/skills/agy/references/cli/references/review.schema.json \
+  --json-schema ~/.agents/skills/agy/references/headless-review/references/review.schema.json \
   -p 'Review the working-tree diff for verified defects. Do not edit files. Return findings, checks actually run, and unresolved gaps.' \
   > "$agy_review" &&
   jq -e '.status == "SUCCESS" and (.finished_reason // null) == null and (.structured_output | type) == "object"' "$agy_review" >/dev/null

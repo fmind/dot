@@ -10,9 +10,9 @@ Prepare, publish, or verify versioned releases using Conventional Commits, `git-
 ## Workflow
 
 1. **Select mode**: preparation, authorized publication, or read-only verification; record repo, candidate SHA, target version, and release owner (CLI vs CI workflow).
-1. **Prepare**: verify a clean candidate and absent tag, run the full gate, and follow [publish.md](references/publish.md) (check [versioning](references/versioning.md) before overriding `git-cliff`).
+1. **Prepare**: verify a clean candidate and absent tag, run the full gate, and follow [publish.md](references/publish.md).
 1. **Publish only on request**: use one owner — never run manual `gh release create` against a tag-triggered release workflow.
-1. **Verify**: reconcile the peeled tag SHA, exact-commit CI/CD, release state, and [asset attestations](references/verify-assets.md) per [verify.md](references/verify.md).
+1. **Verify**: reconcile the peeled tag SHA, exact-commit CI/CD, release state, and asset checksums/attestations per [verify.md](references/verify.md).
 1. **Report**: URL, version, SHA, verified artifacts, and any unproven boundary (local gate vs remote release vs deploy).
 
 ## Gotchas

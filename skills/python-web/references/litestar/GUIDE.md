@@ -29,4 +29,4 @@ Default framework for Python web apps and APIs, paired with [python-stack](../..
 
 ## Official Skills & Docs
 
-Upstream: [litestar-org/litestar-skills](https://github.com/litestar-org/litestar-skills) (install `litestar` + needed extras per [vendor-skills](../../../agent-project/references/vendor-skills.md#workflow) · [Skills CLI](https://skills.sh/docs/cli)). Docs: [Litestar](https://docs.litestar.dev/latest/) · [release notes](https://docs.litestar.dev/latest/release-notes/) · [GitHub releases](https://github.com/litestar-org/litestar/releases).
+Upstream: [litestar-org/litestar-skills](https://github.com/litestar-org/litestar-skills) (install `litestar` + needed extras per [vendor-skills](../../../agent-project/references/vendor-skills.md#workflow)). Docs: [Litestar](https://docs.litestar.dev/latest/) · [release notes](https://docs.litestar.dev/latest/release-notes/) · [GitHub releases](https://github.com/litestar-org/litestar/releases).

@@ -24,7 +24,7 @@ Align ignore and exclude configs with the repository's actual stack and tasks—
 
 ## Gotchas
 
-- **`.ignore` emulation limits**: `audit.py` evaluates `.ignore` as `core.excludesFile` (root-anchored, below `.gitignore`): `!` negations re-including gitignored paths for `rg`/`fd` report `n/a` (never prune for zero hits), and nested `.ignore` files trigger a warning—verify those with `rg --files` or `fd`.
+- **`.ignore` & `RIPGREP_CONFIG_PATH` limits**: `audit.py` evaluates `.ignore` as `core.excludesFile`: `!` negations re-including gitignored files report `n/a`, and nested `.ignore` triggers a warning. Because `rg` reads `RIPGREP_CONFIG_PATH` and `.ignore` by default, run `rg --no-config -uuu` (or `fd -H`) when auditing lockfiles or ignored paths.
 - **Ask before untracking**: ignore rules never untrack committed files.
 
 ## Documentation
