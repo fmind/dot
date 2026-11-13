@@ -416,7 +416,8 @@ class _SyncPass:
         if not adapter.database and observed != signature:
             # The retry parsed a newer stable source; record that file evidence instead.
             stored_signature = observed + stored_signature[len(signature) :]
-        parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), parse_cwd)
+        usage_cwd = parsed.usage.cwd if parsed.usage is not None else ""
+        parsed_cwd = next((record.cwd for record in parsed.logs if record.cwd), usage_cwd or parse_cwd)
         if self.cwd and resolve_cwd(parsed_cwd) != self.cwd:
             return None
         scan.counts.selected += 1

@@ -109,6 +109,10 @@ class HarnessConfigTests(unittest.TestCase):
         self.config.write_text('[data]\ngit_email = "ada@work.example"\n')
         rendered = self.render("dot_config/git/personal.gitconfig.tmpl", "")
         assert 'email = "github@fmind.dev"' in rendered
+        assert "name =" not in rendered
+        self.config.write_text('[data]\ngit_email = "ada@work.example"\ngit_personal_name = "Ada (Personal)"\n')
+        named = self.render("dot_config/git/personal.gitconfig.tmpl", "")
+        assert 'name = "Ada (Personal)"' in named
 
     def test_claude_preserves_host_session_start_hooks_while_retiring_notifications(self):
         template = "private_dot_claude/modify_private_settings.json"
@@ -156,6 +160,7 @@ class HarnessConfigTests(unittest.TestCase):
             "permissions": {"deny": ["Read(./private)"], "additionalDirectories": ["/synthetic/host-root"]},
             "model": "host-model[1m]",
             "effortLevel": "xhigh",
+            "remoteControlAtStartup": False,
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
@@ -172,11 +177,13 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["disableClaudeAiConnectors"] is True
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
+        assert data["remoteControlAtStartup"] is False
         assert data["permissions"]["additionalDirectories"] == ["/synthetic/host-root"]
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
         assert fresh["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
         assert fresh["model"] == "fable"
+        assert fresh["remoteControlAtStartup"] is True
         # Opus 5.5 ignores the top-level effortLevel, so effort is seeded per model.
         assert "effortLevel" not in fresh
         assert fresh["modelSettings"]["claude-opus-5-5"] == {"effortLevel": "high"}
@@ -203,8 +210,8 @@ class HarnessConfigTests(unittest.TestCase):
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
-        assert data["model"] == "openrouter/google/gemini-4-hydrogen"
-        assert data["small_model"] == data["model"]
+        assert data["model"] == "google-vertex/gemini-3.8-flash"
+        assert data["small_model"] == "openrouter/google/gemini-4-hydrogen"
         assert data["share"] == "disabled"
         assert data["autoupdate"] is False
         assert data["provider"]["openrouter"]["options"] == {"timeout": 60000}
@@ -219,6 +226,9 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
         assert "policies" not in data
         assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert fresh["model"] == "openrouter/google/gemini-4-hydrogen"
+        assert fresh["small_model"] == "openrouter/google/gemini-4-hydrogen"
 
     def test_opencode_keeps_credentials_out_of_rendered_config(self):
         data = json.loads(
@@ -734,3 +744,13 @@ class HarnessConfigTests(unittest.TestCase):
         assert (merged["lastChangelogVersion"], merged["packages"]) == ("1.5.0", ["npm:synthetic-package"])
         rendered = self.render(template, json.dumps(merged, indent=2) + "\n")
         assert rendered == json.dumps(merged, indent=2) + "\n"
+
+    def test_docker_merge_preserves_auths_and_contexts_while_managing_plugin_dirs(self):
+        template = "private_dot_docker/modify_private_config.json"
+        original = {"auths": {"https://index.docker.io/v1/": {}}, "currentContext": "colima"}
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        assert data["auths"] == original["auths"]
+        assert data["currentContext"] == "colima"
+        assert data["cliPluginsExtraDirs"] == [str(self.home / ".local/share/mise/shims")]
+        assert self.render(template, rendered) == rendered

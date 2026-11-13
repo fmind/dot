@@ -3,11 +3,10 @@
        Persona (symlinked AGENTS.md) and skills (~/.agents/skills) load natively; the theme
        lives in cli.json. 2.x runs no language servers (it ignores lsp) and dropped compaction.prune, so
        compaction is replaced whole to retire it on every machine; the formatter is enabled. */ -}}
+{{- $defaults := dict "model" "openrouter/google/gemini-4-hydrogen" "small_model" "openrouter/google/gemini-4-hydrogen" -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "openrouter/google/gemini-4-hydrogen",
-  "small_model": "openrouter/google/gemini-4-hydrogen",
   "share": "disabled",
   "autoupdate": false,
   "compaction": {"auto": true},
@@ -15,4 +14,4 @@
   "permission": "allow"
 }
 ` -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "replace" (list "compaction") "format" "jsonc") -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "replace" (list "compaction") "format" "jsonc") -}}

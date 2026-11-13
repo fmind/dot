@@ -3,6 +3,8 @@
 {{ includeTemplate "skill-catalog-check.tmpl" . }}
 
 # Repository-only sources and tooling.
+**/__pycache__
+**/*.py[co]
 AGENTS.md
 CHANGELOG.md
 LICENSE
@@ -37,6 +39,7 @@ skills
 
 {{- if ne .chezmoi.os "linux" }}
 .config/systemd
+systemd-user-reload.sh
 {{- end }}
 
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}

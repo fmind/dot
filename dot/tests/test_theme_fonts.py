@@ -153,3 +153,5 @@ def test_copied_theme_parsers_ignore_comments() -> None:
         "main": {"vi": "True"},
         "colors": {"pygments.keyword": "'bold #174ea6'"},
     }
+    assert "theme = fmind" in theme_pin.render(ROOT / "dot_config/ghostty/config.tmpl")
+    assert 'palette = "fmind"' in theme_pin.render(ROOT / "dot_config/starship.toml")

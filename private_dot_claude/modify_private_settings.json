@@ -4,7 +4,7 @@
        `dot trust` owns folder trust and `permissions.additionalDirectories`. Suppress updates, telemetry,
        claude.ai connectors/plugins/skills, and git/gh/gcloud prompts; force session persistence under
        CLAUDE_CODE_CHILD_SESSION; use `light-ansi` for Ghostty's palette. */ -}}
-{{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-fable-5-2" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) -}}
+{{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-fable-5-2" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) "remoteControlAtStartup" true -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -36,7 +36,6 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "remoteControlAtStartup": true,
   "respectGitignore": false,
   "skillListingBudgetFraction": 0.02,
   "skipDangerousModePermissionPrompt": true,

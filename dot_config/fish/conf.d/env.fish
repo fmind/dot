@@ -3,6 +3,10 @@
 if not set -q XDG_CONFIG_HOME; or test -z "$XDG_CONFIG_HOME"
     set -gx XDG_CONFIG_HOME "$HOME/.config"
 end
+# Repair SHELL when unset or pointing at an uninstalled binary (e.g. removed Homebrew fish).
+if not set -q SHELL; or not test -x "$SHELL"
+    set -gx SHELL (status fish-path)
+end
 
 # Opens nvim on a terminal and fails fast without one (agent shells).
 set -gx EDITOR "$HOME/.local/bin/nvim-tty"

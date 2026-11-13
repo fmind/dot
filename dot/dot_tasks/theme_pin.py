@@ -124,7 +124,8 @@ def render(path: Path) -> str:
     if path.suffix != ".tmpl":
         return text
     result = subprocess.run(  # nosemgrep: dangerous-subprocess-use-audit
-        ["chezmoi", "execute-template"],  # noqa: S607
+        ["chezmoi", "--source", ".", "execute-template"],  # noqa: S607
+        cwd=ROOT,
         input=text,
         check=True,
         capture_output=True,

@@ -1180,3 +1180,28 @@ def test_json_is_compact_for_pipes_and_indented_for_terminals() -> None:
 
     assert piped.getvalue() == '{"schema":"x/v1","items":[1]}\n'
     assert terminal.getvalue().startswith('{\n  "schema": "x/v1"')
+
+
+def test_doctor_deep_skips_providers_omitted_from_auth_login() -> None:
+    config = _minimal_verify_config()
+    config.auth.login = ["github"]
+    runner = _gh_status_runner(tokenSource="keyring")
+
+    report = doctor_sections(system.run_doctor(make_state(runner, config), fix=False, deep=True))
+
+    by_name = {entry["name"]: entry for entry in report["auth"]}
+    assert by_name["gh"]["status"] == "pass"
+    for skipped in ("gcloud", "gcloud-adc", "gws"):
+        assert (by_name[skipped]["status"], by_name[skipped]["details"]) == ("skip", "not configured in auth.login")
+
+
+def test_display_path_abbreviates_through_symlinked_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real_home = tmp_path / "real-home"
+    real_home.mkdir()
+    linked_home = tmp_path / "linked-home"
+    linked_home.symlink_to(real_home, target_is_directory=True)
+    monkeypatch.setenv("HOME", str(linked_home))
+
+    assert reporting.display_path(str(real_home / ".config/dot.yaml")) == "~/.config/dot.yaml"
+    assert reporting.display_path(str(linked_home / "work/repo")) == "~/work/repo"
+    assert reporting.display_path("/outside/path") == "/outside/path"

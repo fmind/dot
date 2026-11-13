@@ -363,15 +363,18 @@ def _auth_results(state: State) -> list[CheckResult]:
             return CheckResult("gh", "warn", details, condition="insecure")
         return entry is not None
 
-    checks: dict[str, tuple[str, Callable[[], CheckResult | bool]]] = {
-        "gh": ("gh", github),
-        "gcloud": ("gcloud", lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
-        "gcloud-adc": ("gcloud", lambda: adc_ready(state)),
-        "gws": ("gws", lambda: workspace_ready(state)),
+    configured = set(state.config.auth.login)
+    checks: dict[str, tuple[str, bool, Callable[[], CheckResult | bool]]] = {
+        "gh": ("gh", "github" in configured, github),
+        "gcloud": ("gcloud", bool({"gcp", "colab"} & configured), lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
+        "gcloud-adc": ("gcloud", bool({"gcp", "colab"} & configured), lambda: adc_ready(state)),
+        "gws": ("gws", "workspace" in configured, lambda: workspace_ready(state)),
     }
 
-    def run(item: tuple[str, tuple[str, Callable[[], CheckResult | bool]]]) -> CheckResult:
-        label, (tool, check) = item
+    def run(item: tuple[str, tuple[str, bool, Callable[[], CheckResult | bool]]]) -> CheckResult:
+        label, (tool, enabled, check) = item
+        if not enabled:
+            return CheckResult(label, "skip", "not configured in auth.login", condition="skipped")
         path = state.runner.which(tool)
         if path is None:
             return CheckResult(label, "skip", f"{tool} not installed", condition="skipped")

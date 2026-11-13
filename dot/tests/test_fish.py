@@ -20,6 +20,7 @@ SHELL_ONLY_ENV = frozenset(
         "MANPAGER",
         "PAGER",
         "PUPPETEER_EXECUTABLE_PATH",
+        "SHELL",
         "VISUAL",
         "XDG_CONFIG_HOME",
     }
@@ -167,3 +168,32 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
     exported = {key: value for key, value in after.items() if before.get(key) != value and key not in SHELL_ONLY_ENV}
     assert exported
     assert {key: mise_env.get(key) for key in exported} == exported
+
+
+def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    fish = shutil.which("fish") or "fish"
+    repaired = subprocess.run(
+        [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL"],
+        cwd=root,
+        env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "SHELL": str(tmp_path / "missing-fish")},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    assert Path(repaired.stdout).is_file()
+    assert os.access(repaired.stdout, os.X_OK)
+
+    preserved = subprocess.run(
+        [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL"],
+        cwd=root,
+        env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "SHELL": "/bin/sh"},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    assert preserved.stdout == "/bin/sh"

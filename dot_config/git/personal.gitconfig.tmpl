@@ -3,3 +3,6 @@
 # repositories never record a work address configured as the machine default.
 [user]
     email = {{ get . "git_personal_email" | default "github@fmind.dev" | quote }}
+{{- with get . "git_personal_name" }}
+    name = {{ . | quote }}
+{{- end }}

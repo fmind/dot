@@ -18,7 +18,10 @@ def write_report_line(output: IO[str], text: str = "") -> None:
 def display_path(value: str) -> str:
     """Abbreviate a path under the home directory with ``~`` for human output."""
     path, home = Path(value), Path.home()
-    return str(Path("~") / path.relative_to(home)) if path.is_relative_to(home) else value
+    for candidate in (home, home.resolve()):
+        if path.is_relative_to(candidate):
+            return str(Path("~") / path.relative_to(candidate))
+    return value
 
 
 def write_json(output: IO[str], document: object) -> None:

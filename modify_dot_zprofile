@@ -1,6 +1,12 @@
 # chezmoi:modify-template
 {{- /* Docs: https://mise.jdx.dev/getting-started.html#activate-mise */ -}}
 {{- $activation := `# Bootstrap mise for macOS login shells; activation owns tool-version precedence.
+if [ -d /opt/homebrew/bin ]; then
+  case ":${PATH}:" in
+    *":/opt/homebrew/bin:"*) ;;
+    *) export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:${PATH}" ;;
+  esac
+fi
 export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/share/mise/bin:${HOME}/.local/bin:${PATH}"
 # Claude Code snapshots this shell but not the hook state that mise() needs, which
 # makes every mise call exit 127 there; its shells rely on the shims instead.

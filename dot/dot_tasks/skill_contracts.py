@@ -415,45 +415,59 @@ def _is_allowed_email_domain(domain: str) -> bool:
     return lowered in ALLOWED_EMAIL_DOMAINS or f".{lowered}".endswith(ALLOWED_EMAIL_SUFFIXES)
 
 
-def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[str]:
-    """Extract non-public employer/workstation identifiers from untracked local config."""
-    tokens: set[str] = set()
-    config = None
-    dot_yaml = home / ".config/dot.yaml"
+def _load_dot_yaml_mapping(dot_yaml: Path) -> dict[str, Any] | None:
     try:
         raw_dot_yaml: str | None = dot_yaml.read_text(encoding="utf-8")
     except FileNotFoundError:
-        raw_dot_yaml = None
+        return None
     except (OSError, UnicodeError) as error:
         # Fail closed: Python 3.14 is_file() suppresses PermissionError, which would drop local tokens.
         msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
         raise ValueError(msg) from error
-    if raw_dot_yaml is not None:
-        try:
-            config = yaml.safe_load(raw_dot_yaml)
-        except yaml.YAMLError as error:
-            where = yaml_error_location(error) or "invalid YAML"
-            # Never format yaml.YAMLError directly: PyYAML embeds raw lines from untracked dot.yaml.
-            msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({where})"
-            raise ValueError(msg) from error
-        except RecursionError as error:
-            msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
-            raise ValueError(msg) from error
-        if config is not None and not isinstance(config, dict):
-            msg = f"{dot_yaml}: cannot load local privacy tokens; expected a YAML mapping"
-            raise ValueError(msg)
+    try:
+        config = yaml.safe_load(raw_dot_yaml)
+    except yaml.YAMLError as error:
+        where = yaml_error_location(error) or "invalid YAML"
+        # Never format yaml.YAMLError directly: PyYAML embeds raw lines from untracked dot.yaml.
+        msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({where})"
+        raise ValueError(msg) from error
+    except RecursionError as error:
+        msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
+        raise ValueError(msg) from error
+    if config is not None and not isinstance(config, dict):
+        msg = f"{dot_yaml}: cannot load local privacy tokens; expected a YAML mapping"
+        raise ValueError(msg)
+    return config
+
+
+def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[str]:
+    """Extract non-public employer/workstation identifiers from untracked local config."""
+    tokens: set[str] = set()
+    config_dir = home / ".config"
+    dot_paths: list[Path] = [config_dir / "dot.yaml"]
+    try:
+        dot_paths.extend(sorted(path for path in config_dir.glob("dot.*.yaml") if path != config_dir / "dot.yaml"))
+    except OSError as error:
+        msg = f"{config_dir}: cannot load local privacy tokens; fix permissions ({error.__class__.__name__})"
+        raise ValueError(msg) from error
+    if (env_override := os.environ.get("DOT_CONFIG_PATH", "").strip()) and home == Path.home():
+        override_path = Path(env_override).expanduser()
+        if override_path not in dot_paths:
+            dot_paths.append(override_path)
+    configs = [loaded for candidate in dot_paths if (loaded := _load_dot_yaml_mapping(candidate)) is not None]
     # privacy.allowed_tokens exempts already-public names without writing them into this repository.
     safe = set(SAFE_HOST_TOKENS)
-    privacy = config.get("privacy") if isinstance(config, dict) else None
-    if isinstance(privacy, dict) and isinstance(allowed := privacy.get("allowed_tokens"), list):
-        safe |= {entry.strip().lower() for entry in allowed if isinstance(entry, str)}
+    for config in configs:
+        privacy = config.get("privacy")
+        if isinstance(privacy, dict) and isinstance(allowed := privacy.get("allowed_tokens"), list):
+            safe |= {entry.strip().lower() for entry in allowed if isinstance(entry, str)}
 
     def _add(candidate: str) -> None:
         cleaned = candidate.strip().lower()
         if len(cleaned) >= 4 and cleaned not in safe:
             tokens.add(cleaned)
 
-    if isinstance(config, dict):
+    for config in configs:
         auth = config.get("auth")
         if isinstance(auth, dict):
             for section in auth.values():

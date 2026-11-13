@@ -578,6 +578,8 @@ def test_privacy_allowed_tokens_exempt_public_names_from_local_config(
         encoding="utf-8",
     )
     assert checker._workstation_tokens(home, include_hostname=True) == {"acme-corp"}
+    (home / ".config/dot.work.yaml").write_text("pull:\n  directories:\n    - ~/work/secondary-org\n", encoding="utf-8")
+    assert checker._workstation_tokens(home, include_hostname=True) == {"acme-corp", "secondary-org"}
 
 
 @pytest.mark.parametrize(

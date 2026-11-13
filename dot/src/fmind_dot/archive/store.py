@@ -445,6 +445,7 @@ def ingest_session(
             raise ValueError(f"session record {number} does not match its session")
     propagate_models(logs)
     fingerprint = source.fingerprint or fingerprint_logs(logs)
+    usage_cwd = raw_cwd if isinstance(usage, dict) and isinstance(raw_cwd := usage.get("cwd"), str) else ""
     manifest = SessionManifest(
         agent=agent,
         session_id=session_id,
@@ -454,7 +455,7 @@ def ingest_session(
         source_signature=source.signature,
         ingested_at=_utc_now(),
         high_water_mark=session_high_water(logs),
-        cwd=next((log.cwd for log in logs if log.cwd), ""),
+        cwd=next((log.cwd for log in logs if log.cwd), usage_cwd),
         completeness="partial" if source.malformed else "complete",
         record_count=len(logs),
         malformed_records=source.malformed,

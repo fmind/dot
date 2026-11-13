@@ -390,3 +390,10 @@ def test_retained_results_prove_a_current_transcript_only_from_identical_complet
         "codex", "session-1", _logs(5), SessionSource(fingerprint="h" * 64), expected_generation=stale_generation
     )
     assert (diverged.status, diverged.current_transcript) == ("retained", False)
+
+
+def test_zero_log_session_retains_usage_cwd_in_manifest() -> None:
+    usage = {"harness": "claude", "session_id": "tool-only", "cwd": "/synthetic/workspace"}
+    result = ingest_session("claude", "tool-only", [], SessionSource(fingerprint="k" * 64), usage=usage)
+    assert result.status == "ingested"
+    assert result.manifest.cwd == "/synthetic/workspace"

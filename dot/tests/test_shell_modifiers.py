@@ -70,6 +70,8 @@ def test_macos_only_targets_are_ignored_elsewhere() -> None:
     _, block = ignore.split('{{- if ne .chezmoi.os "darwin" }}\n', 1)
     # zsh login profile and the Docker plugin config for the mise-installed macOS Docker stack.
     assert block.split("{{- end }}", 1)[0].split() == [".docker", ".zprofile"]
+    _, linux_block = ignore.split('{{- if ne .chezmoi.os "linux" }}\n', 1)
+    assert linux_block.split("{{- end }}", 1)[0].split() == [".config/systemd", "systemd-user-reload.sh"]
 
 
 @pytest.mark.parametrize("shell", ["sh", "bash"])

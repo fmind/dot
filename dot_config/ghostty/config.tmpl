@@ -31,4 +31,9 @@ gtk-single-instance = true
 linux-cgroup = never
 {{- end }}
 
-command = {{ joinPath .chezmoi.homeDir ".local/share/mise/shims/fish" | quote }}
+# Launch the installed binary directly so an untrusted project mise.toml never blocks terminal startup.
+{{- if eq .chezmoi.os "darwin" }}
+command = {{ joinPath .chezmoi.homeDir ".local/share/mise/installs/fish/latest/fish.pkg/Payload/usr/local/bin/fish" | quote }}
+{{- else }}
+command = {{ joinPath .chezmoi.homeDir ".local/share/mise/installs/fish/latest/fish" | quote }}
+{{- end }}
