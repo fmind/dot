@@ -446,11 +446,19 @@ def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[st
     config_dir = home / ".config"
     dot_paths: list[Path] = [config_dir / "dot.yaml"]
     try:
-        dot_paths.extend(sorted(path for path in config_dir.glob("dot.*.yaml") if path != config_dir / "dot.yaml"))
+        config_entries: list[Path] | None = sorted(config_dir.iterdir())
+    except FileNotFoundError:
+        config_entries = None
     except OSError as error:
         msg = f"{config_dir}: cannot load local privacy tokens; fix permissions ({error.__class__.__name__})"
         raise ValueError(msg) from error
-    if (env_override := os.environ.get("DOT_CONFIG_PATH", "").strip()) and home == Path.home():
+    if config_entries is not None:
+        dot_paths.extend(
+            path
+            for path in config_entries
+            if path.name.startswith("dot.") and path.name.endswith(".yaml") and path.name != "dot.yaml"
+        )
+    if (env_override := os.environ.get("DOT_CONFIG_PATH", "").strip()) and home.resolve() == Path.home().resolve():
         override_path = Path(env_override).expanduser()
         if override_path not in dot_paths:
             dot_paths.append(override_path)

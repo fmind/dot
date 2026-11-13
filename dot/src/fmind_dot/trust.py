@@ -299,8 +299,9 @@ def register_agy_projects(
 
 
 _GIT_SECTION_HEADER = re.compile(r'^\[(?P<name>[A-Za-z0-9-]+)(?:\s+"(?P<sub>[^"\\]*)")?\](?:\s*[#;].*)?$')
-_GIT_INSTEAD_OF = re.compile(r"(?mi)^\s*insteadof\s*(?:=|$)")
+_GIT_INSTEAD_OF = re.compile(r"(?mi)^\s*(?:[^#;=\s]+\.)?insteadof\s*(?:=|$)")
 _MAX_GIT_CONFIG_BYTES = 262_144
+_MAX_GIT_INCLUDE_DEPTH = 8
 
 
 def github_owner(origin: str) -> str | None:
@@ -309,9 +310,72 @@ def github_owner(origin: str) -> str | None:
     return match.group("owner") if match else None
 
 
+def _config_overrides_origin(candidate: Path, home: Path, seen: set[Path], depth: int = 0) -> bool:
+    """Return True when a Git config file (or its includes) may rewrite or define remote.origin.url."""
+    if depth > _MAX_GIT_INCLUDE_DEPTH:
+        return True
+    if candidate == Path(os.devnull):
+        return False
+    try:
+        info = candidate.stat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    if not stat.S_ISREG(info.st_mode) or info.st_size > _MAX_GIT_CONFIG_BYTES:
+        return True
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        return True
+    if resolved in seen:
+        return False
+    seen.add(resolved)
+    try:
+        text = candidate.read_text(encoding="utf-8")
+    except OSError, UnicodeDecodeError:
+        return True
+    if _GIT_INSTEAD_OF.search(text):
+        return True
+    section: tuple[str, str] | None = None
+    for raw_line in text.splitlines():
+        if raw_line.endswith("\\"):
+            return True
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith(("#", ";")):
+            continue
+        if stripped.startswith("["):
+            header = _GIT_SECTION_HEADER.match(stripped)
+            if header is None:
+                return True
+            section = (header.group("name").lower(), header.group("sub") or "")
+            if section == ("remote", "origin"):
+                return True
+            continue
+        if section is not None and section[0] in {"include", "includeif"}:
+            key, sep, raw_value = stripped.partition("=")
+            if key.strip().lower() == "path":
+                if not sep:
+                    return True
+                val = raw_value.strip()
+                if len(val) >= 2 and val.startswith('"') and val.endswith('"'):
+                    val = val[1:-1]
+                if not val or any(ch in val for ch in ('"', "\\", "#", ";")):
+                    return True
+                if val.startswith("~/"):
+                    inc_path = home / val[2:]
+                elif val.startswith("~"):
+                    return True
+                else:
+                    inc_path = candidate.parent / val
+                if _config_overrides_origin(inc_path, home, seen, depth + 1):
+                    return True
+    return False
+
+
 def _has_global_url_insteadof(home: Path) -> bool:
-    """Return True when global/system Git configuration may rewrite remote fetch URLs."""
-    if os.environ.get("GIT_CONFIG_COUNT"):
+    """Return True when global/system Git configuration may rewrite or override remote fetch URLs."""
+    if os.environ.get("GIT_CONFIG_COUNT") or os.environ.get("GIT_CONFIG_PARAMETERS"):
         return True
     candidates: list[Path] = []
     if not os.environ.get("GIT_CONFIG_NOSYSTEM"):
@@ -319,7 +383,8 @@ def _has_global_url_insteadof(home: Path) -> bool:
     if global_override := os.environ.get("GIT_CONFIG_GLOBAL"):
         candidates.append(Path(global_override))
     else:
-        xdg = Path(os.environ.get("XDG_CONFIG_HOME") or (home / ".config"))
+        xdg_env = Path(os.environ.get("XDG_CONFIG_HOME", ""))
+        xdg = xdg_env if xdg_env.is_absolute() else (home / ".config")
         candidates.extend((xdg / "git/config", home / ".gitconfig"))
         git_dir = xdg / "git"
         try:
@@ -328,23 +393,8 @@ def _has_global_url_insteadof(home: Path) -> bool:
             pass
         except OSError:
             return True
-    for candidate in candidates:
-        if candidate == Path(os.devnull):
-            continue
-        try:
-            info = candidate.stat()
-        except FileNotFoundError:
-            continue
-        except OSError:
-            return True
-        if not stat.S_ISREG(info.st_mode):
-            continue
-        try:
-            if _GIT_INSTEAD_OF.search(candidate.read_text(encoding="utf-8")):
-                return True
-        except OSError, UnicodeDecodeError:
-            return True
-    return False
+    seen: set[Path] = set()
+    return any(_config_overrides_origin(candidate, home, seen) for candidate in candidates)
 
 
 def _local_origin_url(repository: Path) -> str | None:
@@ -398,13 +448,13 @@ def _local_origin_url(repository: Path) -> str | None:
                 return None
             section = (kind, header.group("sub") or "")
             continue
-        if "=" not in stripped:
-            continue
-        key, _, raw_value = stripped.partition("=")
+        key, sep, raw_value = stripped.partition("=")
         key_name = key.strip().lower()
         if section == ("extensions", "") and key_name == "worktreeconfig":
             return None
         if section == ("remote", "origin") and key_name == "url":
+            if not sep:
+                return None
             value = raw_value.strip()
             if any(ch in value for ch in ('"', "\\", "#", ";")):
                 return None

@@ -397,9 +397,10 @@ def resolve_git_metadata_dir(path: Path) -> Path | None:
     except OSError, UnicodeDecodeError:
         return None
     line, _, rest = content.partition("\n")
+    line = line.removesuffix("\r")
     if rest.strip() or not line.startswith("gitdir:"):
         return None
-    target = line.removeprefix("gitdir:").strip()
+    target = line.removeprefix("gitdir:").lstrip(" \t")
     if not target or "\r" in target:
         return None
     candidate = (path / target).resolve()

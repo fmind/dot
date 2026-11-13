@@ -1182,7 +1182,7 @@ def test_json_is_compact_for_pipes_and_indented_for_terminals() -> None:
     assert terminal.getvalue().startswith('{\n  "schema": "x/v1"')
 
 
-def test_doctor_deep_skips_providers_omitted_from_auth_login() -> None:
+def test_doctor_deep_skips_providers_omitted_from_auth_login(monkeypatch: pytest.MonkeyPatch) -> None:
     config = _minimal_verify_config()
     config.auth.login = ["github"]
     runner = _gh_status_runner(tokenSource="keyring")
@@ -1193,6 +1193,17 @@ def test_doctor_deep_skips_providers_omitted_from_auth_login() -> None:
     assert by_name["gh"]["status"] == "pass"
     for skipped in ("gcloud", "gcloud-adc", "gws"):
         assert (by_name[skipped]["status"], by_name[skipped]["details"]) == ("skip", "not configured in auth.login")
+
+    # colab manages ADC + Colab sessions without requiring a gcloud CLI login.
+    config.auth.login = ["colab"]
+    monkeypatch.setattr(system, "adc_ready", lambda _state: True)
+    colab_report = doctor_sections(
+        system.run_doctor(make_state(ScriptedRunner({"gcloud"}), config), fix=False, deep=True)
+    )
+    colab_by_name = {entry["name"]: entry for entry in colab_report["auth"]}
+    assert colab_by_name["gcloud"]["status"] == "skip"
+    assert colab_by_name["gcloud-adc"]["status"] == "pass"
+    assert colab_report["passed"] is True
 
 
 def test_display_path_abbreviates_through_symlinked_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -642,3 +642,33 @@ def test_privacy_findings_rejects_ssh_key_comments_naming_machines(tmp_path: Pat
         "allowed_signers: SSH key comment 'fmind@studio-mac'",
         "allowed_signers: SSH key comment 'laptop'",
     ]
+
+
+def test_privacy_findings_fail_closed_on_unreadable_config_dir_and_honor_symlinked_home_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "sample.py").write_text('LEAK = "custom-org-99"\n', encoding="utf-8")
+    real_home = tmp_path / "real-home"
+    (real_home / ".config").mkdir(parents=True)
+    linked_home = tmp_path / "linked-home"
+    linked_home.symlink_to(real_home, target_is_directory=True)
+    override = tmp_path / "dot.custom.yaml"
+    override.write_text("trust:\n  github_owners:\n    - custom-org-99\n", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(linked_home))
+    monkeypatch.setenv("DOT_CONFIG_PATH", str(override))
+
+    findings = checker.privacy_findings(repo)
+    assert any("local workstation identifier 'custom-org-99'" in item for item in findings)
+
+    if os.geteuid() != 0:
+        unreadable_home = tmp_path / "unreadable-home"
+        cfg_dir = unreadable_home / ".config"
+        cfg_dir.mkdir(parents=True)
+        cfg_dir.chmod(0o100)
+        try:
+            dir_findings = checker.privacy_findings(repo, home=unreadable_home)
+            assert any("cannot load local privacy tokens" in item for item in dir_findings)
+        finally:
+            cfg_dir.chmod(0o700)

@@ -683,3 +683,30 @@ def test_trust_all_reads_standard_git_configs_without_spawning_git_and_falls_bac
     state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
     run_trust(state, ["all"], dry_run=True, as_json=True)
     assert runner.calls == 1
+
+    # Global [remote "origin"], included configs outside ~/.config/git, GIT_CONFIG_PARAMETERS,
+    # and valueless remote.origin.url all delegate safely to git instead of trusting stale local URLs.
+    included = tmp_path / "external.gitconfig"
+    included.write_text('[remote "origin"]\n\turl = https://github.com/untrusted/override.git\n', encoding="utf-8")
+    (home / ".gitconfig").write_text(f'[include]\n\tpath = "{included}"\n', encoding="utf-8")
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 2
+
+    (home / ".gitconfig").write_text("[user]\n\tname = Safe\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "'url.https://evil.example/.insteadOf=git@github.com:'")
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 3
+    monkeypatch.delenv("GIT_CONFIG_PARAMETERS")
+
+    (common / "config").write_text('[remote "origin"]\n\turl\n', encoding="utf-8")
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 4

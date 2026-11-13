@@ -367,7 +367,7 @@ def _auth_results(state: State) -> list[CheckResult]:
     configured = set(state.config.auth.login)
     checks: dict[str, tuple[str, bool, Callable[[], CheckResult | bool]]] = {
         "gh": ("gh", "github" in configured, github),
-        "gcloud": ("gcloud", bool({"gcp", "colab"} & configured), lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
+        "gcloud": ("gcloud", "gcp" in configured, lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
         "gcloud-adc": ("gcloud", bool({"gcp", "colab"} & configured), lambda: adc_ready(state)),
         "gws": ("gws", "workspace" in configured, lambda: workspace_ready(state)),
     }

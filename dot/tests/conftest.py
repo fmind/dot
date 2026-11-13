@@ -33,6 +33,7 @@ def isolated_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
         "HUGGINGFACE_HUB_CACHE",
         "MISE_STATE_DIR",
         "XDG_CACHE_HOME",
+        "XDG_CONFIG_HOME",
         "XDG_RUNTIME_DIR",
         "XDG_STATE_HOME",
         "ZELLIJ",

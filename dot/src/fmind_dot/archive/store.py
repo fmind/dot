@@ -500,6 +500,7 @@ def ingest_session(
                 # does not shrink. An empty signature makes sync retry until the source measures again.
                 manifest.usage = stored.usage
                 manifest.usage_parser_version = stored.usage_parser_version or stored.parser_version
+                manifest.cwd = manifest.cwd or stored.cwd
                 manifest.source_signature = ""
             elif (stored.parser_version, stored.source_fingerprint) == (
                 manifest.parser_version,

@@ -1,9 +1,9 @@
 # chezmoi:modify-template
 {{- /* Docs: https://code.claude.com/docs/en/settings
-       Seed model/effort via `defaults` (preserving `/model` and `/effort`; Opus 5.5 needs per-model effortLevel);
-       `dot trust` owns folder trust and `permissions.additionalDirectories`. Suppress updates, telemetry,
-       claude.ai connectors/plugins/skills, and git/gh/gcloud prompts; force session persistence under
-       CLAUDE_CODE_CHILD_SESSION; use `light-ansi` for Ghostty's palette. */ -}}
+       Seed model, effort, and remoteControlAtStartup via `defaults` (preserving `/model`, `/effort`, and host overrides;
+       Opus 5.5 needs per-model effortLevel); `dot trust` owns folder trust and `permissions.additionalDirectories`.
+       Suppress updates, telemetry, claude.ai connectors/plugins/skills, and git/gh/gcloud prompts; force session
+       persistence under CLAUDE_CODE_CHILD_SESSION; use `light-ansi` for Ghostty's palette. */ -}}
 {{- $defaults := dict "model" "fable" "modelSettings" (dict "claude-fable-5-1" (dict "effortLevel" "high") "claude-fable-5-2" (dict "effortLevel" "high") "claude-opus-5-5" (dict "effortLevel" "high")) "remoteControlAtStartup" true -}}
 {{- $managedConfig := fromJson `
 {
