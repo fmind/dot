@@ -1,11 +1,11 @@
 ---
 name: svg
-description: "Hand-authored SVG illustrations for READMEs and user docs: composition, branding, embedding, and visual checks."
+description: "Self-contained SVG logos, geometric marks, and live-text SVG assets: branding, embedding, and visual checks."
 ---
 
 # SVG Illustration Standard
 
-Hand-authored, diffable SVG illustrations for user-facing docs ([Brain Framework's README](https://github.com/fmind/brain-framework#readme) shows reference loop, before/after, and vocabulary views). [Diagrams as code](../../SKILL.md) owns format selection.
+Hand-authored, diffable `<svg>` files for geometric logos/marks (`96–128 px`), existing `.svg` assets, or when a small live-`<text>` vector file is explicitly required (default to [Typst](../typst.md) for new multi-column composed illustrations at ~1/5 the token cost; [Brain Framework's README](https://github.com/fmind/brain-framework#readme) shows reference loop, before/after, and vocabulary views). [Diagrams as code](../../SKILL.md) owns format selection.
 
 ## Workflow
 

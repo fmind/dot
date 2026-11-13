@@ -1,4 +1,4 @@
-"""Compile and validate Google Docs native Markdown (.md) with Mermaid and SVG figures."""
+"""Compile and validate Google Docs native Markdown (.md) with Typst, Mermaid, and SVG figures."""
 
 from __future__ import annotations
 
@@ -48,6 +48,8 @@ NON_PARAGRAPH_START_RE = re.compile(r"(?: {0,3}(?:>|\||[-+*](?:[ \t]|$)|\d{1,9}[
 # The compiler reads fences at column 0 only; an indented mermaid fence would reach Docs as a code block.
 INDENTED_MERMAID_RE = re.compile(r"(?mi)^[ \t]+(?:`{3,}|~{3,})[ \t]*mermaid(?:[ \t]|$)")
 SVG_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.svg)\)")
+TYP_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.typ)\)")
+LOCAL_FIGURE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+\.(?:svg|typ))\)")
 # Image links the compiler does not read from disk.
 NON_LOCAL_PREFIXES = ("http://", "https://", "data:")
 MERMAID_ALT_RE = re.compile(r"^\s*%%\s*alt\s*:\s*(.+?)\s*$", re.MULTILINE)
@@ -66,6 +68,7 @@ ASSET_MIME_TYPES = {
     ".md": "text/markdown",
     ".mmd": "text/plain",
     ".svg": "image/svg+xml",
+    ".typ": "text/plain",
     ".png": "image/png",
 }
 
@@ -161,6 +164,16 @@ def check_markdown_dialect(markdown: str) -> list[str]:
         problems.append(
             "Uncompiled .svg image link found; compile it to a Base64 PNG reference with compile_markdown_doc.py."
         )
+    typ_links = [match.group(2) for match in TYP_IMAGE_RE.finditer(outside_code)]
+    if any(link.startswith(NON_LOCAL_PREFIXES) for link in typ_links):
+        problems.append(
+            "Remote .typ image link found; remote Typst sources are unsupported: download the file next to the "
+            "document and link it by its local path, or use a PNG instead."
+        )
+    if any(not link.startswith(NON_LOCAL_PREFIXES) for link in typ_links):
+        problems.append(
+            "Uncompiled .typ image link found; compile it to a Base64 PNG reference with compile_markdown_doc.py."
+        )
     return problems
 
 
@@ -184,6 +197,65 @@ def png_size(path: Path) -> tuple[int, int]:
         msg = f"{path.name} is not a PNG file"
         raise ValueError(msg)
     return int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
+
+
+def _typst_command() -> tuple[list[str], int]:
+    """Return the Typst CLI command and timeout: `typst` on PATH, else `mise exec typst`."""
+    if typst := shutil.which("typst"):
+        return [typst], 60
+    if mise := shutil.which("mise"):
+        return [mise, "exec", "--quiet", "typst", "--", "typst"], 180
+    msg = "Neither `typst` nor `mise` is on PATH; install typst (e.g. `mise install typst`) to compile .typ figures."
+    raise RuntimeError(msg)
+
+
+def render_typst_png(
+    typ_path: Path,
+    out_png: Path,
+    scale: float = 2,
+    max_width_px: int | None = None,
+    root_dir: Path | None = None,
+) -> tuple[int, int]:
+    """Compile a single-page Typst figure to PNG, failing on font warnings and capping width when requested."""
+    command, timeout = _typst_command()
+    resolved_root = (root_dir or typ_path.parent).resolve()
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    ppi = 96.0 * scale
+    width = 0
+    for _ in range(3):
+        out_png.unlink(missing_ok=True)
+        proc = subprocess.run(  # noqa: S603 - fixed CLI command and local paths
+            [
+                *command,
+                "compile",
+                "--root",
+                str(resolved_root),
+                "--format",
+                "png",
+                "--ppi",
+                f"{ppi:g}",
+                str(typ_path),
+                str(out_png.resolve()),
+            ],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
+        if proc.returncode != 0 or not out_png.is_file() or out_png.stat().st_size == 0:
+            msg = f"typst failed to compile {typ_path.name} (exit {proc.returncode}): {detail}"
+            raise RuntimeError(msg)
+        if proc.stderr.strip():
+            msg = f"typst emitted warnings while compiling {typ_path.name}: {detail}"
+            raise RuntimeError(msg)
+        width, height = png_size(out_png)
+        if not max_width_px or width <= max_width_px:
+            return width, height
+        ppi *= max_width_px / width
+    msg = f"Typst PNG stayed {width}px wide after rescaling; the cap is {max_width_px}px, so narrow or split {typ_path.name}"
+    raise RuntimeError(msg)
 
 
 def _mmdc_command() -> tuple[list[str], int]:
@@ -250,7 +322,7 @@ def compile_markdown(
     svg_width: float = SVG_CANVAS_WIDTH,
     assets_dir: Path | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Compile fenced ```mermaid blocks and local .svg image links into Base64 PNG references."""
+    """Compile fenced ```mermaid blocks and local .svg / .typ image links into Base64 PNG references."""
     figures: list[dict[str, Any]] = []
     ref_definitions: list[str] = []
     fig_counter = 0
@@ -321,54 +393,80 @@ def compile_markdown(
         def _in_code(pos: int) -> bool:
             return any(start <= pos < end for start, end in code_spans)
 
-        svg_pieces: list[str] = []
-        last_svg_idx = 0
-        claimed_svg_names: set[str] = set()
-        for match in SVG_IMAGE_RE.finditer(intermediate):
+        fig_pieces: list[str] = []
+        last_fig_idx = 0
+        claimed_asset_names: set[str] = set()
+        resolved_base = base_dir.resolve()
+        for match in LOCAL_FIGURE_RE.finditer(intermediate):
             if _in_code(match.start()):
                 continue
-            svg_rel = match.group(2)
-            if svg_rel.startswith(NON_LOCAL_PREFIXES):
+            fig_rel = match.group(2)
+            if fig_rel.startswith(NON_LOCAL_PREFIXES):
                 continue  # the dialect check below rejects it as unsupported
-            svg_path = (base_dir / svg_rel).resolve()
-            if not svg_path.is_relative_to(base_dir.resolve()):
-                raise ValueError(f"SVG path escapes document directory: {svg_rel}")
-            svg_problems = check_svg(svg_path, expected_width=svg_width)
-            if svg_problems:
-                raise ValueError("; ".join(svg_problems))
+            fig_path = (base_dir / fig_rel).resolve()
+            is_typ = fig_path.suffix.lower() == ".typ"
+            kind_label = "Typst" if is_typ else "SVG"
+            if not fig_path.is_relative_to(resolved_base):
+                raise ValueError(f"{kind_label} path escapes document directory: {fig_rel}")
+            if is_typ:
+                if not fig_path.is_file():
+                    raise ValueError(f"{fig_path}: Typst file not found")
+            else:
+                svg_problems = check_svg(fig_path, expected_width=svg_width)
+                if svg_problems:
+                    raise ValueError("; ".join(svg_problems))
 
             fig_id = next_fig_id()
             alt_text = _clean_alt(match.group(1)) or f"Figure {fig_counter}"
             png_path = tmp_dir / f"{fig_id}.png"
-            render_svg_png(svg_path, png_path, scale=scale, max_width_px=MAX_FIGURE_WIDTH_PX)
+            if is_typ:
+                render_typst_png(
+                    fig_path,
+                    png_path,
+                    scale=scale,
+                    max_width_px=MAX_FIGURE_WIDTH_PX,
+                    root_dir=resolved_base,
+                )
+            else:
+                render_svg_png(fig_path, png_path, scale=scale, max_width_px=MAX_FIGURE_WIDTH_PX)
             b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
             ref_definitions.append(f"[{fig_id}]: <data:image/png;base64,{b64}>")
             fig_entry = {
                 "id": fig_id,
-                "kind": "svg",
-                "source": str(svg_rel),
+                "kind": "typst" if is_typ else "svg",
+                "source": str(fig_rel),
                 "alt": alt_text,
                 "bytes": png_path.stat().st_size,
             }
             if assets_dir is not None:
-                # Prefix only a name already taken by another SVG in this run; a previous run's copy is overwritten.
-                svg_asset = assets_dir / svg_path.name
-                if svg_asset.name in claimed_svg_names and svg_asset.resolve() != svg_path.resolve():
-                    svg_asset = assets_dir / f"{fig_id}-{svg_path.name}"
-                claimed_svg_names.add(svg_asset.name)
-                if svg_asset.resolve() != svg_path.resolve():
-                    shutil.copy2(svg_path, svg_asset)
+                # Prefix only a name already taken by another figure in this run; a previous run's copy is overwritten.
+                src_asset = assets_dir / fig_path.name
+                if src_asset.name in claimed_asset_names and src_asset.resolve() != fig_path.resolve():
+                    src_asset = assets_dir / f"{fig_id}-{fig_path.name}"
+                claimed_asset_names.add(src_asset.name)
+                if src_asset.resolve() != fig_path.resolve():
+                    shutil.copy2(fig_path, src_asset)
                 png_asset = assets_dir / f"{fig_id}.png"
                 shutil.copy2(png_path, png_asset)
-                fig_entry["source_asset"] = str(svg_asset)
+                fig_entry["source_asset"] = str(src_asset)
                 fig_entry["png_asset"] = str(png_asset)
+                if (
+                    is_typ
+                    and (theme_file := fig_path.parent / "fmind.typ").is_file()
+                    and "fmind.typ" in fig_path.read_text(encoding="utf-8")
+                ):
+                    theme_asset = assets_dir / "fmind.typ"
+                    if theme_asset.resolve() != theme_file.resolve():
+                        shutil.copy2(theme_file, theme_asset)
+                    claimed_asset_names.add(theme_asset.name)
+                    fig_entry["companion_assets"] = [str(theme_asset)]
             figures.append(fig_entry)
-            svg_pieces.append(intermediate[last_svg_idx : match.start()])
-            svg_pieces.append(f"![{alt_text}][{fig_id}]")
-            last_svg_idx = match.end()
+            fig_pieces.append(intermediate[last_fig_idx : match.start()])
+            fig_pieces.append(f"![{alt_text}][{fig_id}]")
+            last_fig_idx = match.end()
 
-        svg_pieces.append(intermediate[last_svg_idx:])
-        compiled = "".join(svg_pieces).rstrip() + "\n"
+        fig_pieces.append(intermediate[last_fig_idx:])
+        compiled = "".join(fig_pieces).rstrip() + "\n"
 
     if ref_definitions:
         compiled = compiled + "\n" + "\n".join(ref_definitions) + "\n"
@@ -677,19 +775,23 @@ def _scale(value: str) -> int:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
-    parser.add_argument("source", type=Path, help="Input .src.md / .md document or .svg figure to validate/compile.")
+    parser.add_argument(
+        "source",
+        type=Path,
+        help="Input .src.md / .md document or .typ / .svg figure to validate/compile.",
+    )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
         default=None,
-        help="Output path (.md for compiled Markdown or .png for rendered SVG).",
+        help="Output path (.md for compiled Markdown or .png for rendered Typst/SVG).",
     )
     parser.add_argument(
         "--assets-dir",
         type=Path,
         default=None,
-        help="Directory to export editable sources (.src.md, .mmd, .svg) and .png figures for Drive upload.",
+        help="Directory to export editable sources (.src.md, .typ, .mmd, .svg) and .png figures for Drive upload.",
     )
     parser.add_argument(
         "--drive-folder",
@@ -767,6 +869,19 @@ def main(argv: list[str] | None = None) -> int:
                 "output": str(output) if output else None,
                 "dimensions_px": list(rendered_size) if rendered_size else None,
             }
+        elif source.suffix.lower() == ".typ":
+            rendered_size = None
+            if args.check_only:
+                with tempfile.TemporaryDirectory(prefix=".typ-check-") as tmp:
+                    rendered_size = render_typst_png(source, Path(tmp) / "check.png", scale=args.scale)
+            elif output is not None:
+                rendered_size = render_typst_png(source, output, scale=args.scale)
+            payload = {
+                "status": "ok",
+                "source": str(source),
+                "output": str(output) if output else None,
+                "dimensions_px": list(rendered_size) if rendered_size else None,
+            }
         else:
             text = source.read_text(encoding="utf-8")
             if args.check_only:
@@ -808,6 +923,9 @@ def main(argv: list[str] | None = None) -> int:
                             shutil.copy2(source, src_asset)
                         exported_assets.append(str(src_asset))
                         for fig in figures:
+                            for extra in fig.get("companion_assets", []):
+                                if extra not in exported_assets:
+                                    exported_assets.append(extra)
                             for key in ("source_asset", "png_asset"):
                                 if fig.get(key) and fig[key] not in exported_assets:
                                     exported_assets.append(fig[key])

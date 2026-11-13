@@ -57,6 +57,7 @@ shfmt = "latest"
 stylua = "latest"
 trivy = "latest"
 typos = "latest"
+typst = "latest"
 uv = "latest"
 
 # Canonical project tasks.

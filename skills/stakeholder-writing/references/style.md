@@ -42,7 +42,7 @@ When top metadata helps, list `Type`, `Status` (Draft/Final), `Audience`, `Autho
 
 - **Concrete comparisons**: ground abstract claims with examples and compare options/periods in tables (shared criteria in columns, user labels preserved, recommended row marked).
 - **Worded statuses**: pair color with words (`Low`/`Medium`/`High` or `Met`/`Partial`/`Not met` via CSS badges in HTML and 🟢 🟡 🔴 in Markdown/chat; keep badges out of prose).
-- **Figures & citations**: draw SVG, Mermaid, or matplotlib visuals when faster than prose ([diagrams-as-code](../../diagrams-as-code/SKILL.md)), with conclusion captions and text/table alternatives. Cite source, link, and date on third-party figures (redraw or get permission for public docs).
+- **Figures & citations**: draw Typst, D2, Mermaid, SVG, or matplotlib visuals when faster than prose ([diagrams-as-code](../../diagrams-as-code/SKILL.md)), with conclusion captions and text/table alternatives. Cite source, link, and date on third-party figures (redraw or get permission for public docs).
 - **Bold skim**: bold the take-home message, each section's opening sentence, and at most one phrase per paragraph so bold text alone carries the argument.
 
 ## Links and sensitivity

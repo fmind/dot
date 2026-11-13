@@ -66,9 +66,11 @@ def test_check_markdown_dialect_accepts_clean_doc(mod: ModuleType) -> None:
         ("# Heading\n\nLine one<br>Line two\n", "Raw HTML tag"),
         ("# Heading\n\n```mermaid\nflowchart LR\n  A --> B\n```\n", "Uncompiled ```mermaid block"),
         ("# Heading\n\n![Card](card.svg)\n", "Uncompiled .svg image link"),
+        ("# Heading\n\n![Card](card.typ)\n", "Uncompiled .typ image link"),
         ("# Heading\n\n- Step\n\n  ```mermaid\n  flowchart LR\n    A --> B\n  ```\n", "Indented ```mermaid block"),
         ("# Heading\n\n1. Step\n\n   ~~~ Mermaid\n   flowchart LR\n   ~~~\n", "Indented ```mermaid block"),
         ("# Heading\n\n![Card](https://example.com/card.svg)\n", "remote SVG images are unsupported"),
+        ("# Heading\n\n![Card](https://example.com/card.typ)\n", "remote Typst sources are unsupported"),
     ],
 )
 def test_check_markdown_dialect_rejects_unsupported_constructs(
@@ -644,3 +646,64 @@ def test_compile_handles_crlf_fences_bracketed_captions_and_nested_output_dir(
     assert mod.main([str(src_md), "-o", str(out_md)]) == 0
     compiled = out_md.read_text(encoding="utf-8")
     assert "![Figure 1 (p95) (source)][fig-1]" in compiled
+
+
+def test_typst_figure_compilation_width_cap_warnings_and_companion_assets(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "fmind.typ").write_text("#let card(body) = box(body)\n", encoding="utf-8")
+    typ_file = tmp_path / "card.typ"
+    typ_file.write_text('#import "fmind.typ": *\n#card[Summary]\n', encoding="utf-8")
+
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> object:
+        commands.append(command)
+        ppi = float(command[command.index("--ppi") + 1])
+        Path(command[-1]).write_bytes(_png(round(400 * ppi / 96.0), 120))
+        return mod.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/bin/typst" if name == "typst" else None)
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    src_md = tmp_path / "memo.src.md"
+    src_md.write_text("# Memo\n\n![Figure 1 — Typst Card](card.typ)\n", encoding="utf-8")
+    out_md = tmp_path / "memo.md"
+    bundle_dir = tmp_path / "bundle"
+    assert mod.main([str(src_md), "-o", str(out_md), "--assets-dir", str(bundle_dir), "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert [c[c.index("--ppi") + 1] for c in commands] == ["192", "144"]
+    assert payload["figures"][0]["kind"] == "typst"
+    assert set(payload["assets"]) == {
+        str(bundle_dir / "memo.src.md"),
+        str(bundle_dir / "fmind.typ"),
+        str(bundle_dir / "card.typ"),
+        str(bundle_dir / "fig-1.png"),
+    }
+    assert "![Figure 1 — Typst Card][fig-1]" in out_md.read_text(encoding="utf-8")
+
+    # Single .typ CLI modes (--check-only and -o) and fail-closed on stderr font warnings.
+    assert mod.main([str(typ_file), "--check-only", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["dimensions_px"] == [800, 120]
+
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kw: (
+            Path(cmd[-1]).write_bytes(_png(400, 100)),
+            mod.subprocess.CompletedProcess(cmd, 0, "", "warning: unknown font family: foo\n"),
+        )[1],
+    )
+    assert mod.main([str(typ_file), "--check-only"]) == 1
+    assert "typst emitted warnings" in capsys.readouterr().err
+
+    # Path traversal outside document directory is rejected before execution.
+    outside = tmp_path / "outside.typ"
+    outside.write_text("Hello\n", encoding="utf-8")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    with pytest.raises(ValueError, match="Typst path escapes document directory"):
+        mod.compile_markdown("# Doc\n\n![Card](../outside.typ)\n", sub)

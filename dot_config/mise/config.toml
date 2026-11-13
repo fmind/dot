@@ -160,6 +160,7 @@ tree-sitter = "latest" # Parser CLI backing nvim-treesitter (Linux binary requir
 trivy = "latest" # Vulnerability, misconfiguration, and license scanner (Betterleaks owns secrets)
 ty = "latest"
 typos = "latest"
+typst = "latest" # Composed diagrams and standalone PDFs outside projects; projects pin their own
 usage = "latest" # Powers mise CLI completions
 uv = "latest"
 vault = "latest"

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/stakeholder-writing
   created: "2026-10-25"
-  updated: "2026-11-11"
+  updated: "2026-11-13"
 ---
 
 # Stakeholder Writing

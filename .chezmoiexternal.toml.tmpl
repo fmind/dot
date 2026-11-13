@@ -1,7 +1,7 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
 # Pin fmind/theme to one commit with SHA-256 checksums (`mise run upgrade` advances via dot_tasks.theme_pin,
 # and verifies inline copies in configs that cannot include external files).
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/05241d30f83ea3697b5426a50ae75f04cb17ae7d" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/1b80a1a1163e0c6541ee3811fdae6274dd20f259" }}
 
 [".agents/DESIGN.md"]
     type = "file"
@@ -33,6 +33,11 @@
     type = "file"
     url = "{{ $base }}/themes/tailwind/fmind.css"
     checksum.sha256 = "60bf9aab0b6d5ca89a8521565b38acfc5cbfe15c21a755b5a855b2f770df93c4"
+
+[".agents/themes/typst/fmind.typ"]
+    type = "file"
+    url = "{{ $base }}/themes/typst/fmind.typ"
+    checksum.sha256 = "39e1709508b4c46eb8ddd5e7b4c74d3944744da0224a3417941343784f6f2494"
 
 [".agents/themes/vhs/fmind.tape"]
     type = "file"

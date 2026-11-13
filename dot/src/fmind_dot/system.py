@@ -141,6 +141,7 @@ COMPLETION_SOURCES: dict[str, CompletionSource] = {
     "tree-sitter": CompletionSource(args=("complete", "--shell", "fish")),
     "trivy": CompletionSource(),
     "ty": CompletionSource(args=("generate-shell-completion", "fish")),
+    "typst": CompletionSource(args=("completions", "fish")),
     "usage": CompletionSource(args=("--completions", "fish")),
     "uv": CompletionSource(args=("generate-shell-completion", "fish")),
     "uvx": CompletionSource(args=("--generate-shell-completion", "fish")),

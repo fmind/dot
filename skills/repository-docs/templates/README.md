@@ -18,9 +18,9 @@
 
 [Try it](#try-it) · [Documentation]({{docs_url}}) · [Examples]({{examples_url}}) · [Get help]({{support_url}})
 
-<!-- Hero illustration: one hand-authored SVG of how the project works (diagrams-as-code SVG guide). Remove it rather than ship a placeholder. -->
-<a href="docs/assets/{{concept}}.svg">
-  <img src="docs/assets/{{concept}}.svg" alt="{{Conclusion the illustration shows}}" width="960">
+<!-- Hero illustration: one composed Typst 2x PNG (with .typ source beside it) or SVG of how the project works (diagrams-as-code). Remove it rather than ship a placeholder. -->
+<a href="docs/assets/{{concept}}.png">
+  <img src="docs/assets/{{concept}}.png" alt="{{Conclusion the illustration shows}}" width="960">
 </a>
 
 ## See it work
@@ -53,7 +53,7 @@ Expected result:
 
 ## How it works
 
-{{One short explanation beside an SVG illustration of the mechanism, only if it helps use the project. Link deeper architecture/reference material.}}
+{{One short explanation beside a Typst or SVG illustration of the mechanism, only if it helps use the project. Link deeper architecture/reference material.}}
 
 ## Fit and limits
 
