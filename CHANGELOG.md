@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [16.3.0] - 2026-11-14
+
+### 🚀 Features
+
+- _(skills)_ Add editable pptx template and refine backtick rules
+- _(skills)_ Add fmind skill and overhaul humanize, draft-typst-deck, and skillify
+
+### ♻️ Refactor
+
+- _(skills)_ Trim catalog for progressive disclosure and close CLI coverage gaps
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade workstation tools, locks, and plugins
+
 ## [16.2.0] - 2026-11-13
 
 ### 🚀 Features
