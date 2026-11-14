@@ -15,6 +15,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape as xml_escape
+from xml.sax.saxutils import unescape as xml_unescape
 
 DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,128}$")
 FORBIDDEN_RAW_ESCAPE_RE = re.compile(r"\\[$~*]")
@@ -164,6 +165,12 @@ def collect_typ_files(deck_dir: Path) -> list[Path]:
     return files
 
 
+def collect_source_files(deck_dir: Path) -> list[Path]:
+    """Collect .typ sources (root + figures/*.typ) and root .py deck scripts (excluding __init__.py)."""
+    py_files = sorted(p for p in deck_dir.glob("*.py") if p.is_file() and p.name != "__init__.py")
+    return [*collect_typ_files(deck_dir), *py_files]
+
+
 def _typst_font_args(font_paths: list[Path]) -> list[str]:
     args: list[str] = []
     for path in font_paths:
@@ -193,12 +200,19 @@ def _run_typst(args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def query_speaker_notes(deck_path: Path, deck_dir: Path, font_args: list[str]) -> dict[int, str]:
-    """Extract per-slide speaker notes declared with `<fmind-speaker-note>` via `typst eval`."""
+def query_deck_info(
+    deck_path: Path, deck_dir: Path, font_args: list[str]
+) -> tuple[dict[int, str], str | None, dict[int, int]]:
+    """Extract speaker notes, deck title, and per-slide visible word counts via a single `typst eval` call."""
+    expr = (
+        "(notes: query(<fmind-speaker-note>).map(it => it.value), "
+        "meta: query(<fmind-deck-meta>).map(it => it.value), "
+        "words: query(<fmind-slide-words>).map(it => it.value))"
+    )
     proc = _run_typst(
         [
             "eval",
-            "query(<fmind-speaker-note>).map(it => it.value)",
+            expr,
             "--root",
             str(deck_dir),
             *font_args,
@@ -210,18 +224,34 @@ def query_speaker_notes(deck_path: Path, deck_dir: Path, font_args: list[str]) -
     )
     if proc.returncode != 0:
         detail = " ".join((proc.stderr or proc.stdout).split())[-300:]
-        msg = f"Typst speaker-note query failed: {detail}"
+        msg = f"Typst metadata query failed: {detail}"
         raise RuntimeError(msg)
     raw = proc.stdout.strip()
-    entries = json.loads(raw) if raw else []
+    payload = json.loads(raw) if raw else {}
     notes_by_page: dict[int, list[str]] = {}
-    if isinstance(entries, list):
-        for entry in entries:
+    deck_title: str | None = None
+    words_by_page: dict[int, int] = {}
+    if isinstance(payload, dict):
+        for entry in payload.get("notes") or []:
             if isinstance(entry, dict) and isinstance(entry.get("page"), int) and isinstance(entry.get("note"), str):
                 text = entry["note"].strip()
                 if text:
                     notes_by_page.setdefault(entry["page"], []).append(text)
-    return {page: "\n\n".join(parts) for page, parts in sorted(notes_by_page.items())}
+        for entry in payload.get("meta") or []:
+            if isinstance(entry, dict) and isinstance(entry.get("title"), str):
+                candidate = entry["title"].strip()
+                if candidate:
+                    deck_title = candidate
+        for entry in payload.get("words") or []:
+            if isinstance(entry, dict) and isinstance(entry.get("page"), int) and isinstance(entry.get("words"), int):
+                words_by_page[entry["page"]] = entry["words"]
+    notes = {page: "\n\n".join(parts) for page, parts in sorted(notes_by_page.items())}
+    return notes, deck_title, dict(sorted(words_by_page.items()))
+
+
+def query_speaker_notes(deck_path: Path, deck_dir: Path, font_args: list[str]) -> dict[int, str]:
+    """Extract per-slide speaker notes declared with `<fmind-speaker-note>` via `typst eval`."""
+    return query_deck_info(deck_path, deck_dir, font_args)[0]
 
 
 def _rels_xml(entries: list[tuple[str, str, str]]) -> bytes:
@@ -471,10 +501,14 @@ def build_pptx(
     return output_pptx
 
 
-def inspect_pptx_slide_count(pptx_path: Path) -> int:
+def inspect_pptx_metadata(pptx_path: Path) -> tuple[int, str | None]:
+    """Validate an OOXML .pptx archive and return `(slide_count, core_title)`."""
     try:
         with zipfile.ZipFile(pptx_path, "r") as zf:
             names = set(zf.namelist())
+            core_xml = (
+                zf.read("docProps/core.xml").decode("utf-8", errors="replace") if "docProps/core.xml" in names else ""
+            )
     except zipfile.BadZipFile as exc:
         msg = f"File is not a valid .pptx OOXML archive: {pptx_path}"
         raise ValueError(msg) from exc
@@ -485,7 +519,18 @@ def inspect_pptx_slide_count(pptx_path: Path) -> int:
     if not slides:
         msg = f".pptx contains zero slides: {pptx_path}"
         raise ValueError(msg)
-    return len(slides)
+    title: str | None = None
+    if core_xml and (
+        match := re.search(r"<(?:[A-Za-z0-9_-]+:)?title[^>]*>(.*?)</(?:[A-Za-z0-9_-]+:)?title>", core_xml, re.DOTALL)
+    ):
+        parsed = xml_unescape(match.group(1)).strip()
+        if parsed:
+            title = parsed
+    return len(slides), title
+
+
+def inspect_pptx_slide_count(pptx_path: Path) -> int:
+    return inspect_pptx_metadata(pptx_path)[0]
 
 
 def _validate_drive_id(value: str, label: str) -> str:
@@ -674,6 +719,86 @@ def _emit(payload: dict[str, Any], *, json_output: bool) -> None:
         sys.stdout.write(f"{key}: {value}\n")
 
 
+def _collect_typst_warnings(stderr: str) -> tuple[list[str], list[str], list[str]]:
+    """Split Typst warning lines into `(all_warnings, syntax_warnings, font_warnings)`."""
+    warnings = [line for line in stderr.splitlines() if "warning:" in line.lower()]
+    syntax_warnings = [w for w in warnings if "no text within stars" in w.lower()]
+    font_warnings = [w for w in warnings if "unknown font family" in w.lower()]
+    return warnings, syntax_warnings, font_warnings
+
+
+def _raise_on_typst_warnings(syntax_warnings: list[str], font_warnings: list[str], *, strict_fonts: bool) -> None:
+    if syntax_warnings:
+        msg = "Typst markup warning: found empty bold stars (`**...**`). Typst uses single `*bold*`."
+        raise ValueError(msg)
+    if font_warnings and strict_fonts:
+        msg = (
+            "Typst font warning: missing required font family ("
+            + "; ".join(font_warnings)
+            + "). Pass --font-path or install the theme fonts (or use --allow-font-warnings explicitly)."
+        )
+        raise RuntimeError(msg)
+
+
+def run_render(args: argparse.Namespace) -> dict[str, Any]:
+    """Validate escaping, compile a standalone .typ visual card to PNG/SVG, and check font/syntax warnings."""
+    source_arg: Path = args.source
+    source_path = source_arg.resolve()
+    if not source_path.is_file() or source_path.suffix.lower() != ".typ":
+        msg = f"Typst source file must be an existing .typ file: {source_arg}"
+        raise ValueError(msg)
+    if args.format not in ALLOWED_FIGURE_FORMATS:
+        msg = f"--format must be one of {sorted(ALLOWED_FIGURE_FORMATS)}"
+        raise ValueError(msg)
+    if not 72 <= args.ppi <= 600:
+        msg = "--ppi must be between 72 and 600"
+        raise ValueError(msg)
+
+    root_dir = (args.root or source_path.parent).resolve()
+    if not source_path.is_relative_to(root_dir):
+        msg = f"Typst source must reside inside --root ({root_dir}): {source_path}"
+        raise ValueError(msg)
+    out_path = (args.output or source_path.with_suffix(f".{args.format}")).resolve()
+    if out_path == source_path or out_path.suffix.lower() == ".typ":
+        msg = f"Output path must differ from Typst source files: {args.output or out_path}"
+        raise ValueError(msg)
+
+    issues = scan_typst_escaping_issues(source_path.read_text(encoding="utf-8"), label=source_path.name)
+    if issues:
+        if args.json_output:
+            sys.stdout.write(json.dumps({"ok": False, "issues": issues}, indent=2) + "\n")
+        raise ValueError("; ".join(issues))
+
+    fonts = discover_font_paths(source_path, args.font_path)
+    font_args = _typst_font_args(fonts)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = ["compile", "--root", str(root_dir), *font_args, "--format", args.format]
+    if args.format == "png":
+        cmd.extend(["--ppi", str(args.ppi)])
+    cmd.extend([str(source_path), str(out_path)])
+    proc = _run_typst(cmd)
+    if proc.returncode != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
+        detail = " ".join((proc.stderr or proc.stdout).split())[-400:]
+        msg = f"Error rendering {source_path.name}: {detail}"
+        raise RuntimeError(msg)
+
+    warnings, syntax_warnings, font_warnings = _collect_typst_warnings(proc.stderr or "")
+    strict_fonts = not args.allow_font_warnings
+    payload: dict[str, Any] = {
+        "ok": not syntax_warnings and (not font_warnings or not strict_fonts),
+        "source": str(source_path),
+        "output": str(out_path),
+        "format": args.format,
+        "ppi": args.ppi if args.format == "png" else None,
+        "root": str(root_dir),
+        "font_paths": [str(p) for p in fonts],
+        "warnings": warnings,
+    }
+    _emit(payload, json_output=args.json_output)
+    _raise_on_typst_warnings(syntax_warnings, font_warnings, strict_fonts=strict_fonts)
+    return payload
+
+
 def run_check(args: argparse.Namespace) -> dict[str, Any]:
     """Validate Typst escaping, compile figures/PDF/PNGs (+ optional .pptx), and check warnings."""
     deck_arg: Path = args.deck
@@ -686,6 +811,9 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError(msg)
     if args.expected_slides is not None and args.expected_slides < 1:
         msg = "--expected-slides must be >= 1"
+        raise ValueError(msg)
+    if args.max_words is not None and args.max_words < 1:
+        msg = "--max-words must be >= 1"
         raise ValueError(msg)
     if not 72 <= args.ppi <= 600:
         msg = "--ppi must be between 72 and 600"
@@ -703,6 +831,11 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 
     fonts = discover_font_paths(deck_path, args.font_path)
     font_args = _typst_font_args(fonts)
+    strict_fonts = not args.allow_font_warnings
+
+    all_warnings: list[str] = []
+    syntax_warnings: list[str] = []
+    font_warnings: list[str] = []
 
     rendered_figures: list[str] = []
     if args.render_figures:
@@ -719,6 +852,10 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
                     detail = " ".join((proc.stderr or proc.stdout).split())[-400:]
                     msg = f"Error compiling figure {fig_src.name}: {detail}"
                     raise RuntimeError(msg)
+                fw, f_syn, f_font = _collect_typst_warnings(proc.stderr or "")
+                all_warnings.extend(f"{fig_src.name}: {w}" for w in fw)
+                syntax_warnings.extend(f"{fig_src.name}: {w}" for w in f_syn)
+                font_warnings.extend(f"{fig_src.name}: {w}" for w in f_font)
                 rendered_figures.append(str(fig_out))
 
     pdf_path = (args.output or deck_path.with_suffix(".pdf")).resolve()
@@ -770,22 +907,30 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 
     pptx_path: Path | None = None
     notes_slides: list[int] = []
-    if args.pptx is not None:
-        pptx_target = pdf_path.with_suffix(".pptx") if str(args.pptx) == "__AUTO__" else args.pptx.resolve()
-        if pptx_target in source_typ_paths or pptx_target.suffix.lower() == ".typ":
-            msg = f"Output PPTX path must differ from Typst source files: {pptx_target}"
-            raise ValueError(msg)
-        notes = query_speaker_notes(deck_path, deck_dir, font_args)
-        pptx_path = build_pptx(png_files, pptx_target, title=stem, speaker_notes=notes)
-        notes_slides = sorted(notes)
+    slide_words: dict[int, int] = {}
+    word_violations: dict[int, int] = {}
+    if args.pptx is not None or args.max_words is not None:
+        notes, meta_title, slide_words = query_deck_info(deck_path, deck_dir, font_args)
+        if args.max_words is not None:
+            if not slide_words:
+                msg = "No <fmind-slide-words> metadata found; import fmind-slides.typ to enforce --max-words."
+                raise ValueError(msg)
+            word_violations = {page: count for page, count in slide_words.items() if count > args.max_words}
+        if args.pptx is not None:
+            pptx_target = pdf_path.with_suffix(".pptx") if str(args.pptx) == "__AUTO__" else args.pptx.resolve()
+            if pptx_target in source_typ_paths or pptx_target.suffix.lower() == ".typ":
+                msg = f"Output PPTX path must differ from Typst source files: {pptx_target}"
+                raise ValueError(msg)
+            pptx_path = build_pptx(png_files, pptx_target, title=(meta_title or stem), speaker_notes=notes)
+            notes_slides = sorted(notes)
 
-    warnings = [line for line in (pdf_proc.stderr or "").splitlines() if "warning:" in line.lower()]
-    syntax_warnings = [w for w in warnings if "no text within stars" in w.lower()]
-    font_warnings = [w for w in warnings if "unknown font family" in w.lower()]
+    dw, d_syn, d_font = _collect_typst_warnings(pdf_proc.stderr or "")
+    all_warnings.extend(dw)
+    syntax_warnings.extend(d_syn)
+    font_warnings.extend(d_font)
     overflow = args.expected_slides is not None and slide_count != args.expected_slides
-    strict_fonts = not args.allow_font_warnings
 
-    ok = not overflow and not syntax_warnings and (not font_warnings or not strict_fonts)
+    ok = not overflow and not word_violations and not syntax_warnings and (not font_warnings or not strict_fonts)
     payload: dict[str, Any] = {
         "ok": ok,
         "deck": str(deck_path),
@@ -796,23 +941,23 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         "png_files": [str(p) for p in png_files],
         "font_paths": [str(p) for p in fonts],
         "rendered_figures": rendered_figures,
-        "warnings": warnings,
+        "warnings": all_warnings,
     }
     if pptx_path is not None:
         payload["pptx"] = str(pptx_path)
         payload["speaker_notes_slides"] = notes_slides
+    if slide_words:
+        payload["slide_words"] = slide_words
+    if args.max_words is not None:
+        payload["max_words"] = args.max_words
+        payload["word_violations"] = word_violations
     _emit(payload, json_output=args.json_output)
 
-    if syntax_warnings:
-        msg = "Typst markup warning: found empty bold stars (`**...**`). Typst uses single `*bold*`."
+    _raise_on_typst_warnings(syntax_warnings, font_warnings, strict_fonts=strict_fonts)
+    if word_violations:
+        details = ", ".join(f"slide {page}: {count} words" for page, count in sorted(word_violations.items()))
+        msg = f"Slide word limit exceeded (max {args.max_words}): {details}"
         raise ValueError(msg)
-    if font_warnings and strict_fonts:
-        msg = (
-            "Typst font warning: missing required font family ("
-            + "; ".join(font_warnings)
-            + "). Pass --font-path or install the theme fonts (or use --allow-font-warnings explicitly)."
-        )
-        raise RuntimeError(msg)
     if overflow:
         msg = (
             f"Overflow/mismatch: expected {args.expected_slides} slides, compiled {slide_count}. "
@@ -847,10 +992,15 @@ def run_upload(args: argparse.Namespace) -> dict[str, Any]:
         target_mime = PDF_MIME
         default_name = artifact_path.name
     else:
-        expected_slides = inspect_pptx_slide_count(artifact_path)
+        expected_slides, pptx_title = inspect_pptx_metadata(artifact_path)
         upload_mime = PPTX_MIME
         target_mime = GOOGLE_SLIDES_MIME if args.google_slides else PPTX_MIME
-        default_name = artifact_path.stem if args.google_slides else artifact_path.name
+        if args.google_slides:
+            default_name = (
+                pptx_title if (pptx_title and pptx_title not in {"Deck", artifact_path.stem}) else artifact_path.stem
+            )
+        else:
+            default_name = artifact_path.name
 
     local_md5, local_size = _file_md5_and_size(artifact_path)
     if local_size == 0:
@@ -863,9 +1013,9 @@ def run_upload(args: argparse.Namespace) -> dict[str, Any]:
         if not source_root.is_dir():
             msg = f"--source-dir does not exist or is not a directory: {args.source_dir}"
             raise ValueError(msg)
-        source_files = collect_typ_files(source_root)
+        source_files = collect_source_files(source_root)
         if not source_files:
-            msg = f"No .typ files found under --source-dir: {args.source_dir}"
+            msg = f"No .typ or .py source files found under --source-dir: {args.source_dir}"
             raise ValueError(msg)
 
     valid_folder = _validate_drive_id(args.drive_folder, "folder ID") if args.drive_folder else None
@@ -1033,6 +1183,12 @@ def _build_parser() -> argparse.ArgumentParser:
     check_p.add_argument(
         "--expected-slides", type=int, default=None, help="Fail if rendered page count differs from N."
     )
+    check_p.add_argument(
+        "--max-words",
+        type=int,
+        default=None,
+        help="Fail if any slide exceeds N visible words reported in <fmind-slide-words>.",
+    )
     check_p.add_argument("--png-dir", type=Path, default=None, help="Directory for PNG slide previews.")
     check_p.add_argument("--ppi", type=int, default=192, help="PNG preview resolution (72-600, default: 192).")
     check_p.add_argument("--render-figures", action="store_true", help="Compile figures/*.typ before main deck.")
@@ -1070,7 +1226,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--source-dir",
         type=Path,
         default=None,
-        help="Optional deck directory whose *.typ / figures/*.typ sources sync to Drive assets/<slug>/.",
+        help="Optional deck directory whose *.typ, figures/*.typ, and *.py sources sync to Drive assets/<slug>/.",
     )
     upload_p.add_argument(
         "--protect-copy",
@@ -1081,6 +1237,31 @@ def _build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="Validate inputs and print plan without modifying Drive."
     )
     upload_p.add_argument("--json", dest="json_output", action="store_true", help="Emit JSON on stdout.")
+
+    render_p = subparsers.add_parser(
+        "render",
+        help="Validate escaping and compile a standalone .typ visual card or figure to PNG/SVG.",
+        allow_abbrev=False,
+    )
+    render_p.add_argument("source", type=Path, help="Standalone Typst visual card (.typ).")
+    render_p.add_argument("-o", "--output", type=Path, default=None, help="Compiled PNG or SVG output path.")
+    render_p.add_argument(
+        "--format",
+        default="png",
+        choices=sorted(ALLOWED_FIGURE_FORMATS),
+        help="Output image format (default: png).",
+    )
+    render_p.add_argument("--ppi", type=int, default=192, help="PNG resolution (72-600, default: 192).")
+    render_p.add_argument("--root", type=Path, default=None, help="Typst --root directory (default: source parent).")
+    render_p.add_argument(
+        "--font-path", type=Path, action="append", default=None, help="Additional Typst font directory."
+    )
+    render_p.add_argument(
+        "--allow-font-warnings",
+        action="store_true",
+        help="Allow Typst `unknown font family` warnings instead of failing closed.",
+    )
+    render_p.add_argument("--json", dest="json_output", action="store_true", help="Emit JSON on stdout.")
     return parser
 
 
@@ -1090,6 +1271,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "check":
             run_check(args)
+        elif args.command == "render":
+            run_render(args)
         else:
             run_upload(args)
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as exc:

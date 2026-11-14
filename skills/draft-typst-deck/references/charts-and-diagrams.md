@@ -1,27 +1,32 @@
 # Charts, Diagrams, Branded Images, and Typst Escaping
 
-Pure-Typst graphics compile in crisp vector SVG or 2× Retina PNG (`--ppi 192`) without `@preview/...` packages or a headless browser. Keep each deck to **1 focal visual per slide** (`<=3` comparative charts per deck).
+Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without `@preview/...` packages or a headless browser. Keep each slide to **one focal visual** and each deck to three comparative charts or fewer.
 
 ## Reusable Slide & Brand Card Helpers ([fmind-slides.typ](../templates/fmind-slides.typ))
 
-- **`hl(body, role: "warning-surface")`**: rounded inline highlight pill (`#FEEFC3` warm amber default, or `"selection"`, `"success-surface"`) to draw eyes to the single number or decision ask.
-- **`speaker-note(note)`**: attaches per-slide speaker notes (`str`) compiled invisibly and extracted via `typst query` when generating `.pptx` / Google Slides.
-- **`split-cards(left-title, left-body, right-title, right-body, ...)`**: clean two-column comparison (neutral baseline panel vs `#D2E3FC` highlighted recommendation).
-- **`bar-panel(title, subtitle, rows)`**, **`stacked-bar-row`**, **`broken-bar-row`**: comparative horizontal charts respecting `DESIGN.md` `chart-series` order (`#174EA6`, `#00636D`, `#934900`, `#681DA8` before `#0D652D` green and `#A50E0E` red). Pass `right-width >= 112pt` (half-width) or `230pt` (full-width) so numbers never wrap; use `broken: true` for outliers.
-- **`step-card(num, title, desc)` + `flow-arrow(label)`**: clean 3-step horizontal flows with semantic fill states.
+- **`brand-card(width: 640pt, margin: 16pt, fill: colors.canvas)`**: page show-rule wrapper for standalone visual cards and figures so `width: 100%` and `1fr` inside `kpi-card`, `bar-panel`, `split-cards`, and `card` never collapse to `0pt` on `width: auto` pages (start from [figure-card.typ](../templates/figure-card.typ); pass `width: 440pt` for Google Docs).
+- **`hl(body, role: "warning-surface")`**: rounded highlight pill (`#FEEFC3` warm amber default, or `"selection"`, `"success-surface"`) replacing raw backticks on metrics and asks.
+- **`speaker-note(note)`**: attaches per-slide speaker notes (`str`) compiled invisibly and extracted via `typst eval` for `.pptx` / Google Slides.
+- **`split-cards(...)`**, **`card(...)`**, **`callout(...)`**, **`kpi-card(...)`**: semantic surfaces obeying `DESIGN.md` light contrast.
+- **`bar-panel(title, subtitle, rows)`**, **`stacked-bar-row`**, **`broken-bar-row`**: comparative horizontal charts respecting `DESIGN.md` categorical order (`primary` `#174EA6`, `information` `#00636D`, `warning` `#934900`, `type` `#681DA8` before green/red). Size `right-width` wide enough (around 120–230 pt) so values stay single-line; use `broken: true` for outliers.
+- **`step-card(num, title, desc)` + `flow-arrow(...)`**: accepts either positional `#flow-arrow("Signal")` or named `#flow-arrow(step: 1, caption: "clone", length: 34pt, dir: ltr)` (`dir: ttb` for vertical flows).
 
-## Standalone Branded Images (`figures/*.typ`)
+## Standalone Branded Images (`render` & `figures/*.typ`)
 
-Author standalone diagrams, architecture cards, or social/doc visuals in `figures/*.typ` using `#set page(width: auto, height: auto, margin: 12pt, fill: colors.canvas)` and importing `../fmind-slides.typ` (or `~/.agents/themes/typst/fmind.typ` per [Typst guide](../../diagrams-as-code/references/typst.md)):
+Start from [figure-card.typ](../templates/figure-card.typ) or place reusable visuals in `figures/*.typ` and render directly:
 
 ```bash
+# Single standalone card (PNG at 192 PPI by default, or --format svg)
+python3 -I ~/.agents/skills/draft-typst-deck/scripts/build_typst_deck.py render figure-card.typ --json
+
+# Render all figures/*.typ alongside a deck check
 python3 -I ~/.agents/skills/draft-typst-deck/scripts/build_typst_deck.py check deck.typ \
   --render-figures --figure-format png --ppi 192 --json
 ```
 
-Use `--figure-format svg` for web/HTML reports and `png --ppi 192` for Google Docs, email, or `python-pptx` Google Slides.
+Choose `--format png` (192 PPI) for Google Docs, Gmail, social cards, and `editable_deck.py` embeds; choose `--format svg` for HTML reports ([diagrams-as-code](../../diagrams-as-code/references/typst.md)).
 
-## Typst Escaping Rules {#typst-escaping-rules}
+## Typst Escaping Rules
 
 Typst treats **content blocks (`[...]`)**, **string literals (`"..."`)**, and **inline code (`` `...` ``)** differently:
 
@@ -31,4 +36,4 @@ Typst treats **content blocks (`[...]`)**, **string literals (`"..."`)**, and **
 | String literal  | `"~5.81 $"`      | Never escape `$`, `~`, `*`; escape only `\"` or `\\`  | `val-text: "~5.81 $"`  |
 | Content block   | `[Cost: ~5 \$]`  | Escape markup specials `\$`, `\*`, `\~`; single `*b*` | `[Cap: *\$200*]`       |
 
-`build_typst_deck.py check` fails automatically on bad escapes and empty `*bold*` star warnings.
+`build_typst_deck.py check` and `render` fail automatically on bad escapes and empty `*bold*` star warnings.

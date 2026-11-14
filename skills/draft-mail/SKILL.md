@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-mail
   created: "2026-10-04"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Draft Mail
@@ -29,8 +29,8 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
    gws gmail +read --id MESSAGE_ID --headers --format json
    ```
 
-1. **Match language and register**: use the thread's or recipient's last language (ask if unknown). Check up to three sent messages (`q: "to:<address> in:sent"`) to match greeting, sign-off, and register; in French, keep `tu` or `vous` (default `vous` for clients and first contact) and the user's punctuation spacing (`Bonjour Alice,`, space before `?`/`!`).
-1. **Author a concise HTML fragment**: follow the humanize [email outline](../humanize/references/outlines.md#email-or-chat-message) and [default length](../humanize/SKILL.md#default-length) (~150 words, ~100 for replies): answer or ask first, zero prose backticks, short `<p>` blocks, at most one short `<ul>`/`<ol>`, `<strong>` on 1–2 key signals (plus an optional `border-left: 3px solid #174EA6; padding: 6px 12px;` callout for decisive asks), `<a href="...">` links, weekday + timezone dates, and one next step. Never write raw Markdown (`**bold**`, `[text](url)`, `# heading`) or invent commitments, prices, availability, attachments, or facts—surface open decisions in the handoff, not inside the draft.
+1. **Match language and register**: use the thread's or recipient's last language (ask if unknown). Check up to three sent messages (`q: "to:<address> in:sent"`) to match greeting, sign-off, and register; in French, preserve tu or vous (default vous for clients and first contact) and punctuation spacing ("Bonjour Alice,", space before ? and !).
+1. **Author a scannable inline-CSS HTML fragment**: apply [humanize](../humanize/SKILL.md) ([email outline](../humanize/references/outlines.md#email-or-chat-message), [length budgets](../humanize/SKILL.md#default-length-budgets), and [Gmail primitives](../humanize/references/primitives.md#channel-primitives)): answer or ask first, **zero prose backticks**, short `<p>` blocks, at most one short list, inline `<mark>`, `<strong>`, or `border-left: 4px solid #174EA6` callouts for the decisive signal, `<hr>` to separate next steps, inline links, weekday + timezone dates, and one next step. Never write raw Markdown or invent commitments, prices, or availability—surface open decisions in the handoff, not inside the draft.
 1. **Preview, create, and verify** from `$SCRATCH/body.html` (`SCRATCH`: host scratchpad, else `SCRATCH="$(mktemp -d)"`) via [`scripts/draft_email.py`](scripts/draft_email.py) (`--dry-run` first, then live):
 
    ```bash

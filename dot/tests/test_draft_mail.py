@@ -409,3 +409,24 @@ def test_cli_asks_for_the_draft_id_when_create_returns_none(
     assert "--draft-id" in captured.err
     assert "PRIVATE-BODY" not in captured.err
     assert "drafts.get" not in [context for context, _ in calls]
+
+
+def test_compose_accepts_mark_and_hr_visual_primitives(mod: ModuleType) -> None:
+    body_html = (
+        '<p>Decision: <mark style="background:#CEEAD6;color:#0D652D;">Approve Provider B</mark></p>'
+        "<hr />"
+        "<p>Next check-in: Friday 10:00 CET.</p>"
+    )
+    built = mod.compose_draft_payload(
+        body_html,
+        send_as=SAMPLE_SEND_AS,
+        to_flags=["Alice Martin <alice@example.com>"],
+        cc_flags=[],
+        bcc_flags=[],
+        remove_flags=[],
+        subject="Decision: Provider B",
+    )
+    mime_msg = _decode_raw_mime(built["draft"]["message"]["raw"])
+    plain_body = next(p for p in mime_msg.iter_parts() if p.get_content_type() == "text/plain").get_content()
+    assert "Approve Provider B" in plain_body
+    assert "\n---\n" in plain_body.replace("\r\n", "\n")

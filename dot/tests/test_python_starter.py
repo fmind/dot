@@ -184,9 +184,11 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
 def test_editable_pptx_script_builds_valid_deck(tmp_path: Path) -> None:
     import importlib.util
+    import shutil
     import zipfile
 
-    script = ROOT / "skills" / "draft-typst-deck" / "templates" / "editable_deck.py"
+    templates_dir = ROOT / "skills" / "draft-typst-deck" / "templates"
+    script = templates_dir / "editable_deck.py"
     out = tmp_path / "editable.pptx"
     _run(tmp_path, "uv", "run", "--script", str(script), "-o", str(out))
     assert out.is_file()
@@ -197,8 +199,19 @@ def test_editable_pptx_script_builds_valid_deck(tmp_path: Path) -> None:
     assert spec.loader
     helper = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(helper)
-    assert helper.inspect_pptx_slide_count(out) == 3
+    assert helper.inspect_pptx_metadata(out) == (3, "Architecture Decision Briefing")
 
     with zipfile.ZipFile(out, "r") as zf:
         notes1 = zf.read("ppt/notesSlides/notesSlide1.xml").decode()
-        assert "20 seconds" in notes1
+        assert "approve Provider B" in notes1
+
+    # Also verify rendering a standalone figure-card PNG and embedding it via --figure.
+    for name in ("fmind-slides.typ", "figure-card.typ"):
+        shutil.copy2(templates_dir / name, tmp_path / name)
+    card_png = tmp_path / "card.png"
+    assert helper.main(["render", str(tmp_path / "figure-card.typ"), "-o", str(card_png), "--allow-font-warnings"]) == 0
+    out_with_fig = tmp_path / "editable-fig.pptx"
+    _run(tmp_path, "uv", "run", "--script", str(script), "-o", str(out_with_fig), "--figure", str(card_png))
+    assert helper.inspect_pptx_metadata(out_with_fig) == (3, "Architecture Decision Briefing")
+    with zipfile.ZipFile(out_with_fig, "r") as zf:
+        assert "ppt/media/image1.png" in zf.namelist()

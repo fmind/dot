@@ -63,9 +63,9 @@ Build calm, branded concept illustrations, cards, and step flows with the Typst 
 
 - **No `@preview/...` packages in illustrations**: external Universe packages (`fletcher`, `cetz`) trigger network fetches on cold caches and add coordinate boilerplate; stdlib `grid` + `stack` + `line` + `polygon` + `context`/`measure` stays offline and compact.
 - **Avoid `width: 100%` at the root of `width: auto` pages**: `100%` of `auto` resolves to `0pt`. Use explicit column widths in `grid(columns: (...))` (`100%` works _inside_ fixed-width columns) or `context { measure(body).width }`.
-- **Isolated / CI font discovery**: if running with `--ignore-system-fonts` or an overridden `HOME`, pass `--font-path` pointing to static/variable `Google Sans` and `Google Sans Code` (`~/.local/share/fonts` on Linux, `~/Library/Fonts` on macOS) and treat any `unknown font family` warning as a failure.
+- **Isolated / CI font & escaping checks**: if running with `--ignore-system-fonts` or an overridden `HOME`, pass `--font-path` pointing to static/variable `Google Sans` and `Google Sans Code` (`~/.local/share/fonts` on Linux, `~/Library/Fonts` on macOS). Treat any Typst stderr warning (`unknown font family`, unescaped `*` math/emphasis) as a hard failure; remember `tile()` renders titles in `Google Sans Code`.
 
 ## Documentation
 
 - [Typst styling](https://typst.app/docs/reference/styling/) · [Layout](https://typst.app/docs/reference/layout/) · [Visualize](https://typst.app/docs/reference/visualize/)
-- Companions: [d2](d2.md) (routed technical graphs), [svg](svg/GUIDE.md) (logos and raw `<svg>` marks), [draft-doc](../../draft-doc/SKILL.md) (Google Docs `.typ` figures), [draft-typst-deck](../../draft-typst-deck/SKILL.md) (16:9 PDF slide decks).
+- Companions: [d2](d2.md) (routed technical graphs), [svg](svg/GUIDE.md) (logos and raw `<svg>` marks), [draft-doc](../../draft-doc/SKILL.md) (Google Docs `.typ` figures), [draft-typst-deck](../../draft-typst-deck/SKILL.md) (16:9 slide decks & branded PNG/SVG cards).

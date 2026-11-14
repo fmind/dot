@@ -209,6 +209,27 @@ def _typst_command() -> tuple[list[str], int]:
     raise RuntimeError(msg)
 
 
+def _typst_font_args(resolved_root: Path, resolved_typ: Path) -> list[str]:
+    """Return repeatable --font-path flags for document-local and user font directories."""
+    home = Path.home()
+    candidates = (
+        resolved_root / "assets" / "fonts",
+        resolved_root / "fonts",
+        resolved_typ.parent / "assets" / "fonts",
+        resolved_typ.parent / "fonts",
+        home / ".local" / "share" / "fonts",
+        home / "Library" / "Fonts",
+    )
+    args: list[str] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved not in seen and resolved.is_dir():
+            seen.add(resolved)
+            args.extend(["--font-path", str(resolved)])
+    return args
+
+
 def render_typst_png(
     typ_path: Path,
     out_png: Path,
@@ -224,6 +245,7 @@ def render_typst_png(
         raise ValueError(msg)
     command, timeout = _typst_command()
     resolved_root = (root_dir or resolved_typ.parent).resolve()
+    font_args = _typst_font_args(resolved_root, resolved_typ)
     resolved_out.parent.mkdir(parents=True, exist_ok=True)
     ppi = 96.0 * scale
     width = 0
@@ -239,6 +261,7 @@ def render_typst_png(
                 "png",
                 "--ppi",
                 f"{ppi:g}",
+                *font_args,
                 str(resolved_typ),
                 str(resolved_out),
             ],

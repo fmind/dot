@@ -15,11 +15,12 @@ Default technical-doc diagram format: one portable source renders in GitHub Mark
    ```mermaid
    ---
    config:
+     fontFamily: '"Google Sans", sans-serif'
      layout: dagre
      look: classic
      theme: base
      themeVariables:
-       primaryColor: "#f1f3f4"
+       primaryColor: "#ffffff"
        primaryTextColor: "#202124"
        primaryBorderColor: "#174ea6"
        lineColor: "#174ea6"
@@ -50,4 +51,4 @@ Default technical-doc diagram format: one portable source renders in GitHub Mark
 
 - [Syntax reference](https://mermaid.js.org/intro/syntax-reference.html) · [Theming](https://mermaid.js.org/config/theming) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)
 - Releases: [Mermaid](https://github.com/mermaid-js/mermaid/releases) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli/releases)
-- Companion guides: [svg](svg/GUIDE.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).
+- Companion guides: [typst](typst.md) (KPI cards and figures), [svg](svg/GUIDE.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).

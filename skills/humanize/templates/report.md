@@ -1,7 +1,9 @@
 <!--
-  Humanized Markdown template for GitHub, Zensical, and Docs-adjacent briefs.
-  Replace {placeholders}, keep plain prose (zero backticks except copyable CLI/paths), and delete unused sections.
-  For Google Docs (.md): replace `> [!IMPORTANT]` with `> **Important — Decision needed by DATE:** ...` and compile figures via draft-doc.
+  Humanized Markdown template for GitHub and Zensical briefs.
+  Replace {placeholders}, keep plain prose (zero backticks except copyable commands or paths), and delete unused sections.
+  Dialect notes:
+  - Google Docs (.md): replace [!IMPORTANT] with **Decision needed by DATE:** and compile Typst figures via draft-doc.
+  - Zensical docs: replace [!IMPORTANT] with `!!! important "Decision needed"`, and use ==highlight== around the core metric.
 -->
 
 # {Clear title naming the subject}

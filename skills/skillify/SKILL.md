@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/skillify
   created: "2026-09-02"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Skillify
@@ -25,7 +25,7 @@ Capture workflows as reusable skills or guides, extract `AGENTS.md` procedures, 
    - **Local** (repo-specific commands or conventions): `.agents/skills/<name>/` (read natively by agy; add `.claude/skills -> ../.agents/skills` only when Claude Code is used per [agent-project](../agent-project/SKILL.md); also registered via `dot-skills` inside `fmind/dot`).
 1. **Author from [skill.md](templates/skill.md)**: apply [package rules](references/package-rules.md) with a strict model-delta filter—cut language basics, tutorials, and tool fluff a model already knows; keep only verified flags, security gates, Fmind defaults, and links to heavy configs in `references/`.
 1. **Validate**: frontmatter `name` matches directory, links resolve, resources are reachable, and `mise run check:skills` passes (or `gh skill publish --dry-run .agents/skills` in external repos).
-1. **Exercise behavior**: run [adoption check](references/adoption-check.md) on substantial additions or routing edits (natural trigger, neighboring task, observable outcome in an isolated fixture); report unavailable host checks separately.
+1. **Exercise behavior**: run [evaluation](references/evaluation.md) on substantial additions, trims, or routing edits (direct trigger, neighbor disambiguation, negative control, and binary checks in an isolated fixture); report unavailable host checks separately.
 1. **Report**: path, description, and scope.
 
 ## Extracting from AGENTS.md
@@ -37,7 +37,7 @@ Keep personal defaults in global `AGENTS.md` and repo invariants in project `AGE
 - **Descriptions route, bodies instruct**: state triggers in `description`, never a workflow summary.
 - **Keep dates current**: set `created` and `updated` on creation; bump `updated` on every edit.
 - **Vendor external skills cleanly**: follow [vendor-skills](../agent-project/references/vendor-skills.md) instead of retyping upstream skills.
-- **Follow [portability](references/portability.md)** when promoting a guide or publishing standalone.
+- **Promote cleanly**: follow [promotion and portability](references/package-rules.md#promotion-and-portability) when extracting a standalone skill and delete the old copy.
 
 ## Task guides
 
@@ -49,4 +49,4 @@ Keep personal defaults in global `AGENTS.md` and repo invariants in project `AGE
 
 ## Documentation
 
-- [Agent Skills specification](https://agentskills.io/specification) · [Catalog and usage review](references/catalog-review.md) · Companions: [trim](../trim/SKILL.md), [humanize](../humanize/SKILL.md).
+- [Agent Skills specification](https://agentskills.io/specification) · [Evaluation and load metrics](references/evaluation.md) · Companions: [trim](../trim/SKILL.md), [humanize](../humanize/SKILL.md).

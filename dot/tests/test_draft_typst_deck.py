@@ -418,6 +418,8 @@ def test_check_cli_compiles_template_deck_to_pptx_and_extracts_notes(
             str(deck_dir / "deck.typ"),
             "--expected-slides",
             "4",
+            "--max-words",
+            "30",
             "--pptx",
             "--allow-font-warnings",
             "--json",
@@ -428,9 +430,11 @@ def test_check_cli_compiles_template_deck_to_pptx_and_extracts_notes(
     assert payload["ok"] is True
     assert payload["slide_count"] == 4
     assert payload["speaker_notes_slides"] == [1, 2, 3, 4]
+    assert set(payload["slide_words"]) == {"1", "2", "3", "4"}
+    assert all(count <= 30 for count in payload["slide_words"].values())
     pptx_path = Path(payload["pptx"])
     assert pptx_path.is_file()
-    assert mod.inspect_pptx_slide_count(pptx_path) == 4
+    assert mod.inspect_pptx_metadata(pptx_path) == (4, "Q4 Compute Vendor Proposal")
 
 
 def test_upload_cli_converts_pptx_to_google_slides_and_syncs_sources(
@@ -526,4 +530,111 @@ def test_upload_cli_converts_pptx_to_google_slides_and_syncs_sources(
 def test_editable_deck_template_compiles_valid_python_syntax() -> None:
     source = EDITABLE_TEMPLATE.read_text(encoding="utf-8")
     assert "python-pptx==1.0.2" in source
+    assert "kicker.upper()" not in source
+    assert "_png_dimensions" in source
+    assert "shape.text_frame" in source
     compile(source, str(EDITABLE_TEMPLATE), "exec")
+
+
+def test_render_cli_compiles_figure_card_and_fails_on_warnings(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    typst_bin = native_binary("typst")
+    if typst_bin is None:
+        pytest.skip("typst CLI unavailable")
+    monkeypatch.setenv("PATH", f"{typst_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    card_dir = tmp_path / "card"
+    card_dir.mkdir()
+    for name in ("fmind-slides.typ", "figure-card.typ"):
+        (card_dir / name).write_text((TEMPLATE_DECK.parent / name).read_text(encoding="utf-8"), encoding="utf-8")
+
+    rc = mod.main(["render", str(card_dir / "figure-card.typ"), "--allow-font-warnings", "--json"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    out_png = Path(payload["output"])
+    assert out_png.is_file()
+    assert out_png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+    # Simulated unknown font family warning fails closed on render and on check --render-figures.
+    def fake_warn_typst(args: list[str]) -> object:
+        if args and args[0] == "compile":
+            target = Path(args[-1].replace("{p}", "1"))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"\x89PNG\r\n\x1a\nimg")
+            return mod.subprocess.CompletedProcess(args, 0, "", "warning: unknown font family: google sans\n")
+        return mod.subprocess.CompletedProcess(args, 0, "{}", "")
+
+    monkeypatch.setattr(mod, "_run_typst", fake_warn_typst)
+    assert mod.main(["render", str(card_dir / "figure-card.typ"), "--json"]) == 1
+    assert "unknown font family" in capsys.readouterr().err
+
+    figures_dir = card_dir / "figures"
+    figures_dir.mkdir()
+    (figures_dir / "chart.typ").write_text("#text[Chart]\n", encoding="utf-8")
+    (card_dir / "deck.typ").write_text(
+        '#import "fmind-slides.typ": *\n#show: fmind-deck\n#slide[Hi]\n', encoding="utf-8"
+    )
+    assert mod.main(["check", str(card_dir / "deck.typ"), "--render-figures", "--figure-format", "png"]) == 1
+    assert "unknown font family" in capsys.readouterr().err
+
+
+def test_check_max_words_rejects_crowded_slide(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    typst_bin = native_binary("typst")
+    if typst_bin is None:
+        pytest.skip("typst CLI unavailable")
+    monkeypatch.setenv("PATH", f"{typst_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    deck_dir = tmp_path / "crowded"
+    deck_dir.mkdir()
+    (deck_dir / "fmind-slides.typ").write_text(
+        (TEMPLATE_DECK.parent / "fmind-slides.typ").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    words = " ".join(f"word{i}" for i in range(40))
+    (deck_dir / "deck.typ").write_text(
+        f'#import "fmind-slides.typ": *\n#show: fmind-deck.with(title: "Test")\n#slide(title: "Too dense")[{words}]\n',
+        encoding="utf-8",
+    )
+    assert mod.main(["check", str(deck_dir / "deck.typ"), "--max-words", "30", "--allow-font-warnings"]) == 1
+    assert "Slide word limit exceeded" in capsys.readouterr().err
+
+
+def test_upload_uses_core_title_and_syncs_editable_python_sources(
+    mod: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    src_dir = tmp_path / "pydeck"
+    src_dir.mkdir()
+    (src_dir / "editable_deck.py").write_text("print('deck')\n", encoding="utf-8")
+    png = tmp_path / "s1.png"
+    png.write_bytes(b"\x89PNG\r\n\x1a\nimg")
+    pptx = mod.build_pptx([png], src_dir / "editable-deck.pptx", title="Executive Review Q4")
+
+    assert (
+        mod.main(
+            [
+                "upload",
+                str(pptx),
+                "--drive-folder",
+                "folder_9",
+                "--google-slides",
+                "--source-dir",
+                str(src_dir),
+                "--dry-run",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    plan = json.loads(capsys.readouterr().out)
+    assert plan["name"] == "Executive Review Q4"
+    assert plan["source_files"] == ["editable_deck.py"]

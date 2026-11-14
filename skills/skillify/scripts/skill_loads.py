@@ -1,6 +1,6 @@
 """Count the sessions that loaded each skill, from local agy, Claude Code, and Pi transcripts.
 
-A load is a tool call that reads a catalog skill's SKILL.md or references/ (or Claude's Skill tool);
+A load is a tool call that reads a catalog skill's SKILL.md, references/, scripts/, or templates/ (or Claude's Skill tool);
 catalog text injected at startup and quoted prompts are not tool calls, so they never count. Only
 names and counts leave the transcripts: no prompt, path, or message text is printed.
 """
@@ -15,11 +15,12 @@ import time
 from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import closing
-from datetime import datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-_SKILL_PATH = re.compile(r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/(?:SKILL\.md|references/)")
+_SKILL_PATH = re.compile(r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/(?:SKILL\.md|references/|scripts/|templates/)")
+_CREATED_RE = re.compile(r"^\s*created:\s*[\"']?(\d{4}-\d{2}-\d{2})[\"']?\s*$", re.MULTILINE)
 _AGY_READS = {"read_file", "view_file"}
 _CLAUDE_NON_SESSION_FILES = frozenset({"memory.jsonl", "journal.jsonl"})
 
@@ -238,6 +239,28 @@ def count(
     return sessions, audits, rows
 
 
+def _recent_created_dates(skills_dir: Path, days: int) -> dict[str, str]:
+    """Return `{skill_name: YYYY-MM-DD}` for skills created within the last `days` days."""
+    today = datetime.now(tz=UTC).date()
+    recent: dict[str, str] = {}
+    for skill_md in skills_dir.glob("*/SKILL.md"):
+        text = skill_md.read_text(encoding="utf-8", errors="replace")[:1500]
+        if not text.startswith("---"):
+            continue
+        end = text.find("\n---", 3)
+        frontmatter = text[3:end] if end != -1 else text
+        match = _CREATED_RE.search(frontmatter)
+        if not match:
+            continue
+        try:
+            created = date.fromisoformat(match.group(1))
+        except ValueError:
+            continue
+        if (today - created).days <= days:
+            recent[skill_md.parent.name] = match.group(1)
+    return recent
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("--days", type=int, default=30, metavar="N", help="Observation window in days (default: 30)")
@@ -285,7 +308,9 @@ def main() -> int:
     for name, counts in loaded:
         sys.stdout.write(f"{name:<{width}}  {summary(counts)}\n")
     unloaded = [name for name, counts in rows if not sum(counts.values())]
-    sys.stdout.write(f"No observed load ({len(unloaded)}): {' '.join(unloaded) or '-'}\n")
+    recent = _recent_created_dates(args.skills, args.days)
+    unloaded_labels = [f"{name}(new:{recent[name]})" if name in recent else name for name in unloaded]
+    sys.stdout.write(f"No observed load ({len(unloaded)}): {' '.join(unloaded_labels) or '-'}\n")
     return 0
 
 

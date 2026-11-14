@@ -269,3 +269,44 @@ def test_claude_non_session_files_and_pi_pre_fork_loads_are_excluded(tmp_path: P
     assert by_skill["bulk-3"]["total"] == 0
     assert by_skill["bulk-4"]["total"] == 0
     assert by_skill["bulk-5"] == {"skill": "bulk-5", "agy": 0, "claude": 0, "pi": 1, "total": 1}
+
+
+def test_scripts_and_templates_reads_count_and_recent_unloaded_skills_are_flagged(tmp_path: Path) -> None:
+    from datetime import UTC, datetime
+
+    home = _home(tmp_path)
+    today = datetime.now(tz=UTC).date().isoformat()
+    (home / ".agents/skills/bulk-6/SKILL.md").write_text(
+        f'---\nname: bulk-6\nmetadata:\n  created: "{today}"\n---\n',
+        encoding="utf-8",
+    )
+    script_path = str(home / ".agents/skills/bulk-2/scripts/run.py")
+    tmpl_path = str(home / ".agents/skills/bulk-3/templates/card.typ")
+    _jsonl(
+        home / ".gemini/antigravity-cli/brain/asset-task/.system_generated/logs/transcript.jsonl",
+        [
+            {"tool_calls": [{"name": "read_file", "args": {"Path": script_path}}]},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "bulk-2")}}]},
+        ],
+    )
+    _jsonl(
+        home / ".pi/agent/sessions/--work-project--/2026-11-12T10-00-00-000Z_pi-tmpl.jsonl",
+        [
+            {
+                "type": "message",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "toolCall", "id": "t1", "name": "read", "arguments": {"path": tmpl_path}}],
+                },
+            }
+        ],
+    )
+
+    report = json.loads(_run(home, "--json").stdout)
+    by_skill = {row["skill"]: row for row in report["skills"]}
+    assert by_skill["bulk-2"] == {"skill": "bulk-2", "agy": 1, "claude": 0, "pi": 0, "total": 1}
+    assert by_skill["bulk-3"] == {"skill": "bulk-3", "agy": 0, "claude": 0, "pi": 1, "total": 1}
+    assert by_skill["bulk-6"]["total"] == 0
+
+    text_out = _run(home).stdout
+    assert f"bulk-6(new:{today})" in text_out

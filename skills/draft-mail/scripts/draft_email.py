@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 HTML_TAG_RE = re.compile(
-    r"<\s*(?:p|div|br|ul|ol|li|table|thead|tbody|tr|td|th|blockquote|strong|b|em|i|u|a|code|pre|span|h[1-6])\b",
+    r"<\s*(?:p|div|br|hr|mark|ul|ol|li|table|thead|tbody|tr|td|th|blockquote|strong|b|em|i|u|a|code|pre|span|h[1-6])\b",
     re.IGNORECASE,
 )
 CODE_BLOCK_RE = re.compile(r"<(pre|code)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
@@ -60,6 +60,8 @@ class _HTMLToTextParser(HTMLParser):
         tag = tag.lower()
         if tag == "br":
             self.chunks.append("\n")
+        elif tag == "hr":
+            self.chunks.append("\n---\n\n")
         elif tag == "li":
             self.chunks.append("\n- ")
         elif tag in {"p", "div", "tr", "blockquote", "pre", "h1", "h2", "h3", "h4", "h5", "h6"}:

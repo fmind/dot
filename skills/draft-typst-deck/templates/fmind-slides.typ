@@ -37,6 +37,26 @@
 #let sans-font = "Google Sans"
 #let mono-fonts = ("Google Sans Code", "DejaVu Sans Mono")
 
+#let _plain-text(it) = {
+  if it == none { return "" }
+  if type(it) == str { return it }
+  if type(it) != content { return str(it) }
+  let f = it.func()
+  if f == metadata { return "" }
+  if f == smartquote { return "'" }
+  if it == [ ] or f == parbreak or f == linebreak { return " " }
+  if it.has("text") { return str(it.text) }
+  if it.has("child") { return _plain-text(it.child) }
+  if it.has("body") { return _plain-text(it.body) }
+  if it.has("children") {
+    let sep = if f in (grid, stack, table, list, enum, terms) { " " } else { "" }
+    return it.children.map(_plain-text).join(sep)
+  }
+  ""
+}
+
+#let _word-count(it) = _plain-text(it).trim().split(regex("\\s+")).filter(w => w.contains(regex("[A-Za-z0-9]"))).len()
+
 #let fmind-deck(
   title: "",
   context-label: "",
@@ -78,6 +98,9 @@
   )
   show link: set text(fill: colors.primary, weight: "semibold")
   body
+  if title != "" or context-label != "" or date != "" [
+    #metadata((title: title, context_label: context-label, date: date)) <fmind-deck-meta>
+  ]
 }
 
 #let pill(role: "selection", body) = {
@@ -175,6 +198,7 @@
       text(font: sans-font, size: 12pt, weight: "semibold", fill: colors.muted, meta),
     ),
   )
+  context [#metadata((page: here().page(), title: title, words: _word-count([#kicker #status-pill #title #subtitle #meta]))) <fmind-slide-words>]
   if note != none { speaker-note(note) }
 }
 
@@ -205,6 +229,7 @@
   line(length: 100%, stroke: 1pt + colors.border)
   v(14pt)
   body
+  context [#metadata((page: here().page(), title: title, words: _word-count([#kicker #title #takeaway #body]))) <fmind-slide-words>]
   if note != none { speaker-note(note) }
 }
 
@@ -214,7 +239,7 @@
     success: (fg: colors.success, pill-bg: colors.success-surface, pill-fg: colors.success),
     warning: (fg: colors.warning, pill-bg: colors.warning-surface, pill-fg: colors.warning),
     error: (fg: colors.error, pill-bg: colors.error-surface, pill-fg: colors.error),
-    information: (fg: colors.information, pill-bg: colors.canvas, pill-fg: colors.information),
+    information: (fg: colors.information, pill-bg: colors.selection, pill-fg: colors.information),
   ).at(role, default: (fg: colors.primary, pill-bg: colors.selection, pill-fg: colors.primary))
   box(
     width: 100%,
@@ -412,19 +437,28 @@
   )),
 )
 
-#let flow-arrow(label) = align(
-  center + horizon,
-  stack(
-    spacing: 6pt,
+#let flow-arrow(step: none, caption: none, length: 34pt, dir: ltr, ..args) = {
+  let label = if caption != none { caption } else if args.pos().len() > 0 { args.pos().at(0) } else { none }
+  let shaft = if dir == ttb {
+    align(center, line(angle: 90deg, length: length, stroke: 2pt + colors.primary))
+  } else {
+    align(horizon, line(length: length, stroke: 2pt + colors.primary))
+  }
+  let head = if dir == ttb {
+    align(center, polygon(fill: colors.primary, (0pt, 0pt), (9pt, 0pt), (4.5pt, 8pt)))
+  } else {
+    align(horizon, polygon(fill: colors.primary, (0pt, 0pt), (8pt, 4.5pt), (0pt, 9pt)))
+  }
+  align(
+    center + horizon,
     stack(
-      dir: ltr,
-      spacing: 0pt,
-      align(horizon, line(length: 34pt, stroke: 2pt + colors.primary)),
-      align(horizon, polygon(fill: colors.primary, (0pt, 0pt), (8pt, 4.5pt), (0pt, 9pt))),
+      spacing: 6pt,
+      if step != none { pill(role: "primary", str(step)) },
+      stack(dir: dir, spacing: 0pt, shaft, head),
+      if label != none { text(size: 12pt, weight: "semibold", fill: colors.primary, label) },
     ),
-    text(size: 12pt, weight: "semibold", fill: colors.primary, label),
-  ),
-)
+  )
+}
 
 // Inline highlight pill for decisive numbers or asks without prose backticks.
 #let hl(body, role: "warning-surface") = {
@@ -474,3 +508,21 @@
     right-body,
   ),
 )
+
+// Fixed-width page wrapper for standalone PNG/SVG visual cards (renders width: 100% / 1fr helpers safely).
+#let brand-card(width: 640pt, margin: 16pt, fill: colors.canvas, body) = {
+  set page(width: width, height: auto, margin: margin, fill: fill)
+  set text(font: sans-font, size: 15pt, fill: colors.foreground)
+  set par(leading: 0.55em, spacing: 0.7em)
+  set raw(theme: none)
+  show raw: set text(font: mono-fonts)
+  show raw.where(block: false): it => text(
+    font: mono-fonts,
+    size: 0.88em,
+    fill: colors.primary,
+    weight: "semibold",
+    it,
+  )
+  show link: set text(fill: colors.primary, weight: "semibold")
+  body
+}

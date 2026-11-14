@@ -12,7 +12,7 @@ metadata:
 
 # <Title>
 
-<One paragraph: the concrete choice, procedure, artifact, failure lesson, or upstream route that changes agent behavior. State the boundary and name the neighbor that owns adjacent work; omit a general product introduction.>
+<One paragraph: the concrete model delta—decisions, failure modes, security gates, or upstream route. Omit product introductions, standard library trivia, and prose backticks on non-code words.>
 
 ## Workflow
 

@@ -1,48 +1,52 @@
 ---
 name: humanize
-description: "Turn dense AI drafts into clear, visual human communication: emails, memos, docs, PRs, slides, and reports."
+description: "Turn dense AI drafts into clear, scannable, visually structured human communication for emails, chat, PRs, docs, reports, and slides."
 license: MIT
 metadata:
-  kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/humanize
-  created: "2026-09-16"
-  updated: "2026-11-13"
+  created: "2026-08-20"
+  updated: "2026-11-14"
+  kind: task
 ---
 
 # Humanize
 
-Respect human time. Turn raw technical output into scannable, visually structured communication people act on in seconds. Delivery tools: [draft-mail](../draft-mail/SKILL.md), [draft-doc](../draft-doc/SKILL.md), [draft-typst-deck](../draft-typst-deck/SKILL.md), [pull-request](../gh/references/pull-request.md), [issues](../gh/references/issues/GUIDE.md).
+Respect human reading time. Deliver high-signal, scannable, visually structured messages instead of dense unformatted AI text dumps.
 
-## Core Rules
+## Mandatory 3-step cut before drafting
 
-1. **Signal first, zero noise**: before drafting, choose the **1–3 insights or decisions** that change what this reader does. Cut implementation plumbing, intermediate reasoning, tool logs, and caveats that do not alter the decision (move deep evidence into collapsible sections or annexes).
-1. **Write for humans, not terminals**:
-   - **Targeted backticks only**: reserve backticks strictly for literal code, CLI commands, file paths, or rare disambiguating identifiers — never wrap product names, services, cloud regions, environments, statuses, or metrics.
-   - **Plain words, zero jargon**: translate internal architecture into cost, latency, reliability, or user effect. Ban arrow chains (`A -> B -> C`), slash-stacked nouns, coined labels, throat-clearing intros, and agent session trailers (`Verification`, `Decisions`, `Suggestions`, tool names, local paths, bare IDs).
-1. **Format visually for the medium (never send a grey wall of plain text)**:
-   - **Highlight** the decisive number, phrase, or ask (`<mark>` / highlight pills, colored callout banners, bold lead-ins).
-   - **Separate & group** with whitespace, horizontal rules (`---`), 2–3 KPI tiles, tinted boxes with 4px left accent borders, pill status badges with words (`🟢 Ready`, `🟡 Trade-off`, `🔴 Blocker`), and compact comparison tables.
-   - **Illustrate** flows and trade-offs with branded [Typst](../diagrams-as-code/references/typst.md), Mermaid, or SVG visuals instead of dense paragraphs.
-1. **Fact-check & protect privacy (firm)**: invent zero facts, URLs, owners, or dates; round figures against named baselines; run [`betterleaks stdin --redact`](../code-security/references/betterleaks.md#commands) and strip internal/customer identifiers.
+Apply these three filters before writing a word:
 
-## Default length
+1. **Name the one point**: finish *"After reading this, the reader should know or do ___."* If there are two goals, split or demote the secondary one.
+2. **Keep 1 to 3 signals**: drop setup narration, internal tool mechanics, redundant caveats, and low-value details; every kept fact must change a decision or confirm impact.
+3. **Choose one visual structure**: pair text with the strongest native visual the medium supports (summary banner, colored highlight, horizontal separator, comparison table, KPI row, diagram, or collapsible drawer).
 
-Measure main text via `wc -w`; expand only when complexity or risk demands it:
+Before: _"Checked `loader.py`; bumped `chunk_size=100_000` and `memory=8Gi` in `infra/main.tf`; all `14` `pytest` cases pass; please review PR `#418`."_
 
-- **Chat / Slack**: ≤80 words (signal, why it matters, next step).
-- **Email**: ~150 words (~100 for replies; ≤3 short paragraphs + optional callout).
-- **Status update or PR description**: 100–250 words (change, impact, proof, risk).
-- **Decision memo / teammate doc**: ~100-word visual summary + 250–450 words.
-- **Slide deck**: 4–10 slides (≤30 words and **one** focal visual per slide; detail in speaker notes).
-- **Executive report**: ~100-word visual summary + 600–1,200 words + collapsible annexes.
+After: **Batch imports are healthy again — [approve PR 418](https://example.com/org/repo/pull/418) before 17:00 UTC.** Peak memory now stays well below our 8 GB limit.
 
-## Workflows & Resources
+## Hard rules
 
-- **Short messages (chat, email, PRs)**: apply [style](references/style.md) (Before/After rewrites and medium primitives) and [outlines](references/outlines.md), then pass [checklist](references/checklist.md).
-- **Docs, memos, reports, & decks**: structure with [outlines](references/outlines.md) (or [slides](references/slides.md)), build with [HTML](templates/report.html) or [Markdown](templates/report.md) templates styled via `~/.agents/DESIGN.md` (or customer brand), and inspect rendered frames ([playwright](../playwright/SKILL.md)).
+- **Zero prose backticks**: never put backticks around products, formats, acronyms, metrics, files, branches, or status labels in human copy. Write Python 3.12, JSON, BigQuery, Cloud Run, 42 ms, or the config file — never wrap everyday prose words in code spans. Reserve monospace strictly for literal commands, code snippets, or paths a reader must copy verbatim to run.
+- **Zero jargon**: translate stack traces, internal flag names, exit codes, and plumbing into business or user outcomes (`service restarted cleanly` beats `OOMKilled exit 137 in ingest-worker`).
+- **Signal over completeness**: state the headline outcome first, round numbers cleanly with a baseline (`+18% throughput vs last quarter`), and push logs or raw tables into a collapsible drawer, appendix, or speaker note.
+- **Visual hierarchy everywhere**: break up any block taller than three lines with a bold lead-in, color badge, tinted callout banner, separator line, comparison table, or chart following `~/.agents/DESIGN.md`.
+- **Keep external voice clean**: adopt the user's or audience's language and tone; never expose internal assistant framing (`Done`, `Confidence`, `Verification`, `Decisions`) in external emails, docs, tickets, PRs, or slides.
 
-## Documentation
+## Default length budgets
 
-- [Plain language guidelines](https://digital.gov/guides/plain-language) · [BLUF](https://en.wikipedia.org/wiki/BLUF_(communication)) · [diagrams-as-code](../diagrams-as-code/SKILL.md)
-- Companions: [draft-doc](../draft-doc/SKILL.md), [draft-mail](../draft-mail/SKILL.md), [draft-typst-deck](../draft-typst-deck/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [code-security](../code-security/SKILL.md).
+- **Chat & Slack**: 80 words or fewer; one headline line, up to three bold-lead bullets, explicit ask.
+- **Email, PRs, & issues**: 150 words or fewer; bold takeaway, one visual highlight or compact table, collapsible detail if needed, clear decision/date.
+- **Docs & reports**: one-screen executive banner plus visual sections; secondary mechanics in appendices.
+- **Slides**: max 30 visible words and one focal visual per slide; context lives in speaker notes.
+
+## Choose format by medium
+
+- **HTML reports, newsletters, & email**: follow native visual patterns in [primitives](references/primitives.md) and start standalone HTML briefs from [report.html](templates/report.html). Downstream delivery: [draft-mail](../draft-mail/SKILL.md).
+- **Docs, memos, PRs, & tickets**: select a template structure from [outlines](references/outlines.md) (including [report.md](templates/report.md)), pick native Markdown/HTML/ADF visuals from [primitives](references/primitives.md), and inspect rendered pages visually via [playwright](../playwright/SKILL.md). Downstream owners: [draft-doc](../draft-doc/SKILL.md), [acli](../acli/SKILL.md), [gh](../gh/SKILL.md), [documentation-site](../documentation-site/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [repository-docs](../repository-docs/SKILL.md).
+- **Decks & branded graphics**: structure 6–10 slide decision arcs in [outlines](references/outlines.md) and render slides or standalone cards via [draft-typst-deck](../draft-typst-deck/SKILL.md) (or [diagrams-as-code](../diagrams-as-code/SKILL.md)).
+
+## Pre-send gate
+
+Read the draft like a busy stakeholder scrolling on a phone: cut any paragraph over three lines, remove every prose backtick and internal jargon word, confirm the key number and next step stand out visually at a glance, and move secondary proof behind a collapse or speaker note.

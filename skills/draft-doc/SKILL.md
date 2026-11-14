@@ -7,17 +7,17 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-doc
   created: "2026-10-27"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Draft Doc
 
-Create and update Google Docs deliverables in Drive with `gws`, following [humanize](../humanize/SKILL.md) ([outlines](../humanize/references/outlines.md), [style](../humanize/references/style.md), [checklist](../humanize/references/checklist.md)). [gws](../gws/SKILL.md) owns auth, Drive queries, and request mechanics.
+Create and update Google Docs deliverables in Drive with `gws`, following [humanize](../humanize/SKILL.md) ([outlines](../humanize/references/outlines.md), [primitives](../humanize/references/primitives.md)). [gws](../gws/SKILL.md) owns auth, Drive queries, and request mechanics.
 
 ## Format Choice
 
-1. **Native Drive Markdown (`.md`, `mimeType: text/markdown`) for living docs**: agent-maintained, frequently updated, or working documents. Opens directly in Docs (`https://docs.google.com/document/d/<FILE_ID>/edit`) and updates in place via `drive.files.update --upload` without `batchUpdate` index math.
-1. **Converted Google Doc (`.gdoc`, `mimeType: application/vnd.google-apps.document`) for polished deliverables**: client/stakeholder docs needing rich styling or multiple tabs. Editing `.md` in Docs strips font colors, highlights, alignment, and smart chips ([Docs Help 18289341](https://support.google.com/docs/answer/18289341)); build `.gdoc` files with [gws Docs recipes](../gws/references/services.md#docs).
+1. **Native Drive Markdown (`.md`, `mimeType: text/markdown`) for living docs**: agent-maintained or collaborative docs that update cleanly in place via `drive.files.update --upload` without `batchUpdate` index math. Put colored KPIs, flowcharts, and highlight callouts inside compiled Typst PNG cards (`<=440 pt` wide) because Docs ignores inline HTML styles inside `.md`.
+1. **Converted Google Doc (`.gdoc`, `mimeType: application/vnd.google-apps.document`) for styled deliverables**: upload rich HTML (`--mime-type text/html` converted to `application/vnd.google-apps.document` via `gws drive files create`) to preserve `<mark>` highlights, tinted summary banners, and custom table fills, or patch existing templates via [gws Docs recipes](../gws/references/services.md#docs). Editing raw Markdown in Docs strips highlights and colors ([Docs Help 18289341](https://support.google.com/docs/answer/18289341)).
 
 ## Branding
 
@@ -29,7 +29,7 @@ Verified live on 2026-10-28 ([references/dialect.md](references/dialect.md)) and
 
 1. **No YAML frontmatter or Setext underlines**: `---` or `===` directly under a paragraph turns it into a heading. Put metadata lines below `# Title` and leave a blank line before horizontal rules.
 1. **No GitHub alerts, raw HTML, or HTML comments**: all render as literal text. Use bold blockquotes (`> **Important — Decision needed by YYYY-MM-DD:** ...`), `## Annex` headings, and trailing `\` for hard breaks.
-1. **Compile figures to PNG references**: write local `![Caption](figure.typ)` links (recommended for composed cards; no browser needed), column-0 `mermaid` fences, or local 600 px `![Caption](figure.svg)` links in `.src.md`. [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py) rasterizes each at ≤600 px wide, emits `![Caption][fig-N]` Base64 PNG references, and exports editable sources to `--assets-dir` ([details](references/dialect.md)).
+1. **Compile figures to PNG references**: write local `![Caption](figure.typ)` links (best for KPI strips, decision cards, and charts; zero browser needed), column-0 `mermaid` fences, or local 600 px `![Caption](figure.svg)` links in `.src.md`. [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py) rasterizes each at up to 600 px wide (with automatic Google Sans font discovery for Typst), emits Base64 PNG references, and exports editable sources to `--assets-dir` ([details](references/dialect.md)).
 1. **Verified natively**: ATX headings, ordered lists, checklists, GFM tables, footnotes, `$...$` / `$$...$$` equations, and Base64 PNG reference images.
 
 ## Workflow

@@ -14,7 +14,7 @@ No headings, zero backtick spam, 1–2 sentences per paragraph:
 
 ### Status update
 
-1. **One-line pulse**: status badge (`🟢 On track`, `🟡 Trade-off`, `🔴 Blocked`) + headline change.
+1. **One-line pulse**: status pill (🟢 On track · 🟡 Trade-off · 🔴 Blocked) plus headline change.
 1. **Key signal & proof**: 1–3 highlights achieved since the last update (metric vs baseline).
 1. **Decisions / Help needed**: exact ask, owner, and deadline.
 
@@ -38,9 +38,19 @@ Lead with operator/user effect — never dump file lists or test-runner transcri
 ### Executive analysis or cost estimate
 
 1. **Visual summary + KPI strip**: top 2–3 numbers vs baseline + recommendation.
-1. **Findings**: one short literal heading per finding, bold opening takeaway, and one visual chart/table ([style.md](style.md)).
+1. **Findings**: one short literal heading per finding, bold opening takeaway, and one visual chart/table ([primitives](primitives.md)).
 1. **Sensitivity / Limits**: key assumptions and uncertain inputs driving the range.
-1. **Collapsible Annexes**: methodology, formulas, sources (use `<details>` in Markdown or backup section in HTML).
+1. **Collapsible Annexes**: methodology, formulas, sources (collapse under details blocks in Markdown or backup section in HTML).
+
+## Decks (6 to 10 Slides)
+
+Build every presentation in [draft-typst-deck](../../draft-typst-deck/SKILL.md) with a clear arc, max 30 visible words, and one focal visual per slide:
+
+1. **Cover**: clear title, subject kicker, audience/date metadata.
+1. **Situation / Signal**: 1 core shift or baseline metric vs target.
+1. **Recommendation**: decision needed, expected gain, owner, and date.
+1. **Comparison / Proof (2 to 4 slides)**: one bar panel, flow diagram, or 2–3-card trade-off per slide.
+1. **Risks & Next Steps**: top mitigation paired with dated actions; full nuance goes in speaker notes.
 
 ## Reader Lenses
 
