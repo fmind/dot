@@ -36,25 +36,107 @@ _NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 _NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
+_TYPST_STMT_KEYWORDS = frozenset({"context", "for", "if", "import", "include", "let", "return", "set", "show", "while"})
+
+
+def _scan_typst_raw(source: str, i: int, line: int, label: str, issues: list[str]) -> tuple[int, int]:
+    tick_count = 1
+    while i + tick_count < len(source) and source[i + tick_count] == "`":
+        tick_count += 1
+    start_line = line
+    i += tick_count
+    fence = "`" * tick_count
+    close_idx = source.find(fence, i)
+    if close_idx == -1:
+        return len(source), line + source[i:].count("\n")
+    body = source[i:close_idx]
+    if tick_count == 1:
+        issues.extend(
+            f"{label}:{start_line}: remove backslash in inline raw span `{match.group(0)}`; "
+            "Typst renders literal backslashes inside backticks."
+            for match in FORBIDDEN_RAW_ESCAPE_RE.finditer(body)
+        )
+    return close_idx + tick_count, line + body.count("\n")
+
+
+def _scan_typst_string(source: str, i: int, line: int, label: str, issues: list[str]) -> tuple[int, int]:
+    start_line = line
+    i += 1
+    chars: list[str] = []
+    while i < len(source):
+        curr = source[i]
+        if curr == "\\" and i + 1 < len(source):
+            chars.append(curr)
+            nxt = source[i + 1]
+            if nxt == "\n":
+                line += 1
+            chars.append(nxt)
+            i += 2
+            continue
+        if curr == '"':
+            i += 1
+            break
+        if curr == "\n":
+            line += 1
+        chars.append(curr)
+        i += 1
+    body = "".join(chars)
+    for match in ODD_STRING_ESCAPE_RE.finditer(body):
+        token = match.group(1)
+        issues.append(
+            f"{label}:{start_line}: unexpected '\\{token}' inside string literal; "
+            f"use unescaped '{token}' inside quotes (only escape inside [...] content blocks)."
+        )
+    return i, line
+
+
 def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
-    """Flag backslash escapes ($, ~, *) inside Typst string literals or inline raw spans."""
+    """Flag backslash escapes ($, ~, *) inside Typst code string literals or inline raw spans."""
     issues: list[str] = []
     n = len(source)
     i = 0
     line = 1
+    modes: list[str] = ["markup"]
 
     while i < n:
         ch = source[i]
+        mode = modes[-1]
         if ch == "\n":
             line += 1
             i += 1
+            if modes[-1] in {"stmt", "call"}:
+                modes.pop()
+            continue
+
+        if mode == "call":
+            if ch in " \t":
+                j = i
+                while j < n and source[j] in " \t":
+                    j += 1
+                if j < n and source[j] == "[":
+                    i = j
+                    continue
+                modes.pop()
+                continue
+            if ch == "(":
+                modes.append("paren")
+                i += 1
+                continue
+            if ch == "[":
+                modes.append("content")
+                i += 1
+                continue
+            if ch == "." and i + 1 < n and (source[i + 1].isalpha() or source[i + 1] == "_"):
+                i += 1
+                while i < n and (source[i].isalnum() or source[i] in "_-"):
+                    i += 1
+                continue
+            modes.pop()
             continue
 
         if ch == "/" and i + 1 < n and source[i + 1] == "/":
             end = source.find("\n", i + 2)
-            if end == -1:
-                break
-            i = end
+            i = n if end == -1 else end
             continue
 
         if ch == "/" and i + 1 < n and source[i + 1] == "*":
@@ -75,57 +157,69 @@ def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
             continue
 
         if ch == "`":
-            tick_count = 1
-            while i + tick_count < n and source[i + tick_count] == "`":
-                tick_count += 1
-            start_line = line
-            i += tick_count
-            body_start = i
-            fence = "`" * tick_count
-            close_idx = source.find(fence, i)
-            if close_idx == -1:
-                break
-            body = source[body_start:close_idx]
-            if tick_count == 1:
-                issues.extend(
-                    f"{label}:{start_line}: remove backslash in inline raw span `{match.group(0)}`; "
-                    "Typst renders literal backslashes inside backticks."
-                    for match in FORBIDDEN_RAW_ESCAPE_RE.finditer(body)
-                )
-            line += body.count("\n")
-            i = close_idx + tick_count
+            i, line = _scan_typst_raw(source, i, line, label, issues)
             continue
 
-        if ch == '"':
-            start_line = line
-            i += 1
-            chars: list[str] = []
-            while i < n:
-                curr = source[i]
-                if curr == "\\" and i + 1 < n:
-                    chars.append(curr)
-                    nxt = source[i + 1]
-                    if nxt == "\n":
-                        line += 1
-                    chars.append(nxt)
-                    i += 2
-                    continue
-                if curr == '"':
-                    i += 1
-                    break
-                if curr == "\n":
+        if mode in {"markup", "content"}:
+            if ch == "\\" and i + 1 < n:
+                if source[i + 1] == "\n":
                     line += 1
-                chars.append(curr)
+                i += 2
+                continue
+            if mode == "content":
+                if ch == "[":
+                    modes.append("content")
+                    i += 1
+                    continue
+                if ch == "]":
+                    modes.pop()
+                    i += 1
+                    continue
+            if ch == "#":
                 i += 1
-            body = "".join(chars)
-            for match in ODD_STRING_ESCAPE_RE.finditer(body):
-                token = match.group(1)
-                issues.append(
-                    f"{label}:{start_line}: unexpected '\\{token}' inside string literal; "
-                    f"use unescaped '{token}' inside quotes (only escape inside [...] content blocks)."
-                )
+                if i >= n:
+                    break
+                nxt = source[i]
+                if nxt == "{":
+                    modes.append("brace")
+                    i += 1
+                elif nxt == "(":
+                    modes.append("paren")
+                    i += 1
+                elif nxt == "[":
+                    modes.append("content")
+                    i += 1
+                elif nxt == '"':
+                    i, line = _scan_typst_string(source, i, line, label, issues)
+                elif nxt.isalpha() or nxt == "_":
+                    start = i
+                    while i < n and (source[i].isalnum() or source[i] in "_-"):
+                        i += 1
+                    ident = source[start:i]
+                    modes.append("stmt" if ident in _TYPST_STMT_KEYWORDS else "call")
+                continue
+            i += 1
             continue
 
+        # Code modes: "stmt", "paren", "brace"
+        if ch == '"':
+            i, line = _scan_typst_string(source, i, line, label, issues)
+            continue
+        if mode == "stmt" and (closing := {"]": "content", ")": "paren", "}": "brace"}.get(ch)) and closing in modes:
+            modes.pop()
+            continue
+        if ch == "(":
+            modes.append("paren")
+        elif ch == ")" and mode == "paren":
+            modes.pop()
+        elif ch == "{":
+            modes.append("brace")
+        elif ch == "}" and mode == "brace":
+            modes.pop()
+        elif ch == "[":
+            modes.append("content")
+        elif ch == ";" and mode == "stmt":
+            modes.pop()
         i += 1
 
     return issues
@@ -247,11 +341,6 @@ def query_deck_info(
                 words_by_page[entry["page"]] = entry["words"]
     notes = {page: "\n\n".join(parts) for page, parts in sorted(notes_by_page.items())}
     return notes, deck_title, dict(sorted(words_by_page.items()))
-
-
-def query_speaker_notes(deck_path: Path, deck_dir: Path, font_args: list[str]) -> dict[int, str]:
-    """Extract per-slide speaker notes declared with `<fmind-speaker-note>` via `typst eval`."""
-    return query_deck_info(deck_path, deck_dir, font_args)[0]
 
 
 def _rels_xml(entries: list[tuple[str, str, str]]) -> bytes:
@@ -529,10 +618,6 @@ def inspect_pptx_metadata(pptx_path: Path) -> tuple[int, str | None]:
     return len(slides), title
 
 
-def inspect_pptx_slide_count(pptx_path: Path) -> int:
-    return inspect_pptx_metadata(pptx_path)[0]
-
-
 def _validate_drive_id(value: str, label: str) -> str:
     cleaned = value.strip()
     if not DRIVE_ID_RE.fullmatch(cleaned):
@@ -543,8 +628,8 @@ def _validate_drive_id(value: str, label: str) -> str:
 
 def _validate_upload_name(value: str) -> str:
     cleaned = value.strip()
-    if not cleaned or cleaned in {".", ".."} or "/" in cleaned or "\\" in cleaned:
-        msg = f"Remote filename must be a plain filename without path separators: {value!r}"
+    if not cleaned or cleaned in {".", ".."} or cleaned.startswith("-") or "/" in cleaned or "\\" in cleaned:
+        msg = f"Remote filename must be a plain filename without path separators or leading '-': {value!r}"
         raise ValueError(msg)
     return cleaned
 
@@ -719,15 +804,30 @@ def _emit(payload: dict[str, Any], *, json_output: bool) -> None:
         sys.stdout.write(f"{key}: {value}\n")
 
 
-def _collect_typst_warnings(stderr: str) -> tuple[list[str], list[str], list[str]]:
-    """Split Typst warning lines into `(all_warnings, syntax_warnings, font_warnings)`."""
+def _collect_typst_warnings(stderr: str) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Split Typst warning lines into `(all_warnings, syntax_warnings, font_warnings, other_warnings)`."""
     warnings = [line for line in stderr.splitlines() if "warning:" in line.lower()]
-    syntax_warnings = [w for w in warnings if "no text within stars" in w.lower()]
-    font_warnings = [w for w in warnings if "unknown font family" in w.lower()]
-    return warnings, syntax_warnings, font_warnings
+    syntax_warnings: list[str] = []
+    font_warnings: list[str] = []
+    other_warnings: list[str] = []
+    for warning in warnings:
+        lowered = warning.lower()
+        if "no text within stars" in lowered:
+            syntax_warnings.append(warning)
+        elif "unknown font family" in lowered:
+            font_warnings.append(warning)
+        else:
+            other_warnings.append(warning)
+    return warnings, syntax_warnings, font_warnings, other_warnings
 
 
-def _raise_on_typst_warnings(syntax_warnings: list[str], font_warnings: list[str], *, strict_fonts: bool) -> None:
+def _raise_on_typst_warnings(
+    syntax_warnings: list[str],
+    font_warnings: list[str],
+    other_warnings: list[str],
+    *,
+    strict_fonts: bool,
+) -> None:
     if syntax_warnings:
         msg = "Typst markup warning: found empty bold stars (`**...**`). Typst uses single `*bold*`."
         raise ValueError(msg)
@@ -737,6 +837,9 @@ def _raise_on_typst_warnings(syntax_warnings: list[str], font_warnings: list[str
             + "; ".join(font_warnings)
             + "). Pass --font-path or install the theme fonts (or use --allow-font-warnings explicitly)."
         )
+        raise RuntimeError(msg)
+    if other_warnings:
+        msg = "Typst emitted unexpected warnings: " + "; ".join(other_warnings)
         raise RuntimeError(msg)
 
 
@@ -782,10 +885,10 @@ def run_render(args: argparse.Namespace) -> dict[str, Any]:
         msg = f"Error rendering {source_path.name}: {detail}"
         raise RuntimeError(msg)
 
-    warnings, syntax_warnings, font_warnings = _collect_typst_warnings(proc.stderr or "")
+    warnings, syntax_warnings, font_warnings, other_warnings = _collect_typst_warnings(proc.stderr or "")
     strict_fonts = not args.allow_font_warnings
     payload: dict[str, Any] = {
-        "ok": not syntax_warnings and (not font_warnings or not strict_fonts),
+        "ok": not syntax_warnings and not other_warnings and (not font_warnings or not strict_fonts),
         "source": str(source_path),
         "output": str(out_path),
         "format": args.format,
@@ -795,7 +898,7 @@ def run_render(args: argparse.Namespace) -> dict[str, Any]:
         "warnings": warnings,
     }
     _emit(payload, json_output=args.json_output)
-    _raise_on_typst_warnings(syntax_warnings, font_warnings, strict_fonts=strict_fonts)
+    _raise_on_typst_warnings(syntax_warnings, font_warnings, other_warnings, strict_fonts=strict_fonts)
     return payload
 
 
@@ -836,6 +939,7 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
     all_warnings: list[str] = []
     syntax_warnings: list[str] = []
     font_warnings: list[str] = []
+    other_warnings: list[str] = []
 
     rendered_figures: list[str] = []
     if args.render_figures:
@@ -852,10 +956,11 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
                     detail = " ".join((proc.stderr or proc.stdout).split())[-400:]
                     msg = f"Error compiling figure {fig_src.name}: {detail}"
                     raise RuntimeError(msg)
-                fw, f_syn, f_font = _collect_typst_warnings(proc.stderr or "")
+                fw, f_syn, f_font, f_other = _collect_typst_warnings(proc.stderr or "")
                 all_warnings.extend(f"{fig_src.name}: {w}" for w in fw)
                 syntax_warnings.extend(f"{fig_src.name}: {w}" for w in f_syn)
                 font_warnings.extend(f"{fig_src.name}: {w}" for w in f_font)
+                other_warnings.extend(f"{fig_src.name}: {w}" for w in f_other)
                 rendered_figures.append(str(fig_out))
 
     pdf_path = (args.output or deck_path.with_suffix(".pdf")).resolve()
@@ -867,8 +972,10 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
     preview_dir = (args.png_dir or (deck_dir / "_preview")).resolve()
     preview_dir.mkdir(parents=True, exist_ok=True)
     stem = deck_path.stem
-    for stale_png in preview_dir.glob(f"{stem}-*.png"):
-        stale_png.unlink()
+    slide_png_re = re.compile(rf"^{re.escape(stem)}-(\d+)\.png$")
+    for stale_png in preview_dir.iterdir():
+        if stale_png.is_file() and slide_png_re.match(stale_png.name):
+            stale_png.unlink()
 
     pdf_proc = _run_typst(["compile", "--root", str(deck_dir), *font_args, str(deck_path), str(pdf_path)])
     if pdf_proc.returncode != 0:
@@ -896,10 +1003,12 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         msg = f"Typst PNG render failed: {detail}"
         raise RuntimeError(msg)
 
-    png_files = sorted(
-        preview_dir.glob(f"{stem}-*.png"),
-        key=lambda p: int(p.stem.rsplit("-", 1)[-1]) if p.stem.rsplit("-", 1)[-1].isdigit() else 0,
-    )
+    png_pairs = [
+        (int(match.group(1)), path)
+        for path in preview_dir.iterdir()
+        if path.is_file() and (match := slide_png_re.match(path.name))
+    ]
+    png_files = [path for _, path in sorted(png_pairs, key=lambda pair: pair[0])]
     slide_count = len(png_files)
     if slide_count == 0:
         msg = f"Typst produced zero PNG preview slides in {preview_dir}"
@@ -924,13 +1033,21 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
             pptx_path = build_pptx(png_files, pptx_target, title=(meta_title or stem), speaker_notes=notes)
             notes_slides = sorted(notes)
 
-    dw, d_syn, d_font = _collect_typst_warnings(pdf_proc.stderr or "")
-    all_warnings.extend(dw)
-    syntax_warnings.extend(d_syn)
-    font_warnings.extend(d_font)
+    dw, d_syn, d_font, d_other = _collect_typst_warnings(pdf_proc.stderr or "")
+    pw, p_syn, p_font, p_other = _collect_typst_warnings(png_proc.stderr or "")
+    all_warnings.extend(dict.fromkeys([*dw, *pw]))
+    syntax_warnings.extend(dict.fromkeys([*d_syn, *p_syn]))
+    font_warnings.extend(dict.fromkeys([*d_font, *p_font]))
+    other_warnings.extend(dict.fromkeys([*d_other, *p_other]))
     overflow = args.expected_slides is not None and slide_count != args.expected_slides
 
-    ok = not overflow and not word_violations and not syntax_warnings and (not font_warnings or not strict_fonts)
+    ok = (
+        not overflow
+        and not word_violations
+        and not syntax_warnings
+        and not other_warnings
+        and (not font_warnings or not strict_fonts)
+    )
     payload: dict[str, Any] = {
         "ok": ok,
         "deck": str(deck_path),
@@ -953,7 +1070,7 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
         payload["word_violations"] = word_violations
     _emit(payload, json_output=args.json_output)
 
-    _raise_on_typst_warnings(syntax_warnings, font_warnings, strict_fonts=strict_fonts)
+    _raise_on_typst_warnings(syntax_warnings, font_warnings, other_warnings, strict_fonts=strict_fonts)
     if word_violations:
         details = ", ".join(f"slide {page}: {count} words" for page, count in sorted(word_violations.items()))
         msg = f"Slide word limit exceeded (max {args.max_words}): {details}"
@@ -1111,7 +1228,7 @@ def run_upload(args: argparse.Namespace) -> dict[str, Any]:
             slug_folder_id = _ensure_drive_folder(assets_id, artifact_path.stem, cwd=gws_dir)
             source_root = args.source_dir.resolve()
             for src in source_files:
-                rel_name = src.relative_to(source_root).as_posix().replace("/", "__")
+                rel_name = _validate_upload_name(src.relative_to(source_root).as_posix().replace("/", "__"))
                 src_md5, src_size = _file_md5_and_size(src)
                 src_id, src_op = _upload_binary_file(
                     src,

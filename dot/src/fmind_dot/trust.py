@@ -53,6 +53,8 @@ def _lstat_regular(path: Path) -> os.stat_result | None:
 
 def _write(path: Path, text: str) -> None:
     """Replace the file atomically, keeping its permissions (new files are owner-only)."""
+    if path.parent.is_symlink():
+        raise DotError(f"refusing symlinked trust directory: {path.parent}")
     info = _lstat_regular(path)
     mode = stat.S_IMODE(info.st_mode) if info is not None else 0o600
     try:
@@ -169,7 +171,10 @@ def register_claude_directories(
 ) -> list[Path]:
     """Extend Claude's permissions.additionalDirectories with ~/.agents and uncovered roots."""
     home = (home or Path.home()).resolve()
-    if not (home / ".claude").is_dir():
+    claude_dir = home / ".claude"
+    if claude_dir.is_symlink():
+        raise DotError(f"refusing symlinked harness directory: {claude_dir}")
+    if not claude_dir.is_dir():
         return []
     # Parents precede children so workspace roots subsume the repositories below them.
     ordered = [home / ".agents", *sorted(set(folders), key=lambda item: (len(item.parts), str(item)))]
@@ -210,17 +215,20 @@ def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
 
 def installed_harnesses(home: Path | None = None) -> list[str]:
     """Name the harnesses that have state to extend; one that was never started has no state directory."""
-    home = home or Path.home()
-    return [
-        name
-        for name, (path, _) in _harnesses(home).items()
-        if (home / ".claude" if name == "claude" else path.parent).is_dir()
-    ]
+    home = (home or Path.home()).resolve()
+    installed: list[str] = []
+    for name, (path, _) in _harnesses(home).items():
+        state_dir = home / ".claude" if name == "claude" else path.parent
+        if state_dir.is_symlink():
+            raise DotError(f"refusing symlinked harness directory: {state_dir}")
+        if state_dir.is_dir():
+            installed.append(name)
+    return installed
 
 
 def trust_folders(folders: list[Path], *, dry_run: bool = False, home: Path | None = None) -> dict[Path, list[str]]:
     """Trust folders in every installed harness, writing each file once; return each folder's changed harnesses."""
-    home = home or Path.home()
+    home = (home or Path.home()).resolve()
     selected = {str(folder): folder for folder in folders}
     changed: dict[Path, list[str]] = {folder: [] for folder in selected.values()}
     harnesses = _harnesses(home)
@@ -373,26 +381,33 @@ def _config_overrides_origin(candidate: Path, home: Path, seen: set[Path], depth
     return False
 
 
+_GIT_TRUTHY = frozenset({"1", "true", "yes", "on"})
+_SYSTEM_GITCONFIG_PATHS = (
+    Path("/etc/gitconfig"),
+    Path("/opt/homebrew/etc/gitconfig"),
+    Path("/usr/local/etc/gitconfig"),
+    Path("/Library/Developer/CommandLineTools/usr/share/git-core/gitconfig"),
+)
+
+
 def _has_global_url_insteadof(home: Path) -> bool:
     """Return True when global/system Git configuration may rewrite or override remote fetch URLs."""
     if os.environ.get("GIT_CONFIG_COUNT") or os.environ.get("GIT_CONFIG_PARAMETERS"):
         return True
     candidates: list[Path] = []
-    if not os.environ.get("GIT_CONFIG_NOSYSTEM"):
-        candidates.append(Path(os.environ.get("GIT_CONFIG_SYSTEM", "/etc/gitconfig")))
+    nosystem = os.environ.get("GIT_CONFIG_NOSYSTEM", "").strip().lower() in _GIT_TRUTHY
+    if not nosystem:
+        system_config = os.environ.get("GIT_CONFIG_SYSTEM")
+        if system_config is None:
+            candidates.extend(_SYSTEM_GITCONFIG_PATHS)
+        elif system_config:
+            candidates.append(Path(system_config))
     if global_override := os.environ.get("GIT_CONFIG_GLOBAL"):
         candidates.append(Path(global_override))
     else:
         xdg_env = Path(os.environ.get("XDG_CONFIG_HOME", ""))
         xdg = xdg_env if xdg_env.is_absolute() else (home / ".config")
         candidates.extend((xdg / "git/config", home / ".gitconfig"))
-        git_dir = xdg / "git"
-        try:
-            candidates.extend(sorted(git_dir.iterdir()))
-        except FileNotFoundError:
-            pass
-        except OSError:
-            return True
     seen: set[Path] = set()
     return any(_config_overrides_origin(candidate, home, seen) for candidate in candidates)
 
@@ -480,9 +495,9 @@ def _allowed_origin(state: State, repository: Path, *, fast_origin: bool = False
     return owner is not None and owner.casefold() in allowed
 
 
-def _target_folders(state: State, target: str) -> tuple[list[Path], list[Path]]:
+def _target_folders(state: State, target: str, *, home: Path | None = None) -> tuple[list[Path], list[Path]]:
     """Return the folders to trust and the workspace repositories skipped by the owner allowlist."""
-    home = Path.home().resolve()
+    home = (home or Path.home()).resolve()
     forbidden = {home, *home.parents}
     if target != "all":
         path = expand_path(target).resolve()
@@ -530,7 +545,7 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
     selected: set[Path] = set()
     excluded: set[Path] = set()
     for target in targets:
-        found, skipped_here = _target_folders(state, target)
+        found, skipped_here = _target_folders(state, target, home=home)
         selected.update(found)
         excluded.update(skipped_here)
     folders = sorted(selected)
@@ -543,12 +558,14 @@ def run_trust(state: State, targets: Sequence[str] = (".",), *, dry_run: bool = 
     for root in claude_roots:
         if root in forbidden:
             raise DotError(f"refusing to trust {root}: it contains the home directory")
-    harnesses = installed_harnesses()
+    harnesses = installed_harnesses(home)
     # Projects go first: a malformed agy project file then stops the run before any trust write.
     include = state.config.trust.agy_projects
-    projects = register_agy_projects(folders, include, dry_run=dry_run) if "agy" in harnesses else []
-    claude_directories = register_claude_directories(claude_roots, dry_run=dry_run) if "claude" in harnesses else []
-    changes = trust_folders(folders, dry_run=dry_run) if harnesses else {}
+    projects = register_agy_projects(folders, include, dry_run=dry_run, home=home) if "agy" in harnesses else []
+    claude_directories = (
+        register_claude_directories(claude_roots, dry_run=dry_run, home=home) if "claude" in harnesses else []
+    )
+    changes = trust_folders(folders, dry_run=dry_run, home=home) if harnesses else {}
     if as_json:
         document = {
             "schema": "dot.trust/v1",

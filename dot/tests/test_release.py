@@ -290,9 +290,11 @@ def test_no_change_and_cancellation_have_no_side_effects(project: Path) -> None:
     assert run_release(make_state(runner), yes=True) is None
 
     runner = ReleaseRunner(project)
-    stdout = io.StringIO()
-    state = State(runner=runner, stdin=TerminalIO("n\n"), stdout=stdout, stderr=io.StringIO())
+    stdout, stderr = io.StringIO(), io.StringIO()
+    state = State(runner=runner, stdin=TerminalIO("n\n"), stdout=stdout, stderr=stderr)
     assert run_release(state) is None
+    assert "Prepare and tag v1.27.0 for publication? [y/N]: " in stderr.getvalue()
+    assert "Prepare and tag" not in stdout.getvalue()
     assert "Release canceled." in stdout.getvalue()
 
     runner = ReleaseRunner(project)

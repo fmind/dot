@@ -470,11 +470,11 @@ def _install_results(state: State) -> list[CheckResult]:
     return [CheckResult(name, "pass", "installed Python package matches source", installed_path, "healthy")]
 
 
-def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
+def available_memory_bytes(meminfo: Path = Path("/proc/meminfo"), *, runner: Runner | None = None) -> int | None:
     """MemAvailable counts reclaimable cache; sysconf's free pages would under-report."""
     if sys.platform == "darwin" and meminfo == Path("/proc/meminfo"):
         try:
-            return vm_stat_available_bytes(Runner().run(["vm_stat"], timeout=10).stdout)
+            return vm_stat_available_bytes((runner or Runner()).run(["vm_stat"], timeout=10).stdout)
         except DotError, OSError:
             return None
     try:
@@ -498,7 +498,9 @@ def vm_stat_available_bytes(output: str) -> int | None:
     return (free + int(pages["inactive"])) * int(page.group(1))
 
 
-def headroom_results(paths: list[Path] | None = None, *, memory: int | None = None) -> list[CheckResult]:
+def headroom_results(
+    paths: list[Path] | None = None, *, memory: int | None = None, runner: Runner | None = None
+) -> list[CheckResult]:
     """Check each distinct filesystem behind the workspace, home, and large scratch directories.
 
     /var/tmp is the documented scratch for large work; /tmp is often a small tmpfs, so it
@@ -507,15 +509,30 @@ def headroom_results(paths: list[Path] | None = None, *, memory: int | None = No
     tmpdir = os.environ.get("TMPDIR")
     candidates = paths or [Path.cwd(), Path.home(), Path("/var/tmp"), *([Path(tmpdir)] if tmpdir else [])]  # noqa: S108
     devices: dict[int, list[str]] = {}
-    for path in dict.fromkeys(candidate.resolve() for candidate in candidates):
-        if path.is_dir():
+    results: list[CheckResult] = []
+    seen_paths: set[Path] = set()
+    for candidate in candidates:
+        try:
+            path = candidate.resolve()
+            if path in seen_paths or not path.is_dir():
+                continue
+            seen_paths.add(path)
             devices.setdefault(path.stat().st_dev, []).append(str(path))
-    results = []
+        except OSError as error:
+            results.append(CheckResult("disk", "warn", f"inaccessible path: {error}", str(candidate)))
     for members in devices.values():
-        free = shutil.disk_usage(members[0]).free / _GIB
+        try:
+            free = shutil.disk_usage(members[0]).free / _GIB
+        except OSError as error:
+            results.append(CheckResult("disk", "warn", f"disk usage unavailable: {error}", ", ".join(members)))
+            continue
         status = "fail" if free < _DISK_FAIL_GIB else "warn" if free < _DISK_WARN_GIB else "pass"
         results.append(CheckResult("disk", status, f"{free:.1f} GiB free", ", ".join(members)))
-    available = memory if memory is not None else available_memory_bytes()
+    available = (
+        memory
+        if memory is not None
+        else (available_memory_bytes() if runner is None else available_memory_bytes(runner=runner))
+    )
     if available is None:
         results.append(CheckResult("memory", "warn", "available memory unknown on this platform"))
     else:
@@ -544,7 +561,7 @@ def _resource_results() -> list[CheckResult]:
     remedy = "inspect with `dot cache`, reclaim with `dot prune`"
     return [
         item if item.status == "pass" else replace(item, details=f"{item.details}; {remedy}")
-        for item in headroom_results()
+        for item in headroom_results(memory=0)
         if item.name == "disk"
     ]
 

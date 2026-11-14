@@ -22,6 +22,7 @@ from fmind_dot.archive.store import (
     SessionManifest,
     SessionSource,
     agent_bundle_paths,
+    format_utc_z,
     ingest_session,
     read_session_manifest,
     report_ingestion,
@@ -241,7 +242,7 @@ def _write_sync_state(
     """Record a complete pass; filtered passes never prove the archive and record nothing."""
     document: dict[str, object] = {
         "schema": SYNC_STATE_SCHEMA,
-        "synced_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "synced_at": format_utc_z(seconds=True),
         "failed": failed,
         # Sessions that kept their archived copy; a persistent count can signal a parser gap.
         "retained": retained,

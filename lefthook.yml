@@ -33,3 +33,5 @@ pre-push:
       run: mise run check:network
     - name: test
       run: mise run test
+    - name: check completions
+      run: mise run check:completions

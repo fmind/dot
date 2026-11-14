@@ -125,12 +125,32 @@ def test_claude_subagent_and_slash_skill_loads_roll_into_parent_session(tmp_path
             }
         ],
     )
+    _jsonl(
+        claude / "session/subagents/nested/agent-3.jsonl",
+        [
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "bulk-2"}}]},
+            }
+        ],
+    )
+    _jsonl(
+        claude / "session/subagents/nested/memory.jsonl",
+        [
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "bulk-3"}}]},
+            }
+        ],
+    )
 
     report = json.loads(_run(home, "--json").stdout)
     by_skill = {row["skill"]: row for row in report["skills"]}
 
     assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
     assert by_skill["bulk-0"] == {"skill": "bulk-0", "agy": 0, "claude": 1, "pi": 0, "total": 1}
+    assert by_skill["bulk-2"] == {"skill": "bulk-2", "agy": 0, "claude": 1, "pi": 0, "total": 1}
+    assert by_skill["bulk-3"]["total"] == 0
 
 
 def test_agy_subagent_loads_roll_into_root_conversation(tmp_path: Path) -> None:
@@ -282,10 +302,12 @@ def test_scripts_and_templates_reads_count_and_recent_unloaded_skills_are_flagge
     )
     script_path = str(home / ".agents/skills/bulk-2/scripts/run.py")
     tmpl_path = str(home / ".agents/skills/bulk-3/templates/card.typ")
+    asset_path = str(home / ".agents/skills/bulk-1/assets/diagram.svg")
     _jsonl(
         home / ".gemini/antigravity-cli/brain/asset-task/.system_generated/logs/transcript.jsonl",
         [
             {"tool_calls": [{"name": "read_file", "args": {"Path": script_path}}]},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": asset_path}}]},
             {"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "bulk-2")}}]},
         ],
     )
@@ -304,6 +326,7 @@ def test_scripts_and_templates_reads_count_and_recent_unloaded_skills_are_flagge
 
     report = json.loads(_run(home, "--json").stdout)
     by_skill = {row["skill"]: row for row in report["skills"]}
+    assert by_skill["bulk-1"] == {"skill": "bulk-1", "agy": 1, "claude": 0, "pi": 0, "total": 1}
     assert by_skill["bulk-2"] == {"skill": "bulk-2", "agy": 1, "claude": 0, "pi": 0, "total": 1}
     assert by_skill["bulk-3"] == {"skill": "bulk-3", "agy": 0, "claude": 0, "pi": 1, "total": 1}
     assert by_skill["bulk-6"]["total"] == 0

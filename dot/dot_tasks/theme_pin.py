@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import hashlib
+import http.client
 import json
 import re
 import subprocess
@@ -182,6 +183,7 @@ def main() -> int:
             path.write_text(updated, encoding="utf-8")
     except (
         OSError,
+        http.client.HTTPException,
         ValueError,
         configparser.Error,
         subprocess.SubprocessError,

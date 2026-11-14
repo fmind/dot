@@ -1,5 +1,6 @@
 """Owner-only directories and atomic file publication with explicit permissions."""
 
+import contextlib
 import os
 import tempfile
 from pathlib import Path
@@ -42,6 +43,12 @@ def write_atomic_file(path: Path, content: bytes, *, mode: int) -> None:
             os.fchmod(stream.fileno(), mode)
             os.fsync(stream.fileno())
         temporary.replace(path)
+        with contextlib.suppress(OSError):
+            directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise

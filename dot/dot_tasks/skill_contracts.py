@@ -24,11 +24,13 @@ from fmind_dot.context_budget import (
     CONTEXT_TOKEN_LIMIT,
     DUPLICATE_GUIDANCE,
     context_report,
+    estimated_tokens,
     parse_frontmatter,
 )
 from fmind_dot.errors import DotError
 
 MAX_DESCRIPTION = 180
+MAX_MARKDOWN_TOKENS = 1_500
 MAX_NAME = 64
 MAX_SKILL_LINES = 500
 SKILL_KINDS = {"connector", "task", "collection"}
@@ -161,6 +163,8 @@ def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, li
         return None, text, [unsafe]
     if len(text.splitlines()) > MAX_SKILL_LINES:
         return None, text, [f"{relative}: exceeds the {MAX_SKILL_LINES}-line limit"]
+    if (tokens := estimated_tokens(len(text))) >= MAX_MARKDOWN_TOKENS:
+        return None, text, [f"{relative}: has {tokens} estimated tokens; must be below {MAX_MARKDOWN_TOKENS}"]
     try:
         metadata, body = parse_frontmatter(text, relative)
     except DotError as error:
@@ -244,16 +248,22 @@ def _guides(directory: Path) -> list[Path]:
     return guides
 
 
-def _guide_index(directory: Path, root: Path) -> str:
+def _guide_index_result(directory: Path, root: Path) -> tuple[str, list[str]]:
     lines = [GUIDE_START, ""]
+    errors: list[str] = []
     for path in _guides(directory):
-        metadata, _, _ = _frontmatter(path, root)
+        metadata, _, guide_errors = _frontmatter(path, root)
+        errors.extend(guide_errors)
         if metadata is not None:
             lines.append(
                 f"- [{metadata.get('name')}]({path.relative_to(directory).as_posix()}): {metadata.get('description')}"
             )
     lines.extend(["", GUIDE_END])
-    return "\n".join(lines)
+    return "\n".join(lines), errors
+
+
+def _guide_index(directory: Path, root: Path) -> str:
+    return _guide_index_result(directory, root)[0]
 
 
 def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
@@ -284,8 +294,11 @@ def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
             findings.append(f"{_relative(root, path)}: guide description must contain 1-{MAX_DESCRIPTION} characters")
         if path.relative_to(skill.parent).as_posix() not in _document_targets(body):
             findings.append(f"{_relative(root, path)}: guide needs a direct link from SKILL.md")
-    if (guides or GUIDE_START in body or "## Task guides" in body) and _guide_index(skill.parent, root) not in body:
-        if GUIDE_START in body and GUIDE_END in body:
+    has_start, has_end = GUIDE_START in body, GUIDE_END in body
+    if has_start != has_end or (has_start and body.index(GUIDE_START) > body.index(GUIDE_END)):
+        findings.append(f"{_relative(root, skill)}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers")
+    elif (guides or has_start or "## Task guides" in body) and _guide_index(skill.parent, root) not in body:
+        if has_start and has_end:
             findings.append(f"{_relative(root, skill)}: stale guide index; run mise run format:skills")
         else:
             findings.append(f"{_relative(root, skill)}: add {GUIDE_START} and {GUIDE_END} markers for the guide index")
@@ -294,6 +307,7 @@ def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
 
 def _resource_findings(root: Path, skill: Path) -> list[str]:
     directory = skill.parent
+    guides = set(_guides(directory))
     texts = {skill: skill.read_text(encoding="utf-8")}
     resources: set[Path] = set()
     findings: list[str] = []
@@ -342,6 +356,16 @@ def _resource_findings(root: Path, skill: Path) -> list[str]:
         unsafe = _unsafe_text_finding(_relative(root, path), text)
         if unsafe:
             findings.append(unsafe)
+        if (
+            first == "references"
+            and path.suffix == ".md"
+            and "templates" not in relative.parts[:-1]
+            and path not in guides
+            and (tokens := estimated_tokens(len(text))) >= MAX_MARKDOWN_TOKENS
+        ):
+            findings.append(
+                f"{_relative(root, path)}: has {tokens} estimated tokens; must be below {MAX_MARKDOWN_TOKENS}"
+            )
         texts[path] = text
     reached = _reachable_resources(skill, texts, resources)
     findings.extend(
@@ -665,18 +689,32 @@ def main() -> int:
     args = parser.parse_args()
     root = ROOT
     if args.sync:
-        discovered, errors = _discover_skills(root)
-        if errors:
-            sys.stderr.write("\n".join(errors) + "\n")
-            return 1
+        discovered, sync_errors = _discover_skills(root)
+        updates: list[tuple[Path, str]] = []
         for _, path in discovered:
             text = path.read_text(encoding="utf-8")
-            if GUIDE_START in text and GUIDE_END in text:
-                before, rest = text.split(GUIDE_START, 1)
-                _, after = rest.split(GUIDE_END, 1)
-                updated = before + _guide_index(path.parent, root) + after
-                if updated != text:
-                    path.write_text(updated, encoding="utf-8")
+            has_start, has_end = GUIDE_START in text, GUIDE_END in text
+            if has_start != has_end or (has_start and text.index(GUIDE_START) > text.index(GUIDE_END)):
+                sync_errors.append(
+                    f"{_relative(root, path)}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers"
+                )
+                continue
+            if not has_start:
+                continue
+            index, guide_errors = _guide_index_result(path.parent, root)
+            if guide_errors:
+                sync_errors.extend(guide_errors)
+                continue
+            before, rest = text.split(GUIDE_START, 1)
+            _, after = rest.split(GUIDE_END, 1)
+            updated = before + index + after
+            if updated != text:
+                updates.append((path, updated))
+        if sync_errors:
+            sys.stderr.write("\n".join(sync_errors) + "\n")
+            return 1
+        for path, updated in updates:
+            path.write_text(updated, encoding="utf-8")
         return 0
     findings, count = _repository_check(root)
     if findings:

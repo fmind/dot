@@ -19,7 +19,7 @@ Python stdio examples (for HTTP, substitute `--transport http <url>` in Claude/C
 
 ```bash
 agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                 # Antigravity: user scope only
-claude mcp add --scope project <name> -e KEY=value -- uvx --from '<package>==<version>' <command> # -e is variadic: name first
+claude mcp add --scope local <name> -e KEY=value -- uvx --from '<package>==<version>' <command>  # -e is variadic: name first
 copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>             # user configuration
 opencode mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>            # project config unless --global
 pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                  # user config unless -l

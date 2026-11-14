@@ -17,7 +17,7 @@ Create and update Google Docs deliverables in Drive with `gws`, following [human
 ## Format Choice
 
 1. **Native Drive Markdown (`.md`, `mimeType: text/markdown`) for living docs**: agent-maintained or collaborative docs that update cleanly in place via `drive.files.update --upload` without `batchUpdate` index math. Put colored KPIs, flowcharts, and highlight callouts inside compiled Typst PNG cards (`<=440 pt` wide) because Docs ignores inline HTML styles inside `.md`.
-1. **Converted Google Doc (`.gdoc`, `mimeType: application/vnd.google-apps.document`) for styled deliverables**: upload rich HTML (`--mime-type text/html` converted to `application/vnd.google-apps.document` via `gws drive files create`) to preserve `<mark>` highlights, tinted summary banners, and custom table fills, or patch existing templates via [gws Docs recipes](../gws/references/services.md#docs). Editing raw Markdown in Docs strips highlights and colors ([Docs Help 18289341](https://support.google.com/docs/answer/18289341)).
+1. **Converted Google Doc (`.gdoc`, `mimeType: application/vnd.google-apps.document`) for styled deliverables**: upload rich HTML via `gws drive files create --json '{"name":"<Title>","mimeType":"application/vnd.google-apps.document"}' --upload <file.html> --upload-content-type text/html` to preserve `<mark>` highlights, tinted summary banners, and custom table fills, or patch existing templates via [gws Docs recipes](../gws/references/services.md#docs). Editing raw Markdown in Docs strips highlights and colors ([Docs Help 18289341](https://support.google.com/docs/answer/18289341)).
 
 ## Branding
 

@@ -430,3 +430,35 @@ def test_compose_accepts_mark_and_hr_visual_primitives(mod: ModuleType) -> None:
     plain_body = next(p for p in mime_msg.iter_parts() if p.get_content_type() == "text/plain").get_content()
     assert "Approve Provider B" in plain_body
     assert "\n---\n" in plain_body.replace("\r\n", "\n")
+
+
+def test_cli_rejects_local_validation_errors_before_calling_gws(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls = _stub_gws(mod, monkeypatch)
+    plain = tmp_path / "plain.txt"
+    plain.write_text("Plain body without HTML.", encoding="utf-8")
+    assert mod.main([str(plain), "--to", "alice@example.com", "--subject", "Hi"]) == 1
+    assert "Plain-text body rejected" in capsys.readouterr().err
+
+    html = tmp_path / "ok.html"
+    html.write_text("<p>Hi</p>", encoding="utf-8")
+    assert mod.main([str(html), "--to", "alice@example.com"]) == 1
+    assert "--subject is required" in capsys.readouterr().err
+    assert mod.main([str(html), "--subject", "Hi"]) == 1
+    assert "--to is required" in capsys.readouterr().err
+    assert (
+        mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi", "--attach", str(tmp_path / "none.pdf")])
+        == 1
+    )
+    assert "Attachment not found" in capsys.readouterr().err
+    assert mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi", "--draft-id", "   "]) == 1
+    assert "--draft-id" in capsys.readouterr().err
+    assert mod.main([str(html), "--reply-to", "   "]) == 1
+    assert "--reply-to" in capsys.readouterr().err
+    assert mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi", "--from", "   "]) == 1
+    assert "--from" in capsys.readouterr().err
+    assert calls == []

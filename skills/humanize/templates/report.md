@@ -3,7 +3,7 @@
   Replace {placeholders}, keep plain prose (zero backticks except copyable commands or paths), and delete unused sections.
   Dialect notes:
   - Google Docs (.md): replace [!IMPORTANT] with **Decision needed by DATE:** and compile Typst figures via draft-doc.
-  - Zensical docs: replace [!IMPORTANT] with `!!! important "Decision needed"`, and use ==highlight== around the core metric.
+  - Zensical docs: replace [!IMPORTANT] with `!!! important "Decision needed"` (body indented 4 spaces below header), and use ==highlight== around the core metric.
 -->
 
 # {Clear title naming the subject}

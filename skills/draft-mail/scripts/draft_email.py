@@ -481,6 +481,15 @@ def compose_draft_payload(
     }
 
 
+def _clean_identifier(value: str | None, flag: str, description: str) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned or any(ch.isspace() for ch in cleaned) or "/" in cleaned or "\\" in cleaned:
+        raise ValueError(f"{flag} must be a non-empty {description}.")
+    return cleaned
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("input", help="Path to UTF-8 HTML body fragment file, or - for stdin")
@@ -501,6 +510,23 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         body_html = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
+        validate_html_fragment(body_html)
+        args.draft_id = _clean_identifier(args.draft_id, "--draft-id", "Gmail draft ID")
+        args.reply_to_id = _clean_identifier(args.reply_to_id, "--reply-to", "Gmail message ID")
+        if args.from_email is not None:
+            cleaned_from = args.from_email.strip()
+            if not cleaned_from or "@" not in cleaned_from or any(ch.isspace() for ch in cleaned_from):
+                raise ValueError("--from must be a valid email address.")
+            args.from_email = cleaned_from
+        if not args.reply_to_id:
+            if not (args.subject or "").strip():
+                raise ValueError("--subject is required when creating a new thread.")
+            removed_lower = {addr.lower() for _, addr in _split_emails(args.remove)}
+            if not _dedupe_recipients(_split_emails(args.to), removed_lower):
+                raise ValueError("--to is required when creating a new thread.")
+        for attachment_path in args.attach:
+            if not attachment_path.is_file():
+                raise ValueError(f"Attachment not found: {attachment_path}")
         # gws loads a `.env` from its working directory upward and rejects --upload paths outside that
         # directory, so every gws call of this run uses one private temporary directory: the reads, the
         # upload, and the read-back resolve the same account, and the message stays out of the caller's checkout.

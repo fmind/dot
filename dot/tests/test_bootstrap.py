@@ -278,7 +278,7 @@ def run_task_bootstrap(
     (source / "dot_config/mise/config.toml").write_text("[tools]\n")
     # Copilot state gives the trust hook a harness file to extend.
     (source / "private_dot_copilot").mkdir()
-    (source / "private_dot_copilot/config.json").write_text('{"banner": "never"}\n')
+    (source / "private_dot_copilot/config.json").write_text('{"lastLoggedInUser": "fixture"}\n')
     (source / "dot_config/bat/themes").mkdir(parents=True)
     (source / "dot_config/bat/themes/fmind.tmTheme").write_text("fixture theme\n")
     for name in ("run_after_dot-trust.sh.tmpl", "run_after_bat-theme.sh.tmpl"):
@@ -368,7 +368,7 @@ def test_full_can_be_rerun_without_rebuilding_unchanged_theme(tmp_path: Path) ->
     assert events.count("theme-cache") == 1
     assert events.count("dot completion") == 2
     copilot = json.loads((home / ".copilot/config.json").read_text())
-    assert copilot == {"banner": "never", "trustedFolders": [str(home / "source")]}
+    assert copilot == {"lastLoggedInUser": "fixture", "trustedFolders": [str(home / "source")]}
 
 
 def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Path) -> None:

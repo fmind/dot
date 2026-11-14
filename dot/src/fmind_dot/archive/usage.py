@@ -6,6 +6,7 @@ import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import IO, Annotated, Any, Literal, Required, TypedDict
 
 from pydantic import AfterValidator, Field, StrictBool, StrictStr, TypeAdapter, ValidationError, with_config
@@ -17,6 +18,7 @@ from fmind_dot.archive.store import (
     discover_session_bundles,
     is_valid_session_id,
     parse_utc_instant,
+    read_manifest_usage,
     read_session_manifest,
 )
 from fmind_dot.config import PricingConfig, default_pricing
@@ -326,13 +328,21 @@ def iter_usage_records(since: datetime | None = None, until: datetime | None = N
     mark its family partial so a provider session cost is never attributed to only part of it.
     """
     paths = discover_session_bundles()
-    active: set[tuple[str, str]] | None = None
+    selected: Iterable[tuple[Path, SessionManifest | None]]
     if since is not None or until is not None:
         headers = [read_session_manifest(path, usage=False) for path in paths]
         active = {_family(manifest) for manifest in headers if _may_overlap(manifest, since, until)}
-        paths = [path for path, manifest in zip(paths, headers, strict=True) if _family(manifest) in active]
-    for path in paths:
-        manifest = read_session_manifest(path)
+        selected = (
+            (path, manifest) for path, manifest in zip(paths, headers, strict=True) if _family(manifest) in active
+        )
+    else:
+        selected = ((path, None) for path in paths)
+    for path, header in selected:
+        if header is None:
+            manifest = read_session_manifest(path)
+        else:
+            manifest = header
+            manifest.usage = read_manifest_usage(path, manifest)
         if manifest.usage is None:
             continue
         record = UsageRecord.from_dict(manifest.usage)

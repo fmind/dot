@@ -1,7 +1,7 @@
 """Count the sessions that loaded each skill, from local agy, Claude Code, and Pi transcripts.
 
-A load is a tool call that reads a catalog skill's SKILL.md, references/, scripts/, or templates/ (or Claude's Skill tool);
-catalog text injected at startup and quoted prompts are not tool calls, so they never count. Only
+A load is a tool call that reads a catalog skill's SKILL.md, references/, scripts/, assets/, or templates/ (or
+Claude's Skill tool); catalog text injected at startup and quoted prompts are not tool calls, so they never count. Only
 names and counts leave the transcripts: no prompt, path, or message text is printed.
 """
 
@@ -19,7 +19,9 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-_SKILL_PATH = re.compile(r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/(?:SKILL\.md|references/|scripts/|templates/)")
+_SKILL_PATH = re.compile(
+    r"(?:^|[/\"'])skills/([a-z0-9][a-z0-9-]*)/(?:SKILL\.md|references/|scripts/|assets/|templates/)"
+)
 _CREATED_RE = re.compile(r"^\s*created:\s*[\"']?(\d{4}-\d{2}-\d{2})[\"']?\s*$", re.MULTILINE)
 _AGY_READS = {"read_file", "view_file"}
 _CLAUDE_NON_SESSION_FILES = frozenset({"memory.jsonl", "journal.jsonl"})
@@ -74,11 +76,15 @@ def claude_loads(path: Path) -> set[str]:
 
 
 def claude_session_loads(path: Path) -> set[str]:
-    """Skills loaded by a top-level Claude session and its `<session>/subagents/*.jsonl` children."""
+    """Skills loaded by a top-level Claude session and its `<session>/subagents/**/*.jsonl` children."""
     loads = claude_loads(path)
     subagents = path.with_suffix("") / "subagents"
     try:
-        children = list(subagents.glob("*.jsonl")) if subagents.is_dir() else []
+        children = (
+            [child for child in subagents.rglob("*.jsonl") if child.name not in _CLAUDE_NON_SESSION_FILES]
+            if subagents.is_dir()
+            else []
+        )
     except OSError:
         children = []
     for child in children:

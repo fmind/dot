@@ -3,7 +3,7 @@
 # Merge into the repository's existing task graph; do not replace application gates.
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.11.6"
+min_version = "2026.11.8"
 
 [settings]
 lockfile = true

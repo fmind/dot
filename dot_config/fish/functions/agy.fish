@@ -1,14 +1,34 @@
 # Docs: https://fishshell.com/docs/current/cmds/function.html
-# Put mise shims ahead of the launch directory's activated tool paths so agy's `bash -c` calls
-# resolve each project's pins, and disable gh/gcloud prompts. Non-interactive callers (Zellij Alt a,
-# antigravity-cli-daemon.service.d/path.conf) replace fish via `exec` so MainPID stays on agy.
+# Strip mise installs/* entries and hook state so agy shells re-resolve workspace pins via shims,
+# and disable gh/gcloud prompts. Non-interactive callers replace fish via `exec` for MainPID.
 function agy --description "Run agy with mise shims first and no gh or gcloud prompts"
-    set -lx PATH $HOME/.local/share/mise/shims $PATH
-    set -lx GH_PROMPT_DISABLED 1
-    set -lx CLOUDSDK_CORE_DISABLE_PROMPTS 1
+    set -l shims "$HOME/.local/share/mise/shims"
+    set -l clean_path
+    if test -d "$shims"
+        set clean_path "$shims"
+    end
+    for entry in $PATH
+        if test "$entry" = "$shims"; or string match -q "$HOME/.local/share/mise/installs/*" -- "$entry"
+            continue
+        end
+        set -a clean_path "$entry"
+    end
+    set -l joined_path (string join : -- $clean_path)
+    set -l bin (PATH="$joined_path" command -s agy); or return 127
+    set -l env_args \
+        -u MISE_SHELL \
+        -u __MISE_DIFF \
+        -u __MISE_ORIG_PATH \
+        -u __MISE_SESSION \
+        -u __MISE_SHIM \
+        -u __MISE_ENV_CACHE_KEY \
+        PATH="$joined_path" \
+        GH_PROMPT_DISABLED=1 \
+        CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
+        "$bin" $argv
     if status is-interactive
-        command agy $argv
+        command env $env_args
     else
-        exec agy $argv
+        exec env $env_args
     end
 end

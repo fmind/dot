@@ -236,8 +236,10 @@ def propagate_models(logs: list[SessionLog]) -> None:
                 log.model = active
 
 
-def _utc_now() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+def format_utc_z(value: datetime | None = None, *, seconds: bool = False) -> str:
+    """Format a UTC timestamp with a trailing ``Z`` offset."""
+    instant = datetime.now(UTC) if value is None else value.astimezone(UTC)
+    return instant.isoformat(timespec="seconds" if seconds else "auto").replace("+00:00", "Z")
 
 
 def session_store_root() -> Path:
@@ -320,6 +322,15 @@ def read_session_manifest(path: Path, *, usage: bool = True) -> SessionManifest:
     return manifest
 
 
+def read_manifest_usage(path: Path, manifest: SessionManifest) -> dict[str, Any] | None:
+    """Read usage for a manifest loaded with ``usage=False`` without re-parsing line 1."""
+    if manifest.schema_version == 3:
+        return read_session_manifest(path).usage
+    with path.open("rb") as stream:
+        stream.readline()
+        return _parse_usage(stream.readline(), path)
+
+
 def _parse_records(lines: list[bytes], manifest: SessionManifest, path: Path) -> list[SessionLog]:
     logs: list[SessionLog] = []
     for number, line in enumerate(lines, start=1):
@@ -384,8 +395,9 @@ def _bundle_content(manifest: SessionManifest, logs: list[SessionLog]) -> bytes:
     return _json_line(manifest.to_dict()) + usage + marshal_session_logs(logs)
 
 
-def _write_bundle(root: Path, manifest: SessionManifest, logs: list[SessionLog]) -> None:
-    directory = private_directory(private_directory(root) / manifest.agent)
+def _write_bundle(root: Path, manifest: SessionManifest, logs: list[SessionLog], *, ensure_root: bool = True) -> None:
+    base = private_directory(root) if ensure_root else root
+    directory = private_directory(base / manifest.agent)
     write_private_file(directory / f"{manifest.session_id}{BUNDLE_SUFFIX}", _bundle_content(manifest, logs))
 
 
@@ -453,7 +465,7 @@ def ingest_session(
         source_type=source.type or "normalized",
         source_fingerprint=fingerprint,
         source_signature=source.signature,
-        ingested_at=_utc_now(),
+        ingested_at=format_utc_z(),
         high_water_mark=session_high_water(logs),
         cwd=next((log.cwd for log in logs if log.cwd), usage_cwd),
         completeness="partial" if source.malformed else "complete",
@@ -511,7 +523,7 @@ def ingest_session(
                 # Same content: keep its capture time, refresh only the source signature.
                 if stored.source_signature != manifest.source_signature:
                     manifest.ingested_at = stored.ingested_at
-                    _write_bundle(root, manifest, logs)
+                    _write_bundle(root, manifest, logs, ensure_root=False)
                 return SessionIngestionResult("unchanged", stored)
             if len(logs) < stored.record_count:
                 # A truncated or rotated source must not shrink the archived conversation.
@@ -522,7 +534,7 @@ def ingest_session(
                 lengths.setdefault((log.role, log.ts), deque()).append(len(log.content))
             for old in previous_logs:
                 matches = lengths.get((old.role, old.ts))
-                if matches and matches.popleft() < len(old.content):
+                if not matches or matches.popleft() < len(old.content):
                     # Match in source order without confusing inserted user records or
                     # model/CWD corrections with an earlier assistant's streamed chunks.
                     return SessionIngestionResult("retained", stored)
@@ -536,7 +548,7 @@ def ingest_session(
                 # archive falls through only so a complete capture of the same records can replace it.
                 current = stored.completeness == manifest.completeness == "complete"
                 return SessionIngestionResult("retained", stored, current_transcript=current)
-        _write_bundle(root, manifest, logs)
+        _write_bundle(root, manifest, logs, ensure_root=False)
         if retain_usage:
             # The bundle just published holds this capture's records; only the usage is archived.
             current = manifest.completeness == "complete"

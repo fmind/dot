@@ -215,6 +215,36 @@ def test_macos_headroom_counts_speculative_pages(monkeypatch: pytest.MonkeyPatch
     assert result.stdout.startswith("PASS · headroom: ")
 
 
+def test_headroom_warns_on_inaccessible_mount_and_uses_injected_runner(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    mount = tmp_path / "mount"
+    mount.mkdir()
+
+    def broken_usage(_path: str) -> object:
+        raise OSError("stale file handle")
+
+    monkeypatch.setattr(system.shutil, "disk_usage", broken_usage)
+    results = system.headroom_results([mount], memory=2 * 1024**3)
+    assert any(
+        item.name == "disk" and item.status == "warn" and "stale file handle" in item.details for item in results
+    )
+
+    monkeypatch.setattr(system.sys, "platform", "darwin")
+    injected = ScriptedRunner(
+        responses={
+            ("vm_stat",): [
+                CommandResult(
+                    "Mach Virtual Memory Statistics: (page size of 4096 bytes)\nPages free: 5.\nPages inactive: 3.\n",
+                    "",
+                    0,
+                )
+            ]
+        }
+    )
+    assert system.available_memory_bytes(runner=injected) == 8 * 4096
+
+
 def select_completions(monkeypatch: pytest.MonkeyPatch, *tools: str) -> None:
     """Narrow generation to these tools, keeping each one's default source."""
     monkeypatch.setattr(

@@ -291,3 +291,44 @@ def test_refresh_rejects_invalid_selections(tmp_path: Path, *, bump: bool, tools
     write_bundle(tmp_path / "dot_config/mise")
     with pytest.raises(ValueError, match=message):
         mise_refresh.refresh(tmp_path, bump=bump, tools=tools)
+
+
+def test_refresh_resolves_symlinked_tempdir_for_mise_trust(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    source = tmp_path / "dot_config/mise"
+    write_bundle(source)
+    real_tmp = tmp_path / "real-tmp"
+    real_tmp.mkdir()
+    link_tmp = tmp_path / "link-tmp"
+    link_tmp.symlink_to(real_tmp)
+    seen: list[tuple[Path | None, str]] = []
+
+    class FakeTempDir:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def __enter__(self) -> str:
+            return str(link_tmp)
+
+        def __exit__(self, *_args: object) -> None:
+            pass
+
+    def fake_run(
+        args: list[str],
+        *,
+        env: dict[str, str],
+        check: bool,
+        timeout: int,
+        cwd: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check
+        assert timeout > 0
+        seen.append((cwd, env["MISE_TRUSTED_CONFIG_PATHS"]))
+        write_bundle(Path(env["MISE_CONFIG_DIR"]), b"resolved graph\n")
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(mise_refresh.tempfile, "TemporaryDirectory", FakeTempDir)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    mise_refresh.refresh(tmp_path)
+
+    resolved = real_tmp.resolve()
+    assert seen == [(resolved, str(resolved))]

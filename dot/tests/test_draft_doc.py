@@ -771,3 +771,98 @@ def test_typst_figure_compilation_width_cap_warnings_and_companion_assets(
     _, sub_figs = mod.compile_markdown("# Doc\n\n![Card](local.typ)\n", sub, assets_dir=sub_assets)
     assert "companion_assets" not in sub_figs[0]
     assert not (sub_assets / "fmind.typ").exists()
+
+    # Truncated PNG headers and unsafe --doc-slug values fail cleanly before calling gws.
+    truncated = tmp_path / "truncated.png"
+    truncated.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+    with pytest.raises(ValueError, match="not a PNG file"):
+        mod.png_size(truncated)
+
+    src_ok = tmp_path / "clean.md"
+    src_ok.write_text("# Doc\n\nBody.\n", encoding="utf-8")
+    gws_called = False
+    monkeypatch.setattr(mod, "run_gws", lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("gws called")))
+    assert not gws_called
+    for bad_slug in ("../escape", "a/b", ".hidden", ""):
+        assert mod.main([str(src_ok), "--drive-folder", "folder_1", "--doc-slug", bad_slug]) == 1
+        assert "Invalid doc slug" in capsys.readouterr().err
+
+    for bad_name in ("../escape", "a/b", "-flag.md", "   ", ""):
+        assert mod.main([str(src_ok), "--drive-folder", "folder_1", f"--doc-name={bad_name}"]) == 1
+        assert "Invalid doc name" in capsys.readouterr().err
+
+
+def test_upload_fails_closed_on_duplicate_drive_targets_and_api_errors(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kw: mod.subprocess.CompletedProcess(
+            cmd, 0, json.dumps({"error": {"code": 403, "message": "Forbidden"}}), ""
+        ),
+    )
+    with pytest.raises(RuntimeError, match="Google API error"):
+        mod.run_gws(["drive", "files", "get"])
+
+    compiled = tmp_path / "Memo.md"
+    compiled.write_text("# Memo\n", encoding="utf-8")
+    gws_dir = tmp_path / "gws"
+    gws_dir.mkdir()
+
+    # Duplicate unrelated files do not block updating unique Memo.md; duplicate Memo.md fails closed.
+    def fake_dup_files(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        _assert_upload_runs_beside_file(args, cwd)
+        if args[:3] == ["drive", "files", "list"]:
+            return {
+                "files": [
+                    {"id": "dup_other_1", "name": "Unrelated.md"},
+                    {"id": "dup_other_2", "name": "Unrelated.md"},
+                    {"id": "memo_1", "name": "Memo.md"},
+                    {"id": "memo_2", "name": "Memo.md"},
+                ]
+            }
+        raise AssertionError(f"Unexpected call: {args}")
+
+    monkeypatch.setattr(mod, "run_gws", fake_dup_files)
+    with pytest.raises(RuntimeError, match="pass --file-id explicitly"):
+        mod.upload_to_drive(compiled, [], gws_dir=gws_dir, drive_folder="parent_1")
+
+    def fake_unique_memo_with_unrelated_dups(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        _assert_upload_runs_beside_file(args, cwd)
+        if args[:3] == ["drive", "files", "list"]:
+            return {
+                "files": [
+                    {"id": "dup_other_1", "name": "Unrelated.md"},
+                    {"id": "dup_other_2", "name": "Unrelated.md"},
+                    {"id": "memo_1", "name": "Memo.md"},
+                ]
+            }
+        if args[:3] == ["drive", "files", "update"]:
+            return {"id": "memo_1", "name": "Memo.md"}
+        raise AssertionError(f"Unexpected call: {args}")
+
+    monkeypatch.setattr(mod, "run_gws", fake_unique_memo_with_unrelated_dups)
+    assert mod.upload_to_drive(compiled, [], gws_dir=gws_dir, drive_folder="parent_1")["file_id"] == "memo_1"
+
+    # Duplicate asset folders fail closed instead of picking the first match silently.
+    asset = tmp_path / "card.svg"
+    asset.write_text(VALID_SVG, encoding="utf-8")
+
+    def fake_dup_folders(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
+        _assert_upload_runs_beside_file(args, cwd)
+        if args[:3] == ["drive", "files", "list"]:
+            q = json.loads(args[args.index("--params") + 1])["q"]
+            if "name = 'assets'" in q:
+                return {"files": [{"id": "assets_1", "name": "assets"}, {"id": "assets_2", "name": "assets"}]}
+            return {"files": [{"id": "memo_1", "name": "Memo.md"}]}
+        if args[:3] == ["drive", "files", "update"]:
+            return {"id": "memo_1", "name": "Memo.md"}
+        raise AssertionError(f"Unexpected call: {args}")
+
+    monkeypatch.setattr(mod, "run_gws", fake_dup_folders)
+    with pytest.raises(RuntimeError, match="Multiple non-trashed Drive folders named 'assets'"):
+        mod.upload_to_drive(compiled, [asset], gws_dir=gws_dir, drive_folder="parent_1")

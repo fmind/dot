@@ -28,7 +28,7 @@ After: **Batch imports are healthy again — [approve PR 418](https://example.co
 
 ## Hard rules
 
-- **Zero prose backticks**: never put backticks around products, formats, acronyms, metrics, files, branches, or status labels in human copy. Write Python 3.12, JSON, BigQuery, Cloud Run, 42 ms, or the config file — never wrap everyday prose words in code spans. Reserve monospace strictly for literal commands, code snippets, or paths a reader must copy verbatim to run.
+- **Zero prose backticks**: never put backticks around products, formats, acronyms, metrics, files, branches, or status labels in human copy. Write Python 3.14, JSON, BigQuery, Cloud Run, 42 ms, or the config file — never wrap everyday prose words in code spans. Reserve monospace strictly for literal commands, code snippets, or paths a reader must copy verbatim to run.
 - **Zero jargon**: translate stack traces, internal flag names, exit codes, and plumbing into business or user outcomes (`service restarted cleanly` beats `OOMKilled exit 137 in ingest-worker`).
 - **Signal over completeness**: state the headline outcome first, round numbers cleanly with a baseline (`+18% throughput vs last quarter`), and push logs or raw tables into a collapsible drawer, appendix, or speaker note.
 - **Visual hierarchy everywhere**: break up any block taller than three lines with a bold lead-in, color badge, tinted callout banner, separator line, comparison table, or chart following `~/.agents/DESIGN.md`.

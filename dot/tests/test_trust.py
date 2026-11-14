@@ -710,3 +710,47 @@ def test_trust_all_reads_standard_git_configs_without_spawning_git_and_falls_bac
     state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
     run_trust(state, ["all"], dry_run=True, as_json=True)
     assert runner.calls == 4
+
+    # Reset common/config; XDG git/ignore text must not trigger insteadOf fallback, while GIT_CONFIG_NOSYSTEM=0
+    # still activates system config detection when GIT_CONFIG_SYSTEM points at a global insteadOf file.
+    (common / "config").write_text(
+        '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n\turl = git@github.com:fmind/worktree.git\n',
+        encoding="utf-8",
+    )
+    (home / ".config/git").mkdir(parents=True, exist_ok=True)
+    (home / ".config/git/ignore").write_text("insteadOf\n", encoding="utf-8")
+    (home / ".config/git/config").write_text("[user]\n\tname = Safe\n", encoding="utf-8")
+    system_cfg = tmp_path / "system.gitconfig"
+    system_cfg.write_text('[url "https://github.com/fmind/"]\n\tinsteadOf = gh:\n', encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_cfg))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 4
+
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "0")
+    stdout = io.StringIO()
+    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
+    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
+    run_trust(state, ["all"], dry_run=True, as_json=True)
+    assert runner.calls == 5
+
+
+def test_installed_harnesses_and_claude_reject_symlinked_state_directories(tmp_path: Path) -> None:
+    from fmind_dot.trust import installed_harnesses
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".copilot").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+        installed_harnesses(home)
+
+    (home / ".copilot").unlink()
+    (home / ".claude").symlink_to(outside, target_is_directory=True)
+    repo = git_repository(home / "repo", "https://github.com/fmind/repo")
+    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+        register_claude_directories([repo], home=home)

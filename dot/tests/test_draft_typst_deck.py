@@ -39,6 +39,12 @@ def test_scan_typst_escaping_issues_accepts_clean_syntax(mod: ModuleType) -> Non
         "Literal \\$ in multiline fence stays verbatim\n"
         "```\n"
         "#text[Valid content escape \\$100 and *bold*]\n"
+        'Prose quotes "around \\$100 and [nested]" stay valid in markup mode.\n'
+        '#slide(title: "Clean $10")[He said "save \\$10 and \\~5%" in content mode.]\n'
+        '#heading[Quoted "asterisks \\*" in markup]\n'
+        '#[Explicit content block with "quoted \\$100" stays markup]\n'
+        '#box[#let x = "clean $10"] "Prose quote \\$10 after inline #let stays markup"\n'
+        '#let pair = (#let inner = "clean $5"; inner)\n'
     )
     assert mod.scan_typst_escaping_issues(source, label="deck.typ") == []
 
@@ -49,6 +55,10 @@ def test_scan_typst_escaping_issues_accepts_clean_syntax(mod: ModuleType) -> Non
         ('#let v = "Cost \\$10"\n', "unexpected '\\$' inside string literal"),
         ('#let v = "Around \\~5%"\n', "unexpected '\\~' inside string literal"),
         ('#let v = "Star \\*mark"\n', "unexpected '\\*' inside string literal"),
+        ('#slide(title: "Cost \\$10")[Body]\n', "unexpected '\\$' inside string literal"),
+        ('#"Cost \\$10"\n', "unexpected '\\$' inside string literal"),
+        ('#box[#let v = "Cost \\$10"]\n', "unexpected '\\$' inside string literal"),
+        ('#[#("Cost \\$10")]\n', "unexpected '\\$' inside string literal"),
         ("#let v = `Cost \\$10`\n", "remove backslash in inline raw span"),
         ("#let v = `Rate \\~5`\n", "remove backslash in inline raw span"),
         ("#let v = `Wild \\*`\n", "remove backslash in inline raw span"),
@@ -136,6 +146,8 @@ def test_check_cli_compiles_figures_pdf_and_pngs(
     preview_dir.mkdir()
     stale = preview_dir / "deck-99.png"
     stale.write_bytes(b"STALE")
+    unrelated = preview_dir / "deck-backup-1.png"
+    unrelated.write_bytes(b"KEEP")
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-home")
     calls = _install_fake_typst(mod, monkeypatch, slides=4)
@@ -154,6 +166,7 @@ def test_check_cli_compiles_figures_pdf_and_pngs(
     )
     assert rc == 0
     assert not stale.exists()
+    assert unrelated.is_file()
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
     assert payload["slide_count"] == 4
@@ -227,6 +240,9 @@ def test_upload_cli_validates_pdf_and_dry_run(
     assert "Invalid Google Drive folder ID" in capsys.readouterr().err
 
     assert mod.main(["upload", str(valid_pdf), "--drive-folder", "folder_123", "--name", "a/b.pdf"]) == 1
+    assert "plain filename" in capsys.readouterr().err
+
+    assert mod.main(["upload", str(valid_pdf), "--drive-folder", "folder_123", "--name=-flag.pdf"]) == 1
     assert "plain filename" in capsys.readouterr().err
 
     assert (
@@ -375,7 +391,7 @@ def test_build_pptx_packages_16x9_slides_and_speaker_notes(mod: ModuleType, tmp_
         speaker_notes={1: "Open with CTA.", 2: "Line 1 & <tag>\nLine 2"},
     )
     assert built == out_pptx
-    assert mod.inspect_pptx_slide_count(out_pptx) == 2
+    assert mod.inspect_pptx_metadata(out_pptx)[0] == 2
 
     with zipfile.ZipFile(out_pptx, "r") as zf:
         names = set(zf.namelist())
@@ -638,3 +654,39 @@ def test_upload_uses_core_title_and_syncs_editable_python_sources(
     plan = json.loads(capsys.readouterr().out)
     assert plan["name"] == "Executive Review Q4"
     assert plan["source_files"] == ["editable_deck.py"]
+
+
+def test_unexpected_typst_warnings_fail_even_with_allow_font_warnings(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    deck = tmp_path / "deck.typ"
+    deck.write_text("#text[Clean]\n", encoding="utf-8")
+
+    def fake_png_warning_typst(args: list[str]) -> object:
+        if args and args[0] == "compile":
+            target = Path(args[-1].replace("{p}", "1"))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.suffix == ".png":
+                target.write_bytes(b"\x89PNG\r\n\x1a\nimg")
+                return mod.subprocess.CompletedProcess(
+                    args, 0, "", "warning: layout did not converge within 5 attempts\n"
+                )
+            target.write_bytes(b"%PDF-1.7\n")
+            return mod.subprocess.CompletedProcess(args, 0, "", "warning: unknown font family: google sans\n")
+        return mod.subprocess.CompletedProcess(args, 0, "{}", "")
+
+    monkeypatch.setattr(mod, "_run_typst", fake_png_warning_typst)
+    assert mod.main(["render", str(deck), "--allow-font-warnings", "--json"]) == 1
+    render_err = capsys.readouterr()
+    assert json.loads(render_err.out)["ok"] is False
+    assert "layout did not converge" in render_err.err
+
+    assert mod.main(["check", str(deck), "--expected-slides", "1", "--allow-font-warnings", "--json"]) == 1
+    check_err = capsys.readouterr()
+    check_payload = json.loads(check_err.out)
+    assert check_payload["ok"] is False
+    assert len(check_payload["warnings"]) == 2
+    assert "unexpected warnings" in check_err.err

@@ -42,7 +42,7 @@ sudo apt install -y git curl libatomic1 build-essential gnome-keyring xclip wl-c
 xcode-select --install
 ```
 
-The installer requires mise 2026.11.6 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. Containers are optional: on macOS, mise installs Colima, Docker CLI, Compose, and Buildx (`colima start`); on Linux, install Docker Engine from your distribution.
+The installer requires mise 2026.11.8 or newer and installs it if absent. [Ghostty](https://ghostty.org/docs/install/binary) is the recommended terminal. Containers are optional: on macOS, mise installs Colima, Docker CLI, Compose, and Buildx (`colima start`); on Linux, install Docker Engine from your distribution.
 
 ## Installation
 

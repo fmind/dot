@@ -8,7 +8,7 @@ import re
 import sqlite3
 import stat
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from io import BytesIO
@@ -20,6 +20,7 @@ from fmind_dot.archive.store import (
     SessionLog,
     fingerprint_bytes,
     fingerprint_json,
+    format_utc_z,
     is_valid_session_id,
     parse_utc_instant,
     propagate_models,
@@ -174,7 +175,7 @@ def _undated_usage_timestamp(logs: list[SessionLog], source: Path | None = None)
         mtime = source.stat().st_mtime
     except FileNotFoundError:
         return ""  # A source removed mid-sync leaves no evidence.
-    return datetime.fromtimestamp(mtime, UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return format_utc_z(datetime.fromtimestamp(mtime, UTC), seconds=True)
 
 
 def _finalize_parsed_usage(
@@ -196,6 +197,7 @@ _AGY_TOKEN_FIELDS = (
     ("input_tokens", "input_tokens"),
     ("output_tokens", "output_tokens"),
     ("cache_read_tokens", "cached_tokens"),
+    ("cache_write_tokens", "cache_write_tokens"),
 )
 
 
@@ -211,7 +213,7 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         cwd=resolve_cwd(cwd),
         measurement_kind="estimated",
     )
-    input_bytes = output_bytes = prompts = 0
+    input_bytes = output_bytes = prompts = unmeasured_responses = 0
     created_timestamps: list[str] = []
     samples: list[UsageRecord] = []
     usage_error: Exception | None = None
@@ -227,7 +229,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         timestamp = raw.get("created_at")
         if isinstance(timestamp, str):
             created_timestamps.append(timestamp)
-        if usage_error is None and ("input_tokens" in raw or "output_tokens" in raw):
+        has_counters = any(field in raw for field, _ in _AGY_TOKEN_FIELDS)
+        if usage_error is None and has_counters:
             # Model responses and compaction checkpoints report each request's counters.
             sample = UsageRecord(
                 harness="agy",
@@ -254,6 +257,8 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             prompts += 1
             input_bytes += len(text.encode())
         elif role == "assistant":
+            if not has_counters:
+                unmeasured_responses += 1
             output_bytes += len(text.encode())
             thinking = raw.get("thinking")
             if isinstance(thinking, str):
@@ -265,13 +270,13 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             continue
         if role and isinstance(content, str) and content.strip():
             logs.append(SessionLog(str(raw.get("created_at", "")), "agy", session_id, role, content, usage.cwd))
-    if samples:
+    if samples and not unmeasured_responses:
         samples[-1].turn_count += prompts
         usage.set_samples(samples, timed=timed)
         usage.timestamp = _latest_timestamp(sample.timestamp for sample in samples) if timed else ""
         usage.measurement_kind = "provider-reported"
     else:
-        # Older transcripts carry no counters: estimate about four bytes per token.
+        # Older or partly unmeasured transcripts use byte estimates (~4 bytes per token).
         usage.input_tokens = (input_bytes + 3) // 4
         usage.output_tokens = (output_bytes + 3) // 4
         usage.timestamp = _latest_timestamp(created_timestamps)
@@ -297,9 +302,12 @@ def claude_session_id(path: Path) -> str:
 
 
 def claude_parent_session_id(path: Path) -> str:
-    """Return the parent session id of a `<parent>/subagents/agent-*.jsonl` sidechain path."""
-    parent = path.parent.parent.name if path.parent.name == "subagents" else ""
-    return parent if is_valid_session_id(parent) else ""
+    """Return the parent session id of a `<parent>/subagents/.../agent-*.jsonl` sidechain path."""
+    for ancestor in path.parents:
+        if ancestor.name == "subagents":
+            parent = ancestor.parent.name
+            return parent if is_valid_session_id(parent) else ""
+    return ""
 
 
 _CLAUDE_TOKEN_FIELDS = (
@@ -382,11 +390,10 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             parent = declared
         try:
             if raw.get("type") == "assistant":
-                message = _mapping(raw.get("message"))
+                raw_message = raw.get("message")
+                message = raw_message if isinstance(raw_message, dict) else {}
                 sample = UsageRecord(harness="claude", session_id=session_id)
                 _observe_claude_usage(sample, raw)
-                timed = timed and bool(sample.timestamp)
-                sample.finalize(fallback_timestamp=sample_fallback)
                 # Streaming content blocks share a message ID and repeat its usage.
                 identity = message.get("id")
                 key = (
@@ -397,6 +404,9 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
                 previous = messages.get(key)
                 if previous:
                     sample.measurement_kind = sample.measurement_kind or previous.measurement_kind
+                    sample.model = sample.model or previous.model
+                    sample.cwd = sample.cwd or previous.cwd
+                    sample.timestamp = sample.timestamp or previous.timestamp
                     # Partial blocks can report increasing output; preserve the high water.
                     for name in (
                         "input_tokens",
@@ -418,19 +428,8 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         message = raw.get("message")
         if kind not in {"user", "assistant"} or not isinstance(message, dict):
             continue
-        content = ""
-        if kind == "user" and isinstance(message.get("content"), str):
-            content = message["content"]
-        elif isinstance(message.get("content"), list):
-            texts = [
-                part["text"]
-                for part in message["content"]
-                if isinstance(part, dict)
-                and part.get("type") == "text"
-                and isinstance(part.get("text"), str)
-                and part["text"]
-            ]
-            content = "\n".join(texts)
+        raw_content = message.get("content")
+        content = _text_blocks(raw_content) if kind == "user" or isinstance(raw_content, list) else ""
         if not content.strip():
             continue
         line_cwd = raw.get("cwd") if isinstance(raw.get("cwd"), str) else cwd
@@ -448,6 +447,13 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             )
         )
     propagate_models(logs)
+    if usage_error is None:
+        try:
+            for sample in messages.values():
+                timed = timed and bool(sample.timestamp)
+                sample.finalize(fallback_timestamp=sample_fallback)
+        except ValueError as error:
+            usage_error = error
     measured = bool(messages) and all(sample.measurement_kind for sample in messages.values())
     if measured:
         usage.measurement_kind = "provider-reported"
@@ -501,8 +507,8 @@ def _pi_sample(session_id: str, timestamp: str, model: object, raw_usage: object
     return sample, _usage_cost(_usage_mapping(usage.get("cost"), "cost").get("total"))
 
 
-def _pi_text(content: object) -> str:
-    """Join the text blocks of a Pi message; tool calls, thinking, and images are not prompts."""
+def _text_blocks(content: object) -> str:
+    """Join non-empty text blocks from a message payload; skip images, tool calls, and thinking."""
     if isinstance(content, str):
         return content
     if not isinstance(content, list):
@@ -570,7 +576,7 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
                     cost += sample_cost
         if not isinstance(message, dict) or role not in {"user", "assistant"}:
             continue
-        content = _pi_text(message.get("content"))
+        content = _text_blocks(message.get("content"))
         if not content.strip():
             continue
         model = message.get("model") if isinstance(message.get("model"), str) else ""
@@ -588,10 +594,6 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
         # An absent or partial measurement is unknown, not a zero-token provider request.
         parsed_usage = None
     return ParsedSession(logs, fingerprint, "pi-jsonl", malformed, decoded - len(logs), parsed_usage, usage_error)
-
-
-def _mapping(value: object) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
 
 
 def _connect_read_only(path: Path) -> sqlite3.Connection:
@@ -613,15 +615,19 @@ def _sqlite_text(value: object) -> str:
 
 
 def _copilot_turns(
-    connection: sqlite3.Connection, session_id: str, fallback_cwd: str
+    connection: sqlite3.Connection, session_id: str, fallback_cwd: str, session_row: sqlite3.Row | None
 ) -> tuple[list[dict[str, Any]], list[SessionLog]]:
     """Return the session's turn rows (fingerprint evidence) and their transcript records."""
+    if session_row is None:
+        return [], []
+    raw_cwd = session_row["cwd"]
+    cwd_text = _sqlite_text(raw_cwd)
+    cwd = resolve_cwd(raw_cwd if isinstance(raw_cwd, str) and raw_cwd else fallback_cwd)
     rows: list[dict[str, Any]] = []
     logs: list[SessionLog] = []
     for row in connection.execute(
-        """SELECT t.session_id, t.turn_index, t.user_message, t.assistant_response, t.timestamp, s.cwd
-           FROM turns t JOIN sessions s ON t.session_id = s.id
-           WHERE t.session_id = ? ORDER BY t.turn_index, t.id""",
+        """SELECT session_id, turn_index, user_message, assistant_response, timestamp
+           FROM turns WHERE session_id = ? ORDER BY turn_index, id""",
         (session_id,),
     ):
         user_message, assistant_response = row["user_message"], row["assistant_response"]
@@ -630,11 +636,10 @@ def _copilot_turns(
             "user_message": _sqlite_text(user_message),
             "assistant_response": _sqlite_text(assistant_response),
             "timestamp": _sqlite_text(row["timestamp"]),
-            "cwd": _sqlite_text(row["cwd"]),
+            "cwd": cwd_text,
             "turn_index": row["turn_index"] if isinstance(row["turn_index"], int) else _sqlite_text(row["turn_index"]),
         }
         rows.append(turn)
-        cwd = resolve_cwd(row["cwd"] if isinstance(row["cwd"], str) and row["cwd"] else fallback_cwd)
         timestamp = row["timestamp"] if isinstance(row["timestamp"], str) else ""
         for role, text in (("user", user_message), ("assistant", assistant_response)):
             if isinstance(text, str) and text.strip():
@@ -647,17 +652,26 @@ def parse_copilot_session(path: Path, session_id: str, cwd: str = "") -> ParsedS
         raise ValueError(f"invalid copilot session id {session_id!r}")
     with closing(_connect_read_only(path)) as connection:
         connection.execute("BEGIN")
-        rows, logs = _copilot_turns(connection, session_id, cwd)
+        session_row = connection.execute("SELECT cwd, created_at FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        rows, logs = _copilot_turns(connection, session_id, cwd, session_row)
         try:
             usage = _extract_copilot_usage(
-                connection, session_id, cwd, _undated_usage_timestamp(logs), _undated_usage_timestamp([], path)
+                connection,
+                session_id,
+                cwd,
+                _undated_usage_timestamp(logs),
+                _undated_usage_timestamp([], path),
+                session_row,
             )
             usage_error = None
         except (sqlite3.Error, ValueError) as error:
             usage = None
             usage_error = error
     if usage is not None:
-        usage.source_bytes = path.stat().st_size
+        source_bytes = path.stat().st_size
+        with suppress(OSError):
+            source_bytes += Path(f"{path}-wal").stat().st_size
+        usage.source_bytes = source_bytes
     return ParsedSession(
         logs,
         fingerprint_json(
@@ -684,7 +698,12 @@ _COPILOT_TOKEN_FIELDS = (
 
 
 def _extract_copilot_usage(
-    connection: sqlite3.Connection, session_id: str, cwd: str, latest_turn: str, fallback_timestamp: str
+    connection: sqlite3.Connection,
+    session_id: str,
+    cwd: str,
+    latest_turn: str,
+    fallback_timestamp: str,
+    session: sqlite3.Row | None,
 ) -> UsageRecord | None:
     rows = connection.execute(
         """SELECT model, input_tokens, output_tokens, cache_read_tokens,
@@ -692,7 +711,6 @@ def _extract_copilot_usage(
            FROM assistant_usage_events WHERE session_id = ?""",
         (session_id,),
     ).fetchall()
-    session = connection.execute("SELECT cwd, created_at FROM sessions WHERE id = ?", (session_id,)).fetchone()
     record = UsageRecord(
         harness="copilot",
         agent="copilot",

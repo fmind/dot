@@ -28,7 +28,8 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         except OSError, ValueError:
             excluded += 1
             continue
-        key = (summary.agent, summary.cwd if by_project else "")
+        project = (summary.cwd or next((r.cwd for r in records if r.cwd), "")) if by_project else ""
+        key = (summary.agent, project)
         row = groups.setdefault(
             key,
             {
@@ -47,6 +48,8 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
         )
         included = False
         for record in records:
+            if record.role not in {"user", "assistant"}:
+                continue
             # Match usage accounting: an ISO timestamp without an offset is UTC.
             timestamp = parse_utc_instant(record.ts)
             if timestamp is None:
@@ -54,8 +57,6 @@ def prompt_statistics(query: SessionQuery, *, by_project: bool = False) -> dict[
                 if query.since or query.until:
                     continue
             if timestamp and ((query.since and timestamp < query.since) or (query.until and timestamp > query.until)):
-                continue
-            if record.role not in {"user", "assistant"}:
                 continue
             included = True
             if record.role == "assistant":

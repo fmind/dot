@@ -3,14 +3,39 @@
 from __future__ import annotations
 
 import math
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fmind_dot.archive.usage import UsageRecord
-    from fmind_dot.config import PricingConfig
+    from fmind_dot.config import ModelPrice, PricingConfig
 
 # Providers whose reported input is the whole prompt, with cache buckets as subsets.
 CACHE_INCLUSIVE_INPUT_HARNESSES = frozenset({"codex", "grok"})
+_VENDOR_PREFIXES = ("anthropic/", "google/", "openai/", "x-ai/")
+_CLAUDE_DATE_SUFFIX = re.compile(r"-20\d{6}$")
+
+
+def _lookup_rate(model: str, harness: str, pricing: PricingConfig) -> ModelPrice | None:
+    if rate := pricing.models.get(model):
+        return rate
+    candidate = model
+    for prefix in _VENDOR_PREFIXES:
+        if candidate.startswith(prefix):
+            candidate = candidate.removeprefix(prefix)
+            if rate := pricing.models.get(candidate):
+                return rate
+            break
+    # Grok Build bills turns as `<model>-build`; xAI lists only the `<model>` it serves.
+    if (
+        harness == "grok"
+        and candidate.endswith("-build")
+        and (rate := pricing.models.get(candidate.removesuffix("-build")))
+    ):
+        return rate
+    if candidate.startswith("claude-"):
+        return pricing.models.get(_CLAUDE_DATE_SUFFIX.sub("", candidate.replace(".", "-")))
+    return None
 
 
 def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float | None, str]:
@@ -28,13 +53,7 @@ def api_equivalent(record: UsageRecord, pricing: PricingConfig) -> tuple[float |
             return None, "legacy zero lacks measurement evidence"
         # Current explicit zeros and Claude's local synthetic responses are known zero.
         return 0.0, ""
-    rate = pricing.models.get(record.model)
-    if rate is None and record.harness == "grok" and record.model.endswith("-build"):
-        # Grok Build bills turns as `<model>-build`; xAI lists only the `<model>` it serves.
-        rate = pricing.models.get(record.model.removesuffix("-build"))
-    if rate is None and record.model.startswith("claude-") and "." in record.model:
-        # Copilot and OpenRouter spell Claude minor versions with dots (claude-sonnet-5.5).
-        rate = pricing.models.get(record.model.replace(".", "-"))
+    rate = _lookup_rate(record.model, record.harness, pricing)
     if record.model in {"", "mixed", "unknown"} or rate is None:
         return None, "unknown or mixed model"
     # UsageRecord validation keeps 1-hour cache writes within cache writes.

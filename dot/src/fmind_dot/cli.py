@@ -19,7 +19,7 @@ from fmind_dot.state import State, validated_config
 
 # The shared contract agents need before running any command; each command's --help adds its own.
 _EPILOG = (
-    "Exit codes: 0 success; 1 failure or unhealthy result; 2 usage error; 130 cancelled. "
+    "Exit codes: 0 success; 1 failure, declined prompt, or unhealthy result; 2 usage error; 130 interrupted. "
     "Reports go to stdout; prompts and errors go to stderr.\n\n"
     "Reports accept --json (-j) and print one JSON document with a versioned schema field; "
     "agent session show always prints JSON and config show prints YAML. "

@@ -25,11 +25,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           cache: true
           # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.6
+          version: 2026.11.8
       - name: Run canonical gate
         run: mise run all
       - name: Run starter contracts
@@ -49,12 +49,14 @@ jobs:
         with:
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           cache: true
-          version: 2026.11.6
-      - name: Render chezmoi source
-        run: mise run check:chezmoi
+          version: 2026.11.8
+      - name: Render chezmoi and shell templates
+        run: |
+          mise run check:chezmoi
+          mise run check:shell
       - name: Run repository tests
         run: mise run test
       - name: Run starter contracts

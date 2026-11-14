@@ -10,7 +10,7 @@ importers:
     dependencies:
       firebase-tools:
         specifier: 15.36.0
-        version: 15.36.0(@types/node@26.6.6)(bare-buffer@3.7.1)(supports-color@7.2.0)
+        version: 15.36.0(@types/node@26.6.6)(bare-buffer@3.7.2)(supports-color@7.2.0)
 
 packages:
 
@@ -428,8 +428,8 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  bare-buffer@3.7.1:
-    resolution: {integrity: sha512-cIjZnSO+y89ykVX9x96OVnA6tGORBn7vGJ/e3PCbBHMEyfMNG/ixzOS0lLa6saMlWcs69bSKjxFyDwjK152OMg==}
+  bare-buffer@3.7.2:
+    resolution: {integrity: sha512-kI35SYpVg0JCk+a+gkUEJZY39mt+g71y1NRwBrEj7SbxLnwngYYMf0T/kouYIujlJwelvPZ9TTbBCbCSPw059Q==}
     engines: {bare: '>=1.20.0'}
 
   bare-events@2.9.2:
@@ -466,8 +466,8 @@ packages:
       bare-events:
         optional: true
 
-  bare-url@2.5.6:
-    resolution: {integrity: sha512-iqkXHkW65De+BT14nHLiBFbNuJ/DdMrZaVNJ1IXPctpK6b1olUJ5Qmy8QBvwROajTiGztso2n82kFEvCsNG7Rg==}
+  bare-url@2.5.7:
+    resolution: {integrity: sha512-pWAiECRdNYPJAXYKVOb4HuTQedQyRjtGBUu86kO/vOt4GM7e45PghHXQ/Erm5NumaDSWNBzehIfpc768esW7gA==}
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
@@ -2648,14 +2648,14 @@ snapshots:
       normalize-path: 3.0.0
       readable-stream: 4.8.0
 
-  archiver@7.0.1(bare-buffer@3.7.1):
+  archiver@7.0.1(bare-buffer@3.7.2):
     dependencies:
       archiver-utils: 5.0.2
       async: 3.2.6
       buffer-crc32: 1.0.0
       readable-stream: 4.8.0
       readdir-glob: 1.1.3
-      tar-stream: 3.2.2(bare-buffer@3.7.1)
+      tar-stream: 3.2.2(bare-buffer@3.7.2)
       zip-stream: 6.0.1
     transitivePeerDependencies:
       - bare-abort-controller
@@ -2680,39 +2680,39 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  bare-buffer@3.7.1: {}
+  bare-buffer@3.7.2: {}
 
   bare-events@2.9.2: {}
 
-  bare-fs@4.8.4(bare-buffer@3.7.1):
+  bare-fs@4.8.4(bare-buffer@3.7.2):
     dependencies:
       bare-events: 2.9.2
       bare-path: 3.1.3
-      bare-stream: 2.13.4(bare-buffer@3.7.1)(bare-events@2.9.2)
-      bare-url: 2.5.6
+      bare-stream: 2.13.4(bare-buffer@3.7.2)(bare-events@2.9.2)
+      bare-url: 2.5.7
       fast-fifo: 1.3.2
     optionalDependencies:
-      bare-buffer: 3.7.1
+      bare-buffer: 3.7.2
     transitivePeerDependencies:
       - bare-abort-controller
       - react-native-b4a
 
   bare-path@3.1.3: {}
 
-  bare-stream@2.13.4(bare-buffer@3.7.1)(bare-events@2.9.2):
+  bare-stream@2.13.4(bare-buffer@3.7.2)(bare-events@2.9.2):
     dependencies:
       b4a: 1.9.0
       streamx: 2.28.1
       teex: 1.0.1
     optionalDependencies:
-      bare-buffer: 3.7.1
+      bare-buffer: 3.7.2
       bare-events: 2.9.2
     transitivePeerDependencies:
       - react-native-b4a
 
-  bare-url@2.5.6:
+  bare-url@2.5.7:
     dependencies:
-      bare-buffer: 3.7.1
+      bare-buffer: 3.7.2
       bare-path: 3.1.3
 
   base64-js@1.5.1: {}
@@ -3272,7 +3272,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  firebase-tools@15.36.0(@types/node@26.6.6)(bare-buffer@3.7.1)(supports-color@7.2.0):
+  firebase-tools@15.36.0(@types/node@26.6.6)(bare-buffer@3.7.2)(supports-color@7.2.0):
     dependencies:
       '@electric-sql/pglite': 0.3.16
       '@electric-sql/pglite-tools': 0.2.21(@electric-sql/pglite@0.3.16)
@@ -3283,7 +3283,7 @@ snapshots:
       abort-controller: 3.0.0
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
-      archiver: 7.0.1(bare-buffer@3.7.1)
+      archiver: 7.0.1(bare-buffer@3.7.2)
       async-lock: 1.4.1
       body-parser: 1.20.9
       chokidar: 4.0.3
@@ -4521,10 +4521,10 @@ snapshots:
       has-flag: 4.0.0
       supports-color: 7.2.0
 
-  tar-stream@3.2.2(bare-buffer@3.7.1):
+  tar-stream@3.2.2(bare-buffer@3.7.2):
     dependencies:
       b4a: 1.9.0
-      bare-fs: 4.8.4(bare-buffer@3.7.1)
+      bare-fs: 4.8.4(bare-buffer@3.7.2)
       fast-fifo: 1.3.2
       streamx: 2.28.1
     transitivePeerDependencies:

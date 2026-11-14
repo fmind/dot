@@ -23,40 +23,40 @@ line-ending = "lf"
 
 [lint]
 select = [
-  "A", # flake8-builtins (prevent shadowing Python builtins)
-  "ARG", # flake8-unused-arguments (clean function signatures without unused arguments)
-  "ASYNC", # flake8-async (async/await anti-patterns and pitfalls)
-  "B", # flake8-bugbear (common bugs and design detector)
-  "BLE", # flake8-blind-except (no swallowed broad exceptions)
-  "C4", # flake8-comprehensions (idiomatic comprehension syntax)
-  "DTZ", # flake8-datetimez (timezone-aware datetime construction)
-  "E", # pycodestyle errors (standard Python style errors)
-  "ERA", # eradicate (clean commented-out code)
-  "F", # Pyflakes (syntax errors, undefined variables, and unused imports)
-  "FURB", # refurb (modernize constructs and idioms)
-  "I", # isort (import sorting and grouping)
-  "ISC", # flake8-implicit-str-concat (catch implicit multiline string concatenation)
-  "LOG", # flake8-logging (standard logging anti-patterns)
-  "N", # pep8-naming (PEP 8 naming conventions)
-  "PERF", # Perflint (performance anti-patterns and bottlenecks)
-  "PGH", # pygrep-hooks (enforce rule-specific noqas and eval bans)
-  "PIE", # flake8-pie (code quality improvements and redundancy elimination)
-  "PLE", # Pylint errors
-  "PLW", # Pylint warnings (such as subprocess.run without check)
-  "PT", # flake8-pytest-style (consistent pytest idiom usage in test suites)
-  "PTH", # flake8-use-pathlib (prefer modern Path objects over os.path)
-  "Q", # flake8-quotes (consistent quote usage)
-  "RET", # flake8-return (clean return statements)
-  "RSE", # flake8-raise (clean raise statements without unneeded parentheses)
-  "RUF", # Ruff-specific rules (native correctness and modernization checks)
-  "S", # flake8-bandit (security checks)
-  "SIM", # flake8-simplify (code simplification suggestions)
-  "SLF", # flake8-self (private member access restrictions)
-  "T10", # flake8-debugger (catch debugger breakpoints)
-  "T20", # flake8-print (disallow print statements in library code)
-  "TID", # flake8-tidy-imports (ban banned or relative imports)
-  "UP", # pyupgrade (modern Python syntax upgrades)
-  "W", # pycodestyle warnings (standard Python style warnings)
+  "A",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "DTZ",
+  "E",
+  "ERA",
+  "F",
+  "FURB",
+  "I",
+  "ISC",
+  "LOG",
+  "N",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PLE",
+  "PLW", # subprocess (such as subprocess.run without check)
+  "PT",
+  "PTH",
+  "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "T10",
+  "T20",
+  "TID",
+  "UP",
+  "W",
 ]
 ignore = [
   "E501", # line length allowed for long URLs, strings, and templates

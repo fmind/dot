@@ -8,9 +8,6 @@ sources:
   - https://developers.openai.com/api/docs/guides/prompt-caching
   - https://platform.claude.com/docs/en/about-claude/pricing
   - https://platform.claude.com/docs/en/about-claude/models/overview
-  - https://platform.claude.com/docs/en/models/haiku-4-5/overview
-  - https://platform.claude.com/docs/en/models/opus-4-5/overview
-  - https://platform.claude.com/docs/en/models/sonnet-4-5/overview
   - https://ai.google.dev/gemini-api/docs/pricing
   - https://cloud.google.com/vertex-ai/generative-ai/pricing
   - https://docs.x.ai/docs/models
@@ -185,12 +182,6 @@ models:
     cache_read: 0.5
     cache_write: 6.25
     cache_write_1h: 10
-  claude-opus-4-5-20251101:
-    input: 5
-    output: 25
-    cache_read: 0.5
-    cache_write: 6.25
-    cache_write_1h: 10
   claude-sonnet-5-5:
     input: 2
     output: 10
@@ -215,12 +206,6 @@ models:
     cache_read: 0.3
     cache_write: 3.75
     cache_write_1h: 6
-  claude-sonnet-4-5-20250929:
-    input: 3
-    output: 15
-    cache_read: 0.3
-    cache_write: 3.75
-    cache_write_1h: 6
   claude-haiku-5-5:
     input: 0.1
     output: 0.5
@@ -228,12 +213,6 @@ models:
     cache_write: 0.125
     cache_write_1h: 0.2
   claude-haiku-4-5:
-    input: 1
-    output: 5
-    cache_read: 0.1
-    cache_write: 1.25
-    cache_write_1h: 2
-  claude-haiku-4-5-20251001:
     input: 1
     output: 5
     cache_read: 0.1

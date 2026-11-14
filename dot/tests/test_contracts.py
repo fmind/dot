@@ -672,3 +672,51 @@ def test_privacy_findings_fail_closed_on_unreadable_config_dir_and_honor_symlink
             assert any("cannot load local privacy tokens" in item for item in dir_findings)
         finally:
             cfg_dir.chmod(0o700)
+
+
+def test_skills_contract_rejects_oversized_markdown_but_exempts_templates(tmp_path: Path) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    refs = skill.parent / "references"
+    tmpl = refs / "templates"
+    tmpl.mkdir(parents=True)
+    big_body = "word " * 1200  # 6,000 chars == 1,500 estimated tokens
+    (tmpl / "big.md").write_text("# Template\n\n" + big_body, encoding="utf-8")
+    guide = refs / "guide.md"
+    guide.write_text("# Ref\n\n[Template](templates/big.md)\n", encoding="utf-8")
+    assert checker.repository_findings(root) == []
+
+    guide.write_text("# Ref\n\n" + big_body + "\n[Template](templates/big.md)\n", encoding="utf-8")
+    assert any(
+        "references/guide.md: has 15" in item and "must be below 1500" in item
+        for item in checker.repository_findings(root)
+    )
+
+    guide.write_text("# Ref\n\n[Template](templates/big.md)\n", encoding="utf-8")
+    skill.write_text(skill.read_text(encoding="utf-8") + "\n" + big_body, encoding="utf-8")
+    assert any("SKILL.md: has " in item and "must be below 1500" in item for item in checker.repository_findings(root))
+
+
+def test_skills_contract_rejects_inverted_guide_markers_and_sync_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    guide = skill.parent / "references/guide.md"
+    guide.write_text("---\nname: guide\ndescription: Broken\n---\n# Guide\n", encoding="utf-8")
+    original = skill.read_text(encoding="utf-8") + f"\n{checker.GUIDE_END}\n{checker.GUIDE_START}\n"
+    skill.write_text(original, encoding="utf-8")
+    assert any("malformed or inverted" in item for item in checker.repository_findings(root))
+
+    # Restore valid markers but break GUIDE.md frontmatter; --sync must fail closed without erasing the index.
+    seeded = original.replace(
+        f"{checker.GUIDE_END}\n{checker.GUIDE_START}",
+        f"{checker.GUIDE_START}\n- [guide](references/guide.md): Broken\n{checker.GUIDE_END}",
+    )
+    skill.write_text(seeded, encoding="utf-8")
+    guide.write_text("---\nname: [unclosed\n---\n# Guide\n", encoding="utf-8")
+    monkeypatch.setattr(checker, "ROOT", root)
+    monkeypatch.setattr("sys.argv", ["skill_contracts", "--sync"])
+    assert checker.main() == 1
+    assert "invalid frontmatter" in capsys.readouterr().err
+    assert skill.read_text(encoding="utf-8") == seeded

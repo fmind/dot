@@ -12,6 +12,7 @@ import struct
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -59,21 +60,21 @@ def _png_dimensions(png_path: Path) -> tuple[int, int]:
     return int(width), int(height)
 
 
-def _add_note(slide: object, text: str) -> None:
+def _add_note(slide: Any, text: str) -> None:
     if text:
-        slide.notes_slide.notes_text_frame.text = text  # type: ignore[attr-defined]
+        slide.notes_slide.notes_text_frame.text = text
 
 
-def _style_run(run: object, *, text: str, size: int, color: RGBColor, bold: bool = False) -> None:
-    run.text = text  # type: ignore[attr-defined]
-    run.font.name = SANS_FONT  # type: ignore[attr-defined]
-    run.font.size = Pt(size)  # type: ignore[attr-defined]
-    run.font.bold = bold  # type: ignore[attr-defined]
-    run.font.color.rgb = color  # type: ignore[attr-defined]
+def _style_run(run: Any, *, text: str, size: int, color: RGBColor, bold: bool = False) -> None:
+    run.text = text
+    run.font.name = SANS_FONT
+    run.font.size = Pt(size)
+    run.font.bold = bold
+    run.font.color.rgb = color
 
 
 def _add_textbox(
-    slide: object,
+    slide: Any,
     *,
     left: float,
     top: float,
@@ -84,27 +85,27 @@ def _add_textbox(
     color: RGBColor = FOREGROUND,
     bold: bool = False,
 ) -> None:
-    box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))  # type: ignore[attr-defined]
+    box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
     frame = box.text_frame
     frame.word_wrap = True
     frame.vertical_anchor = MSO_ANCHOR.TOP
     _style_run(frame.paragraphs[0].add_run(), text=text, size=size, color=color, bold=bold)
 
 
-def _add_header(slide: object, *, kicker: str, title: str, takeaway: str) -> None:
+def _add_header(slide: Any, *, kicker: str, title: str, takeaway: str) -> None:
     _add_textbox(slide, left=0.55, top=0.32, width=8.9, height=0.28, text=kicker, size=12, color=PRIMARY, bold=True)
     _add_textbox(slide, left=0.55, top=0.58, width=8.9, height=0.58, text=title, size=26, color=PRIMARY, bold=True)
     _add_textbox(slide, left=0.55, top=1.18, width=8.9, height=0.34, text=takeaway, size=15, color=MUTED)
-    rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(1.56), Inches(8.9), Inches(0.015))  # type: ignore[attr-defined]
+    rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(1.56), Inches(8.9), Inches(0.015))
     rule.fill.solid()
     rule.fill.fore_color.rgb = BORDER
     rule.line.fill.background()
 
 
-def _add_card(slide: object, card: SlideCard, *, left: float, top: float, width: float, height: float) -> None:
+def _add_card(slide: Any, card: SlideCard, *, left: float, top: float, width: float, height: float) -> None:
     shape = slide.shapes.add_shape(
         MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(width), Inches(height)
-    )  # type: ignore[attr-defined]
+    )
     shape.adjustments[0] = 0.06
     shape.fill.solid()
     shape.fill.fore_color.rgb = card.fill
@@ -124,8 +125,8 @@ def _add_card(slide: object, card: SlideCard, *, left: float, top: float, width:
         _style_run(para.add_run(), text=line, size=15, color=FOREGROUND)
 
 
-def _add_callout(slide: object, title: str, body: str, *, top: float = 4.50) -> None:
-    banner = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(top), Inches(8.9), Inches(0.72))  # type: ignore[attr-defined]
+def _add_callout(slide: Any, title: str, body: str, *, top: float = 4.50) -> None:
+    banner = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(top), Inches(8.9), Inches(0.72))
     banner.fill.solid()
     banner.fill.fore_color.rgb = SELECTION
     banner.line.fill.background()
@@ -137,7 +138,7 @@ def _add_callout(slide: object, title: str, body: str, *, top: float = 4.50) -> 
     para = frame.paragraphs[0]
     _style_run(para.add_run(), text=f"{title} ", size=15, color=PRIMARY, bold=True)
     _style_run(para.add_run(), text=body, size=15, color=FOREGROUND)
-    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(top), Inches(0.06), Inches(0.72))  # type: ignore[attr-defined]
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(top), Inches(0.06), Inches(0.72))
     bar.fill.solid()
     bar.fill.fore_color.rgb = PRIMARY
     bar.line.fill.background()

@@ -43,6 +43,7 @@ def materialize(root: Path, starter: str, prefix: str = "") -> dict[str, str]:
         "PATH": os.pathsep.join([str(Path(mise).parent), str(Path(sys.executable).parent), os.defpath]),
         "HOME": str(root),
         "MISE_CONFIG_DIR": str(root / "config"),
+        "MISE_STATE_DIR": str(root / "mise-state"),
         "MISE_TRUSTED_CONFIG_PATHS": str(root),
     }
 
@@ -76,6 +77,7 @@ def test_starter_task_graph_validates(tmp_path: Path, starter: str) -> None:
         "PATH": os.pathsep.join([str(Path(mise).parent), os.defpath]),
         "HOME": str(tmp_path),
         "MISE_CONFIG_DIR": str(tmp_path / "config"),
+        "MISE_STATE_DIR": str(tmp_path / "mise-state"),
         "MISE_TRUSTED_CONFIG_PATHS": str(tmp_path),
     }
     result = run(tmp_path, env, "mise", "tasks", "validate")
@@ -231,6 +233,7 @@ def test_docs_serve_starters_validate_and_honor_port_override(tmp_path: Path, st
         "PATH": os.pathsep.join([str(bin_dir), str(Path(mise).parent), str(Path(sys.executable).parent), os.defpath]),
         "HOME": str(tmp_path),
         "MISE_CONFIG_DIR": str(tmp_path / "config"),
+        "MISE_STATE_DIR": str(tmp_path / "mise-state"),
         "MISE_TRUSTED_CONFIG_PATHS": str(tmp_path),
     }
     assert run(tmp_path, base_env, "mise", "tasks", "validate").returncode == 0

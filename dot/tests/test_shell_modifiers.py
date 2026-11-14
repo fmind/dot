@@ -104,3 +104,13 @@ def test_profile_keeps_bashrc_activation_ahead_of_shims(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == activated
+
+
+@pytest.mark.parametrize("modifier", sorted(MODIFIERS))
+def test_modifier_strips_antigravity_installer_path_idempotently(tmp_path: Path, modifier: str) -> None:
+    baseline = render(tmp_path, modifier, "export USER_KEEP=1\n")
+    polluted = f'{baseline}\n# Added by Antigravity CLI installer\nexport PATH="/home/user/.local/bin:$PATH"\n'
+    cleaned = render(tmp_path, modifier, polluted)
+    assert cleaned == baseline
+    assert cleaned.splitlines()[-1].startswith("# chezmoi: end mise-")
+    assert render(tmp_path, modifier, cleaned) == cleaned

@@ -6,7 +6,6 @@
 # signatures stay on, and dot_tasks.mise_refresh enforces download digests in revision-4 lockfiles.
 aqua.cosign = false
 aqua.minisign = false
-color_theme = "base16"
 # asdf plugins lock without checksums and may compile from source.
 disable_backends = ["asdf"]
 env_cache = true
@@ -66,41 +65,41 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 
 # Selection rule: "Global tools and generated locks" in fmind/dot's AGENTS.md; a project tool kept global says why in its comment.
 [tools]
-"conda:file" = "latest" # File type detection for agents and Yazi; includes its magic database
+"conda:file" = "latest"
 # macOS ships both natively (mandoc renders man pages there).
-"conda:groff" = { version = "latest", os = ["linux"] } # Man-page renderer that `aws <command> help` requires
-"conda:unzip" = { version = "latest", os = ["linux"] } # ZIP extraction for Mason packages and installers
-"github:DataDog/pup" = "latest" # Official Datadog command-line interface (pup) for logs, monitors, and OAuth PKCE
+"conda:groff" = { version = "latest", os = ["linux"] }
+"conda:unzip" = { version = "latest", os = ["linux"] }
+"github:DataDog/pup" = "latest"
 # github, not aqua: aqua names the binary docker-cli-plugin-docker-buildx, which Docker does not
 # discover; Docker plugins must be named docker-<name>. See colima below.
-"github:docker/buildx" = { version = "latest", os = ["macos"], bin = "docker-buildx" } # BuildKit plugin (docker buildx)
+"github:docker/buildx" = { version = "latest", os = ["macos"], bin = "docker-buildx" }
 # fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
-"github:fastfetch-cli/fastfetch" = "latest" # Active, customizable system info fetching tool
+"github:fastfetch-cli/fastfetch" = "latest"
 # OpenCode 2.x ships through npm (the mise registry moved here from aqua). mise skips its postinstall, which links
 # the locked platform binary that fits this CPU into bin/; run it offline so it never fetches an unlocked package.
-"npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' } # OpenCode AI agent CLI tool
+"npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' }
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
-"npm:cf" = "latest" # Official Cloudflare agentic CLI (cf)
+"npm:cf" = "latest"
 # npm, not aqua: upstream's standalone macOS binary is x86_64-only, so it would need Rosetta on Apple Silicon.
 # encodeurl@1.0.3 (pillarjs/encodeurl@c669d95) and encodeurl@2.0.2 (pillarjs/encodeurl@f805c3e) were manually backported by blakeembrey after 3.0.0 enabled OIDC provenance.
 "npm:firebase-tools" = { version = "latest", trust_policy_excludes = [
   "encodeurl@1.0.3",
   "encodeurl@2.0.2",
-] } # Official Firebase CLI (firebase) for Hosting, Firestore, Auth, and Rules
-"npm:skills" = "latest" # Agent Skills CLI manager
+] }
+"npm:skills" = "latest"
 # Bind pypi tools to the global Python minor so project python pins neither re-hash them nor hit missing 3.15 wheels.
-"pypi:brain-framework" = { version = "latest", python = "3.14" } # Brain Framework CLI (bf)
-"pypi:copier" = { version = "latest", python = "3.14" } # Default project template generator and updater
-"pypi:fmind" = { version = "latest", python = "3.14" } # Fmind portfolio reader; renders www.fmind.dev from the terminal
+"pypi:brain-framework" = { version = "latest", python = "3.14" }
+"pypi:copier" = { version = "latest", python = "3.14" }
+"pypi:fmind" = { version = "latest", python = "3.14" }
 # Let google-colab-cli select its compatible jupyter-kernel-client version;
 # an additional `with` pin can conflict with its exact upstream requirement.
-"pypi:google-colab-cli" = { version = "latest", python = "3.14" } # CLI client for Google Colab
-"pypi:huggingface_hub" = { version = "latest", python = "3.14" } # Hugging Face Hub CLI client
+"pypi:google-colab-cli" = { version = "latest", python = "3.14" }
+"pypi:huggingface_hub" = { version = "latest", python = "3.14" }
 # Keep `with`: kaggle 2.2.5 imports six without declaring it, and python-dateutil 4 no longer brings it.
 "pypi:kaggle" = { version = "latest", python = "3.14", with = ["six"] } # Kaggle dataset and competition CLI
-"pypi:marimo" = { version = "latest", python = "3.14" } # Reactive Python notebooks and agent pairing outside projects; pairs with ~/.config/marimo/marimo.toml
+"pypi:marimo" = { version = "latest", python = "3.14" }
 # Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
-"pypi:pgcli" = { version = "latest", python = "3.14", with = ["psycopg[binary]"] } # PostgreSQL client; bundled libpq
+"pypi:pgcli" = { version = "latest", python = "3.14", with = ["psycopg[binary]"] }
 "pypi:vulture" = { version = "latest", python = "3.14" } # Python dead-code scanner for full-review sweeps outside projects; projects pin their own
 acli = "latest"
 age = "latest"
@@ -139,7 +138,7 @@ jq = "latest"
 lazydocker = "latest"
 lazygit = "latest"
 lefthook = "latest"
-lima = { version = "latest", os = ["macos"] } # Linux VM manager backing Colima
+lima = { version = "latest", os = ["macos"] }
 lsd = "latest"
 lychee = "latest"
 neovim = "latest"
@@ -157,7 +156,7 @@ starship = "latest"
 stylua = "latest" # Lua formatter LazyVim uses outside this repository
 tflint = "latest" # Terraform linter LazyVim uses outside projects; projects pin their own
 tree-sitter = "latest" # Parser CLI backing nvim-treesitter (Linux binary requires glibc 2.39+)
-trivy = "latest" # Vulnerability, misconfiguration, and license scanner (Betterleaks owns secrets)
+trivy = "latest"
 ty = "latest"
 typos = "latest"
 typst = "latest" # Composed diagrams and standalone PDFs outside projects; projects pin their own

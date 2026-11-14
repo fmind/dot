@@ -1,6 +1,6 @@
 # AGENTS.md (Project)
 
-Rules for coding agents in `<slug>` (<1-2 sentences on what this project does>). Humans start at `README.md`.
+Rules for coding agents in `<slug>` (<description>). Humans start at `README.md`.
 
 ## Tasks (`mise.toml`)
 
@@ -8,7 +8,7 @@ Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `u
 
 - `mise run install` — `uv sync --locked` (malware-checked) + git hooks.
 - `mise run format` — `ruff` (imports + format) and `dprint`.
-- `mise run check` — `check:local` (`ruff`, `ty`, `deptry`, `dprint`, `betterleaks`, `validate-pyproject`) + `check:network` (`uv audit`).
+- `mise run check` — `check:local` (`ruff`, `ty`, `deptry`, `dprint`, `betterleaks`, `validate-pyproject`, `uv lock --check`) + `check:network` (`uv audit`).
 - `mise run test` — offline `pytest` (`pytest-socket` loopback-only, 60s timeout, 85% branch coverage).
 - `mise run build` — `uv build --clear` + strict Zensical API docs (`mise run serve:docs` previews).
 - `mise run watch` — continuous test/app watcher.

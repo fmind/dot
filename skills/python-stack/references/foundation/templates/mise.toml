@@ -1,7 +1,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.11.6"
+min_version = "2026.11.8"
 
 [settings]
 lockfile = true
@@ -67,6 +67,7 @@ description = "Check formatting, project metadata, and lockfile"
 run = [
   "uv run --locked validate-pyproject pyproject.toml",
   "uv run --locked ruff format --check",
+  "uv lock --check",
   "dprint check",
 ]
 
@@ -98,7 +99,7 @@ run = "uv audit --preview-features audit-command --locked"
 [tasks.clean]
 alias = "n"
 description = "Remove build artifacts and coverage files"
-run = "rm -rf .cache .pytest_cache .ruff_cache .coverage .coverage.* htmlcov dist site"
+run = "rm -rf .cache .pytest_cache .ruff_cache .ty_cache .coverage .coverage.* htmlcov build dist site"
 
 [tasks.coverage]
 alias = "v"

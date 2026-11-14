@@ -38,7 +38,7 @@ Partial groups report known subtotals and completeness counts without estimating
 - **Claude**: deduplicates blocks by request/message ID (peak counters), marks `hasUnknownModelCost` unknown, and prices 1h vs 5m cache writes separately.
 - **Pi**: samples assistant, cache-warming, summary, and nested-model entries (counting only assistant turns as requests); input excludes cache reads/writes, output includes reasoning, and `cost.total` is recorded.
 - **Antigravity**: reads response/compaction counters (input excludes cache reads → `cached_tokens`) or estimates ~4 bytes/token; `model` is `unknown` and unpriced.
-- **Copilot & OpenCode**: Copilot dates by latest turn then creation; OpenCode records per-step tokens (reasoning in output) and computed cost (unpriced in API equivalents).
+- **Copilot & OpenCode**: Copilot dates by latest turn then creation (including `<db>-wal` in `source_bytes`). Live OpenCode sync accepts only an empty SQLite store and fails closed if `session_v2` (2.x) or `session` (1.x) holds rows; archived 1.x bundles remain queryable (per-step tokens, reasoning in output, recorded cost unpriced in API equivalents).
 - **Retired (`codex`, `grok`)**: queryable from archived bundles; Codex includes cache in input and reasoning in output, and Grok uses turn ledgers or `context-only` fallbacks (`<model>-build` priced at `<model>`). Legacy parsers 3–6 (and 7 for Grok) report in `legacy_accounting_sessions` and stay unpriced; see [session compatibility](https://github.com/fmind/dot/blob/main/.agents/skills/dot-development/references/session-compatibility.md).
 
 ## Documentation

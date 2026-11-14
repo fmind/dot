@@ -62,3 +62,31 @@ def test_atomic_write_failure_preserves_existing_file_and_removes_temporary_data
     assert target.read_bytes() == b"old"
     assert stat.S_IMODE(target.stat().st_mode) == 0o640
     assert list(tmp_path.iterdir()) == [target]
+
+
+def test_atomic_write_syncs_parent_directory_with_nofollow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    target = tmp_path / "secret"
+    real_open = os.open
+    seen_flags: list[int] = []
+
+    def tracking_open(path: str | bytes | os.PathLike[str] | os.PathLike[bytes], flags: int, *args: int) -> int:
+        if path == tmp_path:
+            seen_flags.append(flags)
+        return real_open(path, flags, *args)
+
+    monkeypatch.setattr(os, "open", tracking_open)
+    write_private_file(target, b"ok")
+    required = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    assert seen_flags
+    assert all((flags & required) == required for flags in seen_flags)
+    assert target.read_bytes() == b"ok"
+
+    # Directory sync failure must not prevent publication once replace() succeeded.
+    def deny_dir_open(path: str | bytes | os.PathLike[str] | os.PathLike[bytes], flags: int, *args: int) -> int:
+        if path == tmp_path:
+            raise OSError("symlinked parent dir")
+        return real_open(path, flags, *args)
+
+    monkeypatch.setattr(os, "open", deny_dir_open)
+    write_private_file(target, b"updated")
+    assert target.read_bytes() == b"updated"

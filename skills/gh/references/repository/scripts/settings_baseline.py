@@ -125,6 +125,15 @@ def enabled(path: str) -> bool:
         return False
 
 
+def no_content_enabled(path: str) -> bool:
+    """Read a 204-when-on / 404-when-off endpoint such as vulnerability-alerts."""
+    try:
+        gh("api", "--method", "GET", path)
+    except NotFoundError:
+        return False
+    return True
+
+
 def write(method: str, path: str, body: Record | None = None) -> None:
     sys.stderr.write(f"{method} {path}\n")
     gh("api", "--method", method, *(("--input", "-") if body is not None else ()), path, body=body)
@@ -172,6 +181,7 @@ def inspect(repository: str) -> State:
         **{f"has_{feature}": repo.get(f"has_{feature}") for feature in FEATURES},
         "secret_scanning": status("secret_scanning"),
         "secret_scanning_push_protection": status("secret_scanning_push_protection"),
+        "vulnerability_alerts": no_content_enabled(f"{base}/vulnerability-alerts"),
         "automated_security_fixes": enabled(f"{base}/automated-security-fixes"),
     }
     actions = get_record(f"{base}/actions/permissions")
@@ -252,10 +262,11 @@ def environment_body(name: str, environment: Record) -> Record:
             ):
                 raise BaselineError(f"environment {name}: unexpected reviewer shape; refusing to drop it")
             reviewers.append({"type": item["type"], "id": reviewer_id})
+    bypass = environment.get("can_admins_bypass")
     return {
         "wait_timer": (timers[0] if timers else None) or 0,
-        "prevent_self_review": (reviewer_rules[0].get("prevent_self_review") if reviewer_rules else None) or False,
-        "can_admins_bypass": True,
+        "prevent_self_review": (reviewer_rules[0].get("prevent_self_review") if reviewer_rules else None) is True,
+        "can_admins_bypass": bypass if isinstance(bypass, bool) else True,
         "reviewers": reviewers or None,
         "deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True},
     }
@@ -331,6 +342,7 @@ def expectations(state: State, args: argparse.Namespace) -> tuple[Record, list[s
         expected |= {"secret_scanning": "enabled", "secret_scanning_push_protection": "enabled"}
     else:
         notes.append("secret scanning is unavailable (no security_and_analysis.secret_scanning); left unchanged")
+    expected["vulnerability_alerts"] = True
     expected["automated_security_fixes"] = True
     if state.actions.get("enabled") is True:
         if not args.skip_sha_pinning:

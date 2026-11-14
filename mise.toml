@@ -2,7 +2,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Keep equal to install.sh and the workflow pins (test_bootstrap enforces it).
-min_version = "2026.11.6"
+min_version = "2026.11.8"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no

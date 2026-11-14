@@ -12,6 +12,7 @@ from fmind_dot.archive import parsers as parser_module
 from fmind_dot.archive.parsers import (
     AGENT_ADAPTERS,
     ParsedSession,
+    claude_parent_session_id,
     parse_agy_session,
     parse_claude_session,
     parse_copilot_session,
@@ -556,8 +557,8 @@ def test_copilot_discovery_is_read_only_and_filters_invalid_session_ids(tmp_path
     database = tmp_path / "copilot.db"
     with closing(sqlite3.connect(database)) as connection:
         connection.executescript(
-            """CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-            INSERT INTO sessions VALUES('valid-id',NULL,'2026-01-01T00:00:00Z');
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('valid-id',NULL,'2026-01-01T00:00:00Z');
             INSERT INTO sessions VALUES('invalid/id','/private','2026-01-01T00:00:00Z');"""
         )
 
@@ -1105,3 +1106,118 @@ def test_jsonl_unicode_preserves_valid_conversation(separator: str, tmp_path: Pa
     parsed = parse_claude_session(path, "test-session")
     assert parsed.malformed == 0
     assert [log.content for log in parsed.logs] == [content]
+
+
+def test_agy_cache_write_and_mixed_unmeasured_responses(tmp_path: Path) -> None:
+    response = {"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "done"}
+    prompt = {"source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "ask"}
+
+    with_cache_write = tmp_path / "agy-cw.jsonl"
+    _jsonl(
+        with_cache_write,
+        [
+            {**prompt, "created_at": "2026-01-01T00:00:00Z"},
+            {
+                **response,
+                "created_at": "2026-01-01T00:00:01Z",
+                "input_tokens": 100,
+                "output_tokens": 10,
+                "cache_write_tokens": 25,
+            },
+        ],
+    )
+    usage = _usage(parse_agy_session(with_cache_write, "agy-cw"))
+    assert usage.measurement_kind == "provider-reported"
+    assert (usage.cache_write_tokens, usage.total_tokens) == (25, 135)
+
+    mixed = tmp_path / "agy-mixed.jsonl"
+    _jsonl(
+        mixed,
+        [
+            {**prompt, "created_at": "2026-01-01T00:00:00Z"},
+            {**response, "created_at": "2026-01-01T00:00:01Z", "input_tokens": 100, "output_tokens": 10},
+            {**response, "created_at": "2026-01-01T00:00:02Z"},
+        ],
+    )
+    fallback_usage = _usage(parse_agy_session(mixed, "agy-mixed"))
+    assert fallback_usage.measurement_kind == "estimated"
+    assert fallback_usage.samples == []
+    assert (fallback_usage.input_tokens, fallback_usage.output_tokens) == (1, 2)
+
+
+def test_claude_nested_workflow_parent_and_streaming_chunk_metadata(tmp_path: Path) -> None:
+    nested = tmp_path / "parent-1/subagents/workflows/wf_1/agent-c1.jsonl"
+    nested.parent.mkdir(parents=True)
+    _jsonl(
+        nested,
+        [
+            {
+                "type": "assistant",
+                "requestId": "req-1",
+                "cwd": "/work/app",
+                "timestamp": "2026-09-09T10:00:01Z",
+                "message": {
+                    "id": "msg-1",
+                    "model": "claude-sonnet-4-6",
+                    "usage": {"input_tokens": 10, "output_tokens": 2},
+                },
+            },
+            {
+                "type": "assistant",
+                "requestId": "req-1",
+                "message": {
+                    "id": "msg-1",
+                    "usage": {"input_tokens": 10, "output_tokens": 7},
+                },
+            },
+            {
+                "type": "assistant",
+                "requestId": "req-2",
+                "message": {
+                    "id": "msg-2",
+                    "model": "claude-sonnet-4-6",
+                    "usage": {"input_tokens": 5, "output_tokens": 1},
+                },
+            },
+            {
+                "type": "assistant",
+                "requestId": "req-2",
+                "timestamp": "2026-09-09T10:00:02Z",
+                "message": {
+                    "id": "msg-2",
+                    "model": "claude-sonnet-4-6",
+                    "usage": {"input_tokens": 5, "output_tokens": 3},
+                },
+            },
+        ],
+    )
+
+    assert claude_parent_session_id(nested) == "parent-1"
+    parsed = parse_claude_session(nested, "agent-c1")
+    usage = _usage(parsed)
+    assert (parsed.sidechain, parsed.parent_session_id) == (True, "parent-1")
+    assert usage.cwd == "/work/app"
+    assert usage.timestamp == "2026-09-09T10:00:02Z"
+    assert [(s["model"], s["output_tokens"]) for s in usage.samples] == [
+        ("claude-sonnet-4-6", 7),
+        ("claude-sonnet-4-6", 3),
+    ]
+
+
+def test_copilot_wal_size_contributes_to_source_bytes_without_changing_fingerprint(tmp_path: Path) -> None:
+    database = tmp_path / "copilot.db"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.executescript(
+            COPILOT_SCHEMA
+            + """INSERT INTO sessions VALUES('cp-id','/repo','2026-01-01T00:00:00Z');
+            INSERT INTO turns VALUES(1,'cp-id',1,'ask','reply','2026-01-01T00:00:01Z');
+            INSERT INTO assistant_usage_events VALUES('cp-id','gpt-5.4',10,5,0,0,0);"""
+        )
+    before = parse_copilot_session(database, "cp-id")
+    base_bytes = _usage(before).source_bytes
+
+    wal = Path(f"{database}-wal")
+    wal.write_bytes(b"0" * 128)
+    after = parse_copilot_session(database, "cp-id")
+    assert after.fingerprint == before.fingerprint
+    assert _usage(after).source_bytes == base_bytes + 128

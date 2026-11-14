@@ -8,7 +8,12 @@
 {{- $block := printf "%s\n%s\n%s" $begin .body $end -}}
 {{- $span := printf "(?ms)^%s\\n.*?^%s$" (regexQuoteMeta $begin) (regexQuoteMeta $end) -}}
 {{- $open := printf "(?m)^%s$" (regexQuoteMeta $begin) -}}
+{{- $installer := `(?m)^# Added by Antigravity CLI installer\r?\nexport PATH="[^"\r\n]*/\.local/bin:\$PATH"[ \t]*(\r?\n|$)` -}}
 {{- $text := .stdin -}}
+{{- if regexMatch $installer $text -}}
+{{-   $text = regexReplaceAll $installer $text "" -}}
+{{-   $text = regexReplaceAll `\n+\z` $text "\n" -}}
+{{- end -}}
 {{- if regexMatch $span $text -}}
 {{-   $text = regexReplaceAllLiteral $span $text $block -}}
 {{- else if regexMatch $open $text -}}

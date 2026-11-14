@@ -272,7 +272,7 @@ def _wait_for_line(stream: IO[str]) -> None:
     # Canonical terminals return one line per read(), so no answer waits in the buffer.
     try:
         descriptor = stream.fileno()
-    except OSError, ValueError:
+    except AttributeError, OSError, ValueError:
         return
     while not select.select([descriptor], [], [], 0.1)[0]:
         pass
@@ -280,14 +280,11 @@ def _wait_for_line(stream: IO[str]) -> None:
 
 def _confirm_prune(state: State, names: list[str]) -> None:
     while True:
-        try:
-            # Prompts go to stderr so stdout stays the command's report.
-            question = f"Empty the whole caches for {', '.join(names)} (they rebuild on next use)? [y/N]: "
-            print(question, end="", file=state.stderr, flush=True)
-            _wait_for_line(state.stdin)
-            answer = state.stdin.readline().strip().lower()
-        except EOFError:
-            raise CancelledError from None
+        # Prompts go to stderr so stdout stays the command's report.
+        question = f"Empty the whole caches for {', '.join(names)} (they rebuild on next use)? [y/N]: "
+        print(question, end="", file=state.stderr, flush=True)
+        _wait_for_line(state.stdin)
+        answer = state.stdin.readline().strip().lower()
         if answer in {"y", "yes"}:
             return
         if answer in {"", "n", "no"}:

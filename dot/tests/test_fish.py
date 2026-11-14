@@ -197,3 +197,57 @@ def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path:
         check=True,
     )
     assert preserved.stdout == "/bin/sh"
+
+
+def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    shims = tmp_path / ".local/share/mise/shims"
+    installs = tmp_path / ".local/share/mise/installs/python/3.14/bin"
+    other = tmp_path / "other"
+    for directory in (shims, installs, other):
+        directory.mkdir(parents=True)
+    agy_bin = other / "agy"
+    agy_bin.write_text(
+        "#!/bin/sh\n"
+        'printf "PATH=%s\\n" "$PATH"\n'
+        'printf "MISE_SHELL=%s\\n" "${MISE_SHELL:-unset}"\n'
+        'printf "__MISE_DIFF=%s\\n" "${__MISE_DIFF:-unset}"\n'
+        'printf "GH_PROMPT_DISABLED=%s\\n" "${GH_PROMPT_DISABLED:-unset}"\n'
+        'printf "CLOUDSDK_CORE_DISABLE_PROMPTS=%s\\n" "${CLOUDSDK_CORE_DISABLE_PROMPTS:-unset}"\n'
+        'printf "ARGS=%s\\n" "$*"\n',
+        encoding="utf-8",
+    )
+    agy_bin.chmod(0o755)
+    script = (
+        f'set -gx PATH "{installs}" "{other}" "{shims}" /usr/bin /bin; '
+        "set -gx MISE_SHELL fish; "
+        "set -gx __MISE_DIFF eJyr; "
+        "source dot_config/fish/functions/agy.fish; "
+        "agy --version; "
+        'printf "AFTER_PATH=%s\\n" (string join : -- $PATH); '
+        'printf "AFTER_MISE_SHELL=%s\\n" "$MISE_SHELL"\n'
+    )
+    fish = shutil.which("fish") or "fish"
+    result = subprocess.run(
+        [fish, "--no-config", "--interactive", "--command", script],
+        cwd=root,
+        env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    assert result.stderr == "", result.stderr
+    lines = dict(line.split("=", 1) for line in result.stdout.splitlines())
+    child_path = lines["PATH"].split(":")
+    assert child_path[0] == str(shims)
+    assert child_path.count(str(shims)) == 1
+    assert str(installs) not in child_path
+    assert lines["MISE_SHELL"] == "unset"
+    assert lines["__MISE_DIFF"] == "unset"
+    assert lines["GH_PROMPT_DISABLED"] == "1"
+    assert lines["CLOUDSDK_CORE_DISABLE_PROMPTS"] == "1"
+    assert lines["ARGS"] == "--version"
+    assert str(installs) in lines["AFTER_PATH"].split(":")
+    assert lines["AFTER_MISE_SHELL"] == "fish"

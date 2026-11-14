@@ -3805,7 +3805,7 @@ specifiers = ["latest"]
 
 [[tools."npm:firebase-tools"]]
 version = "15.36.0"
-aube = { path = "locks/npm-firebase-tools/15.36.0~d4a69271", digest = "sha256:7e80a1f55025b8642129ea0d53776f47fb31541d47865b64bab83d0c3fdd4af9" }
+aube = { path = "locks/npm-firebase-tools/15.36.0~d4a69271", digest = "sha256:81521e1fb17af5d3bbe4d6c6c354938fa0b7fb3353748857dcea74032c0bfa62" }
 backend = "npm:firebase-tools"
 specifiers = ["latest"]
 

@@ -1,6 +1,8 @@
 """Render font installation paths for both supported workstation platforms."""
 
 import hashlib
+import http.client
+import io
 import re
 import subprocess
 import threading
@@ -155,3 +157,43 @@ def test_copied_theme_parsers_ignore_comments() -> None:
     }
     assert "theme = fmind" in theme_pin.render(ROOT / "dot_config/ghostty/config.tmpl")
     assert 'palette = "fmind"' in theme_pin.render(ROOT / "dot_config/starship.toml")
+
+
+def test_theme_pin_handles_fetch_limits_resolution_and_main_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sha = "c" * 40
+    monkeypatch.setattr(
+        theme_pin.subprocess,
+        "run",
+        lambda *_a, **_kw: subprocess.CompletedProcess([], 0, stdout=f"{sha}\trefs/heads/main\n", stderr=""),
+    )
+    assert theme_pin.resolve_head() == sha
+
+    monkeypatch.setattr(
+        theme_pin.subprocess,
+        "run",
+        lambda *_a, **_kw: subprocess.CompletedProcess([], 0, stdout="bad\n", stderr=""),
+    )
+    with pytest.raises(ValueError, match="cannot resolve"):
+        theme_pin.resolve_head()
+
+    monkeypatch.setattr(
+        theme_pin.urllib.request, "urlopen", lambda *_a, **_kw: io.BytesIO(b"x" * (theme_pin.MAX_BYTES + 1))
+    )
+    with pytest.raises(ValueError, match="exceeds"):
+        theme_pin.fetch("https://example.test/theme")
+
+    with pytest.raises(ValueError, match="unsupported theme format"):
+        theme_pin.parse("data", "theme.txt")
+
+    (tmp_path / ".chezmoiexternal.toml.tmpl").write_text("", encoding="utf-8")
+    monkeypatch.setattr(theme_pin, "ROOT", tmp_path)
+    monkeypatch.setattr("sys.argv", ["theme_pin", "--revision", sha])
+    monkeypatch.setattr(
+        theme_pin,
+        "prefetch",
+        lambda *_a: (_ for _ in ()).throw(http.client.HTTPException("upstream timeout")),
+    )
+    assert theme_pin.main() == 1
+    assert "Cannot pin fmind/theme: upstream timeout" in capsys.readouterr().err

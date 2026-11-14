@@ -12,7 +12,7 @@ Prefer native host resume or compaction; write a handoff only when conversation 
 - **Same agy session**: `agy -c` (latest), `agy --conversation <id>`, or `/resume` in-session.
 - **Long agy session**: `/compact [message]` summarizes context and answers `message`; `/context` shows usage.
 - **Branching**: `/fork` clones conversation history only; pair with [git-worktree](../../git-delivery/references/git-worktree/GUIDE.md) for parallel edits.
-- **Claude Code** (verified 2.1.319): `claude -c` (latest in cwd), `claude --resume <id-or-name>` (`-r`, or picker), `/compact [instructions]`, `/rewind` (conversation/code checkpoint), and `--fork-session` (new session ID).
+- **Claude Code** (verified 2.1.325): `claude -c` (latest in cwd), `claude --resume <id-or-name>` (`-r`, or picker), `/compact [instructions]`, `/rewind` (conversation/code checkpoint), and `--fork-session` (new session ID).
 - **Fresh start**: save and copy a handoff below, run `/clear`, and paste the prompt or pointer line.
 
 ## Handoff workflow

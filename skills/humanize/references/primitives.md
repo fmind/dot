@@ -5,23 +5,6 @@ Select only primitives supported by the target renderer. Never paste raw HTML in
 ## Before and after
 
 <details>
-<summary>Engineering status update: AI dump vs scannable update</summary>
-
-Before (92 words, jargon, backticks everywhere):
-
-> I finished investigating the `ingest-worker` pod OOMKilled (`exit code 137`) during `batch_run_42`. After reading `memory_profiler` traces in `src/worker/loader.py`, `polars.read_parquet` materialized a `4.2 GB` DataFrame because `chunk_size` defaulted to `None` inside `LoaderSettings`. I patched `chunk_size=100_000` in PR `#418`, bumped the Cloud Run memory limit to `8 GiB` in `infra/main.tf`, and verified `pytest tests/test_loader.py` passed (`14 passed`). Please review PR `#418` and approve the Cloud Run deployment.
-
-After (44 words, zero jargon, 1 highlight, 1 clear ask):
-
-> **Summary: Nightly data ingestion is healthy again — approve the fix so tonight's run completes.**
->
-> Batch imports hit a memory ceiling at 4.2 GB and restarted automatically. Streamed loading now caps peak usage well below the new 8 GB limit.
->
-> **Decision needed:** Approve [pull request 418](https://example.com/org/repo/pull/418) before 17:00 UTC.
-
-</details>
-
-<details>
 <summary>Executive incident memo: timeline wall vs table + badge</summary>
 
 Before:
@@ -43,7 +26,7 @@ After:
 
 ## Channel primitives
 
-- **Gmail HTML (`draft-mail`)**: Gmail strips `<style>` blocks; inline Fmind colors (`#202124` ink, `#174EA6` accent, `#F1F3F4` panel, `#D2E3FC` selection highlight, `#0D652D`/`#CEEAD6` success, `#934900`/`#FEEFC3` risk, `#A50E0E`/`#FAD2CF` blocker) and stack short blocks inside `max-width: 640px`.
+- **Gmail HTML (`draft-mail`)**: Gmail strips `<style>`; inline Fmind tokens (`#202124` ink, `#174EA6` accent, `#F1F3F4` panel, `#D2E3FC` selection, `#0D652D`/`#CEEAD6` ok, `#934900`/`#FEEFC3` risk, `#A50E0E`/`#FAD2CF` blocker) inside `max-width: 640px`:
 
 ```html
 <div style="font-family: 'Google Sans', Arial, sans-serif; color: #202124; max-width: 640px; line-height: 1.5;">
@@ -61,10 +44,10 @@ After:
 ```
 
 - **Google Docs (`draft-doc`)**:
-  - _Native editable doc path_: author clean Markdown with `---` horizontal rules, compact 3–4 column tables, bold lead-ins, `[!CALLOUT]` blocks (bold label blockquote), and compiled `≤440pt` Typst PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`) because Google Docs ignores raw HTML `<mark>` and `<span>` styles inside imported `.md`.
-  - _Styled HTML import path_: when colored highlights (`<mark style="background:#D2E3FC">`), tinted summary banners, or exact column shading matter more than editing Markdown later, upload styled HTML with `--mime-type text/html` converted to `application/vnd.google-apps.document` via `gws`.
+  - _Native `.md`_: use `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and compiled `≤440pt` Typst PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.
+  - _Styled HTML_: for `<mark>` highlights, tinted banners, or shaded tables, import via `gws drive files create --json '{"name":"<Title>","mimeType":"application/vnd.google-apps.document"}' --upload <file.html> --upload-content-type text/html`.
 
-- **GitHub PRs, issues, & READMEs (`gh`, `repository-docs`)**: use GitHub-Flavored alerts, bold status pills, short tables, and `<details>` for noisy command output or secondary rationale.
+- **GitHub PRs, issues, & READMEs (`gh`, `repository-docs`)**: pair GFM alerts, bold status pills, short tables, and `<details>` for logs:
 
 ```markdown
 > [!IMPORTANT]
@@ -80,14 +63,16 @@ Suite ran against staging snapshot at 14:20 UTC with zero regressions.
 </details>
 ```
 
-- **Zensical docs & portals (`documentation-site`)**: Zensical renders Material/PyMdown extensions rather than GitHub `[!IMPORTANT]` alerts. Use highlight marks, admonitions, collapsible blocks, tabbed views, and card grids cleanly:
+- **Zensical (`documentation-site`)**: Material/PyMdown syntax (not `[!IMPORTANT]`); indent bodies 4 spaces under headers:
 
-```markdown
+```text
 Spend drops ==38% this quarter== after consolidating the cluster.
 
-!!! success "Decision ready" Approve the cutover window before Thursday 17:00 CET.
+!!! success "Decision ready"
+    Approve the cutover window before Thursday 17:00 CET.
 
-??? info "Detailed benchmarks" Median latency stayed at 42 ms across 10,000 requests.
+??? info "Detailed benchmarks"
+    Median latency stayed at 42 ms across 10,000 requests.
 ```
 
 - **Jira & Confluence (`acli`)**: author native ADF panels (`info`, `note`, `warning`, `success`, `error`), status lozenges, tables, and expand macros rather than raw Markdown strings.
@@ -98,7 +83,6 @@ Spend drops ==38% this quarter== after consolidating the cluster.
 
 ## Framing, numbers, and scannability
 
-- **Executive / customer lens**: trade metrics in time, money, risk, reliability, or adoption. Never paste raw stack traces, internal branch names, or database columns in customer or leadership copy.
-- **Peer engineer lens**: link exact PRs, files, or dashboards cleanly inline without breaking flow with verbose path lists inside sentences.
-- **Honest rounding**: round `98.742%` to `99%`, `$41,892` to `$42k`, `382 ms` to `0.4 s`, always paired with its baseline or limit (`0.4 s vs 1.5 s SLA`).
-- **Paragraph rhythm**: cap paragraphs at 3 lines; give every list item a **Bold lead-in**; leave visible whitespace between headline, takeaway, evidence visual, and ask.
+- **Executive / customer lens**: trade metrics in time, money, risk, reliability, or adoption; omit raw stack traces, branch names, and DB columns.
+- **Peer engineer lens**: link PRs, files, or dashboards cleanly inline without breaking flow.
+- **Honest rounding**: round `98.742%` → `99%`, `$41,892` → `$42k`, `382 ms` → `0.4 s`, paired with a baseline or limit (`0.4 s vs 1.5 s SLA`).

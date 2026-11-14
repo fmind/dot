@@ -24,11 +24,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           cache: true
-          # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.6
+          version: 2026.11.8
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Scan full checkout and audit locked dependencies

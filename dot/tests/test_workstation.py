@@ -1482,3 +1482,19 @@ def test_run_probe_caches_outcomes_until_cleared() -> None:
     state.clear_probes()
     assert state.run_probe(("gws",), execute).stdout == "attempt-3"
     assert calls == 3
+
+
+def test_wait_for_line_skips_select_for_unselectable_streams(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_select(*_args: object) -> object:
+        raise AssertionError("select should not be called")
+
+    monkeypatch.setattr(workstation.select, "select", unexpected_select)
+    workstation._wait_for_line(io.StringIO("y\n"))  # noqa: SLF001
+
+    class NoFilenoStream(io.StringIO):
+        def __getattribute__(self, name: str) -> object:
+            if name == "fileno":
+                raise AttributeError(name)
+            return super().__getattribute__(name)
+
+    workstation._wait_for_line(NoFilenoStream("n\n"))  # noqa: SLF001

@@ -29,11 +29,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           cache: false
-          # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.6
+          version: 2026.11.8
       - name: Run canonical gate
         run: mise run all
       - name: Verify clean tree
@@ -41,7 +40,8 @@ jobs:
       - name: Extract release notes
         id: notes
         run: |
-          prev_release="$(git log --grep='^chore(release): v' -n 1 --format=%H HEAD^)"
+          # Match the previous release commit directly so retired tags never widen the range.
+          prev_release="$(git log -n 1 --basic-regexp --grep='^chore(release): v' --format=%H HEAD^)"
           delimiter="EOF_$(cat /proc/sys/kernel/random/uuid)"
           {
             printf 'notes<<%s\n' "$delimiter"

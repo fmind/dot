@@ -407,3 +407,67 @@ def test_public_stats_leave_unproven_legacy_zero_unpriced_without_changing_archi
     assert row["pricing_complete"] is False
     assert row["unpriced_reasons"] == {"legacy zero lacks measurement evidence": 1}
     assert bundle.read_bytes() == before
+
+
+def test_vendor_prefixed_and_dated_claude_models_resolve_while_exact_override_wins() -> None:
+    pricing = default_pricing()
+    for harness, model in (
+        ("pi", "anthropic/claude-opus-4-5-20251101"),
+        ("pi", "anthropic/claude-sonnet-4.6"),
+        ("claude", "claude-haiku-4-5-20251001"),
+        ("pi", "google/gemini-4-argon"),
+        ("codex", "openai/gpt-6.1-sol"),
+        ("pi", "x-ai/grok-4.7"),
+        ("grok", "x-ai/grok-4.7-build"),
+    ):
+        sample = UsageRecord(
+            harness=harness,
+            session_id="alias",
+            model=model,
+            measurement_kind="provider-reported",
+            input_tokens=1_000_000,
+        ).finalize(fallback_timestamp="2026-10-12T00:00:00Z")
+        cost, reason = api_equivalent(sample, pricing)
+        assert (model, cost, reason) != (model, None, "unknown or mixed model")
+
+    # Non-grok harnesses still refuse -build fallback.
+    rejected = UsageRecord(
+        harness="claude",
+        session_id="alias",
+        model="anthropic/claude-sonnet-4.6-build",
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+    ).finalize(fallback_timestamp="2026-10-12T00:00:00Z")
+    assert api_equivalent(rejected, pricing) == (None, "unknown or mixed model")
+
+    # Explicit user configuration overrides normalized lookup.
+    pricing.models["anthropic/claude-sonnet-4.6"] = pricing.models["claude-sonnet-4-6"].model_copy(update={"input": 9})
+    overridden = UsageRecord(
+        harness="pi",
+        session_id="override",
+        model="anthropic/claude-sonnet-4.6",
+        measurement_kind="provider-reported",
+        input_tokens=1_000_000,
+    ).finalize(fallback_timestamp="2026-10-12T00:00:00Z")
+    assert api_equivalent(overridden, pricing) == (pytest.approx(9), "")
+
+
+def test_prompt_statistics_ignores_non_chat_bad_timestamps_and_falls_back_to_record_cwd() -> None:
+    logs = [
+        SessionLog("invalid-system-ts", "claude", "s1", "system", "tool", "/work/app"),
+        SessionLog("2026-09-09T10:00:00Z", "claude", "s1", "user", "hello", "/work/app"),
+        SessionLog("2026-09-09T10:00:01Z", "claude", "s1", "assistant", "world", "/work/app"),
+    ]
+    ingest_session("claude", "s1", logs)
+    bundle = session_bundle_path("claude", "s1")
+    lines = bundle.read_text(encoding="utf-8").splitlines(keepends=True)
+    manifest = json.loads(lines[0])
+    manifest.pop("cwd", None)
+    lines[0] = json.dumps(manifest) + "\n"
+    bundle.write_text("".join(lines), encoding="utf-8")
+
+    report = prompt_statistics(SessionQuery(), by_project=True)
+
+    assert report["invalid_timestamps"] == 0
+    assert report["prompts"] == 1
+    assert [(row["agent"], row["project"]) for row in report["rows"]] == [("claude", "/work/app")]

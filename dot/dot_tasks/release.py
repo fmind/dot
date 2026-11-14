@@ -130,8 +130,8 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
         # Without a terminal the prompt would read EOF and silently cancel with exit 0.
         if not state.stdin.isatty():
             raise DotError("release requires confirmation; rerun in a terminal or pass --yes")
-        state.stdout.write(f"Prepare and tag {bumped} for publication? [y/N]: ")
-        state.stdout.flush()
+        state.stderr.write(f"Prepare and tag {bumped} for publication? [y/N]: ")
+        state.stderr.flush()
         if state.stdin.readline().strip().lower() not in {"y", "yes"}:
             state.stdout.write("Release canceled.\n")
             return None

@@ -9,6 +9,7 @@ import stat
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -24,12 +25,14 @@ from fmind_dot.archive.store import (
     ingest_session,
     is_valid_session_id,
     marshal_session_logs,
+    read_manifest_usage,
     read_session_bundle,
     read_session_manifest,
     report_ingestion,
     session_bundle_path,
     session_store_root,
 )
+from fmind_dot.archive.usage import UsageRecord, iter_usage_records
 
 
 def _logs(count: int, session_id: str = "session-1", agent: str = "codex") -> list[SessionLog]:
@@ -397,3 +400,58 @@ def test_zero_log_session_retains_usage_cwd_in_manifest() -> None:
     result = ingest_session("claude", "tool-only", [], SessionSource(fingerprint="k" * 64), usage=usage)
     assert result.status == "ingested"
     assert result.manifest.cwd == "/synthetic/workspace"
+
+
+def test_replacement_retains_when_previous_record_is_removed_and_new_appended() -> None:
+    path = session_bundle_path("codex", "session-gap")
+    initial = [
+        SessionLog("2026-09-01T00:00:00Z", "codex", "session-gap", "user", "first prompt"),
+        SessionLog("2026-09-01T00:00:01Z", "codex", "session-gap", "assistant", "first reply"),
+    ]
+    assert ingest_session("codex", "session-gap", initial, SessionSource(fingerprint="a" * 64)).status == "ingested"
+
+    shifted = [
+        SessionLog("2026-09-01T00:00:01Z", "codex", "session-gap", "assistant", "first reply"),
+        SessionLog("2026-09-01T00:00:02Z", "codex", "session-gap", "user", "second prompt"),
+    ]
+    retained = ingest_session("codex", "session-gap", shifted, SessionSource(fingerprint="b" * 64))
+
+    assert retained.status == "retained"
+    assert read_session_bundle(path)[1] == initial
+
+
+def test_read_manifest_usage_and_filtered_usage_window() -> None:
+    usage = UsageRecord(
+        harness="codex",
+        session_id="window-1",
+        model="gpt-5.4",
+        measurement_kind="provider-reported",
+        timestamp="2026-09-05T12:00:00Z",
+        input_tokens=10,
+        output_tokens=5,
+    ).finalize(fallback_timestamp="2026-09-05T12:00:00Z")
+    ingest_session(
+        "codex", "window-1", _logs(1, "window-1"), SessionSource(fingerprint="w" * 64), usage=usage.to_dict()
+    )
+    path = session_bundle_path("codex", "window-1")
+
+    header = read_session_manifest(path, usage=False)
+    assert header.usage is None
+    assert read_manifest_usage(path, header) == usage.to_dict()
+
+    matching = list(
+        iter_usage_records(
+            since=datetime(2026, 9, 1, tzinfo=UTC),
+            until=datetime(2026, 9, 10, tzinfo=UTC),
+        )
+    )
+    assert [(item.session_id, item.input_tokens) for item in matching] == [("window-1", 10)]
+    assert (
+        list(
+            iter_usage_records(
+                since=datetime(2026, 10, 1, tzinfo=UTC),
+                until=datetime(2026, 10, 2, tzinfo=UTC),
+            )
+        )
+        == []
+    )

@@ -21,7 +21,6 @@ body = """
     {% endfor %}
 {% endfor %}
 """
-trim = true
 
 [git]
 commit_parsers = [
@@ -37,10 +36,7 @@ commit_parsers = [
   { message = "^revert", group = "<!-- 8 -->⏪ Reverts" },
   { message = ".*", group = "<!-- 9 -->📦 Other" },
 ]
-conventional_commits = true
-filter_unconventional = true
 protect_breaking_commits = true
-sort_commits = "oldest"
 tag_pattern = "v[0-9].*"
 
 [bump]

@@ -83,7 +83,7 @@ def refresh(root: Path, *, bump: bool = False, tools: Sequence[str] = ()) -> Non
     environment = dict(os.environ)
     # Keep native graph resolution off RAM-backed /tmp on constrained Linux hosts.
     with tempfile.TemporaryDirectory(prefix="dot-mise-refresh-", dir="/var/tmp") as temporary:
-        workspace = Path(temporary)
+        workspace = Path(temporary).resolve()
         configuration = workspace / ".config/mise"
         configuration.mkdir(parents=True)
         for relative, content in bundle(source / "mise.lock", verify=False).items():

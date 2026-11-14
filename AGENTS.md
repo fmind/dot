@@ -17,7 +17,7 @@ See [common tasks](README.md#repository-tasks) (`mise tasks` lists all; running 
 
 - **Iterate**: edit source → focused checks → `mise run diff` → `mise run apply` (writes targets and runs `dot trust`). Lefthook gates commits/pushes; CI runs the full gate.
 - **Tools & upgrades**: alphabetize global tools inside their `[tools]` group in `dot_config/mise/config.toml` → `mise run lock` → `mise run full`. `mise run upgrade` updates only this workstation; upgrade other repos via [upgrade-tools](skills/upgrade-tools/SKILL.md).
-- **CLI (`dot`) & completions**: see [dot-development](.agents/skills/dot-development/SKILL.md) (code/tests/deploy), [dot-cli](skills/dot-cli/SKILL.md) (`login`, `setup`, `cache`, `prune`, `status`, `pull`, `trust`), and [agent usage](skills/dot-cli/references/agent-usage.md). `mise run completions` installs Fish completions; `check:completions` gates releases outside `all`.
+- **CLI (`dot`) & completions**: see [dot-development](.agents/skills/dot-development/SKILL.md) (code/tests/deploy), [dot-cli](skills/dot-cli/SKILL.md) (`login`, `setup`, `cache`, `prune`, `status`, `pull`, `trust`), and [agent usage](skills/dot-cli/references/agent-usage.md). `mise run completions` installs Fish completions; `check:completions` runs in `pre-push` and release qualification outside `all`.
 - **Skills & releases**: [dot-skills](.agents/skills/dot-skills/SKILL.md) owns catalog links and `check:skills`; [skillify](skills/skillify/SKILL.md) owns authoring. [dot-release](.agents/skills/dot-release/SKILL.md) owns standalone qualification and `/dot-release` publishing.
 
 ## Layout

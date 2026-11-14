@@ -280,3 +280,17 @@ def test_mise_locks_main_ignores_empty_or_relative_mise_data_dir(
 
     assert mise_locks.main() == 0
     assert (cwd / "installs/example/1.0").is_dir()
+
+
+def test_capture_preserves_destination_when_filenames_differ(tmp_path: Path) -> None:
+    source = _lock(tmp_path / "live", "2.0")
+    destination = tmp_path / "managed/custom.lock"
+
+    capture(source, destination)
+
+    assert destination.read_bytes() == source.read_bytes()
+    assert (destination.parent / "locks/example/2.0/uv.lock").is_file()
+    source_v3 = _lock(tmp_path / "live-v3", "3.0")
+    capture(source_v3, destination)
+    assert destination.read_bytes() == source_v3.read_bytes()
+    assert not (destination.parent / "locks/example/2.0").exists()

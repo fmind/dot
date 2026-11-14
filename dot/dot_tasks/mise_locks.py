@@ -71,14 +71,12 @@ def capture(source: Path, destination: Path) -> None:
 
     The destination is tracked by Git, which restores an interrupted copy.
     """
-    incoming = bundle(source)
+    source_files = bundle(source)
+    lock = Path(destination.name)
+    incoming = {lock if path == Path(source.name) else path: content for path, content in source_files.items()}
     previous = bundle(destination, verify=False) if destination.exists() else {}
-    lock = Path(source.name)
     # Validate every incoming destination before writing even an earlier safe graph.
-    targets = {
-        relative: _bundle_path(destination.parent, Path(destination.name) if relative == lock else relative)
-        for relative in incoming
-    }
+    targets = {relative: _bundle_path(destination.parent, relative) for relative in incoming}
     for relative in sorted(incoming, key=lambda path: path == lock):
         target = targets[relative]
         target.parent.mkdir(parents=True, exist_ok=True)

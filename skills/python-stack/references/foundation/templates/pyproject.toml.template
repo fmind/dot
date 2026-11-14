@@ -14,20 +14,20 @@ dependencies = []
 [dependency-groups]
 dev = [
   "deptry>=0.25.1",
-  "mkdocstrings-python>=2.0.10",
+  "mkdocstrings-python>=2.0.11",
   "pytest-cov>=7.1.0",
   "pytest-socket>=0.8.1",
   "pytest-timeout>=2.4.0",
   "pytest-watcher>=0.6.3",
   "pytest>=9.2.0",
-  "ruff>=0.17.4",
-  "ty>=0.0.101,<0.1", # pre-1.0: pin a compatible range until it stabilizes
+  "ruff>=0.17.5",
+  "ty>=0.0.104,<0.1", # pre-1.0: pin a compatible range until it stabilizes
   "validate-pyproject>=0.27",
   "zensical>=0.1.1,<0.2", # pre-1.0: pin a compatible range until it stabilizes
 ]
 
 [build-system]
-requires = ["uv_build>=0.13.7,<0.14"]
+requires = ["uv_build>=0.13.8,<0.14"]
 build-backend = "uv_build"
 
 [tool.ruff]

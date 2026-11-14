@@ -13,7 +13,7 @@ Compose the selected foundation and application owner, then add the shared repos
 1. **Choose template ownership**: one-off repos need no template. Reusable templates default to [Copier](copier.md); existing Cookiecutter/Cruft projects stay on [their workflow](cookiecutter.md) unless migration is requested.
 1. **Compose the stack** and finish its application profile before validation, reusing supplied `mise.toml`, `lefthook.yml`, `.gitignore`, `.ignore`, and `AGENTS.md`:
    - Python library: [python-stack](../../python-stack/references/foundation/GUIDE.md).
-   - Python CLI: Python foundation + [argparse](../../python-stack/references/argparse/GUIDE.md).
+   - Python CLI: Python foundation + [argparse](../../python-stack/references/argparse/GUIDE.md) (stdlib default; add Typer when rich subcommands/help warrant it).
    - Litestar web app: Python foundation + [litestar](../../python-web/references/litestar/GUIDE.md).
    - Django web app: [django](../../python-web/references/django/GUIDE.md).
    - Python agent (`agents` CLI): [agents-cli](../../agent-frameworks/references/agents-cli/GUIDE.md), then [google-adk](../../agent-frameworks/references/google-adk.md).

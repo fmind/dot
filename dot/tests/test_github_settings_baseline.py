@@ -98,6 +98,7 @@ def public_after() -> dict[str, Any]:
             },
         ),
         f"GET {BASE}/automated-security-fixes": {"enabled": True, "paused": False},
+        f"GET {BASE}/vulnerability-alerts": None,
         f"GET {BASE}/actions/permissions": {
             "enabled": True,
             "allowed_actions": "selected",
@@ -256,7 +257,11 @@ def test_private_repository_without_secret_scanning_reports_the_gap(tmp_path: Pa
         f"GET {BASE}": repository("private"),
         f"GET {BASE}/actions/permissions": {"enabled": False},
     }
-    after = {f"GET {BASE}": repository("private", **MERGED), f"GET {BASE}/automated-security-fixes": {"enabled": True}}
+    after = {
+        f"GET {BASE}": repository("private", **MERGED),
+        f"GET {BASE}/automated-security-fixes": {"enabled": True},
+        f"GET {BASE}/vulnerability-alerts": None,
+    }
     result, calls = run(tmp_path, {"before": before, "after": after}, "--apply")
     assert result.returncode == 0, result.stderr
     edit, *rest = mutations(calls)
@@ -287,6 +292,7 @@ def test_default_and_check_only_read_and_report_drift(tmp_path: Path) -> None:
         assert "changed" not in report
         drift = report["drift"]
         assert "allow_merge_commit: expected false, found true" in drift
+        assert "vulnerability_alerts: expected true, found false" in drift
         assert "automated_security_fixes: expected true, found false" in drift
         assert "default_branch_protected: expected true, found false" in drift
 
@@ -295,3 +301,25 @@ def test_invalid_repository_is_a_usage_error(tmp_path: Path) -> None:
     result, calls = run(tmp_path, {"before": {}}, "--check", repo="../escape")
     assert result.returncode == 2
     assert calls == []
+
+
+def test_environment_preserves_false_admin_bypass_and_flags_missing_vulnerability_alerts(tmp_path: Path) -> None:
+    before = public_before()
+    before[f"GET {BASE}/environments?per_page=100"] = [
+        {
+            "environments": [
+                {
+                    "name": "pypi",
+                    "can_admins_bypass": False,
+                    "protection_rules": [{"type": "wait_timer", "wait_timer": 5}, REVIEWERS],
+                }
+            ]
+        }
+    ]
+    after = public_after()
+    del after[f"GET {BASE}/vulnerability-alerts"]
+    result, calls = run(tmp_path, {"before": before, "after": after}, "--apply", "--disable", "wiki")
+    assert result.returncode == 1
+    assert bodies(calls)[f"{BASE}/environments/pypi"]["can_admins_bypass"] is False
+    report = json.loads(result.stdout)
+    assert "vulnerability_alerts: expected true, found false" in report["drift"]

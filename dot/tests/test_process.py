@@ -261,42 +261,68 @@ def test_run_preserves_cwd_input_and_environment_and_redacts_failures(tmp_path: 
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("token ghp_0123456789abcdefghijklmnopqrstuvwxyz", "token <redacted>"),
-        ("key " + "sk-proj-" + "0123456789abcdefghij", "key <redacted>"),
-        ("google " + "AIza" + "SyA1234567890abcdefghijklmnopqrstuvwx", "google <redacted>"),
-        ("oauth " + "ya29." + "a0AfH6SMBx1234567890abcdef.segment", "oauth <redacted>"),
-        ("refresh " + "1//0g" + "abcdefghijklmnopqrstuv", "refresh <redacted>"),
-        ("aws " + "AKIA" + "IOSFODNN7EXAMPLE denied", "aws <redacted> denied"),
-        (
+        pytest.param("token ghp_0123456789abcdefghijklmnopqrstuvwxyz", "token <redacted>", id="ghp"),
+        pytest.param("key " + "sk-proj-" + "0123456789abcdefghij", "key <redacted>", id="sk-proj"),
+        pytest.param(
+            "google " + "AIza" + "SyA1234567890abcdefghijklmnopqrstuvwx", "google <redacted>", id="google-api"
+        ),
+        pytest.param("oauth " + "ya29." + "a0AfH6SMBx1234567890abcdef.segment", "oauth <redacted>", id="oauth-ya29"),
+        pytest.param("refresh " + "1//0g" + "abcdefghijklmnopqrstuv", "refresh <redacted>", id="refresh-token"),
+        pytest.param("aws " + "AKIA" + "IOSFODNN7EXAMPLE denied", "aws <redacted> denied", id="aws-akia"),
+        pytest.param(
             "jwt " + ".".join(("eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "signaturePart123")),
             "jwt <redacted>",
+            id="jwt",
         ),
-        ("token " + "hf_" + "0123456789abcdefghijk", "token <redacted>"),
-        ("signature " + "A1b2C3d4" * 5, "signature <redacted>"),
-        (
+        pytest.param("token " + "hf_" + "0123456789abcdefghijk", "token <redacted>", id="hf-token"),
+        pytest.param("signature " + "A1b2C3d4" * 5, "signature <redacted>", id="base64-sig"),
+        pytest.param(
             "fatal: /home/user/projects/a-very-long-name/src/module: x",
             "fatal: /home/user/projects/a-very-long-name/src/module: x",
+            id="unix-project-path",
         ),
-        ("open ~/projects/another-very-long-name/subdirectory", "open ~/projects/another-very-long-name/subdirectory"),
-        (
+        pytest.param(
+            "open ~/projects/another-very-long-name/subdirectory",
+            "open ~/projects/another-very-long-name/subdirectory",
+            id="tilde-path",
+        ),
+        pytest.param(
             "fatal: cannot open '/home/u/.local/share/chezmoi/dot/src/fmind_dot/process.py'",
             "fatal: cannot open '/home/u/.local/share/chezmoi/dot/src/fmind_dot/process.py'",
+            id="quoted-chezmoi-path",
         ),
-        ("read /tmp/ghp_0123456789abcdefghijklmnopqrstuvwxyz/x", "read /tmp/<redacted>"),
-        ("https://host/" + "A1b2C3d4" * 5, "https:<redacted>"),
+        pytest.param("read /tmp/ghp_0123456789abcdefghijklmnopqrstuvwxyz/x", "read /tmp/<redacted>", id="tmp-ghp"),
+        pytest.param("https://host/" + "A1b2C3d4" * 5, "https:<redacted>", id="url-token"),
         # Base64 tokens may start with "/", which makes them look like paths.
-        ("error: token /" + "A1b2C3d4" * 5 + " rejected", "error: token /<redacted> rejected"),
-        ("Authorization=/" + "A1b2C3d4" * 3 + "/" + "E5f6G7h8" * 3, "Authorization=/<redacted>/<redacted>"),
-        # The path pattern keeps trailing punctuation, which must not shield the token.
-        ("open /tmp/" + "A1b2C3d4" * 3 + ": denied", "open /tmp/<redacted>: denied"),
-        ("open (/tmp/" + "A1b2C3d4" * 3 + ").", "open (/tmp/<redacted>)."),
-        ("read /tmp/" + "A1b2C3d4" * 3 + ".json", "read /tmp/" + "A1b2C3d4" * 3 + ".json"),
-        (
-            "open /var/folders/7k/T/0F3C2A1B-4D5E-4F60-8A9B-C0D1E2F3A4B5/x",
-            "open /var/folders/7k/T/0F3C2A1B-4D5E-4F60-8A9B-C0D1E2F3A4B5/x",
+        pytest.param(
+            "error: token /" + "A1b2C3d4" * 5 + " rejected",
+            "error: token /<redacted> rejected",
+            id="slash-token",
         ),
-        ("read ~/.cache/uv/archive-v0/" + "9f86d081" * 8, "read ~/.cache/uv/archive-v0/" + "9f86d081" * 8),
-        ("load /usr/lib/x86_64-linux-gnu/libpython3.14.so", "load /usr/lib/x86_64-linux-gnu/libpython3.14.so"),
+        pytest.param(
+            "Authorization=/" + "A1b2C3d4" * 3 + "/" + "E5f6G7h8" * 3,
+            "Authorization=/<redacted>/<redacted>",
+            id="auth-slash-tokens",
+        ),
+        # The path pattern keeps trailing punctuation, which must not shield the token.
+        pytest.param("open /tmp/" + "A1b2C3d4" * 3 + ": denied", "open /tmp/<redacted>: denied", id="tmp-colon"),
+        pytest.param("open (/tmp/" + "A1b2C3d4" * 3 + ").", "open (/tmp/<redacted>).", id="tmp-parens"),
+        pytest.param("read /tmp/" + "A1b2C3d4" * 3 + ".json", "read /tmp/" + "A1b2C3d4" * 3 + ".json", id="tmp-json"),
+        pytest.param(
+            "open /var/folders/7k/T/0F3C2A1B-4D5E-4F60-8A9B-C0D1E2F3A4B5/x",
+            "open /var/folders/7k/T/0F3C2A1B-4D5E-4F60-8A9B-C0D1E2F3A4B5/x",
+            id="macos-uuid-path",
+        ),
+        pytest.param(
+            "read ~/.cache/uv/archive-v0/" + "9f86d081" * 8,
+            "read ~/.cache/uv/archive-v0/" + "9f86d081" * 8,
+            id="uv-cache-path",
+        ),
+        pytest.param(
+            "load /usr/lib/x86_64-linux-gnu/libpython3.14.so",
+            "load /usr/lib/x86_64-linux-gnu/libpython3.14.so",
+            id="shared-lib-path",
+        ),
     ],
 )
 def test_diagnostic_line_redacts_tokens_but_keeps_paths(text: str, expected: str) -> None:

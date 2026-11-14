@@ -57,6 +57,7 @@ CAPTION_LINE_RE = re.compile(r"^\s*(?:\*([^*\r\n]+)\*|_([^_\r\n]+)_)\s*$")
 INLINE_CODE_RE = re.compile(r"`[^`\r\n]+`")
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,128}$")
+DOC_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 def _clean_alt(text: str) -> str:
@@ -192,8 +193,9 @@ def render_svg_png(svg_path: Path, out_png: Path, scale: float = 2, max_width_px
 
 def png_size(path: Path) -> tuple[int, int]:
     """Return (width, height) in pixels from a PNG file's IHDR header."""
-    header = path.read_bytes()[:24]
-    if not header.startswith(b"\x89PNG\r\n\x1a\n") or header[12:16] != b"IHDR":
+    with path.open("rb") as handle:
+        header = handle.read(24)
+    if len(header) < 24 or not header.startswith(b"\x89PNG\r\n\x1a\n") or header[12:16] != b"IHDR":
         msg = f"{path.name} is not a PNG file"
         raise ValueError(msg)
     return int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
@@ -521,10 +523,28 @@ def _escape_drive_q(value: str) -> str:
     return value.replace("\\", "\\\\").replace("'", "\\'")
 
 
+def _validate_doc_slug(value: str) -> str:
+    """Validate a Drive assets/<doc-slug> directory name against path traversal and empty slugs."""
+    cleaned = value.strip()
+    if not DOC_SLUG_RE.fullmatch(cleaned):
+        msg = f"Invalid doc slug {value!r}: expected [A-Za-z0-9][A-Za-z0-9._-]{{0,127}}"
+        raise ValueError(msg)
+    return cleaned
+
+
+def _validate_doc_name(value: str) -> str:
+    """Validate a remote Drive document filename against empty names, leading hyphens, and path separators."""
+    cleaned = value.strip()
+    if not cleaned or cleaned in {".", ".."} or cleaned.startswith("-") or "/" in cleaned or "\\" in cleaned:
+        msg = f"Invalid doc name {value!r}: expected a plain filename without path separators or leading '-'."
+        raise ValueError(msg)
+    return cleaned
+
+
 def _slugify_doc(name: str) -> str:
     """Derive a clean Drive assets/<doc-slug> directory name from a document filename."""
     stem = name.removesuffix(".src.md").removesuffix(".gdoc.md").removesuffix(".md")
-    return re.sub(r"[^a-zA-Z0-9._-]+", "-", stem).strip("-") or "document"
+    return re.sub(r"[^a-zA-Z0-9._-]+", "-", stem).strip(".-_") or "document"
 
 
 def run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
@@ -561,6 +581,9 @@ def run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
     if not isinstance(data, dict):
         msg = f"gws {' '.join(args[:3])}: expected a JSON object"
         raise RuntimeError(msg)
+    if "error" in data:
+        msg = f"Google API error: {data['error']}"
+        raise RuntimeError(msg)
     return data
 
 
@@ -571,27 +594,29 @@ def _ensure_drive_folder(parent_id: str, folder_name: str, gws_dir: Path) -> str
         "trashed = false and mimeType = 'application/vnd.google-apps.folder' "
         f"and '{valid_parent}' in parents and name = '{_escape_drive_q(folder_name)}'"
     )
-    resp = run_gws(
-        [
-            "drive",
-            "files",
-            "list",
-            "--params",
-            json.dumps(
-                {
-                    "pageSize": 5,
-                    "q": q,
-                    "supportsAllDrives": True,
-                    "includeItemsFromAllDrives": True,
-                    "fields": "files(id,name)",
-                }
-            ),
-        ],
-        cwd=gws_dir,
-    )
-    files = resp.get("files") or []
-    if files:
-        return str(files[0]["id"])
+    params: dict[str, Any] = {
+        "pageSize": 100,
+        "q": q,
+        "supportsAllDrives": True,
+        "includeItemsFromAllDrives": True,
+        "fields": "nextPageToken,files(id,name)",
+    }
+    matches: list[str] = []
+    while True:
+        resp = run_gws(["drive", "files", "list", "--params", json.dumps(params)], cwd=gws_dir)
+        matches.extend(str(item["id"]) for item in resp.get("files") or [] if isinstance(item, dict) and "id" in item)
+        token = resp.get("nextPageToken")
+        if not token:
+            break
+        params["pageToken"] = token
+    if len(matches) > 1:
+        msg = (
+            f"Multiple non-trashed Drive folders named {folder_name!r} in folder {valid_parent}: "
+            f"{matches}; deduplicate them in Drive first."
+        )
+        raise RuntimeError(msg)
+    if matches:
+        return matches[0]
     created = run_gws(
         [
             "drive",
@@ -613,8 +638,8 @@ def _ensure_drive_folder(parent_id: str, folder_name: str, gws_dir: Path) -> str
     return str(created["id"])
 
 
-def _list_folder_files(parent_id: str, gws_dir: Path) -> dict[str, str]:
-    """Return {name: file_id} for non-trashed non-folder files directly inside parent_id, across all pages."""
+def _list_folder_files(parent_id: str, gws_dir: Path) -> dict[str, list[str]]:
+    """Return {name: [file_id, ...]} for non-trashed non-folder files inside parent_id, across all pages."""
     valid_parent = _validate_drive_id(parent_id, "folder ID")
     q = f"trashed = false and mimeType != 'application/vnd.google-apps.folder' and '{valid_parent}' in parents"
     params: dict[str, Any] = {
@@ -624,12 +649,12 @@ def _list_folder_files(parent_id: str, gws_dir: Path) -> dict[str, str]:
         "includeItemsFromAllDrives": True,
         "fields": "nextPageToken,files(id,name)",
     }
-    found: dict[str, str] = {}
+    found: dict[str, list[str]] = {}
     while True:
         resp = run_gws(["drive", "files", "list", "--params", json.dumps(params)], cwd=gws_dir)
         for item in resp.get("files") or []:
             if "id" in item and "name" in item:
-                found.setdefault(str(item["name"]), str(item["id"]))
+                found.setdefault(str(item["name"]), []).append(str(item["id"]))
         if not resp.get("nextPageToken"):
             return found
         params["pageToken"] = resp["nextPageToken"]
@@ -649,18 +674,31 @@ def _upsert_drive_file(
     gws_dir: Path,
     parent_id: str | None = None,
     file_id: str | None = None,
-    existing_by_name: dict[str, str] | None = None,
+    existing_by_name: dict[str, list[str]] | None = None,
     rename: bool = False,
 ) -> dict[str, Any]:
     """Create or update a file in Google Drive; updates keep the File ID and rename only when asked."""
-    target_id = file_id or (existing_by_name or {}).get(name)
+    if file_id:
+        target_id: str | None = file_id
+    else:
+        matches = (existing_by_name or {}).get(name, [])
+        if len(matches) > 1:
+            msg = (
+                f"Multiple non-trashed Drive files named {name!r} in folder {parent_id}: "
+                f"{matches}; pass --file-id explicitly."
+            )
+            raise RuntimeError(msg)
+        target_id = matches[0] if matches else None
     fields = "id,name,mimeType,version,modifiedTime,webViewLink"
     # gws rejects --upload paths outside its working directory, so stage the file in the run's gws
     # directory and upload it by bare name from there, like every other gws call of the run.
-    staged = gws_dir / local_path.name
+    staged_name = (
+        f"upload-{local_path.name.lstrip('-') or 'file'}" if local_path.name.startswith("-") else local_path.name
+    )
+    staged = gws_dir / staged_name
     if staged.resolve() != local_path.resolve():
         shutil.copyfile(local_path, staged)
-    upload = ["--upload", local_path.name, "--upload-content-type", content_type]
+    upload = ["--upload", staged_name, "--upload-content-type", content_type]
     if target_id:
         valid_id = _validate_drive_id(target_id, "file ID")
         params = json.dumps({"fileId": valid_id, "supportsAllDrives": True, "fields": fields})
@@ -717,18 +755,19 @@ def upload_to_drive(
         raise ValueError(msg)
 
     parent_folder_id = _validate_drive_id(drive_folder, "folder ID") if drive_folder else None
-    resolved_name = doc_name or compiled_md.name
+    validated_doc_name = _validate_doc_name(doc_name) if doc_name is not None else None
+    resolved_name = validated_doc_name or compiled_md.name
     if file_id:
         # Keep the live document's name and location unless --doc-name asks for a rename.
         existing = existing_file or _get_drive_file(file_id, gws_dir)
         if not parent_folder_id and existing.get("parents"):
             parent_folder_id = _validate_drive_id(str(existing["parents"][0]), "folder ID")
-        if not doc_name and existing.get("name"):
+        if not validated_doc_name and existing.get("name"):
             resolved_name = str(existing["name"])
     if not resolved_name.endswith(".md"):
         resolved_name = f"{resolved_name}.md"
 
-    resolved_slug = doc_slug or _slugify_doc(resolved_name)
+    resolved_slug = _validate_doc_slug(doc_slug) if doc_slug is not None else _slugify_doc(resolved_name)
     existing_in_parent = _list_folder_files(parent_folder_id, gws_dir) if (parent_folder_id and not file_id) else {}
     doc_result = _upsert_drive_file(
         compiled_md,
@@ -738,7 +777,7 @@ def upload_to_drive(
         parent_id=parent_folder_id,
         file_id=file_id,
         existing_by_name=existing_in_parent,
-        rename=bool(file_id and doc_name),
+        rename=bool(file_id and validated_doc_name),
     )
     uploaded_file_id = str(doc_result["id"])
 
@@ -928,6 +967,14 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if out_path.resolve() == source.resolve():
                     raise ValueError(f"Output path must differ from source: {out_path}")
+                if args.drive_folder is not None:
+                    _validate_drive_id(args.drive_folder, "folder ID")
+                if args.file_id is not None:
+                    _validate_drive_id(args.file_id, "file ID")
+                if args.doc_name is not None:
+                    args.doc_name = _validate_doc_name(args.doc_name)
+                if args.doc_slug is not None:
+                    _validate_doc_slug(args.doc_slug)
                 # One private directory for every gws call of this run: see upload_to_drive.
                 with tempfile.TemporaryDirectory(prefix="draft-doc-") as tmp:
                     gws_dir = Path(tmp)
@@ -935,7 +982,11 @@ def main(argv: list[str] | None = None) -> int:
                         _get_drive_file(args.file_id, gws_dir) if args.file_id and not args.doc_name else None
                     )
                     drive_name = args.doc_name or (existing_file or {}).get("name") or out_path.name
-                    doc_slug = args.doc_slug or _slugify_doc(str(drive_name))
+                    doc_slug = (
+                        _validate_doc_slug(args.doc_slug)
+                        if args.doc_slug is not None
+                        else _slugify_doc(str(drive_name))
+                    )
                     if (args.drive_folder or args.file_id) and assets_dir is None:
                         assets_dir = out_path.parent / "assets" / doc_slug
                     compiled, figures = compile_markdown(
