@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Full Review
@@ -27,7 +27,7 @@ State scope, exclusions, depth, mode, and follow-ups (none by default) in one op
 1. **Baseline & inventory**: inspect `git status --short`, diffs, latest tag, and `git fetch` state (preserve uncommitted work); run existing gates once to separate regressions. Read `AGENTS.md`, `README.md`, skills, changelog, and `## Decisions`, then fan out read-only `git ls-files` area reviews on large trees (verifying all findings).
 1. **Audit dimensions** (name any skip):
    - **Works**: tasks/CLIs exit zero cleanly ([smoke](references/smoke.md)), failure/race tests pass, authorized endpoints respond.
-   - **Current & Simple**: upgrade outdated deps on request ([upgrade-tools](../upgrade-tools/SKILL.md)); delete dead code (`vulture src --exclude .venv,tests`), structural clones (`ast-grep`), orphan files, stale config, and prose bloat ([trim](../trim/SKILL.md)).
+   - **Current & Simple**: upgrade outdated deps on request ([upgrade-tools](../upgrade-tools/SKILL.md)); find dead code (`vulture src tests --exclude '*/.venv/*' --ignore-decorators '@*_validator,@*.command,@*.callback'`), structural clones (`ast-grep`), orphan files, stale config, and prose bloat ([trim](../trim/SKILL.md)).
    - **Consistent & Secure**: align versions, metadata, [repo settings](../gh/references/repository/GUIDE.md), and [bootstrap](../project-scaffolding/references/bootstrap.md); wire CI/hooks via [mise](../mise/SKILL.md); audit ignores ([update-ignores](references/update-ignores/GUIDE.md)); scan secrets/deps (`code-security`, `sonar analyze`); sync [docs](../repository-docs/SKILL.md) and fix bottlenecks ([performance](../python-stack/references/performance.md)).
 1. **Fix, prove, report**: land minimal fixes + regression tests (hold irreversible, costly, or architectural calls as decisions); rerun full gates (`mise run all`); report verdict (`ready`, `ready with caveats`, `blocked`), highest [proof ladder](#proof-ladder) rung, `path:line` evidence, held decisions, and gaps. Follow up via [git-delivery](../git-delivery/SKILL.md) only on request.
 

@@ -29,5 +29,4 @@ mise run check && mise run test
 
 ## Documentation
 
-- [Django docs](https://docs.djangoproject.com/en/stable/) · [downloads](https://www.djangoproject.com/download/) · [deployment checklist](https://docs.djangoproject.com/en/stable/howto/deployment/checklist/) · [security](https://docs.djangoproject.com/en/stable/topics/security/) · [async](https://docs.djangoproject.com/en/stable/topics/async/) · [releases](https://docs.djangoproject.com/en/stable/releases/)
-- Companions: [project-scaffolding](../../../project-scaffolding/references/bootstrap.md), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [cloud-run](../../../cloud-run/SKILL.md), [code-security](../../../code-security/references/code-review/GUIDE.md).
+- [Django docs](https://docs.djangoproject.com/en/stable/) · [releases](https://docs.djangoproject.com/en/stable/releases/) · Companions: [project-scaffolding](../../../project-scaffolding/references/bootstrap.md), [python-stack](../../../python-stack/references/foundation/GUIDE.md), [containerize](../../../docker/references/containerize/GUIDE.md), [cloud-run](../../../cloud-run/SKILL.md), [code-security](../../../code-security/references/code-review/GUIDE.md).

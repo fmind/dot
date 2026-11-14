@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/aws
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-14"
 ---
 
 # Amazon Web Services CLI
@@ -23,22 +23,15 @@ Operate AWS accounts, IAM, S3, ECS, and CloudWatch with `aws`.
    aws configure list-profiles
    ```
 
-1. **Sign in with short-lived credentials**: prefer IAM Identity Center (`aws sso login`), falling back to `aws login` (`--remote` on headless hosts) instead of static access keys:
-
-   ```bash
-   aws sso login --profile <profile>
-   aws login --profile <profile>
-   ```
-
+1. **Sign in cleanly**: prefer IAM Identity Center (`aws sso login --profile <profile>`), else `aws login --profile <profile>` (`--remote` on headless hosts) over static keys.
 1. **Pin `--profile` and `--region`** on every consequential call so env vars cannot redirect targets.
 1. **Bound reads first**: combine server-side filters, `--max-items`, and `--query` (JMESPath) before mutating state:
 
    ```bash
-   aws s3 ls --profile <profile> --region <region> --no-cli-pager
    aws ecs list-clusters --profile <profile> --region <region> --max-items 20 --output json --no-cli-pager
    ```
 
-1. **Authorize mutations**: resource creation, security groups, IAM policies, and deletions require user approval (reusing existing task authority).
+1. **Authorize mutations**: resource creation, security groups, IAM policies, and deletions require user approval.
 
 ## Gotchas
 

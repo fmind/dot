@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Scheduled Jobs

@@ -31,8 +31,8 @@ run = "dprint check"
 ## Gotchas
 
 - **Use `npm:` plugin specifiers**: prefer `npm:@dprint/markdown@<version>` over `.wasm` URLs; preview updates with `dprint config update --dry-run` and apply via [upgrade-tools](../../upgrade-tools/SKILL.md).
-- **Include plugins for fenced blocks**: Markdown formats fenced JSON/TOML/YAML blocks only when those plugins are also configured.
-- **Staged format vs whole-tree check**: hooks pass `{staged_files}` to `format:dprint` while `check:format` checks the full tree; manually use `dprint fmt --staged` or `--dirty` when needed.
+- **Set `markdown.textWrap: "never"` with `@dprint/markdown`**: preserves scannable bullet/paragraph lines and HTML blocks without mid-sentence line splits; fenced JSON/TOML/YAML blocks only format when those plugins are also configured.
+- **Keep repo excludes explicit**: list generated locks (`**/*-lock.json`) and dynamic template files in `excludes`, and pass `--allow-no-files` for `{staged_files}` hook invocations (`dprint check` verifies the full tree).
 
 ## Documentation
 

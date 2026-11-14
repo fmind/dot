@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/pup
   created: "2026-11-13"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Datadog (`pup`)
 
-Use `pup` with OAuth2 PKCE (`pup auth login --read-only --site <site> [--org <name>]`), never long-lived `DD_API_KEY`/`DD_APP_KEY` env vars unless CI requires service-account keys. Tokens are stored in `~/.config/pup/` (`0600`).
+Use `pup` with OAuth2 PKCE (`pup auth login --read-only --site <site> [--org <name>]`), never long-lived `DD_API_KEY`/`DD_APP_KEY` env vars unless CI requires service-account keys. Tokens live in `~/.config/pup/` (`0600`).
 
 ## Commands
 
@@ -23,10 +23,8 @@ pup --read-only --jq '.data' metrics query --query "avg:system.cpu.user{*}" --fr
 pup --read-only monitors list --limit 25
 ```
 
-- Pass `--read-only` on every investigative or triage run to block writes (`create`/`update`/`delete`) client-side.
-- Default output is JSON wrapped in `{status, data, metadata}`. Pass `--no-envelope` (`PUP_NO_ENVELOPE=1`) for raw payloads and `--jq '<expr>'` to filter before printing.
-- On redirected pipes, output stays JSON (`-o json`); `--verbose` prints rate-limit headers to stderr.
-- Keep `DD_SITE` or `--site` explicit (`datadoghq.eu`, `us3.datadoghq.com`) and pin `--org <name>` when multiple orgs exist.
+- Pass `--read-only` on investigative/triage runs to block writes client-side; wrap `--no-envelope` (`PUP_NO_ENVELOPE=1`) and `--jq '<expr>'` to unwrap `{status, data, metadata}`.
+- Redirected pipes keep JSON (`-o json`); `--verbose` logs rate-limit headers to stderr. Pin `DD_SITE`/`--site` and `--org <name>` explicitly.
 
 ## Guardrails
 

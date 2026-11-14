@@ -9,18 +9,17 @@ Align ignore and exclude configs with the repository's actual stack and tasks—
 
 ## Workflow
 
-1. **Inventory**: baseline `git status --short --ignored`; list `.gitignore`, `.ignore`/`.rgignore`/`.fdignore`, `.dockerignore`, `.chezmoiignore`, and tool excludes (dprint `excludes`, Ruff `extend-exclude`, pytest `norecursedirs`, coverage `omit`); infer stack/task outputs from manifests (`pyproject.toml`, `uv.lock`, `package.json`, `mise.toml`, `Dockerfile`, `*.tf`, docs configs).
-1. **Audit gitignore-syntax files**: [audit.py](scripts/audit.py) maps tracked, untracked, and collapsed-ignored paths to their deciding rule (resolving relative `core.excludesFile` from repo root), flagging zero-hit, duplicate, and global-duplicate rules; pass `.ignore` explicitly so `.gitignore`-shadowed rules surface as unused:
+1. **Inventory**: check `git status --short --ignored`, existing ignore/tool excludes (`.gitignore`, `.ignore`, `.dockerignore`, `dprint.json`, `ruff.toml`, pytest/coverage), and manifests (`pyproject.toml`, `mise.toml`, `Dockerfile`, `*.tf`).
+1. **Audit gitignore-syntax files**: [audit.py](scripts/audit.py) maps tracked, untracked, and collapsed-ignored paths to their deciding rule (pass `.ignore` explicitly so `.gitignore`-shadowed rules surface as unused):
 
    ```bash
    python3 -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py            # every non-ignored .gitignore
    python3 -I ~/.agents/skills/full-review/references/update-ignores/scripts/audit.py .ignore --json
    ```
 
-1. **Prune & add**: drop zero-hit rules from foreign stacks, dead tools, duplicates, or shadowed lines while keeping preventive secret/state/task-output rules (`.env`, `*.tfstate`, `*.pem`, `.terraform/`). Cover stack outputs (Python: `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.ty_cache/`, `.coverage*`, `htmlcov/`, `dist/`; docs: `site/`; Node: `node_modules/`); keep personal OS/editor/harness noise in global `core.excludesFile` (`~/.config/git/ignore` via `chezmoi source-path ~/.config/git/ignore`) unless external cloners need it.
-1. **Keep `.ignore` to search noise**: list only low-signal tracked files (locks, generated schemas, snapshots, data fixtures, minified/vendored assets)—never duplicate `.gitignore` or list Python test/fixture source, which Ruff and ty also skip. Lead comment-capable files with their doc URL ([gitignore](https://git-scm.com/docs/gitignore), [ripgrep filtering](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering)).
-1. **Check non-gitignore excludes**: test globs via `git ls-files -- ':(glob)<pattern>'` or `fd --glob '<pattern>'`; `.dockerignore` uses Go `filepath.Match` (`**/` for depth) per the [containerize](../../../docker/references/containerize/templates/.dockerignore) denylist (preserving build-required `README.md` and `LICENSE`).
-1. **Verify**: rerun `audit.py`, confirm `git ls-files -ci --exclude-standard` adds no newly ignored tracked files and `git status --short --ignored` matches baseline, and report pruned, added, kept-preventive, and tracked-matching rules.
+1. **Prune & add**: drop zero-hit foreign-stack, dead-tool, duplicate, and shadowed rules while keeping preventive secret/state rules (`.env`, `*.tfstate`, `*.pem`, `.terraform/`). Cover stack caches (`.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.ty_cache/`, `.coverage*`, `dist/`, `site/`, `node_modules/`); keep personal OS/editor noise in `~/.config/git/ignore` (`chezmoi source-path ~/.config/git/ignore`).
+1. **Keep `.ignore` to search noise**: list only low-signal tracked files (locks, generated schemas, snapshots, fixtures, minified/vendored assets)—never duplicate `.gitignore` or exclude Python tests/fixtures, which Ruff and ty also skip. Lead comment-capable files with their doc URL ([gitignore](https://git-scm.com/docs/gitignore), [ripgrep filtering](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering)).
+1. **Check non-gitignore excludes & verify**: test globs via `git ls-files -- ':(glob)<pattern>'` or `fd --glob '<pattern>'` (`.dockerignore` uses Go `filepath.Match` per [containerize](../../../docker/references/containerize/templates/.dockerignore)); rerun `audit.py`, verify `git ls-files -ci --exclude-standard` adds zero newly ignored tracked files, and report changes.
 
 ## Gotchas
 

@@ -5,15 +5,15 @@ description: "Lint and audit GitHub Actions workflows, composite actions, and De
 
 # jactionlint
 
-Static linter and security auditor for `.github/workflows/*.yml`, composite actions, and `.github/dependabot.yml`, wired into `check:actions` by [ci-cd](ci-cd/GUIDE.md).
+Static linter and security auditor scanning `.github/workflows/*.{yml,yaml}`, composite actions (`.github/actions/**/action.{yml,yaml}`), `.github/dependabot.yml`, and `.github/jactionlint.yaml`, wired into `check:actions` by [ci-cd](ci-cd/GUIDE.md).
 
 ## Commands
 
 ```bash
-jactionlint --profile pedantic              # offline gate (check:actions): workflows, composite actions, dependabot.yml
+jactionlint --profile pedantic              # offline gate (check:actions)
 jactionlint --format sarif > jactionlint.sarif
-jactionlint --online=strict --strict-exit   # scheduled audit: archived repos, impostor commits, vulnerable actions; fails on warnings/skips
-jactionlint --fix                           # apply mechanical fixes; review diff on a clean tree
+jactionlint --online=strict --strict-exit   # scheduled audit: archived/impostor/vulnerable actions; fails on skips
+jactionlint --fix                           # mechanical fixes; review diff cleanly
 ```
 
 ## Common Findings and Fixes

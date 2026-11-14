@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kaggle
   created: "2026-09-16"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Kaggle CLI
@@ -18,7 +18,7 @@ Operate Kaggle competitions, datasets, kernels, and models via `kaggle` (auth, d
 
 1. **Verify account**: `kaggle auth login` (OAuth), env `KAGGLE_API_TOKEN`, or legacy `~/.kaggle/kaggle.json`; never run `kaggle auth print-access-token`.
 1. **Inspect before downloading**: check bounded listings, `kaggle competitions submission-limits <slug> --json`, and `kaggle competitions pages <slug> list --content --page-name rules` (reading rules never authorizes accepting them).
-1. **Download into gitignored `data/`** (accept competition rules in the browser first, else HTTP 403):
+1. **Download into gitignored `data/`** (run `dot doctor --headroom` first on large downloads; accept competition rules in the browser first, else HTTP 403):
 
    ```bash
    kaggle competitions download <slug> -p data/ --unzip
@@ -26,7 +26,7 @@ Operate Kaggle competitions, datasets, kernels, and models via `kaggle` (auth, d
    ```
 
 1. **Check deadlines**: inspect `kaggle competitions pages <slug> list` (`--page-name timeline`, else `description`) and offer—or schedule when asked—[gws](../gws/SKILL.md) Calendar reminders one week before entry/merger deadlines and on final submission day.
-1. **Audit kernels before `push`**: `kaggle kernels init -p <dir>` creates `kernel-metadata.json`. Before authorized `kaggle kernels push -p <dir>`, verify upload files, target ID, data sources, `is_private: true` (default private), internet, `--accelerator`, `-t` timeout, `--no-run` (push executes immediately otherwise), and `kaggle quota`; check `kernels status <owner>/<slug>` and `kernels output <owner>/<slug> -p out/`.
+1. **Audit kernels before `push`**: `kaggle kernels init -p <dir>` creates `kernel-metadata.json`. Before authorized `kaggle kernels push -p <dir>`, verify upload files, target ID, data sources, `is_private: true`, internet, `--accelerator`, `-t` timeout, `--no-run` (push executes immediately otherwise), and `kaggle quota`; check `kernels status <owner>/<slug>` and `kernels output <owner>/<slug> -p out/`.
 1. **Authorize submissions** (each counts against daily caps and posts to the leaderboard; `--wait` exits non-zero on scoring error/timeout after consuming the slot, or check `competitions submission <ref>`):
 
    ```bash
@@ -38,7 +38,7 @@ Operate Kaggle competitions, datasets, kernels, and models via `kaggle` (auth, d
 
 ## Gotchas
 
-- **Prefer `uv run kaggle`** when a project pins `kaggle` so the locked version runs over the global shim.
+- **Prefer `uv run kaggle`** when a project pins `kaggle` so the locked version runs over the global shim (workstation `kaggle` bundles `six` via mise `with`).
 - **Strip import-time `Warning:` lines** before JSON parsing (`-W` takes effect after import-time auth checks).
 
 ## Official Skills

@@ -7,7 +7,7 @@ description: "Resolve configuration, JSON output, exit codes, and session archiv
 
 Config precedence: `--config` → `DOT_CONFIG_PATH` → `~/.config/dot.yaml` (missing default uses built-ins; explicit missing path fails). `dot config show` prints `schema_version: 3` defaults (`agent`, `auth`, `cache`, `completions`, `doctor`, `privacy`, `prune`, `pull`, `trust`, including machine-local `privacy.allowed_tokens`); scope lists replace defaults, native CLIs own credentials, and unknown/retired keys fail with their key path (`dot config edit` and `--help` still work when malformed).
 
-Stdout carries requested data; stderr carries progress, prompts, and errors. Exit codes: `0` success, `1` operational failure or incomplete result, `2` usage error (including unknown agents or zero durations like `0d`), `130` interruption. JSON reports use a versioned `schema` envelope (indented on TTY, compact when piped) and never turn pre-report failures into empty success. `orphan` and `secret` ignore config.
+Stdout carries requested data; stderr carries progress, prompts, and errors. Exit codes: `0` success, `1` operational failure or incomplete result, `2` usage error (including unknown agents or zero durations like `0d`), `130` interruption. JSON reports use a versioned `schema` envelope (indented on TTY, compact when piped) and never turn pre-report failures into empty success. `orphan` and `secret` ignore config. Managed `EDITOR="$HOME/.local/bin/nvim-tty"` executes `nvim` on TTY stdin/stdout and fails closed (exit `1`) in non-TTY agent shells rather than hanging.
 
 ## JSON selectors
 

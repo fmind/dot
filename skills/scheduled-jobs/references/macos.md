@@ -17,6 +17,6 @@ launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/dev.example.repor
 launchctl print "gui/$(id -u)/dev.example.report"
 ```
 
-Inspect existing labels before `bootstrap` (on macOS 13+, check System Settings › General › Login Items & Extensions if Background Task Management blocks it). Run authorized manual tests with `launchctl kickstart "gui/$(id -u)/dev.example.report"` (omit `-k` unless killing an active run is intended). `StartCalendarInterval` coalesces wake-from-sleep misses, not power-off misses; prove a real scheduled firing rather than treating `plutil` or `kickstart` as complete proof. Stop within scope via `launchctl bootout "gui/$(id -u)/dev.example.report"` after checking in-flight runs, and remove definitions through the source config manager.
+Inspect existing labels before `bootstrap` (macOS 13+: check System Settings › General › Login Items & Extensions if BTM blocks it). Test with `launchctl kickstart "gui/$(id -u)/dev.example.report"` (omit `-k` unless killing active runs). `StartCalendarInterval` coalesces wake-from-sleep misses only; prove a real scheduled firing beyond `plutil`/`kickstart`, unload via `launchctl bootout`, and remove definitions in the owning repo.
 
 Sources: [Apple LaunchAgents](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) · [Scheduling](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html).

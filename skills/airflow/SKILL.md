@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/airflow
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-14"
 ---
 
 # Apache Airflow with Astronomer CLI

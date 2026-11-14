@@ -1,16 +1,14 @@
 # Backlog Workflow
 
-Turn verified findings into a deduplicated, prioritized, acyclic set of issue drafts. Planning is read-only; creating issues, labels, or edges requires authority for the confirmed repository. Never copy private paths, credentials, customer data, or internal details into a public repository.
+Turn verified findings into deduplicated, prioritized, acyclic issue drafts (read-only until creation is authorized; never leak private paths, credentials, customer data, or internal details into public repos).
 
 ## Workflow
 
-1. **Start from verified proof**: retain partial scans or unreachable services as evidence gaps; run [full-review](../../../../full-review/SKILL.md) first if incomplete. Consult primary external sources only when needed to confirm a finding.
-1. **Map existing issues and edges**: read open/closed candidates plus `blockedBy` and `blocking`, comparing root causes and evidence rather than titles.
-1. **Classify and filter**: label each candidate `verified-finding` or `trend-opportunity` (kept only with proven project fit); drop duplicates, unverified claims, low-value churn, and previously rejected scope.
-1. **Draft**: apply the [draft contract](#draft-contract), note distinctions from close matches, attach existing area/priority/effort labels plus `blocked-by`/`blocking` edges and evidence class, and rank by impact and urgency.
-1. **Gate**: present deduplication decisions, ordered drafts, and the dependency graph; stop until creation is authorized.
-1. **Create and link**: refresh issues/labels before writing, create all nodes before [dependency edges](#dependency-edges), keep partial successes, and retry only missing steps.
-1. **Verify**: read back every body, label set, and edge; report receipts and any remaining gaps.
+1. **Start from verified proof**: keep partial scans or unreachable services as evidence gaps; run [full-review](../../../../full-review/SKILL.md) first if incomplete.
+1. **Map existing issues and edges**: read open/closed candidates plus `blockedBy` and `blocking` by root cause, not title.
+1. **Filter**: tag `verified-finding` or `trend-opportunity` (proven fit only); drop duplicates, unverified claims, churn, and previously rejected scope.
+1. **Draft & gate**: format per [draft contract](#draft-contract) with area/priority/effort labels, `blocked-by`/`blocking` edges, and evidence class; rank by impact and urgency, then stop for approval.
+1. **Create, link & verify**: refresh issues/labels before writing, create nodes before [dependency edges](#dependency-edges), retry only missing steps, and read back every body, label set, and edge.
 
 ## Draft contract
 

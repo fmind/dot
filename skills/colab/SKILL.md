@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/colab
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Google Colab CLI
@@ -20,7 +20,7 @@ Always pass global `--auth adc` or `--auth oauth2` before subcommands (CLI 0.8.0
 
 ## Inspect without allocating
 
-Check `colab version` and `--help`, then query `colab --auth adc sessions`, `status`, and `usage` (check stderr before trusting empty output; never run `colab pay`, which opens a purchase page, or `new`/`run`/`exec` just to inspect).
+Query `colab --auth adc sessions`, `status`, and `usage` (check stderr before trusting empty output; never run `colab pay`, which opens a purchase page, or `new`/`run`/`exec` just to inspect).
 
 ## Run accelerator work
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Git Delivery
@@ -25,7 +25,7 @@ Deliver only authorized changes while preserving the index, branch state, and en
 
 - **Write one Conventional Commits subject**: `<type>(<scope>): <description>` using `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`, `build`, `style`, or `revert` — imperative, `<72` chars, `!` before `:` for breaking changes, and zero AI attribution or `Co-authored-by` trailers.
 - **Commit only staged changes**: never auto-stage unrelated files; report hook failures or empty indexes without amending.
-- **Keep `git lfs` explicit**: never run `git lfs install` globally or auto-fetch/upload LFS blobs without repo confirmation.
+- **Keep `git lfs` and tags explicit**: never run `git lfs install` globally or auto-fetch/upload LFS blobs without repo confirmation; avoid `push.followTags=true` or `--follow-tags` (push explicit `"refs/tags/$tag"` only when releasing).
 
 ## Task guides
 

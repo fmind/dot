@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/xh
   created: "2026-09-05"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # xh HTTP Inspection

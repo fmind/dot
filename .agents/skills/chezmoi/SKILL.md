@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Chezmoi Source Standard
@@ -23,10 +23,9 @@ Pick the target type first, then attributes in [source-state reference](https://
 1. **Import an existing file**: `chezmoi add <target>` infers attributes; `chmod 0600` before `chezmoi add --encrypt` so secrets import as `encrypted_private_*.age`, and keep `[add] secrets = "error"` so plain `add` rejects unencrypted secrets.
 1. **Preview**: `mise run diff` (`chezmoi diff --force --no-pager --exclude encrypted`; narrow with `mise run diff -- <target>`). Diffs exclude encrypted files to keep plaintext out of transcripts; `chezmoi status` still shows their drift.
 1. **Validate rendering**: `mise run check:chezmoi` dry-runs against a temporary config and destination excluding encrypted files on the host OS. Exercise changed Linux/macOS branches separately and report unexercised branches or encrypted targets.
-1. **Check repeatability**: add existing-target and second-pass tests under `dot/tests/` — Bash/profile modifiers (`managed-block.tmpl`, rewritten in place between markers) in `test_shell_modifiers.py`, JSON/TOML modifiers (`config-merge.tmpl`) in `test_harness_config.py`. Check affected `run_*` hooks: plain hooks run every apply; `once_`/`onchange_` rerun when content changes.
-1. **Apply in scope**: `mise run apply` (`chezmoi apply --force` avoids interactive prompts on diverged targets without expanding scope). Themes (`fmind/theme` commit) and fonts (release URLs) are SHA-256-pinned externals; checksum mismatches fail apply. `mise run upgrade` advances the theme pin only when every `COPIED` block in `dot/dot_tasks/theme_pin.py` matches; font upgrades require bumping URL and checksum together.
-1. **Fold target edits back**: `chezmoi re-add` imports manual edits to managed files (e.g., Neovim `lazy-lock.json`); regenerate `mise.lock` via `mise run lock`, never `re-add`.
-1. **Diagnose**: `mise run doctor`; `chezmoi managed` / `chezmoi unmanaged` for coverage; `dot orphan` for former managed targets ([orphans](../../../skills/dot-cli/references/orphans.md)); [installed-link recovery](../dot-skills/references/installed-links.md) for retired skill links; [dot-cli](../../../skills/dot-cli/SKILL.md) for cleanup flags.
+1. **Check repeatability & hooks**: verify existing-target/second-pass modifier behavior (`test_shell_modifiers.py`, `test_harness_config.py`) and `run_*`/`systemd/user` hooks per [lifecycle](references/lifecycle.md).
+1. **Apply & fold target edits**: run `mise run apply` (`chezmoi apply --force`, syncing SHA-pinned theme/font externals per [lifecycle](references/lifecycle.md)); fold manual target edits such as `~/.config/nvim/lazy-lock.json` back via `chezmoi re-add --source "$(pwd -P)"` (never `mise.lock`, which `mise run lock` owns).
+1. **Diagnose**: `mise run doctor`; `chezmoi managed` / `chezmoi unmanaged`; `dot orphan` ([orphans](../../../skills/dot-cli/references/orphans.md)); [installed-link recovery](../dot-skills/references/installed-links.md); [dot-cli](../../../skills/dot-cli/SKILL.md).
 
 ## Gotchas
 

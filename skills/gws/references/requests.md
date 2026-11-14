@@ -1,6 +1,6 @@
 # File-based requests and recovery
 
-Inspect `gws --version`, `<method> --help`, and `gws schema service.resource.method`. In `0.22.5`, `--params` holds path/query JSON and `--json` holds request-body JSON (omit path IDs and output-only fields from `--json`). Serialize UTF-8 files via Python or `jq --rawfile`—never hand-escape JSON, run `echo -e`, or interpolate text into code (`jq --rawfile` keeps trailing newlines; `"$(cat ...)"` strips them without executing contents):
+Inspect `<method> --help` and `gws schema service.resource.method`. In `0.22.5`, `--params` holds path/query JSON and `--json` holds request-body JSON (omit path IDs and output-only fields from `--json`). Serialize UTF-8 files via Python or `jq --rawfile`—never hand-escape JSON, run `echo -e`, or interpolate text into code (`jq --rawfile` keeps trailing newlines; `"$(cat ...)"` strips them without executing contents):
 
 ```bash
 umask 077

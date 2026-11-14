@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Set Up Agents on a Project
@@ -17,9 +17,9 @@ Author shared project instructions and skills once, adding host bridges only whe
 ## Workflow
 
 1. **Inspect first**: preserve existing `AGENTS.md`, host configs, skills, and user settings.
-1. **Create the shared layer**: follow [host-setup.md](references/host-setup.md) using the [project template](templates/AGENTS.md.template), `.agents/skills/`, and gitignored `.agents/prompts/` ([task-prompts](../task-prompts/SKILL.md)); add the Claude skills symlink, host overrides, or custom-agent files only for hosts in use.
+1. **Create the shared layer**: follow [host-setup.md](references/host-setup.md) using [AGENTS.md.template](templates/AGENTS.md.template), `.agents/skills/`, and gitignored `.agents/prompts/` ([task-prompts](../task-prompts/SKILL.md)); add `.claude/skills` symlink, host overrides, or custom-agent files only for hosts in use.
 1. **Verify discovery**: run `dot agent context --check` and host listings in [host-discovery.md](references/host-discovery.md); listing proves discovery, not compliance.
-1. **Vet vendor skills**: follow [vendor-skill policy](references/vendor-skills.md) for immutable review, project scope, `skills` vs preview `gh skill`, and each tool guide's Official Skills section.
+1. **Vet vendor skills**: follow [vendor-skills.md](references/vendor-skills.md) (`skills find`, `skills add`, `skills experimental_install`, vs preview `gh skill`).
 1. **Maintain**: sync changes through [repository-docs](../repository-docs/SKILL.md), including local skill references.
 
 ## Task guides

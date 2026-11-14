@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/kubernetes
   created: "2026-09-16"
-  updated: "2026-11-10"
+  updated: "2026-11-14"
 ---
 
 # Kubernetes Cluster and Workload Operations
@@ -18,14 +18,8 @@ None of these tools (or `k3d`) are installed globally: pin required ones in the 
 
 ## Workflow
 
-1. **Confirm context and cluster**: never assume default kubeconfig points to dev:
-
-   ```bash
-   kubectl config get-contexts
-   kubectl --context <context> cluster-info
-   ```
-
-1. **Validate manifests offline**: check target-version schemas (`kubeconform` defaults to `master`) and scan with [trivy](../code-security/references/trivy/GUIDE.md) before applying (prefer offline validation over spinning up [k3d](references/k3d.md) when sufficient):
+1. **Confirm context and cluster**: never assume default kubeconfig points to dev (`kubectl config get-contexts`, `kubectl --context <context> cluster-info`).
+1. **Validate manifests offline**: check target-version schemas (`kubeconform` defaults to `master`) and scan with [trivy](../code-security/references/trivy/GUIDE.md) before applying (prefer offline validation over [k3d](references/k3d.md) when sufficient):
 
    ```bash
    kubeconform -strict -summary -kubernetes-version <cluster-version> <file-or-directory>
@@ -42,11 +36,10 @@ None of these tools (or `k3d`) are installed globally: pin required ones in the 
 
    `kubectl diff` exits `1` on diffs and `>1` on errors; it masks `Secret` data (without `--show-secrets`) but not `ConfigMap`s or rendered values. On authorized Helm 4 applies, pass `--rollback-on-failure --timeout <duration>` (replaces deprecated `--atomic`; `--force-replace` replaces `--force`).
 
-1. **Read bounded logs and events** (`--tail` applies per container; reserve streaming `stern` for interactive sessions):
+1. **Read bounded logs and events** (`--tail` applies per container; reserve streaming `stern` for interactive sessions; `kubectl --context <context> get events -n <namespace>` for cluster events):
 
    ```bash
    stern <pod-query> --context <context> -n <namespace> --since 15m --tail 50 --no-follow
-   kubectl --context <context> get pods,events -n <namespace>
    ```
 
 ## Gotchas

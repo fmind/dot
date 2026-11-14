@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/repository-docs
   created: "2026-09-07"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Repository Documentation
@@ -18,7 +18,7 @@ Keep human and agent docs aligned with live code, with one canonical owner per c
 
 1. **Inventory**: find `README.md`, root/nested `AGENTS.md`, `docs/`, `.github/*.md`, generated help, and `.agents/skills/*/SKILL.md` (plus any repo skill catalog).
 1. **Verify against code**: check entry points, source, tests, manifests, `mise` tasks, hooks, CI, and `--help` for every path, flag, version, and example.
-1. **Route by audience**: [README guidance](references/readme.md) and [README assets](references/readme-assets.md) for human identity, visuals, badges, and quickstart; [AGENTS guidance](references/agents.md) for agent commands, invariants, and layout; skills for reusable workflows (link instead of copying).
+1. **Route by audience**: apply [humanize](../humanize/SKILL.md) + [README guidance](references/readme.md) + [README assets](references/readme-assets.md) for scannable human docs, badges, and visuals; apply [AGENTS guidance](references/agents.md) for concise, literal agent rules and layout; put reusable procedures in skills.
 1. **Gate**: run repo doc checks, `typos`, `dot agent context --check` after instruction/skill edits, `lychee --no-progress --include-fragments=full <files>` (checks anchors + `#:~:text=`; add `--include-verbatim` when code-block URLs carry claims), `dprint check`, and any site build; inspect rendered layout changes.
 1. **Report**: changed files, verification evidence, and unverified external claims.
 

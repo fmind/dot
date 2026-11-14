@@ -9,11 +9,8 @@ Set repository description, homepage, and topics via `gh repo edit` ([gh](../../
 
 ## Workflow
 
-1. **Derive metadata from code**:
-   - `pyproject.toml` `[project]` name, description, and URLs; `README.md` lead for a single-line description under ~140 chars.
-   - Homepage: verified canonical URL only (never assume a Pages URL from the repo name).
-   - Topics: 3–6 lowercase `[a-z0-9-]` tags (`<=50` chars each, max 20) covering language, stack, or domain.
-1. **Read state and apply in one script** (shell variables do not persist across tool calls; remove old topics only when replacing the full set):
+1. **Check repo state and apply metadata**:
+   - Derive single-line `<140`-char description, canonical homepage URL, and `3–6` lowercase `[a-z0-9-]` topics (`<=50` chars) from `pyproject.toml` and `README.md`.
 
    ```bash
    state="$(gh repo view --json nameWithOwner,visibility,description,homepageUrl,repositoryTopics)"
@@ -27,13 +24,12 @@ Set repository description, homepage, and topics via `gh repo edit` ([gh](../../
    gh repo edit "$repository" "${args[@]}"
    ```
 
-1. **Verify**: re-read the same `gh repo view --json ...` fields and report changes.
-1. **Apply settings when requested**: run [settings-baseline.md](references/settings-baseline.md) for merge policy, sidebar features, secret scanning, Dependabot security updates, Actions hardening, immutable releases, and branch protection.
+1. **Verify**: re-read the same `gh repo view --json ...` fields.
+1. **Apply settings when requested**: run [settings-baseline.md](references/settings-baseline.md) (`--disable` sidebar features, squash merges, rulesets, Actions/Dependabot/secret-scanning).
 
 ## Gotchas
 
-- **Keep descriptions single-line and <140 chars** to avoid GitHub UI truncation.
-- **Never change visibility unasked**: never pass `--visibility` or `--accept-visibility-change-consequences` without explicit instruction.
+- **Keep descriptions single-line and under 140 chars** to avoid UI truncation; never pass `--visibility` unasked.
 
 ## Documentation
 

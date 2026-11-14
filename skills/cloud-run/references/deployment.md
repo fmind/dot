@@ -11,8 +11,6 @@ description: "Build, scan, sign, deploy private Cloud Run revisions, and verify 
    mise use --pin cosign trivy
    mise lock
    mise install --locked cosign trivy
-   cosign version
-   trivy --version
    ```
 
 1. **Validate locally**: set `build:image` to `--platform linux/amd64` (even on ARM hosts), then run the full gate and local archive scan:

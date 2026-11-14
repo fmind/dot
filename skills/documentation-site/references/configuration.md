@@ -19,7 +19,7 @@ Adjust the starter's `[project.theme].features` only for a concrete need ([navig
 
 ## Native plugins
 
-All run on 0.1.1 without extra packages unless noted ([plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/)). Enable via `[project.plugins.<name>]`; unknown keys error.
+All run on 0.1.1 without extra packages unless noted ([plugin list](https://zensical.org/docs/compatibility/mkdocs/plugins/); MkDocs Python plugins such as `gen-files` and `hooks` never execute). `exclude_docs`, `draft_docs`, and `not_in_nav` require `>=0.0.70`; pre-1.0 `0.1.x` pins belong in `uv.lock`. Enable via `[project.plugins.<name>]`; unknown keys error.
 
 - `llmstxt`: generates `llms.txt`, Markdown page copies, and optional `full_output`; requires `sections` (globs allowed).
 - `social`: build-time Open Graph cards (`social.cards` frontmatter overrides); cached in `.cache/`.

@@ -27,7 +27,7 @@ Follow the shared [workflow](../SKILL.md#workflow); host specifics:
 
 ## Configuration
 
-User state lives in `~/.pi/agent/` (`PI_CODING_AGENT_DIR`): `settings.json` (rewritten by Pi while preserving unknown keys; edit `private_dot_pi/` for managed keys, see [settings](https://pi.dev/docs/latest/settings)), `auth.json`, `trust.json`, `mcp.json`, `models.json`, `extensions/`, and `sessions/`.
+User state lives in `~/.pi/agent/` (`PI_CODING_AGENT_DIR`): `private_dot_pi/private_agent/modify_private_settings.json` merges `settings.json` (`defaultProvider: "google-vertex"`, `defaultModel: "gemini-4-argon"`, `defaultThinkingLevel: "high"`, `enableAnalytics: false`, `enableInstallTelemetry: false`, preserving host overrides; [settings](https://pi.dev/docs/latest/settings)), plus `auth.json`, `trust.json`, `mcp.json`, `models.json`, `extensions/`, and `sessions/`.
 
 - **Project trust gates code, not context files**: trust enables `.pi/settings.json`, `.pi/mcp.json`, `.pi/{extensions,skills,prompts,themes}`, `.pi` system prompts, and `.agents/skills` for the folder and all subdirectories—`dot trust` writes repo roots only; never trust a parent directory holding third-party clones.
 - **Extensions run in-process**: TypeScript in `~/.pi/agent/extensions/`, trusted `.pi/extensions/`, and `pi install <source>` packages run with full permissions at startup; vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md). Managed `google-vertex.ts` resolves dynamic Vertex location and startup model/thinking state.

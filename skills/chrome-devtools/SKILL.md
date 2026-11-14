@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Chrome DevTools
@@ -22,7 +22,7 @@ Requires Node.js LTS, `npm`/`npx`, and Chrome. Reuse an active MCP server if con
 npx --yes chrome-devtools-mcp@1.13.0 --isolated --headless --no-usage-statistics --no-performance-crux --redact-network-headers
 ```
 
-Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, screenshots, and traces may hold sensitive data). `--no-usage-statistics` and `--no-performance-crux` disable telemetry and CrUX URL lookups; `--redact-network-headers` masks non-allowlisted headers (`Cookie`, `Set-Cookie`, `Authorization`, `ETag`, `Content-Length`) unless deliberately omitted.
+Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, screenshots, and traces may hold sensitive data). Workstation sets `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1`; keep `--no-usage-statistics`, `--no-performance-crux`, and `--redact-network-headers` (`Cookie`, `Set-Cookie`, `Authorization`, `ETag`, `Content-Length` masked) on external hosts.
 
 ## CLI without MCP
 

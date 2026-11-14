@@ -20,7 +20,7 @@ trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars . # OpenTofu mod
 
 ## Mise Task
 
-Wire `check:scan` into `check:network` (or `check`) per [mise](../../../mise/SKILL.md) and [task conventions](../../../mise/references/task-conventions.md#conventions), alongside `check:vuln` (`uv audit` for `uv.lock` semantics); use [unfixed-report.md](references/unfixed-report.md) for scheduled informational visibility:
+Wire `check:scan` into `check:network` (or `check`) per [mise](../../../mise/SKILL.md) and [task conventions](../../../mise/references/task-conventions.md#conventions), alongside `check:vuln` (`uv audit` for `uv.lock` semantics). For informational fixed+unfixed reports, write JSON with `umask 077` to an untracked `0600` path outside the repo (`trivy --config trivy.yaml fs --scanners vuln --ignore-unfixed=false --exit-code 0 --format json --output "$REPORT_PATH" .`):
 
 ```toml
 [tasks."check:scan"]

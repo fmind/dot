@@ -17,3 +17,8 @@ Bootstrap an OpenTofu root module from package templates under the parent [skill
 1. **Validate offline**: run `git init --initial-branch=main`, `mise run install`, and `mise run all` (commented backend + `mock_provider` require zero cloud access).
 1. **Commit `.terraform.lock.hcl`**: OpenTofu 1.12+ records cross-platform registry hashes on `tofu init`; run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64` only for mirrors or non-OpenTofu registries.
 1. **Promote GCS backend when authorized**: create the versioned bucket per [versions.tf](../templates/versions.tf), back up local state, confirm workspace and GCS `prefix`, uncomment `backend "gcs"`, run `tofu init -migrate-state` (`-force-copy -input=false` when non-interactive migration is approved), and verify remote state before deleting the backup.
+
+## OpenTofu inside an application repository
+
+- **Keep modules in `infra/`**: expose one `check:tofu` task calling `tofu -chdir=infra ...` and `tflint --chdir=infra` rather than duplicating standalone tasks.
+- **Isolate offline validation**: pass `env.TF_DATA_DIR = "../tmp/tofu-check"` (resolved from `infra/`) to `tofu -chdir=infra init -backend=false -input=false -lockfile=readonly` so cached live backends never touch remote state.

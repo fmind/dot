@@ -16,7 +16,7 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; preserve existing project
 
 ## Workflow
 
-1. **Select specialist & bootstrap**: follow [bootstrap](references/bootstrap.md) for new projects (Django and `agents-cli` keep native layouts); route web to [litestar](../../../python-web/references/litestar/GUIDE.md) (default), [django](../../../python-web/references/django/GUIDE.md), [fastapi](../../../python-web/references/fastapi.md), or [nicegui](../../../python-web/references/nicegui.md)/[gradio](../../../python-web/references/gradio.md); agents to [agent-frameworks](../../../agent-frameworks/SKILL.md); data/ML to [python-mlops](../../../python-mlops/SKILL.md)/[duckdb](../../../duckdb/SKILL.md); standalone scripts to [python-script](../python-script/GUIDE.md); tooling to [mise](../../../mise/SKILL.md), [lefthook](../../../github-actions/references/lefthook.md), [code-review](../../../code-security/references/code-review/GUIDE.md), [agent-project](../../../agent-project/SKILL.md), [upgrade-tools](../../../upgrade-tools/SKILL.md), [python-testing](../python-testing/GUIDE.md), [python-async](../python-async/GUIDE.md), [pydantic](../pydantic.md), [argparse](../argparse/GUIDE.md), [performance](../performance.md), and [scaffolding](../../../project-scaffolding/references/bootstrap.md).
+1. **Select specialist & bootstrap**: follow [bootstrap](references/bootstrap.md) for new packages (Django and `agents-cli` keep native layouts); route specialist frameworks via [python-stack](../../SKILL.md), [python-web](../../../python-web/SKILL.md), [python-mlops](../../../python-mlops/SKILL.md), or [agent-frameworks](../../../agent-frameworks/SKILL.md).
 1. **Verify before delivery**: run focused tests, full gates, and a fresh-venv wheel install + import/CLI smoke check outside the repo; finish with [repository-docs](../../../repository-docs/SKILL.md).
 
 ## Tooling & gotchas
@@ -30,7 +30,7 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; preserve existing project
 ### Ruff
 
 - **Import order & Markdown**: run `uv run ruff check --select I --fix <paths>` before `ruff format` (which skips import sorting), and keep `extend-exclude = ["*.md"]` so `dprint` owns Markdown fences.
-- **Suppressions & dead code**: require `# noqa: CODE` (`PGH004`/`RUF100`); check dead code via `vulture src --min-confidence 60 --ignore-decorators '@*_validator'` (`@*.command,@*.callback` on Typer/Click) and verify with `rg`.
+- **Suppressions & dead code**: require `# noqa: CODE` (`PGH004`/`RUF100`); check dead code via `vulture src tests --min-confidence 60 --exclude '*/.venv/*' --ignore-decorators '@*_validator,@*.command,@*.callback'` and verify with `rg`.
 
 ### ty
 

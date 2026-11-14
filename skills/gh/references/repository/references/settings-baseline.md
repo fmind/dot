@@ -6,20 +6,13 @@ Apply to new solo-maintained repositories or explicit settings passes; preserve 
 
 1. **Select flags**:
    - `--disable wiki --disable projects --disable discussions` on new repos (on existing repos, pass only features requested for removal; add `--disable issues` only when tracked externally).
-   - `--skip-sha-pinning` while `.github/workflows` or `.github/actions` has unpinned `uses:` ([jactionlint](../../../../github-actions/references/jactionlint.md) `unpinned-uses`); GitHub-managed workflows (CodeQL, Dependabot, dependency graph, legacy Pages) work regardless.
-1. **Preview** (default GET-only check; `--check` is an explicit alias):
+   - `--skip-sha-pinning` while `.github/workflows` or `.github/actions` has unpinned `uses:` ([jactionlint](../../../../github-actions/references/jactionlint.md) `unpinned-uses`; GitHub-managed CodeQL/Dependabot/Pages still run).
+1. **Preview (`GET`-only) or apply (`--apply`)** (`apply` aborts on failed reads or duplicate rulesets; pass identical flags on follow-ups and verify `state`, `changed`, `notes`, `drift` JSON):
 
    ```bash
    python3 -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO
-   ```
-
-1. **Apply** (requires explicit `--apply`; aborts on failed reads or duplicate rulesets):
-
-   ```bash
    python3 -I ~/.agents/skills/gh/references/repository/scripts/settings_baseline.py OWNER/REPO --apply --disable wiki --disable projects --disable discussions
    ```
-
-1. **Verify JSON output**: `state`, `changed` (`[before, after]`), `notes`, and `drift` (exit `0` clean, `1` failed/drift, `2` bad args). Pass identical flags on follow-ups.
 
 ## Decisions
 

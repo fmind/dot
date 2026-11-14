@@ -23,7 +23,7 @@ gws docs documents get --params '{"documentId":"DOC_ID","includeTabsContent":tru
 python3 -I ~/.agents/skills/gws/scripts/docs_text.py document.json > sections.json
 ```
 
-Legacy `body` covers only tab 1, and extracted text is not an edit offset map—retain `document.json`, inspect `SUGGESTIONS_INLINE`, and count Docs indices in UTF-16 code units (non-BMP = 2). `gws docs +write` appends plain text only; for rich `.gdoc` edits use `documents.batchUpdate` with explicit tab IDs (some replace ops default to all tabs), `writeControl.requiredRevisionId`, and reverse-order index mutations.
+Legacy `body` covers only tab 1, and extracted text is not an edit offset map—retain `document.json`, inspect `SUGGESTIONS_INLINE`, and count Docs indices in UTF-16 code units (non-BMP = 2). `gws docs +write` appends plain text only; create styled `.gdoc` deliverables via HTML upload (`--upload-content-type text/html`, metadata `mimeType: application/vnd.google-apps.document`), or patch templates with `documents.batchUpdate`, explicit tab IDs, `writeControl.requiredRevisionId`, and reverse-order indices.
 
 ## Sheets
 
@@ -35,6 +35,6 @@ Read decoded messages via `gws gmail +read --id MESSAGE_ID --headers --format js
 
 ## Calendar and Slides
 
-Bound Calendar reads by `calendarId` and time window (`singleEvents=true` + ordering for expanded recurrences). Distinguish exclusive-end all-day `date` from RFC 3339 `dateTime` + IANA timezone, series vs instance IDs, and `sendUpdates` invitation side effects. Slides uses presentation/page/object IDs via `presentations.get` and typed `batchUpdate` requests (not Markdown), paired with read-back and [diagrams-as-code](../../diagrams-as-code/SKILL.md). Other Workspace APIs follow the same help → schema → bounded read → dry-run → authorized write → read-back loop.
+Bound Calendar reads by `calendarId` and time window (`singleEvents=true` + ordering for expanded recurrences). Distinguish exclusive-end all-day `date` from RFC 3339 `dateTime` + IANA timezone, series vs instance IDs, and `sendUpdates` invitation side effects. Build new decks and Slides imports via [draft-typst-deck](../../draft-typst-deck/SKILL.md); use `gws slides presentations get` and `batchUpdate` (`replaceAllText`) only to fill existing client Slides templates. Other Workspace APIs follow help → schema → bounded read → dry-run → authorized write → read-back.
 
 Sources: [Drive downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Docs tabs](https://developers.google.com/workspace/docs/api/how-tos/tabs), [Docs structure](https://developers.google.com/workspace/docs/api/concepts/structure), [Sheets values](https://developers.google.com/workspace/sheets/api/guides/values), [Gmail listing](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list), [Gmail sending](https://developers.google.com/workspace/gmail/api/guides/sending), [Calendar events](https://developers.google.com/workspace/calendar/api/v3/reference/events), [Slides requests](https://developers.google.com/workspace/slides/api/guides/batch).

@@ -22,6 +22,7 @@ Thin Git hooks delegating every check to `mise run <task>` so local hooks and CI
 
 ## Gotchas
 
+- **Set `glob_matcher: doublestar` at the root of `lefthook.yml`**: required so recursive globs like `**/*.py` and `**/*.{json,md}` match nested files.
 - **Prefer `jobs` over legacy `commands`**: `jobs` run sequentially in list order so formatters finish before checks.
 - **Partial staging hides unstaged hunks**: Lefthook stashes unstaged hunks during `pre-commit` and restores them afterwards.
 - **Never pass `--no-verify`**: heal hook failures per [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md).

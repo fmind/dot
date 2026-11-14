@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Google Workspace CLI
@@ -45,10 +45,10 @@ Automate Drive, Docs, Sheets, Gmail, Calendar, and Chat via `gws` (use connected
 
 ## Official Skills
 
-Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills) (`DISABLE_TELEMETRY=1 skills add googleworkspace/cli --list`); install selected service skills plus their shared base skill under [vendor-skill policy](../agent-project/references/vendor-skills.md).
+Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills); audit and install selected service skills plus their shared base skill only under [vendor-skill policy](../agent-project/references/vendor-skills.md).
 
 ## Documentation
 
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) · [Workspace API reference](https://developers.google.com/workspace)
 - Releases: [Workspace CLI](https://github.com/googleworkspace/cli/releases) · [changelog](https://github.com/googleworkspace/cli/blob/main/CHANGELOG.md)
-- Companions: [draft-doc](../draft-doc/SKILL.md) (Google Docs: native `.md` for living docs, `.gdoc` for styled deliverables), [draft-mail](../draft-mail/SKILL.md) (draft-only email and replies), [acli](../acli/SKILL.md) (same authority rules for Atlassian), [gcloud](../gcloud/SKILL.md) (Google Cloud), [mcp-setup](../agent-harnesses/references/mcp-setup.md) (connected apps).
+- Companions: [draft-doc](../draft-doc/SKILL.md) (Google Docs `.md` or HTML->`.gdoc`), [draft-typst-deck](../draft-typst-deck/SKILL.md) (Typst PDF/PPTX & private Google Slides), [draft-mail](../draft-mail/SKILL.md) (draft-only Gmail), [acli](../acli/SKILL.md), [gcloud](../gcloud/SKILL.md), [mcp-setup](../agent-harnesses/references/mcp-setup.md).

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Infrastructure as Code
@@ -16,22 +16,17 @@ Manage infrastructure with OpenTofu (`tofu`); pin HashiCorp `terraform` in `mise
 
 ## Defaults
 
-- **Pin project tools in `mise.toml`**: declare `opentofu`, `tflint`, and `terraform-docs` via `mise use --pin <tool>` ([mise.toml](templates/mise.toml); workstation `tofu`/`tflint` exist only for editor support, and verify provider/backend/state compatibility before migrating from Terraform).
+- **Pin project tools in `mise.toml`**: declare `opentofu`, `tflint`, and `terraform-docs` via `mise use --pin <tool>` ([mise.toml](templates/mise.toml); workstation `tofu`/`tflint` exist only for editor support; check compatibility before migrating from Terraform).
 - **Align tasks, hooks, and docs**: [mise.toml](templates/mise.toml) and [lefthook.yml](templates/lefthook.yml) wire format, validate, `tflint`, `trivy`, and `betterleaks` ([mise](../mise/SKILL.md), [lefthook](../github-actions/references/lefthook.md)); `mise run build` injects `TF_DOCS` tables into `README.md` offline via [terraform-docs.yml](templates/terraform-docs.yml).
 - **Use keyless auth**: ADC locally and Workload Identity Federation in CI ([cloud-run bootstrap](../cloud-run/references/bootstrap.md)).
 
 ## Workflow
 
-1. **Confirm target and initialize**: verify root module, backend, `tofu workspace show`, cloud project, credentials, and change scope; run `mise run install` on fresh clones (`tofu init` + `tflint --init`).
-1. **Isolate state per concern**: edit the smallest owning root module, using a distinct GCS `prefix` per module.
+1. **Confirm target and initialize**: verify root module, backend, `tofu workspace show`, cloud project, credentials, and scope; run `mise run install` on fresh clones (`tofu init` + `tflint --init`).
+1. **Isolate state per concern**: edit the smallest owning root module with a distinct GCS `prefix` per module ([in-app layout](references/scaffold.md#opentofu-inside-an-application-repository) for `infra/` inside an app repo).
 1. **Gate offline first**: run `mise run check` and `mise run test` (`tests/*.tftest.hcl` use `command = plan` with `mock_provider` as in [main.tftest.hcl](templates/main.tftest.hcl); unmocked plan tests hit cloud APIs/state). Encode invariants as `check:scan` Trivy checks or plan assertions.
 1. **Plan on demand**: run `mise run plan` (`tmp/plan.tfplan`), keeping `plan` and `apply` out of hooks/CI gates.
 1. **Apply reviewed plans only when authorized**: highlight replacements, destroys, IAM, and cost in `tofu show tmp/plan.tfplan`, run `tofu apply tmp/plan.tfplan`, delete `tmp/plan.tfplan`, and verify `tofu plan -input=false -detailed-exitcode` exits 0.
-
-## OpenTofu inside an application repository
-
-- **Keep modules in `infra/`**: expose one `check:tofu` task calling `tofu -chdir=infra ...` and `tflint --chdir=infra` rather than duplicating standalone tasks.
-- **Isolate offline validation**: pass `env.TF_DATA_DIR = "../tmp/tofu-check"` (resolved from `infra/`) to `tofu -chdir=infra init -backend=false -input=false -lockfile=readonly` so cached live backends never touch remote state.
 
 ## State and secrets
 

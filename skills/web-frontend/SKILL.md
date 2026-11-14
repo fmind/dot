@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Web Frontend
 
-Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Default to `~/.agents/DESIGN.md` unless the project or customer defines its own brand; preserve existing stacks and use Tailwind when selected. [python-web](../python-web/SKILL.md) ([litestar](../python-web/references/litestar/GUIDE.md), [django](../python-web/references/django/GUIDE.md)) owns backend apps and tests; [playwright](../playwright/SKILL.md) owns E2E automation.
+Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Default to `~/.agents/DESIGN.md` and [humanize](../humanize/SKILL.md) visual clarity unless the project or customer defines its own brand; preserve existing stacks and use Tailwind when selected. [python-web](../python-web/SKILL.md) ([litestar](../python-web/references/litestar/GUIDE.md), [django](../python-web/references/django/GUIDE.md)) owns backend apps and tests; [playwright](../playwright/SKILL.md) owns E2E automation.
 
 ## Workflow
 

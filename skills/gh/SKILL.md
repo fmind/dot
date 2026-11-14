@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gh
   created: "2026-09-16"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # GitHub CLI
@@ -20,7 +20,7 @@ Use `gh` for authenticated GitHub reads and writes. This connector owns account 
 1. **Verify auth**: run `gh auth status --active --hostname <host>` when uncertain; env tokens can override stored accounts, and never print tokens or pass `--show-token`. Account switches and extra scopes require authority per [dot-cli authentication](../dot-cli/references/authentication.md).
 1. **Use bounded native reads**: pass explicit `--limit` and `--json` fields. Read remote files with `gh repo read-file <path> -R <owner>/<repo> --ref <sha>` or `gh repo read-dir` (preview; pass `""`, not `.`, for the root) instead of cloning. For API gaps, pass `gh api --method GET <endpoint>` with `per_page` and `page` (`--field`/`--raw-field` otherwise defaults to POST).
 1. **Inspect failed Actions logs first**: `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed` (save large logs to a file).
-1. **Write from files, then read back**: pass `--body-file` or `gh api --input <file>` on authorized writes, re-read modified fields, and reconcile remote state before retrying an uncertain write.
+1. **Write humanized text from files, then read back**: shape issue/PR copy with [humanize](../humanize/SKILL.md) (alerts, `<details>`, zero prose backticks), scan payloads with `betterleaks stdin --redact` on public repos, pass `--body-file` or `gh api --input <file>`, and re-read modified fields before retrying an uncertain write.
 
 ## Task guides
 

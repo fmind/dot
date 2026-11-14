@@ -11,4 +11,4 @@ Create or update README logos, illustrations, and badges ([README guidance](read
 
 ## Badges with evidence
 
-Use one row of 3–4 consistent badges, each with alt text and an evidence link: **CI** (branch-scoped workflow runs), **Release/package** (only once published), **Compatibility** (checked runtime metadata), and **License** (`LICENSE`). Omit novelty/vanity badges, unverified claims, and third-party badges on private repos. See [reference patterns](readme.md#reference-patterns).
+Use one row of 3–4 consistent badges, each with alt text and an evidence link: **CI** (branch-scoped workflow runs), **Release/package** (only once published), **Compatibility** (checked runtime metadata), and **License** (`LICENSE`). Omit novelty/vanity badges, unverified claims, and third-party badges on private repos.

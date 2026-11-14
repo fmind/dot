@@ -24,7 +24,7 @@ description: "Reconcile configured provider logins, OAuth scopes, one-off grants
 `dot login gcp` and `dot login colab` share `auth.gcp.adc_scopes` (ADC overwrites its full grant on every login, so keep `gcloud` + `colaboratory` + read-only sensor scopes together):
 
 ```bash
-gcloud auth application-default print-access-token --scopes=<auth.gcp.adc_scopes> >/dev/null  # probe only
+dot login colab --check                  # probe ADC + Colab scopes safely (never run print-access-token)
 gcloud auth application-default login --scopes=<auth.gcp.adc_scopes>
 colab --auth=adc sessions
 ```
@@ -39,5 +39,5 @@ Check `colab` stderr (it can exit `0` on ADC failure), unset `GOOGLE_APPLICATION
 
 ## Scoped credentials
 
-- **`dot secret run NAME -- COMMAND ...`**: reads `NAME` from env first, else `~/.config/dot/secrets/NAME`, failing before `exec` on empty, missing, or loose-mode files (child process only; nest calls for multiple keys; never auto-falls back to personal credentials).
-- **Managed vs retired keys**: only read-only `OPENROUTER_MANAGEMENT_KEY` is managed here; SonarQube keeps tokens in `~/.sonar/sonarqube-cli/tokens.json` (`0600` via `SONARQUBE_CLI_KEYCHAIN_FILE`); Vault/Bitwarden values pipe straight to stdin only. `ANTIGRAVITY_SDK_API_KEY`, `JULES_API_KEY`, `STITCH_ACCESS_TOKEN`, `UV_PUBLISH_TOKEN` (PyPI uses CI Trusted Publishing), and `VERTEX_API_KEY` are retired.
+- **`dot secret run NAME -- COMMAND ...`**: reads `NAME` from env first, else `~/.config/dot/secrets/NAME` (`0600`), failing before `exec` on empty, missing, or loose-mode files (child process only; nest calls for multiple keys; never auto-falls back to personal credentials).
+- **Managed vs retired keys & Vault/Bitwarden**: only read-only `OPENROUTER_MANAGEMENT_KEY` is stored for `dot secret run`; SonarQube keeps tokens in `~/.sonar/sonarqube-cli/tokens.json` (`0600` via `SONARQUBE_CLI_KEYCHAIN_FILE`). Feed HashiCorp `vault` and Bitwarden `bw` secrets via stdin (`vault login -`, `bw` stdin) or `dot secret run`, never CLI argv or global env exports. `ANTIGRAVITY_SDK_API_KEY`, `JULES_API_KEY`, `STITCH_ACCESS_TOKEN`, `UV_PUBLISH_TOKEN` (PyPI uses CI Trusted Publishing), and `VERTEX_API_KEY` are retired.

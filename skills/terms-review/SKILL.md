@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terms-review
   created: "2026-09-15"
-  updated: "2026-11-10"
+  updated: "2026-11-14"
 ---
 
 # Terms Review
@@ -16,13 +16,10 @@ Assess whether an intended use of a product, service, or artifact fits its gover
 
 ## Workflow
 
-1. **Define context**: product, provider, exact version/artifact, plan, contracting entity, jurisdictions, activities, audience, scale, and data flows; ask only decision-changing unknowns while gathering sources, and record assumptions.
-1. **Set criteria**: turn user, policy, and requested regulatory constraints into checkable requirements, keeping contractual grants, legal duties, and operational proof distinct (ignore badges and marketing claims).
-1. **Collect primary texts**: inspect the signed agreement if any and all incorporated documents—ToS, EULA/license, order form, service terms, AUP, privacy notice, DPA, subprocessors, and exact-release model/dataset/dependency licenses—recording title, URL or private ID, effective date, retrieval date, scope, and clause IDs.
-1. **Resolve precedence**: separate consumer, business, API, free, paid, trial, and preview terms; check incorporation, precedence, amendments, renewal, and notice rules rather than assuming the latest public page governs an existing contract. Mark unavailable or irreconcilable texts unresolved; never reconstruct clauses from snippets or memory.
-1. **Map clauses**: walk relevant [assessment](references/assessment.md) items, recording clause, brief quote or paraphrase, effect, operational proof, and remaining actions while distinguishing literal text, interpretation, and unverified claims.
-1. **Decide and report**: follow the [assessment](references/assessment.md) output contract, ranking blockers first, assigning owner/action/verification to each condition, noting plan or config changes that resolve conflicts, and drafting exact counsel/vendor questions for consequential ambiguity.
-1. **Audit the verdict**: confirm every material requirement has clause evidence or an explicit gap (blockers or missing facts forbid `Supported`), ground jurisdiction claims in official statutes/regulator guidance, and list re-review triggers (changed terms, plan, version, data, jurisdiction, distribution, or use).
+1. **Define context & criteria**: record product, exact version/artifact, plan, entities, jurisdictions, scale, data flows, and checkable policy/regulatory requirements (ignore badges and marketing).
+1. **Collect & order primary texts**: inspect signed agreements and incorporated docs (ToS, EULA/license, DPA, subprocessors, release model/dataset licenses) with URL/ID and effective date; resolve consumer/API/enterprise precedence and mark unavailable texts `Unresolved` instead of reconstructing from memory.
+1. **Audit clauses**: cover commercial/API/scraping/benchmark/export rights; code/weights/dataset/output licenses and copyleft compatibility (read raw license text); and confidentiality, AI training/opt-out, retention, residency, and DPA/BAA obligations alongside technical verification.
+1. **Deliver the report**: state dated verdict (`Supported`, `Conditional`, `Not supported`, or `Unresolved`), context/assumptions, evidence matrix (requirement | document & clause | finding | status | action), ranked blockers, counsel/vendor questions, re-review triggers, and dated sources.
 
 ## Boundaries
 

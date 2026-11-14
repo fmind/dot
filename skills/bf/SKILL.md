@@ -9,7 +9,7 @@ metadata:
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-11-10"
+  updated: "2026-11-14"
 ---
 
 # Use Brain Framework
@@ -34,3 +34,4 @@ metadata:
 
 - [Brain Framework repository](https://github.com/fmind/brain-framework) · [documentation](https://fmind.github.io/brain-framework/) · [releases](https://github.com/fmind/brain-framework/releases) · [team brains](https://fmind.github.io/brain-framework/docs/team/) · [Markdown for agents](https://fmind.github.io/brain-framework/llms.txt)
 - [Packaged skills](https://github.com/fmind/brain-framework/tree/main/src/bf/skills): read them at the tag matching `bf --version` (`tree/v<version>/src/bf/skills`); prefer the brain's installed copy, which matches its runtime, and change the procedures there, not here.
+- Companion skills: [fmind](../fmind/SKILL.md) (Fmind public content, news digests, and social search).

@@ -21,7 +21,7 @@ Plan, read, and update GitHub issues from verified repo and remote state via [gh
 1. **Check comments and duplicates**: fetch comments when decisions, criteria, or replies depend on them. Narrow/paginate capped lexical searches and run one hybrid search page before declaring no duplicate exists.
 1. **Deduplicate**: update an existing issue sharing the same outcome, retaining reproduction, acceptance criteria, dependencies, decisions, and proof while dropping stale logs and duplicate checklists.
 1. **Draft multi-issue sets**: for multiple findings or dependencies, follow the [backlog workflow](references/backlog.md), present drafts, and stop unless creation is authorized.
-1. **Apply authorized mutations** via `--body-file` (no shell interpolation or prompts):
+1. **Draft humanized bodies and apply via `--body-file`**: apply [humanize](../../../humanize/SKILL.md) (crisp impact lead, GitHub alerts/tables/`<details>`, zero prose backticks) and scan outbound text via `betterleaks stdin --redact`:
 
    ```bash
    gh issue create -R <owner>/<repo> --title '<title>' --body-file <body-file>

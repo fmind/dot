@@ -1,6 +1,6 @@
 # Google Chat content and threads
 
-Lead with one sentence, a few bullets, and a link—replacing headings with bold labels, tables with bullets or a Sheet link, and language-tagged fences with bare ` ``` ` fences. Pick one syntax per message:
+Apply [humanize](../../humanize/SKILL.md) (80 words or fewer, one headline, up to three bold-lead bullets, zero prose backticks) and scan outbound payloads via `betterleaks stdin --redact`. Replace Markdown headings with bold labels, tables with bullets or links, and language-tagged fences with bare ` ``` ` fences. Pick one syntax per message:
 
 | Element     | Native Chat (default)          | Markdown mode                  |
 | ----------- | ------------------------------ | ------------------------------ |
@@ -11,7 +11,7 @@ Lead with one sentence, a few bullets, and a link—replacing headings with bold
 | Bullets     | `- Item`                       | `- Item`                       |
 | Inline code | Single backticks               | Single backticks               |
 
-Always set `markupSyntax` (`MARKUP_SYNTAX_CHAT` default vs `MARKUP_SYNTAX_MARKDOWN`), since omitting it falls back to Markdown when no Chat app is configured and turns `*bold*` into italics. Never set output-only `formattedText`; author user-authenticated messages as text (cards use separate HTML rules):
+Always set `markupSyntax` (`MARKUP_SYNTAX_CHAT` default vs `MARKUP_SYNTAX_MARKDOWN`), since omitting it falls back to Markdown when no Chat app is configured and turns `*bold*` into italics. Never set output-only `formattedText`; author user-authenticated messages as plain Chat text (`cardsV2` cards require a Chat app and are rejected on user OAuth calls):
 
 ```bash
 python3 -I ~/.agents/skills/gws/scripts/chat_body.py message.txt > body.json

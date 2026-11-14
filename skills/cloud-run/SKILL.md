@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-run
   created: "2026-09-16"
-  updated: "2026-11-13"
+  updated: "2026-11-14"
 ---
 
 # Cloud Run Deployment
@@ -16,14 +16,10 @@ Deploy Python services to Cloud Run via immutable `@sha256:` digests, private IA
 
 ## Workflow
 
-1. **Confirm target and authority**: verify gcloud account, project, region, service, and Artifact Registry repo; pushes, signing, IAM edits, deploys, and traffic shifts each require target-specific authority.
-1. **Bootstrap identities once**: follow [bootstrap.md](references/bootstrap.md) for APIs, Artifact Registry, distinct runtime and deployer service accounts, and Workload Identity Federation.
-1. **Validate locally**: pin, lock, and install Trivy and Cosign before scanning or pushing, then build the non-root `linux/amd64` image and pass `mise run all` and `check:image` ([deployment.md](references/deployment.md) steps 1–2, [containerize](../docker/references/containerize/GUIDE.md)).
-1. **Publish and sign one digest**: once push is authorized, follow [deployment.md](references/deployment.md) and run the [cosign release sequence](../docker/references/cosign.md#release-sequence) on that exact digest.
-1. **Deploy privately**: deploy the digest with `--service-account` and `--invoker-iam-check --no-allow-unauthenticated` (or [service.yaml](templates/service.yaml) for multi-setting services), then run the private-IAM postcondition.
-1. **Adopt IaC for fleets**: manage multi-service IAM, registries, and infra via [infra-as-code](../infra-as-code/SKILL.md).
-1. **Wire CD on request**: install [deploy.yml](templates/deploy.yml) and [verify-private.py](templates/verify-private.py) per [deployment.md](references/deployment.md) steps 8–9.
-1. **Record live state**: report ready revision, `@sha256:` digest, pinned secret versions, runtime SA, IAM verification, health checks, traffic split, and rollback revision.
+1. **Confirm target and bootstrap once**: verify gcloud account, project, region, service, and Artifact Registry repo; run [bootstrap.md](references/bootstrap.md) for APIs, registry, separate runtime/deployer SAs, and WIF (`[infra-as-code](../infra-as-code/SKILL.md)` owns multi-service fleets).
+1. **Validate locally**: pin, lock, and install Trivy + Cosign, build a non-root `linux/amd64` image, and pass `mise run all` + `check:image` ([deployment.md](references/deployment.md), [containerize](../docker/references/containerize/GUIDE.md)).
+1. **Publish, sign, and deploy privately**: once authorized, build/push one `@sha256:` digest, run [cosign release sequence](../docker/references/cosign.md#release-sequence), deploy with `--service-account` + `--invoker-iam-check --no-allow-unauthenticated` (or [service.yaml](templates/service.yaml)), and optionally wire [deploy.yml](templates/deploy.yml) + [verify-private.py](templates/verify-private.py).
+1. **Verify and report**: confirm private-IAM postcondition and health/readiness, then report ready revision, `@sha256:` digest, pinned secret versions, runtime SA, traffic split, and rollback revision.
 
 ## Gotchas
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-11-10"
+  updated: "2026-11-14"
 ---
 
 # Atlassian CLI
@@ -32,7 +32,7 @@ Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, s
    ```
 
 1. **Expand selectively**: fetch `description` or `comment` only when needed. Treat results hitting `--limit` as partial: check `--count`, then tighten JQL or pass `--paginate` before claiming completeness.
-1. **Write with authority**: reuse user authority for the target keys, fields, comments, assignments, or bulk scope; ask when consequential scope is missing. Prefer `--generate-json` / `--from-json` and file inputs (`--description-file`, `--body-file`) over inline multiline args:
+1. **Write cleanly with authority**: apply [humanize](../humanize/SKILL.md) (short signals, zero prose backticks, native [ADF panels & tables](../humanize/references/primitives.md#channel-primitives)) and check outbound text with `betterleaks stdin --redact` before posting. Reuse user authority for the target scope (ask when missing), prefer `--generate-json` / `--from-json` and `--description-file` / `--body-file` (or `--edit-last` on comment updates):
 
    ```bash
    acli jira workitem create --project TEAM --type Task --summary "<summary>" --description-file description.txt --json
@@ -45,8 +45,8 @@ Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, s
 ## Gotchas
 
 - **Bulk flags hit every match**: `--jql` and `--filter` on `transition`, `edit`, or `comment` mutate all matches; `--yes` skips prompts, never authority.
-- **Confluence pages are read-only in acli 1.3.40**: no Confluence search, and `confluence page` supports only `view` (blogs/spaces support create); use Rovo MCP under the same authority to search or edit pages.
-- **Rovo Dev & MCP**: `acli rovodev` already reads `.agents/skills` and `~/.agents/skills`; `atlassian/atlassian-mcp-server` (`DISABLE_TELEMETRY=1 skills add atlassian/atlassian-mcp-server --list`, configured via [mcp-setup](../agent-harnesses/references/mcp-setup.md)) covers Rovo MCP, not `acli`.
+- **Confluence pages are read-only in `acli` 1.3.40**: no Confluence search, and `confluence page` supports only `view` (blogs/spaces support create); use Rovo MCP under the same authority to search or edit pages.
+- **Rovo Dev & MCP**: `acli rovodev` reads `~/.agents/skills`; configure `atlassian/atlassian-mcp-server` via [mcp-setup](../agent-harnesses/references/mcp-setup.md) (`--list` before any write tool).
 
 ## Documentation
 

@@ -7,16 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-mlops
   created: "2026-09-16"
-  updated: "2026-11-11"
+  updated: "2026-11-14"
 ---
 
 # Python MLOps
 
-Build ML workflows from exploration to evaluated delivery, grounded in the [reviewed MLOps repositories](references/sources.md).
-
-## Routing
-
-Read only the matching guide. Go straight to `marimo` for notebooks/reactivity; keep existing project libraries and notebook formats, and treat reference repos as boundary examples rather than mandatory layouts. Confirm permitted compute, tracking stores, and artifact/registry targets before running training, logging, or promotion jobs.
+Build ML workflows from exploration to evaluated delivery, grounded in the [reviewed MLOps repositories](references/sources.md). Read only the matching guide (`marimo` for notebooks, keeping existing libraries/formats); confirm permitted compute, tracking stores, and registry targets before running jobs or promotions.
 
 ## Task guides
 
@@ -30,9 +26,3 @@ Read only the matching guide. Go straight to `marimo` for notebooks/reactivity; 
 - [training](references/training.md): Validate Polars or pandas data with Pandera, prevent leakage, and train, tune, and evaluate scikit-learn pipelines.
 
 <!-- guides:end -->
-
-## Related owners
-
-- [python-stack](../python-stack/SKILL.md) (uv, typing, packaging, async) · [python-testing](../python-stack/references/python-testing/GUIDE.md) (tests) · [observability](../python-stack/references/observability.md) (telemetry).
-- [Colab](../colab/SKILL.md), [Kaggle](../kaggle/SKILL.md), [Hugging Face](../hf/SKILL.md): accounts, sessions, transfers, and compute (available quota never implies authorization).
-- [duckdb](../duckdb/SKILL.md) (SQL/file queries) · [python-web](../python-web/SKILL.md) (APIs/demos) · [evaluation](../agent-frameworks/references/evaluation/GUIDE.md) (agent evals).
