@@ -557,3 +557,73 @@ def test_quiet_sync_announces_a_parser_upgrade_once(tmp_path: Path) -> None:
         f"agent-session: upgrading archived claude sessions to parser {session_store.SESSION_PARSER_VERSION}; "
         "this can take minutes\n"
     )
+
+
+def test_sync_recaptures_agy_cache_write_tokens_from_unchanged_parser_15_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fmind_dot.archive.sync import _source_signature
+
+    agy_root = tmp_path / "agy"
+    logs_dir = agy_root / "agy-cw" / ".system_generated" / "logs"
+    logs_dir.mkdir(parents=True)
+    transcript = logs_dir / "transcript.jsonl"
+    transcript.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "source": "USER_EXPLICIT",
+                        "type": "USER_INPUT",
+                        "content": "ask",
+                        "created_at": "2026-01-01T00:00:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "source": "MODEL",
+                        "type": "PLANNER_RESPONSE",
+                        "content": "done",
+                        "created_at": "2026-01-01T00:00:01Z",
+                        "input_tokens": 100,
+                        "output_tokens": 10,
+                        "cache_write_tokens": 25,
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    state = State(stdin=io.StringIO(), stdout=io.StringIO(), stderr=io.StringIO())
+    for agent in state.config.agent.sources:
+        state.config.agent.sources[agent] = str(tmp_path / "absent" / agent)
+    state.config.agent.sources["agy"] = str(agy_root)
+
+    parsed = parsers.parse_agy_session(transcript, "agy-cw")
+    assert parsed.usage is not None
+    legacy_usage = parsed.usage.to_dict() | {"cache_write_tokens": 0, "total_tokens": 110}
+    with monkeypatch.context() as legacy:
+        legacy.setattr(session_store, "SESSION_PARSER_VERSION", "15")
+        session_store.ingest_session(
+            "agy",
+            "agy-cw",
+            parsed.logs,
+            session_store.SessionSource(
+                type=parsed.source_type,
+                fingerprint=parsed.fingerprint,
+                signature=_source_signature([transcript])[0],
+            ),
+            usage=legacy_usage,
+        )
+    bundle = session_bundle_path("agy", "agy-cw")
+    assert read_session_manifest(bundle).parser_version == "15"
+
+    assert sync_sessions(state, agent="agy").ingested == 1
+    manifest, records = read_session_bundle(bundle)
+    assert manifest.parser_version == session_store.SESSION_PARSER_VERSION
+    assert records == parsed.logs
+    assert manifest.usage is not None
+    assert manifest.usage["cache_write_tokens"] == 25
+    assert manifest.usage["total_tokens"] == 135
+    assert sync_sessions(state, agent="agy").unchanged == 1

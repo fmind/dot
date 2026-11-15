@@ -720,3 +720,24 @@ def test_skills_contract_rejects_inverted_guide_markers_and_sync_fails_closed(
     assert checker.main() == 1
     assert "invalid frontmatter" in capsys.readouterr().err
     assert skill.read_text(encoding="utf-8") == seeded
+
+
+def test_skills_contract_sync_reports_unreadable_or_non_utf8_skill_without_writing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _fixture_repository(tmp_path)
+    skill = root / "skills/fixture/SKILL.md"
+    guide = skill.parent / "references/guide.md"
+    guide.write_text("---\nname: guide\ndescription: Sync target.\n---\n# Guide\n", encoding="utf-8")
+    stale_index = f"\n{checker.GUIDE_START}\n- [guide](references/guide.md): Stale\n{checker.GUIDE_END}\n"
+    original = skill.read_text(encoding="utf-8") + stale_index
+    skill.write_text(original, encoding="utf-8")
+
+    bad_skill = root / "skills/fixture-helper/SKILL.md"
+    bad_skill.write_bytes(b"\xff\xfeinvalid-utf8")
+
+    monkeypatch.setattr(checker, "ROOT", root)
+    monkeypatch.setattr("sys.argv", ["skill_contracts", "--sync"])
+    assert checker.main() == 1
+    assert "cannot read UTF-8 text" in capsys.readouterr().err
+    assert skill.read_text(encoding="utf-8") == original

@@ -10,7 +10,7 @@ Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `u
 - `mise run format` — `ruff` (imports + format) and `dprint`.
 - `mise run check` — `check:local` (`ruff`, `ty`, `deptry`, `dprint`, `betterleaks`, `validate-pyproject`, `uv lock --check`) + `check:network` (`uv audit`).
 - `mise run test` — offline `pytest` (`pytest-socket` loopback-only, 60s timeout, 85% branch coverage).
-- `mise run build` — `uv build --clear` + strict Zensical API docs (`mise run serve:docs` previews).
+- `mise run build` — `uv build --clear --no-sources` + strict Zensical API docs (`mise run serve:docs` previews).
 - `mise run watch` — continuous test/app watcher.
 - **Fast inner loop**: `uv run --locked pytest -q <path>::<test>`, `uv run --locked pytest -q -x -l --lf`, `uv run --locked ruff check <path>`, `uv run --locked ty check <path>`; finish with full `mise` gates.
 

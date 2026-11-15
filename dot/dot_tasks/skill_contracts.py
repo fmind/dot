@@ -28,6 +28,7 @@ from fmind_dot.context_budget import (
     parse_frontmatter,
 )
 from fmind_dot.errors import DotError
+from fmind_dot.private_files import write_atomic_file
 
 MAX_DESCRIPTION = 180
 MAX_MARKDOWN_TOKENS = 1_500
@@ -690,9 +691,14 @@ def main() -> int:
     root = ROOT
     if args.sync:
         discovered, sync_errors = _discover_skills(root)
-        updates: list[tuple[Path, str]] = []
+        updates: list[tuple[Path, str, int]] = []
         for _, path in discovered:
-            text = path.read_text(encoding="utf-8")
+            try:
+                text = path.read_text(encoding="utf-8")
+                mode = stat.S_IMODE(path.lstat().st_mode)
+            except (OSError, UnicodeDecodeError) as error:
+                sync_errors.append(f"{_relative(root, path)}: cannot read UTF-8 text ({error.__class__.__name__})")
+                continue
             has_start, has_end = GUIDE_START in text, GUIDE_END in text
             if has_start != has_end or (has_start and text.index(GUIDE_START) > text.index(GUIDE_END)):
                 sync_errors.append(
@@ -709,12 +715,16 @@ def main() -> int:
             _, after = rest.split(GUIDE_END, 1)
             updated = before + index + after
             if updated != text:
-                updates.append((path, updated))
+                updates.append((path, updated, mode))
         if sync_errors:
             sys.stderr.write("\n".join(sync_errors) + "\n")
             return 1
-        for path, updated in updates:
-            path.write_text(updated, encoding="utf-8")
+        for path, updated, mode in updates:
+            try:
+                write_atomic_file(path, updated.encode("utf-8"), mode=mode)
+            except OSError as error:
+                sys.stderr.write(f"{_relative(root, path)}: cannot write index ({error})\n")
+                return 1
         return 0
     findings, count = _repository_check(root)
     if findings:

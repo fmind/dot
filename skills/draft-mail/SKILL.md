@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-mail
   created: "2026-10-04"
-  updated: "2026-11-14"
+  updated: "2026-11-15"
 ---
 
 # Draft Mail

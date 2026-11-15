@@ -51,10 +51,27 @@ def _lstat_regular(path: Path) -> os.stat_result | None:
     return info
 
 
-def _write(path: Path, text: str) -> None:
+def _reject_symlink_path(path: Path, home: Path | None, label: str) -> None:
+    """Refuse symlinks at ``path`` or any intermediate ancestor strictly inside ``home``."""
+    if home is not None:
+        try:
+            relative = path.relative_to(home)
+        except ValueError:
+            relative = None
+        if relative is not None:
+            current = home
+            for part in relative.parts:
+                current = current / part
+                if current.is_symlink():
+                    raise DotError(f"refusing symlinked {label}: {current}")
+            return
+    if path.is_symlink():
+        raise DotError(f"refusing symlinked {label}: {path}")
+
+
+def _write(path: Path, text: str, *, home: Path | None = None) -> None:
     """Replace the file atomically, keeping its permissions (new files are owner-only)."""
-    if path.parent.is_symlink():
-        raise DotError(f"refusing symlinked trust directory: {path.parent}")
+    _reject_symlink_path(path.parent, home, "trust directory")
     info = _lstat_regular(path)
     mode = stat.S_IMODE(info.st_mode) if info is not None else 0o600
     try:
@@ -80,7 +97,7 @@ def _read_utf8(path: Path) -> str:
         raise DotError(f"failed to read trust file {path}: {error}") from error
 
 
-def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool) -> list[str]:
+def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool, home: Path | None = None) -> list[str]:
     """Apply all folders in one read-modify-write; return the folders that changed.
 
     Each host also writes its own file. Replace it only if it still matches what was read,
@@ -96,7 +113,7 @@ def _update(path: Path, edit: _Edit, folders: list[str], *, dry_run: bool) -> li
         if dry_run or not changed:
             return changed
         if _file_state(path) == observed:
-            _write(path, updated)
+            _write(path, updated, home=home)
             return changed
     raise DotError(f"{path} kept changing while trusting folders; retry once its harness is idle")
 
@@ -172,8 +189,7 @@ def register_claude_directories(
     """Extend Claude's permissions.additionalDirectories with ~/.agents and uncovered roots."""
     home = (home or Path.home()).resolve()
     claude_dir = home / ".claude"
-    if claude_dir.is_symlink():
-        raise DotError(f"refusing symlinked harness directory: {claude_dir}")
+    _reject_symlink_path(claude_dir, home, "harness directory")
     if not claude_dir.is_dir():
         return []
     # Parents precede children so workspace roots subsume the repositories below them.
@@ -184,6 +200,7 @@ def register_claude_directories(
         lambda path, text, items: _claude_settings(path, text, items, home=home),
         list(selected),
         dry_run=dry_run,
+        home=home,
     )
     return [selected[raw] for raw in added]
 
@@ -219,8 +236,7 @@ def installed_harnesses(home: Path | None = None) -> list[str]:
     installed: list[str] = []
     for name, (path, _) in _harnesses(home).items():
         state_dir = home / ".claude" if name == "claude" else path.parent
-        if state_dir.is_symlink():
-            raise DotError(f"refusing symlinked harness directory: {state_dir}")
+        _reject_symlink_path(state_dir, home, "harness directory")
         if state_dir.is_dir():
             installed.append(name)
     return installed
@@ -234,7 +250,7 @@ def trust_folders(folders: list[Path], *, dry_run: bool = False, home: Path | No
     harnesses = _harnesses(home)
     for name in installed_harnesses(home):
         path, edit = harnesses[name]
-        for folder in _update(path, edit, list(selected), dry_run=dry_run):
+        for folder in _update(path, edit, list(selected), dry_run=dry_run, home=home):
             changed[selected[folder]].append(name)
     return changed
 
@@ -264,8 +280,7 @@ def register_agy_projects(
     """
     home = (home or Path.home()).resolve()
     registry = home / ".gemini" / "config" / "projects"
-    if registry.is_symlink():
-        raise DotError(f"refusing symlinked project registry: {registry}")
+    _reject_symlink_path(registry, home, "project registry")
     # agy creates the registry on its first start; until then there is nothing to extend.
     if not registry.is_dir():
         return []
@@ -301,7 +316,7 @@ def register_agy_projects(
                 "name": name,
                 "projectResources": {"resources": [{"folderUri": folder.as_uri()}]},
             }
-            _write(target, json.dumps(project, indent=2) + "\n")
+            _write(target, json.dumps(project, indent=2) + "\n", home=home)
         added.append(folder)
     return added
 

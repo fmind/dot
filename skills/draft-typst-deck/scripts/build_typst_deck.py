@@ -634,6 +634,14 @@ def _validate_upload_name(value: str) -> str:
     return cleaned
 
 
+def _validate_presentation_title(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned or any(ord(ch) < 32 or ord(ch) == 127 for ch in cleaned):
+        msg = f"Google Slides presentation title must be a single non-empty line: {value!r}"
+        raise ValueError(msg)
+    return cleaned
+
+
 def _escape_drive_q(value: str) -> str:
     return value.replace("\\", "\\\\").replace("'", "\\'")
 
@@ -723,6 +731,7 @@ def _upload_binary_file(
     local_path: Path,
     *,
     upload_name: str,
+    staged_name: str | None = None,
     upload_mime: str,
     target_mime: str,
     parent_folder: str | None,
@@ -732,7 +741,7 @@ def _upload_binary_file(
     cwd: Path,
     fields: str,
 ) -> tuple[str, str]:
-    staged = cwd / upload_name
+    staged = cwd / (staged_name or upload_name)
     shutil.copyfile(local_path, staged)
     resolved_id = target_file_id
     if not resolved_id and parent_folder:
@@ -1137,7 +1146,12 @@ def run_upload(args: argparse.Namespace) -> dict[str, Any]:
 
     valid_folder = _validate_drive_id(args.drive_folder, "folder ID") if args.drive_folder else None
     valid_file_id = _validate_drive_id(args.file_id, "file ID") if args.file_id else None
-    upload_name = _validate_upload_name(args.name or default_name)
+    if args.google_slides:
+        upload_name = _validate_presentation_title(args.name or default_name)
+        staged_name: str | None = "deck.pptx"
+    else:
+        upload_name = _validate_upload_name(args.name or default_name)
+        staged_name = None
 
     if args.dry_run:
         payload: dict[str, Any] = {
@@ -1165,6 +1179,7 @@ def run_upload(args: argparse.Namespace) -> dict[str, Any]:
         uploaded_id, operation = _upload_binary_file(
             artifact_path,
             upload_name=upload_name,
+            staged_name=staged_name,
             upload_mime=upload_mime,
             target_mime=target_mime,
             parent_folder=valid_folder,

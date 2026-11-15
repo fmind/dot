@@ -35,7 +35,7 @@ Compose the selected foundation and application owner, then add the shared repos
    ```
 
 1. **Ship when authorized**: `v0.1.0` via [release](../../git-delivery/references/release/GUIDE.md) once CI is green; deploy via [cloud-run](../../cloud-run/SKILL.md) when serving traffic.
-1. **Done when**: `mise run all` (and CI if pushed) passes, `README.md` and `AGENTS.md` meet acceptance criteria, and zero `<slug>`/`<package>`/`<holder>`/`TODO` placeholders remain (report pending publication separately).
+1. **Done when**: `mise run all` (and CI if pushed) passes, `README.md` and `AGENTS.md` meet acceptance criteria, and zero `<owner>`/`<slug>`/`<package>`/`<holder>`/`TODO` placeholders remain (report pending publication separately).
 
 ## Gotchas
 

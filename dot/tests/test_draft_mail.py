@@ -462,3 +462,135 @@ def test_cli_rejects_local_validation_errors_before_calling_gws(
     assert mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi", "--from", "   "]) == 1
     assert "--from" in capsys.readouterr().err
     assert calls == []
+
+
+def test_cli_rejects_malformed_gmail_identifiers_before_calling_gws(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    gws_calls: list[list[str]] = []
+    monkeypatch.setattr(mod.shutil, "which", lambda _name: "/usr/bin/gws")
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda cmd, **_kwargs: gws_calls.append(list(cmd)),
+    )
+
+    html = tmp_path / "ok.html"
+    html.write_text("<p>Hi</p>", encoding="utf-8")
+
+    for bad_draft_id in ("bad?id=1", "../x"):
+        assert (
+            mod.main(
+                [
+                    str(html),
+                    "--to",
+                    "alice@example.com",
+                    "--subject",
+                    "Hi",
+                    "--draft-id",
+                    bad_draft_id,
+                ]
+            )
+            == 1
+        )
+        assert "--draft-id" in capsys.readouterr().err
+
+    assert mod.main([str(html), "--reply-to", "msg#frag"]) == 1
+    assert "--reply-to" in capsys.readouterr().err
+    assert gws_calls == []
+
+
+def test_cli_fails_on_gws_error_payload_or_missing_updated_draft_id(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    html = tmp_path / "ok.html"
+    html.write_text("<p>Hi</p>", encoding="utf-8")
+
+    monkeypatch.setattr(mod.shutil, "which", lambda _name: "/usr/bin/gws")
+
+    def _dispatch_settings(cmd: list[str]) -> str | None:
+        if cmd[1:6] == ["gmail", "users", "settings", "sendAs", "list"]:
+            return json.dumps({"sendAs": [{"sendAsEmail": "github@fmind.dev", "isDefault": True}]})
+        if cmd[1:6] == ["gmail", "users", "settings", "sendAs", "get"]:
+            return json.dumps(SAMPLE_SEND_AS)
+        return None
+
+    # (a) gws exits 0 with a JSON error envelope on drafts.update
+    error_calls: list[list[str]] = []
+
+    def _run_error(cmd: list[str], **_kwargs: object) -> object:
+        error_calls.append(list(cmd))
+        settings_payload = _dispatch_settings(cmd)
+        if settings_payload is not None:
+            return mod.subprocess.CompletedProcess(args=cmd, returncode=0, stdout=settings_payload, stderr="")
+        return mod.subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout='{"error": {"code": 403, "message": "Insufficient Permission"}}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(mod.subprocess, "run", _run_error)
+    rc = mod.main(
+        [
+            str(html),
+            "--to",
+            "alice@example.com",
+            "--subject",
+            "Hi",
+            "--draft-id",
+            "r-draft-101",
+        ]
+    )
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "Google API error" in captured.err
+    assert "Insufficient Permission" in captured.err
+    assert "updated" not in captured.out.lower()
+    assert [c[1:5] for c in error_calls] == [
+        ["gmail", "users", "settings", "sendAs"],
+        ["gmail", "users", "settings", "sendAs"],
+        ["gmail", "users", "drafts", "update"],
+    ]
+
+    # (b) drafts.update exits 0 with {} when --draft-id is passed
+    empty_calls: list[list[str]] = []
+
+    def _run_empty(cmd: list[str], **_kwargs: object) -> object:
+        empty_calls.append(list(cmd))
+        settings_payload = _dispatch_settings(cmd)
+        if settings_payload is not None:
+            return mod.subprocess.CompletedProcess(args=cmd, returncode=0, stdout=settings_payload, stderr="")
+        return mod.subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout="{}",
+            stderr="",
+        )
+
+    monkeypatch.setattr(mod.subprocess, "run", _run_empty)
+    rc_empty = mod.main(
+        [
+            str(html),
+            "--to",
+            "alice@example.com",
+            "--subject",
+            "Hi",
+            "--draft-id",
+            "r-draft-101",
+        ]
+    )
+    captured_empty = capsys.readouterr()
+    assert rc_empty == 1
+    assert "returned no draft id" in captured_empty.err
+    assert [c[1:5] for c in empty_calls] == [
+        ["gmail", "users", "settings", "sendAs"],
+        ["gmail", "users", "settings", "sendAs"],
+        ["gmail", "users", "drafts", "update"],
+    ]

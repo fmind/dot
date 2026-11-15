@@ -31,10 +31,25 @@ from fmind_dot.private_files import private_directory, write_private_file
 SESSION_SCHEMA_VERSION = 4
 # Schema 3 embeds usage in the manifest line and stays readable alongside schema 4.
 READABLE_SCHEMA_VERSIONS = (3, SESSION_SCHEMA_VERSION)
-SESSION_PARSER_VERSION = "15"
+SESSION_PARSER_VERSION = "16"
 # Every released parser stays readable: a bundle whose source the provider deleted can never be
 # recaptured. Earlier captures are flagged as legacy until their sources are recaptured.
-READABLE_PARSER_VERSIONS = ("3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", SESSION_PARSER_VERSION)
+READABLE_PARSER_VERSIONS = (
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    SESSION_PARSER_VERSION,
+)
 SESSION_STORE_VERSION = "v3"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")

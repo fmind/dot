@@ -70,7 +70,7 @@ run = ["mise run check", "mise run test", "mise run build"]
 [tasks.build]
 alias = "b"
 description = "Build the dot Python source distribution and wheel"
-run = "uv build dot --out-dir dot/dist --clear"
+run = "uv build dot --out-dir dot/dist --clear --no-sources"
 sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/LICENSE", "dot/src/**/*.py", "dot/src/**/*.yaml"]
 outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 

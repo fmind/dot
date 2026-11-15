@@ -690,3 +690,57 @@ def test_unexpected_typst_warnings_fail_even_with_allow_font_warnings(
     assert check_payload["ok"] is False
     assert len(check_payload["warnings"]) == 2
     assert "unexpected warnings" in check_err.err
+
+
+def test_upload_google_slides_allows_slash_and_leading_dash_in_presentation_title(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    png = tmp_path / "s1.png"
+    png.write_bytes(b"\x89PNG\r\n\x1a\nimg")
+    pptx = mod.build_pptx([png], tmp_path / "roadmap.pptx", title="CI/CD 2026/2027 Roadmap")
+    created_bodies: list[dict[str, object]] = []
+    staged_names: list[str] = []
+
+    def fake_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        prefix = tuple(args[:3])
+        if prefix == ("drive", "files", "list"):
+            return {"files": []}
+        if prefix == ("drive", "files", "create"):
+            body = json.loads(args[args.index("--json") + 1])
+            created_bodies.append(body)
+            staged = cwd / args[args.index("--upload") + 1]
+            assert staged.is_file()
+            staged_names.append(staged.name)
+            return {"id": "slides_456"}
+        if prefix == ("drive", "files", "get"):
+            return {
+                "id": "slides_456",
+                "name": "CI/CD 2026/2027 Roadmap",
+                "mimeType": mod.GOOGLE_SLIDES_MIME,
+                "webViewLink": "https://docs.google.com/presentation/d/slides_456/edit",
+                "trashed": False,
+                "parents": ["folder_1"],
+            }
+        if prefix == ("slides", "presentations", "get"):
+            return {"presentationId": "slides_456", "title": "CI/CD 2026/2027 Roadmap", "slides": [{"objectId": "p1"}]}
+        msg = f"Unexpected gws args: {args}"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(mod, "_run_gws", fake_gws)
+    rc = mod.main(["upload", str(pptx), "--drive-folder", "folder_1", "--google-slides", "--json"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["name"] == "CI/CD 2026/2027 Roadmap"
+    assert staged_names == ["deck.pptx"]
+    assert created_bodies == [
+        {
+            "name": "CI/CD 2026/2027 Roadmap",
+            "mimeType": mod.GOOGLE_SLIDES_MIME,
+            "parents": ["folder_1"],
+        }
+    ]
+    assert mod.main(["upload", str(pptx), "--drive-folder", "folder_1", "--name", "a/b.pptx", "--dry-run"]) == 1
+    assert "plain filename" in capsys.readouterr().err

@@ -29,6 +29,7 @@ CODE_BLOCK_RE = re.compile(r"<(pre|code)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DO
 BODY_INNER_RE = re.compile(r"<body\b[^>]*>(.*)</body>", re.IGNORECASE | re.DOTALL)
 DIV_TOKEN_RE = re.compile(r"<(/?)div\b[^>]*>", re.IGNORECASE)
 OPEN_DIR_LTR_RE = re.compile(r"\A<div\s+dir=[\"']ltr[\"']\s*>", re.IGNORECASE)
+GMAIL_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 
 
 def _unwrap_outer_dir_ltr(fragment: str) -> str:
@@ -141,6 +142,9 @@ def _parse_json_stdout(stdout: str, context: str) -> dict[str, Any]:
         raise RuntimeError(f"{context}: invalid JSON output ({exc}).") from exc
     if not isinstance(data, dict):
         raise RuntimeError(f"{context}: expected a JSON object.")
+    if "error" in data:
+        detail = json.dumps(data["error"], ensure_ascii=False)[:300]
+        raise RuntimeError(f"{context}: Google API error: {detail}")
     return data
 
 
@@ -485,8 +489,8 @@ def _clean_identifier(value: str | None, flag: str, description: str) -> str | N
     if value is None:
         return None
     cleaned = value.strip()
-    if not cleaned or any(ch.isspace() for ch in cleaned) or "/" in cleaned or "\\" in cleaned:
-        raise ValueError(f"{flag} must be a non-empty {description}.")
+    if not GMAIL_ID_RE.fullmatch(cleaned):
+        raise ValueError(f"{flag} must be a valid {description} (alphanumeric, '_', or '-').")
     return cleaned
 
 
@@ -598,7 +602,7 @@ def main(argv: list[str] | None = None) -> int:
                 cwd=gws_dir,
             )
 
-            draft_id = str(resp.get("id") or args.draft_id or "").strip()
+            draft_id = str(resp.get("id") or "").strip()
             if not draft_id:
                 raise RuntimeError(
                     f"drafts.{operation} returned no draft id; do not create the draft again: find it with "

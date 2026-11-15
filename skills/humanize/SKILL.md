@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/humanize
   created: "2026-08-20"
-  updated: "2026-11-14"
+  updated: "2026-11-15"
   kind: task
 ---
 
@@ -19,8 +19,8 @@ Respect human reading time. Deliver high-signal, scannable, visually structured 
 Apply these three filters before writing a word:
 
 1. **Name the one point**: finish *"After reading this, the reader should know or do ___."* If there are two goals, split or demote the secondary one.
-2. **Keep 1 to 3 signals**: drop setup narration, internal tool mechanics, redundant caveats, and low-value details; every kept fact must change a decision or confirm impact.
-3. **Choose one visual structure**: pair text with the strongest native visual the medium supports (summary banner, colored highlight, horizontal separator, comparison table, KPI row, diagram, or collapsible drawer).
+1. **Keep 1 to 3 signals**: drop setup narration, internal tool mechanics, redundant caveats, and low-value details; every kept fact must change a decision or confirm impact.
+1. **Choose one visual structure**: pair text with the strongest native visual the medium supports (summary banner, colored highlight, horizontal separator, comparison table, KPI row, diagram, or collapsible drawer).
 
 Before: _"Checked `loader.py`; bumped `chunk_size=100_000` and `memory=8Gi` in `infra/main.tf`; all `14` `pytest` cases pass; please review PR `#418`."_
 

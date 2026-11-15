@@ -754,3 +754,43 @@ def test_installed_harnesses_and_claude_reject_symlinked_state_directories(tmp_p
     repo = git_repository(home / "repo", "https://github.com/fmind/repo")
     with pytest.raises(DotError, match="refusing symlinked harness directory"):
         register_claude_directories([repo], home=home)
+
+
+def test_trust_and_agy_projects_reject_symlinked_intermediate_ancestors(tmp_path: Path) -> None:
+    from fmind_dot.trust import installed_harnesses, register_agy_projects
+
+    outside = tmp_path / "outside"
+    (outside / "antigravity-cli").mkdir(parents=True)
+    (outside / "antigravity-cli/settings.json").write_text('{"trustedWorkspaces": []}\n', encoding="utf-8")
+    (outside / "config/projects").mkdir(parents=True)
+    (outside / "agent").mkdir(parents=True)
+    (outside / "agent/trust.json").write_text("{}\n", encoding="utf-8")
+
+    home = tmp_path / "home"
+    home.mkdir()
+    repo = git_repository(home / "repo", "https://github.com/fmind/repo")
+
+    (home / ".gemini").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+        installed_harnesses(home)
+    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+        trust_folders([repo], home=home)
+    with pytest.raises(DotError, match="refusing symlinked project registry"):
+        register_agy_projects([repo], ["~/repo"], home=home)
+    assert (outside / "antigravity-cli/settings.json").read_text(encoding="utf-8") == '{"trustedWorkspaces": []}\n'
+    assert list((outside / "config/projects").iterdir()) == []
+
+    (home / ".gemini").unlink()
+    (home / ".gemini").mkdir()
+    (home / ".gemini/config").symlink_to(outside / "config", target_is_directory=True)
+    with pytest.raises(DotError, match="refusing symlinked project registry"):
+        register_agy_projects([repo], ["~/repo"], home=home)
+    assert list((outside / "config/projects").iterdir()) == []
+
+    (home / ".gemini/config").unlink()
+    (home / ".pi").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+        installed_harnesses(home)
+    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+        trust_folders([repo], home=home)
+    assert (outside / "agent/trust.json").read_text(encoding="utf-8") == "{}\n"
