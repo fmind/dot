@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [16.4.0] - 2026-11-15
+
+### 🚀 Features
+
+- _(skills)_ Add PyPI metadata, provenance, and lifecycle guidance
+- _(skills)_ Update bf connector for Brain Framework 25
+
+### 🐛 Bug Fixes
+
+- Harden dot runtime, skill scripts, workflows, and hooks
+- Harden archive parser bump, trust symlinks, gws drafts, and docs
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Lock pypi:brain-framework 25.0.0
+
 ## [16.3.0] - 2026-11-14
 
 ### 🚀 Features
