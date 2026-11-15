@@ -8,8 +8,15 @@ readme = "README.md"
 requires-python = ">=<python_major_minor>"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "<holder>" }]
+authors = [{ name = "<holder>" }] # omit email unless verified and public on PyPI
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/<owner>/<slug>"
+Documentation = "https://<owner>.github.io/<slug>/"
+Changelog = "https://github.com/<owner>/<slug>/blob/main/CHANGELOG.md"
+Issues = "https://github.com/<owner>/<slug>/issues"
+Security = "https://github.com/<owner>/<slug>/security/policy"
 
 [dependency-groups]
 dev = [

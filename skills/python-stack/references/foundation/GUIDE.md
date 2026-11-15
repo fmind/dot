@@ -1,6 +1,6 @@
 ---
 name: foundation
-description: "Python package layout, dependency choices, uv/Ruff/ty tooling, and project scaffolding."
+description: "Python package layout, PyPI distribution metadata, dependency choices, uv/Ruff/ty tooling, and project scaffolding."
 ---
 
 # Python Stack Standard
@@ -36,6 +36,12 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; preserve existing project
 
 - **Bounds, precedence, & suppressions**: pin `ty>=<latest>,<0.1`; standalone `ty.toml` overrides `[tool.ty]` and `[tool.ty.environment].python-version` overrides `requires-python`. Require `# ty: ignore[rule]` (`blanket-ignore-comment = "error"`, `unused-ignore-comment` errors; never `--exit-zero-on-warning` or `--add-ignore`).
 - **Legacy baseline (`0.0.93+`)**: `[tool.ty] baseline = "ty-baseline.json"`, update once (`ty check --update-baseline`), and accept only entry-deleting diffs.
+
+### PyPI publishing
+
+- **Verified metadata**: set SPDX `license`, `license-files = ["LICENSE"]`, `readme = "README.md"`, `requires-python`, and `authors = [{ name = "<holder>" }]` (omit `email` unless verified/public on PyPI). OIDC Trusted Publishing verifies `github.com/<owner>/<slug>` (`Repository`, `Changelog`, `Issues`, `Security`) and `<owner>.github.io/<slug>/` plus **GitHub Statistics** (custom `Homepage` stays unverified).
+- **Build & PEP 740 provenance**: run `uv build --clear --no-sources`, smoke-test the wheel outside the repo, and publish all files together via [ci-cd](../../../github-actions/references/ci-cd/GUIDE.md) (`pypa/gh-action-pypi-publish`) for Full Provenance.
+- **PEP 792 lifecycle**: yank broken versions with a reason instead of deleting files; archive retired PyPI projects alongside their GitHub repo.
 
 ## Foundation resources & Docs
 

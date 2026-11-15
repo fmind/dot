@@ -1,6 +1,6 @@
 ---
 name: python-stack
-description: "Develop Python projects and PEP 723 scripts: uv, Ruff, ty, Pydantic, pytest, async, HTTPX, CLIs, and profiling with hyperfine."
+description: "Develop and publish Python packages and PEP 723 scripts: uv, PyPI, Ruff, ty, Pydantic, pytest, async, HTTPX, CLIs, and hyperfine."
 license: MIT
 metadata:
   kind: collection
@@ -24,7 +24,7 @@ Read only the matching guide and its required resources. Dataframe code defaults
 
 - [api-client](references/api-client/GUIDE.md): Build typed Python HTTPX API clients with bounded pagination and retries.
 - [argparse](references/argparse/GUIDE.md): Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Typer CLIs.
-- [foundation](references/foundation/GUIDE.md): Python package layout, dependency choices, uv/Ruff/ty tooling, and project scaffolding.
+- [foundation](references/foundation/GUIDE.md): Python package layout, PyPI distribution metadata, dependency choices, uv/Ruff/ty tooling, and project scaffolding.
 - [langextract](references/langextract.md): Extract structured facts from text with LangExtract and source-grounded evidence.
 - [observability](references/observability.md): Instrument Python services and agents: structlog logs, OpenTelemetry traces and metrics.
 - [performance](references/performance.md): Profile Python CPU and memory, and benchmark commands and HTTP load with hyperfine, oha, or Locust.

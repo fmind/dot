@@ -26,7 +26,7 @@ CI runs [mise](../../../mise/SKILL.md) `all` so checks match local [lefthook](..
 
 - **Keep steps flat**: one direct command or `mise run <task>` per step, action outputs over CLI scraping, and non-trivial logic in versioned Python scripts rather than YAML shell blocks.
 - **Pin tools and disable release caches**: `jdx/mise-action` installs `mise.toml` tools (`cache: true` in CI, `cache: false` in release/deploy jobs).
-- **Separate build from publish**: build `dist/` without OIDC, upload only `dist/`, and grant `id-token: write` solely to the `pypa/gh-action-pypi-publish` job.
+- **Separate build from publish**: build `dist/` without OIDC, upload only `dist/`, and grant `id-token: write` solely to the `pypa/gh-action-pypi-publish` job, which signs single-subject PEP 740 `publish/v1` attestations for every wheel and sdist in `dist/` (giving PyPI **Full Provenance**; never pre-create `*.publish.attestation` files in `dist/` or split release uploads across workflows).
 - **Verify candidate images before tag promotion**: push `:candidate-<sha>`, resolve every `PLATFORMS` child digest via `image-platforms.py`, run the [cosign release sequence](../../../docker/references/cosign.md#release-sequence) per child (signing the index once; default Trivy scans AMD64 only), then promote that index digest to release and `latest` tags via [Buildx imagetools](https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/).
 - **Pin actions to 40-hex SHAs**: write `<owner>/<repo>@<sha> # vX.Y.Z`; Dependabot updates vulnerable pins and [upgrade-tools](../../../upgrade-tools/SKILL.md) updates the rest.
 

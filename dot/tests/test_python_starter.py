@@ -18,7 +18,8 @@ def _render(name: str, replacements: dict[str, str], *, guide: str = "foundation
     for placeholder, value in replacements.items():
         content = content.replace(placeholder, value)
     unresolved = {
-        match.group() for match in re.finditer(r"<(?:slug|package|description|holder|python_major_minor)>", content)
+        match.group()
+        for match in re.finditer(r"<(?:owner|slug|package|description|holder|python_major_minor)>", content)
     }
     assert unresolved == set(), f"{name} retains placeholders: {sorted(unresolved)}"
     return content
@@ -68,6 +69,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     project.mkdir()
     version = f"{sys.version_info.major}.{sys.version_info.minor}"
     replacements = {
+        "<owner>": "example",
         "<slug>": "starter-py",
         "<package>": "starter_py",
         "<description>": "Starter command line application",
@@ -77,6 +79,8 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     manifest = _render("pyproject.toml.template", replacements)
     parsed = tomllib.loads(manifest)
     assert parsed["project"]["dependencies"] == []
+    assert parsed["project"]["authors"] == [{"name": "Fixture Author"}]
+    assert parsed["project"]["urls"]["Security"] == "https://github.com/example/starter-py/security/policy"
     assert "scripts" not in parsed["project"]
     if profile != "library":
         manifest += '\n[project.scripts]\nstarter-py = "starter_py:main"\n'
@@ -133,7 +137,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(project, "uv", "run", "--frozen", "ty", "check")
     _run(project, "uv", "run", "--frozen", "deptry", ".")
     _run(project, "uv", "run", "--frozen", "pytest", "-m", "not integration", "--cov", "--cov-fail-under=85")
-    _run(project, "uv", "build", "--out-dir", "dist")
+    _run(project, "uv", "build", "--clear", "--no-sources", "--out-dir", "dist")
     # The strict docs build renders every module's API page and fails on broken cross-references.
     _write(project, "zensical.toml", _render("zensical.toml", replacements))
     _write(project, "docs/index.md", _render("docs-index.md", replacements))

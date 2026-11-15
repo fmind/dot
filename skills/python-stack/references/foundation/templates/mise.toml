@@ -37,7 +37,7 @@ run = "uv run --locked zensical build --clean --strict"
 [tasks."build:package"]
 alias = "bp"
 description = "Build Python distribution artifacts (wheel and sdist)"
-run = "uv build --clear"
+run = "uv build --clear --no-sources"
 
 [tasks."serve:docs"]
 description = "Preview the documentation site (override port via PORT=8001)"
