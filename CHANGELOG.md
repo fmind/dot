@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.2.2] - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- _(ci)_ Pass GITHUB_TOKEN to starter contracts for tflint init
+
 ## [17.2.1] - 2026-11-16
 
 ### 🐛 Bug Fixes
