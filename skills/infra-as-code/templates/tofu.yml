@@ -1,0 +1,98 @@
+# Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+# Uncredentialed pull-request offline validation, plus WIF-authenticated main plan/apply.
+name: OpenTofu
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+defaults:
+  run:
+    shell: bash
+jobs:
+  validate:
+    name: Validate Offline
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install tools using mise
+        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        with:
+          version: 2026.11.9
+          cache: false
+      - name: Initialize offline tooling
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tofu init -backend=false -input=false
+          tflint --init
+      - name: Run full offline gate
+        run: mise run all
+  plan:
+    name: Plan Remote
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.GCP_WIF_PROVIDER != '' && vars.GCP_PLAN_SA != '' }}
+    needs: validate
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # Authenticate to Google Cloud via Workload Identity Federation.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install tools using mise
+        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        with:
+          version: 2026.11.9
+          cache: false
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAN_SA }}
+      - name: Preview infrastructure plan
+        run: |
+          tofu init -input=false
+          tofu plan -input=false -no-color
+  apply:
+    name: Apply Main
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_TOFU_APPLY == 'true' }}
+    needs: plan
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # Authenticate to Google Cloud via Workload Identity Federation.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install tools using mise
+        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        with:
+          version: 2026.11.9
+          cache: false
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_APPLY_SA }}
+      - name: Initialize and apply
+        run: |
+          tofu init -input=false
+          tofu apply -auto-approve -input=false -no-color

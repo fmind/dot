@@ -17,8 +17,10 @@ quiet = true
 [tools]
 betterleaks = "latest"
 dprint = "latest"
+jactionlint = "latest"
 lefthook = "latest"
 opentofu = "latest"
+shellcheck = "latest"
 terraform-docs = "latest"
 tflint = "latest"
 trivy = "latest"
@@ -50,7 +52,16 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no network (pre-commit)"
-depends = ["check:format", "check:leaks", "check:lint", "check:validate"]
+depends = ["check:actions", "check:format", "check:leaks", "check:lint", "check:validate"]
+
+[tasks."check:actions"]
+alias = "ca"
+description = "Lint GitHub Actions workflows and shell snippets offline (jactionlint + shellcheck)"
+run = "jactionlint --profile pedantic"
+
+[tasks."check:actions:online"]
+description = "Audit GitHub Actions workflows with online checks"
+run = "jactionlint --online=strict --strict-exit"
 
 [tasks."check:network"]
 description = "Run the checks that download policy data (pre-push)"
@@ -64,12 +75,12 @@ run = ["tofu fmt -check -recursive", "dprint check"]
 [tasks."check:leaks"]
 alias = "cs"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-# Load this project's own .betterleaks.toml when present; betterleaks 1.10+ skips it otherwise.
-run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+# betterleaks 1.10+ loads .betterleaks.toml only when named explicitly.
+run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:lint"]
 alias = "cl"

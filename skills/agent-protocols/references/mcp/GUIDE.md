@@ -9,23 +9,23 @@ Build typed MCP tools, resources, prompts, and clients with the official `mcp` P
 
 ## Workflow
 
-1. **Initialize and lock**: start from the [Python foundation](../../../python-stack/references/foundation/references/bootstrap.md), install the SDK, and inspect it before using APIs beyond quickstart:
+1. **Initialize and lock**: start from the [Python foundation](../../../python-stack/references/foundation/references/bootstrap.md), install the lean SDK (core already includes `uvicorn`, `starlette`, `httpx2`, and `pyjwt[crypto]`), and inspect it before using APIs beyond quickstart:
    ```bash
-   UV_MALWARE_CHECK=1 uv add --preview-features malware-check "mcp[cli]>=2.3.0"
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check "mcp>=2.3.0"
    ```
    Copy [server.py](templates/server.py) to `src/<package>/server.py` (re-export `main` in `__init__.py`, add `patch = ["subprocess"]` under `[tool.coverage.run]`, and declare `[project.scripts]` `<slug> = "<package>:main"`).
-1. **Define `MCPServer`** (`mcp.server`): type-hint and document every handler to generate accurate JSON Schemas. Prefix tool names by service, set `ToolAnnotations` (`read_only_hint`, `destructive_hint`, `idempotent_hint`, `open_world_hint`—hints never replace authz), paginate lists with cursor + total, and return actionable errors.
-1. **Select transport**: stdio for local child processes (stdout protocol-only, logs to stderr) or Streamable HTTP at `/mcp` for hosted services:
+1. **Define `MCPServer`** (`mcp.server`): type-hint and document every handler to generate accurate JSON Schemas. Prefix tool names by service (`<package>_<tool>`), set `ToolAnnotations` (`read_only_hint`, `destructive_hint`, `idempotent_hint`, `open_world_hint`—hints never replace authz), paginate lists with cursor + total, and return actionable errors.
+1. **Select transport**: stdio for local child processes (stdout protocol-only, logs to stderr) or stateless Streamable HTTP at `/mcp` for hosted services (`HOST`/`PORT` or `--host`/`--port`):
    ```bash
-   uv run --locked mcp run src/<package>/server.py:server
-   uv run --locked mcp run src/<package>/server.py:server --transport streamable-http
+   uv run --locked python -m <package>
+   uv run --locked <slug> --transport streamable-http --host 127.0.0.1 --port 8000
    ```
-1. **Test in-process and over stdio**: adapt [test_protocol.py](templates/test_protocol.py) using `Client(server)` plus one `Client(StdioServerParameters(...))` subprocess test covering schemas, valid outputs, and bad inputs; before release, evaluate ~10 multi-tool read-only questions per [evaluation](../../../agent-frameworks/references/evaluation/GUIDE.md).
+1. **Test in-process and over stdio**: adapt [test_protocol.py](templates/test_protocol.py) using `Client(server)` plus one unmocked `Client(StdioServerParameters(command=sys.executable, args=["-m", "<package>"]))` subprocess test covering schemas, valid outputs, and bad inputs; before release, evaluate ~10 multi-tool read-only questions per [evaluation](../../../agent-frameworks/references/evaluation/GUIDE.md).
    ```bash
    uv run --locked pytest -q
    ```
 1. **Harden HTTP**: check `Origin`, bind dev servers to `127.0.0.1`, enforce OAuth or workload identity remotely, and authorize each call against caller and resource.
-1. **Build clients**: `async with Client(<approved-url-or-stdio-params>) as client` (plain `mcp` suffices without `[cli]`); bound timeouts and output size, and test unknown tools, bad args, cancellation, and transport errors.
+1. **Build clients**: `async with Client(<approved-url-or-stdio-params>) as client`; bound timeouts and output size, and test unknown tools, bad args, cancellation, and transport errors.
 1. **Ship**: package with [containerize](../../../docker/references/containerize/GUIDE.md), deploy via [cloud-run](../../../cloud-run/SKILL.md), register via [mcp-setup](../../../agent-harnesses/references/mcp-setup.md), and verify a live call.
 
 ## Gotchas

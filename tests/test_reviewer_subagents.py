@@ -511,3 +511,23 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
     html_run = _run_vale(vale, config, html)
     assert html_run.returncode == 0, html_run.stdout + html_run.stderr
     assert json.loads(html_run.stdout) == {}
+
+
+def test_vale_accepts_external_starter_markdown_templates() -> None:
+    vale = native_binary("vale")
+    if vale is None:
+        if os.environ.get("CI"):
+            pytest.fail("Vale binary must be installed in CI via mise.toml")
+        pytest.skip("Vale binary is required for external template verification")
+
+    config = ROOT / "dot_config/vale/dot_vale.ini"
+    templates = [
+        ROOT / "skills/repository-docs/templates/README.md",
+        ROOT / "skills/infra-as-code/templates/README.md",
+        *sorted((ROOT / "skills/documentation-site/templates").glob("*.md")),
+        ROOT / "skills/python-stack/references/foundation/templates/docs-index.md",
+    ]
+    for path in templates:
+        result = _run_vale(vale, config, path)
+        assert result.returncode == 0, f"{path}: {result.stdout}{result.stderr}"
+        assert json.loads(result.stdout) == {}, path

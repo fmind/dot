@@ -17,8 +17,10 @@ Use the project's existing or requested agent framework. Selecting a framework n
 ## Workflow
 
 1. **Keep the project's framework** unless the user asks to migrate.
-1. **Default new agents to Google ADK**: scaffold with `agents-cli`, then implement per `google-adk`.
-1. **Use LangGraph second**: pick it when ADK does not fit (non-Google stack, durable graph state, or custom interrupts). Use LangChain only as LangGraph building blocks: start with `create_agent` (a compiled LangGraph) and hand-write graph topology only where the standard loop falls short.
+1. **Pick the simplest tier that fits**:
+   - **Direct SDK (Tier 1)**: start with async `google-genai` ([gcp-agent-platform](../model-providers/references/gcp-agent-platform.md)) for single structured calls or fixed chains.
+   - **Google ADK (Tier 2, default for new agents)**: layer `google-adk>=2.14.1` on [python-stack](../python-stack/references/foundation/references/bootstrap.md) + [cloud-run](../cloud-run/SKILL.md) per [google-adk](references/google-adk.md); opt into [agents-cli](references/agents-cli/GUIDE.md) only when full enterprise scaffolds (Agent Runtime, Agent Gateway, Terraform, BigQuery analytics) are needed.
+   - **LangGraph (Tier 3)**: use when ADK does not fit (non-Google stack, durable graph state, or custom interrupts), using [langchain](references/langchain.md) `create_agent` only as building blocks.
 1. **Read only the matching guide** and its required resources.
 
 ## System Prompts
@@ -39,5 +41,6 @@ Use the project's existing or requested agent framework. Selecting a framework n
 - [google-adk](references/google-adk.md): Google ADK agents, runners, tools, sessions, and evaluation.
 - [langchain](references/langchain.md): LangChain create_agent, middleware, MCP tools, and structured output for LangGraph.
 - [langgraph](references/langgraph.md): LangGraph state, persistence, streaming, interrupts, and durable execution.
+- [rag-and-vectors](references/rag-and-vectors.md): Build hybrid pgvector/DuckDB retrieval with tenant ACL pushdown, Gemini embeddings, and native multimodal inputs.
 
 <!-- guides:end -->

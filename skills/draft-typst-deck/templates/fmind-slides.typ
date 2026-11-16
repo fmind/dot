@@ -1,41 +1,7 @@
 // Fmind light presentation & chart theme for Typst (pure standard library).
-// Colors, typography, and flat hierarchy match DESIGN.md.
+// Colors, typography, and categorical palette match DESIGN.md via fmind.typ.
 
-#let colors = (
-  canvas: rgb("#ffffff"),
-  panel: rgb("#f1f3f4"),
-  border: rgb("#9aa0a6"),
-  muted: rgb("#595d62"),
-  foreground: rgb("#202124"),
-  primary: rgb("#174ea6"),
-  focus: rgb("#4285f4"),
-  selection: rgb("#d2e3fc"),
-  error: rgb("#a50e0e"),
-  error-accent: rgb("#ea4335"),
-  error-surface: rgb("#fad2cf"),
-  warning: rgb("#934900"),
-  warning-accent: rgb("#e37400"),
-  highlight: rgb("#fbbc04"),
-  warning-surface: rgb("#feefc3"),
-  success: rgb("#0d652d"),
-  success-accent: rgb("#34a853"),
-  success-surface: rgb("#ceead6"),
-  type: rgb("#681da8"),
-  information: rgb("#00636d"),
-)
-
-// Categorical chart order from DESIGN.md: neutral hues precede green and red.
-#let chart-series = (
-  colors.primary,
-  colors.information,
-  colors.warning,
-  colors.type,
-  colors.success,
-  colors.error,
-)
-
-#let sans-font = "Google Sans"
-#let mono-fonts = ("Google Sans Code", "DejaVu Sans Mono")
+#import "fmind.typ": *
 
 #let _plain-text(it) = {
   if it == none { return "" }
@@ -57,12 +23,7 @@
 
 #let _word-count(it) = _plain-text(it).trim().split(regex("\\s+")).filter(w => w.contains(regex("[A-Za-z0-9]"))).len()
 
-#let fmind-deck(
-  title: "",
-  context-label: "",
-  date: "",
-  body,
-) = {
+#let fmind-deck(title: "", context-label: "", date: "", body) = {
   set document(title: title)
   set page(
     width: 960pt,
@@ -89,13 +50,7 @@
   set par(leading: 0.6em, spacing: 0.75em)
   set raw(theme: none)
   show raw: set text(font: mono-fonts)
-  show raw.where(block: false): it => text(
-    font: mono-fonts,
-    size: 0.88em,
-    fill: colors.primary,
-    weight: "semibold",
-    it,
-  )
+  show raw.where(block: false): it => text(font: mono-fonts, size: 0.88em, fill: colors.primary, weight: "semibold", it)
   show link: set text(fill: colors.primary, weight: "semibold")
   body
   if title != "" or context-label != "" or date != "" [
@@ -139,53 +94,23 @@
   meta: "",
   note: none,
 ) = {
-  set page(
-    margin: (x: 54pt, y: 46pt),
-    fill: colors.canvas,
-    footer: none,
-  )
+  set page(margin: (x: 54pt, y: 46pt), fill: colors.canvas, footer: none)
   grid(
     rows: (auto, 1fr, auto),
     row-gutter: 18pt,
     grid(
       columns: (1fr, auto),
       align: (left + horizon, right + horizon),
-      if kicker != none {
-        pill(role: "selection", kicker)
-      } else {
-        none
-      },
-      if status-pill != none {
-        pill(role: "primary", status-pill)
-      } else {
-        none
-      },
+      if kicker != none { pill(role: "selection", kicker) } else { none },
+      if status-pill != none { pill(role: "primary", status-pill) } else { none },
     ),
     align(left + horizon)[
-      #box(
-        width: 100%,
-        stroke: (left: 4pt + colors.primary),
-        inset: (left: 24pt, y: 8pt),
-      )[
+      #box(width: 100%, stroke: (left: 4pt + colors.primary), inset: (left: 24pt, y: 8pt))[
         #block(width: 780pt)[
           #set par(leading: 0.45em)
-          #text(
-            font: sans-font,
-            size: 38pt,
-            weight: "bold",
-            fill: colors.primary,
-            title,
-          )
+          #text(font: sans-font, size: 38pt, weight: "bold", fill: colors.primary, title)
           #v(16pt)
-          #par(leading: 0.62em)[
-            #text(
-              font: sans-font,
-              size: 18pt,
-              weight: "regular",
-              fill: colors.foreground,
-              subtitle,
-            )
-          ]
+          #par(leading: 0.62em)[#text(font: sans-font, size: 18pt, weight: "regular", fill: colors.foreground, subtitle)]
         ]
       ]
     ],
@@ -202,25 +127,13 @@
   if note != none { speaker-note(note) }
 }
 
-#let slide(
-  kicker: none,
-  title: "",
-  takeaway: none,
-  note: none,
-  body,
-) = {
+#let slide(kicker: none, title: "", takeaway: none, note: none, body) = {
   pagebreak(weak: true)
   if kicker != none {
     pill(role: "selection", kicker)
     v(6pt)
   }
-  text(
-    font: sans-font,
-    size: 26pt,
-    weight: "bold",
-    fill: colors.primary,
-    title,
-  )
+  text(font: sans-font, size: 26pt, weight: "bold", fill: colors.primary, title)
   if takeaway != none {
     v(5pt)
     text(font: sans-font, size: 15.5pt, weight: "regular", fill: colors.muted, takeaway)
@@ -250,12 +163,7 @@
     inset: (x: 18pt, y: 14pt),
     align(left, stack(
       spacing: 8pt,
-      box(
-        fill: cfg.pill-bg,
-        radius: 999pt,
-        inset: (x: 10pt, y: 3.5pt),
-        text(size: 10.5pt, weight: "semibold", fill: cfg.pill-fg, label),
-      ),
+      box(fill: cfg.pill-bg, radius: 999pt, inset: (x: 10pt, y: 3.5pt), text(size: 10.5pt, weight: "semibold", fill: cfg.pill-fg, label)),
       text(font: sans-font, size: 38pt, weight: "bold", fill: cfg.fg, value),
       text(size: 14pt, fill: colors.muted, sublabel),
     )),
@@ -361,11 +269,7 @@
     fill: colors.canvas,
     stroke: 0.75pt + colors.border,
     clip: true,
-    stack(
-      dir: ltr,
-      spacing: 0pt,
-      ..segments.map(((pct, col)) => rect(width: pct * 1%, height: 18pt, fill: col)),
-    ),
+    stack(dir: ltr, spacing: 0pt, ..segments.map(((pct, col)) => rect(width: pct * 1%, height: 18pt, fill: col))),
   ),
   text(size: 12.5pt, weight: "bold", fill: val-color, val-text),
 )
@@ -393,10 +297,18 @@
     stroke: 0.75pt + colors.border,
     clip: true,
     {
-      if pct > 0 { rect(width: pct * 1%, height: 18pt, fill: fill-col) }
-      if broken {
-        place(right + horizon, dx: -14pt, rect(width: 4pt, height: 22pt, fill: colors.canvas))
-        place(right + horizon, dx: -20pt, rect(width: 4pt, height: 22pt, fill: colors.canvas))
+      if pct > 0 {
+        box(
+          width: pct * 1%,
+          height: 18pt,
+          fill: fill-col,
+          {
+            if broken {
+              place(right + horizon, dx: -10pt, rect(width: 4pt, height: 22pt, fill: colors.canvas))
+              place(right + horizon, dx: -16pt, rect(width: 4pt, height: 22pt, fill: colors.canvas))
+            }
+          },
+        )
       }
     },
   ),
@@ -426,11 +338,7 @@
       columns: (auto, 1fr),
       column-gutter: 10pt,
       align: (left + horizon, left + horizon),
-      circle(
-        radius: 14pt,
-        fill: badge-bg,
-        align(center + horizon, text(size: 13.5pt, weight: "bold", fill: badge-fg, str(num))),
-      ),
+      circle(radius: 14pt, fill: badge-bg, align(center + horizon, text(size: 13.5pt, weight: "bold", fill: badge-fg, str(num)))),
       text(size: 16.5pt, weight: "bold", fill: colors.foreground, title),
     ),
     text(size: 14pt, fill: colors.muted, desc),
@@ -439,22 +347,35 @@
 
 #let flow-arrow(step: none, caption: none, length: 34pt, dir: ltr, ..args) = {
   let label = if caption != none { caption } else if args.pos().len() > 0 { args.pos().at(0) } else { none }
-  let shaft = if dir == ttb {
-    align(center, line(angle: 90deg, length: length, stroke: 2pt + colors.primary))
-  } else {
+  let shaft = if dir in (ltr, rtl) {
     align(horizon, line(length: length, stroke: 2pt + colors.primary))
+  } else {
+    align(center, line(angle: 90deg, length: length, stroke: 2pt + colors.primary))
   }
-  let head = if dir == ttb {
+  let head = if dir == ltr {
+    align(horizon, polygon(fill: colors.primary, (0pt, 0pt), (8pt, 4.5pt), (0pt, 9pt)))
+  } else if dir == rtl {
+    align(horizon, polygon(fill: colors.primary, (8pt, 0pt), (0pt, 4.5pt), (8pt, 9pt)))
+  } else if dir == ttb {
     align(center, polygon(fill: colors.primary, (0pt, 0pt), (9pt, 0pt), (4.5pt, 8pt)))
   } else {
-    align(horizon, polygon(fill: colors.primary, (0pt, 0pt), (8pt, 4.5pt), (0pt, 9pt)))
+    align(center, polygon(fill: colors.primary, (4.5pt, 0pt), (9pt, 8pt), (0pt, 8pt)))
+  }
+  let arrow = if dir == ltr {
+    stack(dir: ltr, spacing: 0pt, shaft, head)
+  } else if dir == rtl {
+    stack(dir: ltr, spacing: 0pt, head, shaft)
+  } else if dir == ttb {
+    stack(dir: ttb, spacing: 0pt, shaft, head)
+  } else {
+    stack(dir: ttb, spacing: 0pt, head, shaft)
   }
   align(
     center + horizon,
     stack(
       spacing: 6pt,
       if step != none { pill(role: "primary", str(step)) },
-      stack(dir: dir, spacing: 0pt, shaft, head),
+      arrow,
       if label != none { text(size: 12pt, weight: "semibold", fill: colors.primary, label) },
     ),
   )
@@ -489,24 +410,8 @@
 ) = grid(
   columns: (1fr, 1fr),
   column-gutter: 18pt,
-  card(
-    title: left-title,
-    badge: left-badge,
-    badge-role: "muted",
-    fill: colors.panel,
-    stroke: 1pt + colors.border,
-    height: height,
-    left-body,
-  ),
-  card(
-    title: right-title,
-    badge: right-badge,
-    badge-role: "primary",
-    fill: colors.selection,
-    stroke: 1.5pt + colors.primary,
-    height: height,
-    right-body,
-  ),
+  card(title: left-title, badge: left-badge, badge-role: "muted", fill: colors.panel, stroke: 1pt + colors.border, height: height, left-body),
+  card(title: right-title, badge: right-badge, badge-role: "primary", fill: colors.selection, stroke: 1.5pt + colors.primary, height: height, right-body),
 )
 
 // Fixed-width page wrapper for standalone PNG/SVG visual cards (renders width: 100% / 1fr helpers safely).
@@ -516,13 +421,7 @@
   set par(leading: 0.55em, spacing: 0.7em)
   set raw(theme: none)
   show raw: set text(font: mono-fonts)
-  show raw.where(block: false): it => text(
-    font: mono-fonts,
-    size: 0.88em,
-    fill: colors.primary,
-    weight: "semibold",
-    it,
-  )
+  show raw.where(block: false): it => text(font: mono-fonts, size: 0.88em, fill: colors.primary, weight: "semibold", it)
   show link: set text(fill: colors.primary, weight: "semibold")
   body
 }

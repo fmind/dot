@@ -13,7 +13,8 @@ Test whether a stochastic candidate improves observable outcomes under comparabl
 1. **Change one factor at a time**: freeze code, prompt, tools, retrieval snapshot, model version, settings, and grader versions; flag unpinned provider behavior as a reproducibility limit.
 1. **Keep held-out cases sealed**: never tune on decision cases and call them unseen.
 1. **Grade outcomes, not prose**: prefer executable checks and resulting state; calibrate semantic judges on labeled examples, blind candidate identity, and escalate consequential disagreements to a human.
-1. **Report every trial**: run paired repeated trials on fresh state; keep failures, timeouts, and refusals without cherry-picking retries; save per-case outcomes, cost, and latency, and report the verdict with uncertainty per the brief.
+1. **Report every trial**: run paired repeated trials on fresh state with [eval_runner.py](templates/eval_runner.py) (`pass@k` and `pass^k`, deterministic checks + blinded judges) or `mlflow.genai.evaluate`; keep failures, timeouts, and refusals without cherry-picking retries; save per-case outcomes, cost, and latency, and report uncertainty per the brief.
+1. **Instrument & compare in MLflow (`3.18.0+`)**: set `MLFLOW_DISABLE_AGENT_HINT=1`, wrap candidate calls with `@mlflow.trace`, grade with `@mlflow.genai.scorer` + `mlflow.genai.evaluate(...)`, and inspect regressions via `mlflow.genai.compare_evaluations(...)` ([experiments](../../../python-mlops/references/experiments.md)).
 1. **Decide against declared criteria**: adopt, iterate, reject, or inconclusive; adoption never authorizes production changes.
 
 ## Gotchas

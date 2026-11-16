@@ -14,8 +14,10 @@ import yaml
 
 from repo_helpers import ROOT, WORKFLOWS
 
-ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
-COMMENTED_ACTION = re.compile(r"^\s*(?:-\s*)?uses:\s+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}\s+#\s+v\d[^\s]*\s*$")
+ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[0-9a-f]{40}$")
+COMMENTED_ACTION = re.compile(
+    r"^\s*(?:-\s*)?uses:\s+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[0-9a-f]{40}\s+#\s+v\d[^\s]*\s*$"
+)
 
 
 def _walk(value: object) -> Iterator[object]:

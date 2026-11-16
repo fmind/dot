@@ -425,7 +425,7 @@ def test_check_cli_compiles_template_deck_to_pptx_and_extracts_notes(
 
     deck_dir = tmp_path / "deck"
     deck_dir.mkdir()
-    for name in ("fmind-slides.typ", "deck.typ"):
+    for name in ("fmind.typ", "fmind-slides.typ", "deck.typ"):
         (deck_dir / name).write_text((TEMPLATE_DECK.parent / name).read_text(encoding="utf-8"), encoding="utf-8")
     # Ensure check doesn't fail on a headless host lacking preinstalled Google Sans fonts.
     rc = mod.main(
@@ -565,7 +565,7 @@ def test_render_cli_compiles_figure_card_and_fails_on_warnings(
 
     card_dir = tmp_path / "card"
     card_dir.mkdir()
-    for name in ("fmind-slides.typ", "figure-card.typ"):
+    for name in ("fmind.typ", "fmind-slides.typ", "figure-card.typ"):
         (card_dir / name).write_text((TEMPLATE_DECK.parent / name).read_text(encoding="utf-8"), encoding="utf-8")
 
     rc = mod.main(["render", str(card_dir / "figure-card.typ"), "--allow-font-warnings", "--json"])
@@ -611,9 +611,8 @@ def test_check_max_words_rejects_crowded_slide(
 
     deck_dir = tmp_path / "crowded"
     deck_dir.mkdir()
-    (deck_dir / "fmind-slides.typ").write_text(
-        (TEMPLATE_DECK.parent / "fmind-slides.typ").read_text(encoding="utf-8"), encoding="utf-8"
-    )
+    for name in ("fmind.typ", "fmind-slides.typ"):
+        (deck_dir / name).write_text((TEMPLATE_DECK.parent / name).read_text(encoding="utf-8"), encoding="utf-8")
     words = " ".join(f"word{i}" for i in range(40))
     (deck_dir / "deck.typ").write_text(
         f'#import "fmind-slides.typ": *\n#show: fmind-deck.with(title: "Test")\n#slide(title: "Too dense")[{words}]\n',
@@ -744,3 +743,34 @@ def test_upload_google_slides_allows_slash_and_leading_dash_in_presentation_titl
     ]
     assert mod.main(["upload", str(pptx), "--drive-folder", "folder_1", "--name", "a/b.pptx", "--dry-run"]) == 1
     assert "plain filename" in capsys.readouterr().err
+
+
+def test_slides_drive_run_gws_parses_prefixed_json_and_rejects_garbage(
+    mod: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mod.slides_drive.shutil, "which", lambda _name: "/bin/gws")
+    monkeypatch.setattr(
+        mod.slides_drive.subprocess,
+        "run",
+        lambda cmd, **_kw: mod.slides_drive.subprocess.CompletedProcess(
+            cmd, 0, '[INFO] using {keyring} backend\n{"id": "deck_1"}\n', ""
+        ),
+    )
+    assert mod.slides_drive.run_gws(["drive", "files", "get"], cwd=tmp_path) == {"id": "deck_1"}
+
+    for bad_stdout in (
+        "",
+        "   \n",
+        '[INFO] list\n[{"id": "a"}]\n',
+        '{"error": {"code": 403}',
+        '{"error": {\n{"code": 403}',
+        "Error [503]\n",
+        "[INFO] broken non-json output\n",
+    ):
+        monkeypatch.setattr(
+            mod.slides_drive.subprocess,
+            "run",
+            lambda cmd, payload=bad_stdout, **_kw: mod.slides_drive.subprocess.CompletedProcess(cmd, 0, payload, ""),
+        )
+        with pytest.raises(RuntimeError, match=r"expected (?:valid )?JSON"):
+            mod.slides_drive.run_gws(["drive", "files", "get"], cwd=tmp_path)

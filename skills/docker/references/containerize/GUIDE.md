@@ -10,7 +10,7 @@ Build minimal, reproducible, non-root `uv` Python images locally, verify `@sha25
 ## Workflow
 
 1. **Check headroom and isolate names**: run `dot doctor --headroom`, inspect `docker context ls`, `docker system df`, and `docker buildx ls`, confirm peak usage stays within the [resource cleanup](../resource-cleanup.md) floor, and record unique task-owned names/IDs up front.
-1. **Copy templates**: adopt [Dockerfile](templates/Dockerfile) and [.dockerignore](templates/.dockerignore), set `<slug>` to the console script, and verify base digests.
+1. **Copy templates**: adopt [Dockerfile](templates/Dockerfile) and [.dockerignore](templates/.dockerignore), set `<slug>` to the console script, and verify base digests. Add [compose.yaml](templates/compose.yaml) (loopback-bound Postgres/pgvector) when running local stateful dependencies.
 1. **Build a local archive** (zero registry writes):
 
    ```bash

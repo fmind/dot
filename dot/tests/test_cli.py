@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import json
 import os
 import signal
 import subprocess
@@ -174,4 +173,3 @@ def test_main_exit_codes_and_complete_env(
     with pytest.raises(SystemExit) as sig:
         cli_module.main()
     assert sig.value.code == 130
-    assert json.loads('{"ok":true}')["ok"] is True

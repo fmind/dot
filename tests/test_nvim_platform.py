@@ -142,6 +142,79 @@ assert(vim.deep_equal(vim.g.clipboard.paste["*"](), {}), "primary selection must
     )
 
 
+def test_sqruff_linter_parses_json_nulls_and_surfaces_cli_errors(tmp_path: Path) -> None:
+    sql_repo = tmp_path / "sql-repo"
+    nested = sql_repo / "models"
+    nested.mkdir(parents=True)
+    (sql_repo / ".sqruff").write_text("[sqruff]\ndialect = postgres\n", encoding="utf-8")
+    sql_file = nested / "query.sql"
+    sql_file.write_text("select  1\n", encoding="utf-8")
+
+    broken_repo = tmp_path / "broken-sql-repo"
+    broken_repo.mkdir()
+    (broken_repo / ".sqruff").write_text("[sqruff]\ndialect = nonexistent_dialect\n", encoding="utf-8")
+    broken_sql = broken_repo / "query.sql"
+    broken_sql.write_text("select 1\n", encoding="utf-8")
+
+    outside_cwd = tmp_path / "outside"
+    outside_cwd.mkdir()
+
+    assert shutil.which("sqruff"), "sqruff is required by the repository gate"
+    run_lua(
+        tmp_path,
+        """
+local spec = dofile(vim.env.LINTING_CONFIG)
+local opts = spec[1].opts(nil, {})
+assert(vim.deep_equal(opts.linters_by_ft.sql, { "sqlfluff", "sqruff" }))
+local sqruff = opts.linters.sqruff
+assert(sqruff.stream == "both", "stderr errors must reach the sqruff parser")
+assert(not sqruff.condition({ filename = vim.env.OUTSIDE_SQL }))
+assert(sqruff.condition({ filename = vim.env.SQL_FILE }))
+
+local parser = sqruff.parser
+assert(#parser("") == 0 and #parser("   \\n") == 0)
+assert(#parser('{"<string>":[]}') == 0)
+
+local null_fixture = parser([[
+{"<string>":[
+  {"range":{"start":{"line":null,"character":null},"end":null},"message":null,"severity":"Warning","source":null,"code":null},
+  {"range":{"start":{"line":2,"character":5},"end":{"line":2,"character":8}},"message":"Use uppercase","severity":"Error","source":"sqruff","code":"CP01"}
+]}
+]])
+assert(#null_fixture == 2, "both fixture items should parse without vim.NIL errors")
+assert(null_fixture[1].lnum == 0 and null_fixture[1].col == 0 and null_fixture[1].code == nil)
+assert(null_fixture[2].lnum == 1 and null_fixture[2].col == 4 and null_fixture[2].end_col == 7)
+assert(null_fixture[2].severity == vim.diagnostic.severity.ERROR and null_fixture[2].code == "CP01")
+
+local err_diags = parser("Error: bad config\\n")
+assert(#err_diags == 1 and err_diags[1].severity == vim.diagnostic.severity.ERROR)
+assert(err_diags[1].lnum == 0 and err_diags[1].col == 0 and err_diags[1].source == "sqruff")
+assert(err_diags[1].message == "sqruff failed: Error: bad config")
+
+local live = vim.system(
+  { "sqruff", "lint", "--format", "json", "--stdin-filename", vim.env.SQL_FILE, "-" },
+  { cwd = vim.env.OUTSIDE_CWD, stdin = "select  1\\n", text = true }
+):wait()
+local live_diags = parser((live.stdout or "") .. (live.stderr or ""))
+assert(#live_diags >= 1, "live sqruff run from outside cwd should still resolve .sqruff")
+assert(live_diags[1].code == "LT01" and live_diags[1].lnum == 0 and live_diags[1].col == 6)
+
+local broken = vim.system(
+  { "sqruff", "lint", "--format", "json", "--stdin-filename", vim.env.BROKEN_SQL, "-" },
+  { cwd = vim.env.OUTSIDE_CWD, stdin = "select 1\\n", text = true }
+):wait()
+local broken_diags = parser((broken.stdout or "") .. (broken.stderr or ""))
+assert(#broken_diags == 1 and broken_diags[1].severity == vim.diagnostic.severity.ERROR)
+assert(vim.startswith(broken_diags[1].message, "sqruff failed:"))
+""",
+        LINTING_CONFIG=str(ROOT / "dot_config/nvim/lua/plugins/linting.lua"),
+        SQL_FILE=str(sql_file),
+        BROKEN_SQL=str(broken_sql),
+        OUTSIDE_SQL=str(outside_cwd / "plain.sql"),
+        OUTSIDE_CWD=str(outside_cwd),
+    )
+
+
 def test_branch_review_toggles_buffers_from_independent_repositories(tmp_path: Path) -> None:
     run_lua(
         tmp_path,

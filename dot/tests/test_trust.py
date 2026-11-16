@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 
@@ -176,4 +175,3 @@ def test_trust_rejects_home_ancestors_symlinks_and_corrupt_json(
     (home / ".claude.json").write_text('{"projects": []}')
     with pytest.raises(DotError, match="projects must be a JSON object"):
         trust_folders([tmp_path], home=home)
-    assert isinstance(make_state().stdout, io.StringIO)

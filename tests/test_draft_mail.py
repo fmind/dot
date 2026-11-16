@@ -594,3 +594,41 @@ def test_cli_fails_on_gws_error_payload_or_missing_updated_draft_id(
         ["gmail", "users", "settings", "sendAs"],
         ["gmail", "users", "drafts", "update"],
     ]
+
+
+def test_cli_gws_stdout_banner_and_malformed_or_truncated_json(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    html = tmp_path / "ok.html"
+    html.write_text("<p>Hi</p>", encoding="utf-8")
+    monkeypatch.setattr(mod.shutil, "which", lambda _name: "/usr/bin/gws")
+    created_payload = json.dumps({"id": "draft_1"})
+    active_payload = [f"[INFO] created{chr(10)}{created_payload}{chr(10)}"]
+
+    def _fake(cmd: list[str], **_kwargs: object) -> object:
+        if cmd[1:6] == ["gmail", "users", "settings", "sendAs", "list"]:
+            body = json.dumps({"sendAs": [{"sendAsEmail": "github@fmind.dev", "isDefault": True}]})
+            return mod.subprocess.CompletedProcess(
+                cmd, 0, f"[INFO] using {{keyring}} backend{chr(10)}{body}{chr(10)}", ""
+            )
+        if cmd[1:6] == ["gmail", "users", "settings", "sendAs", "get"]:
+            return mod.subprocess.CompletedProcess(cmd, 0, json.dumps(SAMPLE_SEND_AS), "")
+        return mod.subprocess.CompletedProcess(cmd, 0, active_payload[0], "")
+
+    monkeypatch.setattr(mod.subprocess, "run", _fake)
+    assert mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi"]) == 0
+    assert "draft_1" in capsys.readouterr().out
+
+    for bad_stdout in (
+        "",
+        "[]",
+        "Error [503]",
+        '{"error": {"code": 403}',
+        f'{{"error": {{{chr(10)}{{"code": 403}}',
+    ):
+        active_payload[0] = bad_stdout
+        assert mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi"]) == 1
+        assert "expected" in capsys.readouterr().err

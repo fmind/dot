@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import socket
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import create_autospec
 
 import pytest
+import structlog
 from granian.server import MPServer
 from litestar import get
 from litestar.testing import AsyncTestClient
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.trace import TracerProvider
 from pydantic import SecretStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,13 +33,27 @@ from <package> import (
     main,
 )
 from <package> import __main__ as module_entrypoint
+from <package>.telemetry import configure_logging, configure_otel
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
 
 
 @pytest.fixture(autouse=True)
 def _isolated_settings_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep developer `.env` files and ambient service variables out of unit tests."""
     monkeypatch.chdir(tmp_path)
-    for variable in ("DATABASE_URL", "CORS_ORIGINS", "ENVIRONMENT", "HOST", "PORT"):
+    for variable in (
+        "DATABASE_URL",
+        "CORS_ORIGINS",
+        "ENVIRONMENT",
+        "GOOGLE_CLOUD_PROJECT",
+        "HOST",
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "PORT",
+    ):
         monkeypatch.delenv(variable, raising=False)
 
 
@@ -73,6 +93,7 @@ def test_cors_is_closed_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.anyio
 async def test_health_check_is_dependency_free() -> None:
+    assert configure_otel("<slug>") == (None, None)
     config = Settings(database_url=SecretStr("postgresql+asyncpg://unavailable.invalid/test"), environment="test")
 
     async with AsyncTestClient(app=create_app(config)) as client:
@@ -156,9 +177,62 @@ async def test_internal_error_redacts_exception_details(capsys: pytest.CaptureFi
 
     assert response.status_code == 500
     assert response.json() == {"status_code": 500, "detail": "Internal Server Error"}
-    captured = capsys.readouterr()
-    assert "SYNTHETIC_SECRET_MARKER" not in captured.out + captured.err
+    out = capsys.readouterr().out
+    assert "SYNTHETIC_SECRET_MARKER" not in out
+    records = [json.loads(line) for line in out.strip().splitlines() if line.startswith("{")]
+    error_record = next(item for item in records if item.get("message") == "Unhandled internal error")
+    assert error_record["severity"] == "ERROR"
+    assert error_record["error"] == "RuntimeError"
+    assert error_record["path"] == "/boom"
     assert callable(handle_internal_error)
+
+
+@pytest.mark.anyio
+async def test_telemetry_redacts_exceptions_and_correlates_spans(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "example-project")
+    tracer_provider, meter_provider = configure_otel("<slug>")
+    assert isinstance(tracer_provider, TracerProvider)
+    assert isinstance(meter_provider, MeterProvider)
+    try:
+        configure_logging(level=logging.INFO)
+        log = structlog.get_logger("telemetry_test")
+        with tracer_provider.get_tracer("test").start_as_current_span("op"):
+            log.info("direct_exc", exc_info=RuntimeError("SECRET_ONE"))
+            try:
+                raise ValueError("SECRET_TWO")
+            except ValueError:
+                log.warning("active_exc", exc_info=True)
+            log.info("tuple_exc", exc_info=(KeyError, KeyError("SECRET_THREE"), None))
+    finally:
+        meter_provider.shutdown()
+        tracer_provider.shutdown()
+
+    out = capsys.readouterr().out
+    for marker in ("SECRET_ONE", "SECRET_TWO", "SECRET_THREE"):
+        assert marker not in out
+    events = {json.loads(line)["message"]: json.loads(line) for line in out.strip().splitlines() if line.startswith("{")}
+    assert events["direct_exc"]["error_type"] == "RuntimeError"
+    assert events["active_exc"]["error_type"] == "ValueError"
+    assert events["tuple_exc"]["error_type"] == "KeyError"
+    assert "trace_id" in events["direct_exc"]
+    assert events["direct_exc"]["logging.googleapis.com/trace"].startswith("projects/example-project/traces/")
+
+
+@pytest.mark.anyio
+async def test_lifespan_shuts_down_configured_otel_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    fake_tracer = SimpleNamespace(shutdown=lambda: calls.append("tracer"))
+    fake_meter = SimpleNamespace(shutdown=lambda: calls.append("meter"))
+    monkeypatch.setattr("<package>.configure_otel", lambda _name: (fake_tracer, fake_meter))
+    config = Settings(database_url=SecretStr("postgresql+asyncpg://unavailable.invalid/test"), environment="test")
+
+    async with AsyncTestClient(app=create_app(config)) as client:
+        assert (await client.get("/health")).status_code == 200
+
+    assert calls == ["meter", "tracer"]
 
 
 def test_server_targets_the_app_factory() -> None:

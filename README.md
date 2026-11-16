@@ -127,7 +127,7 @@ Contributor guides: [AGENTS.md](AGENTS.md) and [releases & qualification](.agent
 
 Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins.
 
-For clean-context quality gates, 17 read-only `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover engineering, data/AI/compliance, and docs/UX/comms across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents); see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+For clean-context quality gates, 17 static read-only `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover engineering, data/AI/compliance, and docs/UX/comms across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents) while keeping content producers dynamic via built-in subagents and skills; see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 
 ## Agent skills
 
@@ -185,7 +185,7 @@ Commit [`allowed_signers`](dot_config/git/allowed_signers) for local verificatio
 
 Secrets are never exported at shell startup:
 
-- **Native credential seeds:** Hugging Face, Kaggle, and OpenCode (`~/.local/share/opencode/auth.json`) credentials deploy only when absent so `hf auth login`, `kaggle auth login`, and `opencode auth login` persist across apply (saved `auth.json` entries override env vars); isolate customer accounts via [customer overrides](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
+- **Native credential seeds:** Hugging Face, Kaggle, and OpenCode (`~/.local/share/opencode/auth.json`) credentials deploy only when absent so `hf auth login`, `uvx kaggle auth login`, and `opencode auth login` persist across apply (saved `auth.json` entries override env vars); isolate customer accounts via [customer overrides](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
 - **Scoped secrets:** inject a personal key from env or `0600`/`0400` `~/.config/dot/secrets/<NAME>` into one command via `with-secret` ([scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI uses Trusted Publishing:
 
   ```sh

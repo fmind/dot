@@ -44,7 +44,7 @@ Refresh tag + multi-platform index `@sha256:` digest on every `FROM`, `COPY --fr
 
 Resolve latest release tags to verified 40-hex commit SHAs (`owner/action@<sha> # vN.N.N`) and run `jactionlint --profile pedantic` ([dependabot](../../github-actions/references/dependabot.md) bumps vulnerable pins only; see [ci-cd](../../github-actions/references/ci-cd/GUIDE.md)).
 
-Raising the tested `mise` floor in `fmind/dot` (`self_update.auto = "24h"` updates the workstation binary, while `mise run upgrade` skips mise itself; use `mise self-update <version>` for an exact target) requires updating workflow `version:` inputs (including `github-actions`, `cloud-run`, and `documentation-site` templates), `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml` plus `python-stack`, `infra-as-code`, and `documentation-site` templates, and `README.md` together after checking release notes (`test_bootstrap.py` enforces parity).
+Raising the tested `mise` floor in `fmind/dot` (`self_update.auto = "24h"` updates the workstation binary, while `mise run upgrade` skips mise itself; use `mise self-update <version>` for an exact target) requires updating workflow `version:` inputs (including `github-actions`, `cloud-run`, `infra-as-code`, and `documentation-site` templates), `MINIMUM_MISE_VERSION` in `install.sh`, `min_version` in `mise.toml` plus `python-stack`, `infra-as-code`, and `documentation-site` templates, and `README.md` together after checking release notes (`test_bootstrap.py` enforces parity).
 
 ## dprint (`dprint.json`)
 

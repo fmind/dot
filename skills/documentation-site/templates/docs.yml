@@ -36,8 +36,8 @@ jobs:
           version: 2026.11.9
           # Install tools fresh on every deploy; the build itself never reads a CI cache.
           cache: false
-      - name: Build site
-        run: mise run build:docs
+      - name: Validate and build site
+        run: mise run all
       - name: Upload Pages artifact
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

@@ -19,6 +19,7 @@ Write in plain words: one idea per short sentence, concrete diffs, commands, lin
 
 - **Request lean, complete data**: use quiet, machine-readable flags (`--json`, `--quiet`, no color/progress) and focused queries, keeping exit codes and failure diagnostics. Save large output to a file and read slices.
 - **Brief agents completely**: pass goal, context, exact paths, and checkable acceptance criteria without polish (`task-prompts`).
+- **Keep producers dynamic, reviewers static**: spawn content producers dynamically via built-in subagents and skills for implementation flexibility; delegate quality checks to static read-only `supagents` (`fmind-review-*` or project roles).
 
 ### To me
 
@@ -38,7 +39,7 @@ Every reply (including skill reports) stands alone — I may not see tool output
 
 - **Ground and link every claim**: base answers and edits on read code (including `.venv/`), data, and docs; verify version- or time-sensitive facts live via installed code, tools, or authoritative primary web pages, and never infer negatives from silence. Cite with inline links and never invent URLs.
 - **Prove it works**: define done and key scenarios (normal, edge cases, failures, security) before non-trivial builds. Run affected tasks, tests, and commands before reporting done, treat warnings as failures, and verify live results after publish/deploy.
-- **Review adversarially before delivery**: after deterministic gates pass on non-trivial code or external deliverables, freeze the artifact/diff and fan out matching clean-context read-only specialist reviewer subagents (`fmind-review-*` or project roles via `subagent` — never same-session skills). Act as critic: verify every `loc`/`evidence` claim against live code, discard nitpicks and scope creep, apply `BLOCK`/`REVISE` fixes and deletions in at most two rounds, and stop on `PASS`.
+- **Review adversarially before delivery**: after deterministic gates pass on non-trivial code or external deliverables, freeze the artifact/diff and delegate clean-context review to static read-only `supagents` (`fmind-review-*` or project roles via `subagent`, never same-session skills). Verify every `loc`/`evidence` claim against live code, drop nitpicks/scope creep, apply `BLOCK`/`REVISE` fixes and deletions in at most two rounds, and stop on `PASS`.
 - **Take no shortcuts**: fix root causes for all valid inputs and measure against a baseline, one factor at a time. Never hardcode values, skip/loosen/special-case tests, leak eval data, cherry-pick runs, or overfit benchmarks; challenge flawed tests, requirements, or premises.
 - **Spend tool calls wisely**: batch independent calls, reuse context, and skip ritual `--version`, `--help`, and health probes. Revise your hypothesis after failure instead of rerunning; after two failures, change approach or ask.
 

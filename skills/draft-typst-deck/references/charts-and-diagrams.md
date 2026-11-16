@@ -9,7 +9,7 @@ Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without
 - **`speaker-note(note)`**: attaches per-slide speaker notes (`str`) compiled invisibly and extracted via `typst eval` for `.pptx` / Google Slides.
 - **`split-cards(...)`**, **`card(...)`**, **`callout(...)`**, **`kpi-card(...)`**: semantic surfaces obeying `DESIGN.md` light contrast.
 - **`bar-panel(title, subtitle, rows)`**, **`stacked-bar-row`**, **`broken-bar-row`**: comparative horizontal charts respecting `DESIGN.md` categorical order (`primary` `#174EA6`, `information` `#00636D`, `warning` `#934900`, `type` `#681DA8` before green/red). Size `right-width` wide enough (around 120–230 pt) so values stay single-line; use `broken: true` for outliers.
-- **`step-card(num, title, desc)` + `flow-arrow(...)`**: accepts either positional `#flow-arrow("Signal")` or named `#flow-arrow(step: 1, caption: "clone", length: 34pt, dir: ltr)` (`dir: ttb` for vertical flows).
+- **`step-card(num, title, desc)` + `flow-arrow(...)`**: accepts either positional `#flow-arrow("Signal")` or named `#flow-arrow(step: 1, caption: "clone", length: 34pt, dir: ltr)` (`dir: ltr | rtl | ttb | btt`).
 
 ## Standalone Branded Images (`render` & `figures/*.typ`)
 
@@ -34,6 +34,6 @@ Typst treats **content blocks (`[...]`)**, **string literals (`"..."`)**, and **
 | :-------------- | :--------------- | :---------------------------------------------------- | :--------------------- |
 | Inline raw code | `` `$100 ~5%` `` | Never escape `$`, `~`, `*`; use only for literal code | `` `mise run check` `` |
 | String literal  | `"~5.81 $"`      | Never escape `$`, `~`, `*`; escape only `\"` or `\\`  | `val-text: "~5.81 $"`  |
-| Content block   | `[Cost: ~5 \$]`  | Escape markup specials `\$`, `\*`, `\~`; single `*b*` | `[Cap: *\$200*]`       |
+| Content block   | `[Cost: \~5 \$]` | Escape markup specials `\$`, `\*`, `\~`; single `*b*` | `[Cap: *\$200*]`       |
 
 `build_typst_deck.py check` and `render` fail automatically on bad escapes and empty `*bold*` star warnings.

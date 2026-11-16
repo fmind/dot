@@ -12,7 +12,7 @@ metadata:
 
 # Adversarial Reviewer Subagents
 
-Encode taste and domain standards as clean-context, read-only reviewer subagents outside the creation loop, never as skills (which share polluted creator context). Spawn `1`–`4` matching specialists per change; use [skillify](../skillify/SKILL.md) for procedures and [task-prompts](../task-prompts/SKILL.md) for briefs.
+Keep content producer agents dynamic (built-in subagents paired with skills on the fly for maximum implementation flexibility). Encode taste and domain standards solely as static, clean-context, read-only reviewer `supagents` outside the creation loop—never as skills (which share polluted creator context). Spawn `1`–`4` matching specialists per change; use [skillify](../skillify/SKILL.md) for procedures and [task-prompts](../task-prompts/SKILL.md) for briefs.
 
 ## Global `fmind-review-*` Suite (17 Roles)
 

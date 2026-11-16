@@ -4,7 +4,8 @@
        prompts, and `dot trust` owns trust.json. Provider, model, and thinking level seed missing keys
        only (Agent Platform via ADC with dynamic GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT; google-vertex.ts
        defaults GOOGLE_CLOUD_LOCATION to `global`, else Pi picks the first credentialed provider).
-       enableInstallTelemetry drops attribution headers, paired with PI_TELEMETRY=0 and PI_SKIP_VERSION_CHECK=1 in mise. */ -}}
+       enableInstallTelemetry drops attribution headers, paired with PI_TELEMETRY=0 and PI_SKIP_VERSION_CHECK=1 in mise.
+       Hold defaultModel on gemini-4-argon until upstream pi bundles gemini-4-hydrogen in its google-vertex catalog. */ -}}
 {{- $defaults := dict "defaultProvider" "google-vertex" "defaultModel" "gemini-4-argon" "defaultThinkingLevel" "high" -}}
 {{- $managedConfig := fromJson `
 {

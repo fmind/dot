@@ -9,7 +9,7 @@ Use official `a2a-sdk` (`a2aproject/a2a-python`) and the `a2a` CLI (`a2aproject/
 
 ## Workflow
 
-1. **Pin SDK and protocol version**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'a2a-sdk>=1.3.0'` (client) or `'a2a-sdk[http-server]>=1.3.0'` (HTTP server), adding extras only on demand; inspect remote peers with `a2a`.
+1. **Pin SDK and protocol version**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'a2a-sdk>=1.3.0'` (client) or `'a2a-sdk[http-server]>=1.3.0'` (HTTP server), adding extras only on demand; pin `github:a2aproject/a2a-cli` in the project `mise.toml` to inspect remote peers with `a2a`.
 1. **Define transport and Agent Card**: match a mutually supported transport from official samples and declare accurate capabilities, endpoints, security schemes, and protocol skills.
 1. **Implement executor and handler**: map execution to task states and artifacts, preserve task/context IDs, persist durable state, and propagate cancellation downstream.
 1. **Build clients via current factories**: use the locked SDK's client factory and card resolver rather than legacy client classes.

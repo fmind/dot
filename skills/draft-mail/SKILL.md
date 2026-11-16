@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-mail
   created: "2026-10-04"
-  updated: "2026-11-15"
+  updated: "2026-11-16"
 ---
 
 # Draft Mail
 
-Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never send**: even an explicit "send" request produces only a draft and handoff. [gws](../gws/SKILL.md) owns auth and Workspace access; [`scripts/draft_email.py`](scripts/draft_email.py) enforces MIME structure, signature injection, reply quoting, and read-back verification.
+Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never send**: even an explicit "send" request produces only a draft and handoff. [gws](../gws/SKILL.md) owns auth and Workspace access; [`scripts/draft_email.py`](scripts/draft_email.py) (with HTML/MIME helpers in [`scripts/mail_mime.py`](scripts/mail_mime.py)) enforces MIME structure, signature injection, reply quoting, and read-back verification.
 
 ## Gmail Draft Creation Standards (Mandatory)
 

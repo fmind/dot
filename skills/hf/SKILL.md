@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/hf
   created: "2026-09-16"
-  updated: "2026-11-14"
+  updated: "2026-11-16"
 ---
 
 # Hugging Face CLI
@@ -43,4 +43,4 @@ Upstream: `huggingface/skills`—audit immutable snapshots per [vendor-skill pol
 
 - [hf CLI guide](https://huggingface.co/docs/huggingface_hub/en/guides/cli) · [huggingface/skills](https://github.com/huggingface/skills)
 - Releases: [huggingface_hub](https://github.com/huggingface/huggingface_hub/releases)
-- Companion skills: [kaggle](../kaggle/SKILL.md), [colab](../colab/SKILL.md), [python-stack](../python-stack/references/foundation/GUIDE.md).
+- Companion skills: [orchestration-and-competitions](../python-mlops/references/orchestration-and-competitions.md), [colab](../colab/SKILL.md), [python-stack](../python-stack/references/foundation/GUIDE.md).

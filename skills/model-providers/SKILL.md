@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/model-providers
   created: "2026-09-16"
-  updated: "2026-11-15"
+  updated: "2026-11-16"
 ---
 
 # Model Providers
@@ -33,8 +33,11 @@ Steer current models via instructions, thinking/effort levels, and native struct
 
 <!-- guides:start -->
 
+- [anthropic-sdk](references/anthropic-sdk.md): Configure async Anthropic SDK calls with Vertex or API auth, prefix caching, strict tools, and parsed outputs.
 - [gcp-agent-platform](references/gcp-agent-platform.md): GCP Agent Platform model access with ADC and global location.
 - [gemini-api](references/gemini-api.md): Gemini Developer API access with an explicit API key backend.
+- [langextract](references/langextract.md): Extract structured facts from text with LangExtract and source-grounded evidence.
+- [openai-sdk](references/openai-sdk.md): Configure async OpenAI Responses API calls, Workload Identity, strict Pydantic outputs, and reasoning effort.
 - [openrouter](references/openrouter.md): OpenRouter model routing, API key authentication, and OpenAI-compatible requests.
 
 <!-- guides:end -->

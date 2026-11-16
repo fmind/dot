@@ -16,14 +16,14 @@ from granian.server import MPServer, MTServer
 from litestar import Litestar, Request, Response, get
 from litestar.config.cors import CORSConfig
 from litestar.di import NamedDependency, Provide
-from litestar.logging.config import StructLoggingConfig
-from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from <package>.telemetry import configure_logging, configure_otel
 
 __version__ = version("<slug>")
 
@@ -73,8 +73,14 @@ def handle_internal_error(request: Request[Any, Any, Any], exc: Exception) -> Re
 
 
 def create_app(config: Settings) -> Litestar:
-    """Build an application whose database resources follow its lifespan."""
-    engine = create_async_engine(config.database_url.get_secret_value())
+    """Build an application whose database and telemetry resources follow its lifespan."""
+    configure_logging()
+    engine = create_async_engine(
+        config.database_url.get_secret_value(),
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def provide_db_session() -> AsyncGenerator[AsyncSession]:
@@ -82,28 +88,24 @@ def create_app(config: Settings) -> Litestar:
             yield session
 
     @asynccontextmanager
-    async def database_lifespan(_: Litestar) -> AsyncGenerator[None]:
+    async def app_lifespan(_: Litestar) -> AsyncGenerator[None]:
+        tracer_provider, meter_provider = configure_otel("<slug>")
         try:
             yield
         finally:
+            if meter_provider is not None:
+                meter_provider.shutdown()
+            if tracer_provider is not None:
+                tracer_provider.shutdown()
             await engine.dispose()
-
-    logging_plugin = StructlogPlugin(
-        StructlogConfig(
-            # Disable stock exception formatting so custom handler logs exception type only without raw secrets.
-            structlog_logging_config=StructLoggingConfig(log_exceptions="never"),
-            # Request logging is on by default and records request and response bodies.
-            enable_middleware_logging=False,
-        )
-    )
 
     return Litestar(
         route_handlers=[health_check, readiness_check],
         dependencies={"db_session": Provide(provide_db_session)},
         cors_config=CORSConfig(allow_origins=config.cors_origins),
         exception_handlers={HTTP_500_INTERNAL_SERVER_ERROR: handle_internal_error},
-        lifespan=[database_lifespan],
-        plugins=[logging_plugin],
+        lifespan=[app_lifespan],
+        logging_config=None,
     )
 
 

@@ -47,6 +47,12 @@ _AGENT_HOSTS: dict[str, tuple[str, str]] = {
     "opencode": ("~/.config/opencode/AGENTS.md", ""),
     "pi": ("~/.pi/agent/AGENTS.md", ""),
 }
+_AGENT_REVIEWERS: dict[str, tuple[str, str]] = {
+    "agy": ("~/.gemini/config/agents", "fmind-review-*.md"),
+    "claude": ("~/.claude/agents", "fmind-review-*.md"),
+    "copilot": ("~/.copilot/agents", "fmind-review-*.agent.md"),
+    "opencode": ("~/.config/opencode/agents", "fmind-review-*.md"),
+}
 
 _DOCTOR_GROUPS = (
     ("auth", "CLI Authentication"),
@@ -212,15 +218,18 @@ def _same_file(path: Path, target: Path) -> bool:
 def _inspect_agent(root: Path, name: str) -> CheckResult:
     persona_path, skills_path = _AGENT_HOSTS[name]
     shared = expand_path(_SHARED_SKILLS)
-    checks = (
+    checks: list[tuple[str, bool]] = [
         ("persona", _same_file(expand_path(persona_path), expand_path(_SHARED_PERSONA))),
         ("skills", _same_file(expand_path(skills_path or _SHARED_SKILLS), shared) and any(shared.glob("*/SKILL.md"))),
-    )
+    ]
+    if reviewer_spec := _AGENT_REVIEWERS.get(name):
+        rev_dir = expand_path(reviewer_spec[0])
+        checks.append(("reviewers", rev_dir.is_dir() and any(rev_dir.glob(reviewer_spec[1]))))
     if problems := [lbl for lbl, ok in checks if not ok]:
         msg = f"discovery broken ({','.join(problems)}); run chezmoi apply --force"
         return CheckResult(name, "fail", msg, condition="broken")
     if name not in AGENT_SOURCES:
-        return CheckResult(name, "pass", "persona and skills linked", condition="healthy")
+        return CheckResult(name, "pass", "persona, skills, and reviewers configured", condition="healthy")
     try:
         source_root(name).stat()
         source_present = True

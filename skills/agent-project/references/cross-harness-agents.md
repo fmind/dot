@@ -5,7 +5,7 @@ description: "Decide when a custom agent role pays off, write per-host definitio
 
 # Cross-harness agents
 
-Hosts share no native custom-agent format. Prefer the shared persona plus skills for procedures; add named roles for clean-context adversarial reviews ([subagent](../../subagent/SKILL.md)), compiling one `.agents/supagents/<role>.md` source via [`supagents`](https://github.com/fmind/agent-supagents) when multi-harness or writing native host files directly when single-harness ([Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)).
+Hosts share no native custom-agent format. Keep content producers dynamic—spawn built-in subagents on demand with the matching [skills](../../skillify/SKILL.md) so the coordinator keeps maximum implementation flexibility. Reserve static named roles compiled via [`supagents`](https://github.com/fmind/agent-supagents) (`.agents/supagents/<role>.md`, or native host files when single-harness) for clean-context, read-only adversarial reviewers ([subagent](../../subagent/SKILL.md); [Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)).
 
 ## Native definitions
 

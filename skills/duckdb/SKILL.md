@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-11-14"
+  updated: "2026-11-16"
 ---
 
 # DuckDB, SQLite, and PostgreSQL
@@ -52,6 +52,7 @@ Always pass `duckdb -no-init -light-mode -batch -bail` and `sqlite3 -init /dev/n
 <!-- guides:start -->
 
 - [remote-storage](references/remote-storage.md): Remote object storage (S3, GCS, HTTP, Hugging Face) and extensions: install, load, and credential providers.
+- [sql-quality-and-dbt](references/sql-quality-and-dbt.md): Lint and format SQL with sqruff or sqlfluff and enforce dbt Core contracts and slim CI tests.
 
 <!-- guides:end -->
 

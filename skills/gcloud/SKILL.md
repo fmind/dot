@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-11-14"
+  updated: "2026-11-16"
 ---
 
 # Google Cloud CLI
@@ -44,6 +44,7 @@ Google Cloud is the default cloud for Fmind work (existing project choices win).
 
 <!-- guides:start -->
 
+- [bigquery](references/bigquery.md): Run FinOps-bounded BigQuery dry runs, parameterized SQL, partition pruning, and Polars Storage Read exports.
 - [google-developer](references/google-developer.md): Find Google developer docs and vendor skills (google/skills) across Cloud, Ads, Analytics, and Identity.
 
 <!-- guides:end -->

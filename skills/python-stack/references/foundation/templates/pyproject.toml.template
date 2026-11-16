@@ -6,7 +6,7 @@ version = "0.1.0"
 description = "<description>"
 readme = "README.md"
 requires-python = ">=<python_major_minor>"
-license = "MIT"
+license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
 authors = [{ name = "<holder>" }] # omit email unless verified and public on PyPI
 dependencies = []
@@ -21,16 +21,13 @@ Security = "https://github.com/<owner>/<slug>/security/policy"
 [dependency-groups]
 dev = [
   "deptry>=0.25.1",
-  "mkdocstrings-python>=2.0.11",
   "pytest-cov>=7.1.0",
   "pytest-socket>=0.8.1",
   "pytest-timeout>=2.4.0",
-  "pytest-watcher>=0.6.3",
   "pytest>=9.2.0",
   "ruff>=0.17.5",
   "ty>=0.0.104,<0.1", # pre-1.0: pin a compatible range until it stabilizes
   "validate-pyproject>=0.27",
-  "zensical>=0.1.1,<0.2", # pre-1.0: pin a compatible range until it stabilizes
 ]
 
 [build-system]
@@ -105,7 +102,10 @@ testpaths = ["tests"]
 # Offline by default: tests reach only loopback and Unix sockets; test:integration passes --force-enable-socket.
 addopts = ["-ra", "--allow-hosts=127.0.0.1,::1", "--allow-unix-socket"]
 filterwarnings = ["error"]
-markers = ["integration: requires local Docker and disposable external services"]
+markers = [
+  "e2e: requires browser and live local server",
+  "integration: requires local Docker and disposable external services",
+]
 # Umbrella for strict_config, strict_markers, strict_xfail, and strict_parametrization_ids.
 strict = true
 # Fail a hung test instead of stalling the agent; a plugin string option rejects a bare TOML integer.

@@ -5,11 +5,11 @@ description: "Google ADK agents, runners, tools, sessions, and evaluation."
 
 # Google ADK
 
-Implement Python ADK agents inside the project; [agents-cli](agents-cli/GUIDE.md) owns scaffolding, evaluation commands, and deployment.
+Default for new Python agents: layer `'google-adk>=2.14.1'` onto the [Python foundation](../../python-stack/references/foundation/references/bootstrap.md) and deploy to [Cloud Run](../../cloud-run/SKILL.md); use [agents-cli](agents-cli/GUIDE.md) only when opting into enterprise Agent Runtime / Agent Gateway / Terraform / BigQuery analytics scaffolds.
 
 ## Workflow
 
-1. **Bootstrap or inspect**: for pure-Python ADK packages without `agents-cli`'s Terraform/Gateway scaffold, layer `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'google-adk>=2.14.1'` onto the [Python foundation](../../python-stack/references/foundation/references/bootstrap.md); otherwise keep the locked SDK, model, tools, session service, and generated layout intact.
+1. **Bootstrap or inspect**: for new ADK services, run `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'google-adk>=2.14.1'` on the [Python foundation](../../python-stack/references/foundation/references/bootstrap.md) (or keep existing `agents-cli` layout, locked SDK, model, tools, and session service intact).
 1. **Match SDK version**: verify upstream skill assumptions against the locked ADK version.
 1. **Set the runtime contract**: use a single agent unless orchestration is needed; otherwise build a graph `Workflow` (`google.adk.workflow`)—ADK 2 deprecates `SequentialAgent`, `ParallelAgent`, and `LoopAgent` (`Workflow` cannot yet be an `LlmAgent` sub-agent). Align app, user, and session IDs across runner and session service.
 1. **Wire narrow tools**: define `root_agent` in `app/agent.py`; give tools full type hints, clear docstrings, bounded I/O, explicit errors, and code-enforced authorization/idempotency while keeping business logic in testable modules and prompts in source.

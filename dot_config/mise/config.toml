@@ -27,12 +27,12 @@ slsa = false
 fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
 neovim = "aqua:neovim/neovim"
+sqruff = "aqua:quarylabs/sqruff"
 
 [env]
 # agents-cli 1.9.0 turned usage telemetry on by default; keep pypi:google-agents-cli out of global
 # [tools] while 1.14.0 caps pyopenssl<26.2 (cryptography<48, 4 HIGH CVEs).
 AGENTS_CLI_TELEMETRY = "0"
-ASTRO_TELEMETRY_DISABLED = "1"
 # The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
 # vendor skills go through the vendor-skill policy instead.
 AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
@@ -80,19 +80,14 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 "npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' }
 # Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest"
-# npm, not aqua: upstream's standalone macOS binary is x86_64-only, so it would need Rosetta on Apple Silicon.
-"npm:firebase-tools" = "latest"
 "npm:skills" = "latest"
 # Bind pypi tools to the global Python minor so project python pins neither re-hash them nor hit missing 3.15 wheels.
 "pypi:brain-framework" = { version = "latest", python = "3.14" }
-"pypi:copier" = { version = "latest", python = "3.14" } # Scaffold new repositories from Copier templates outside projects
 "pypi:fmind" = { version = "latest", python = "3.14" }
 # Let google-colab-cli select its compatible jupyter-kernel-client version;
 # an additional `with` pin can conflict with its exact upstream requirement.
 "pypi:google-colab-cli" = { version = "latest", python = "3.14" }
 "pypi:huggingface_hub" = { version = "latest", python = "3.14" }
-# Keep `with`: kaggle 2.2.5 imports six without declaring it, and python-dateutil 4 no longer brings it.
-"pypi:kaggle" = { version = "latest", python = "3.14", with = ["six"] } # Kaggle dataset and competition CLI
 "pypi:marimo" = { version = "latest", python = "3.14" } # Ad-hoc reactive Python notebooks outside projects; projects pin their own
 # Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
 "pypi:pgcli" = { version = "latest", python = "3.14", with = ["psycopg[binary]"] }
@@ -101,7 +96,6 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 acli = "latest"
 age = "latest"
 ast-grep = "latest"
-astro = "latest" # Airflow DAG dev/parse outside projects; projects pin their own
 atuin = "latest"
 awscli = "latest"
 bat = "latest"
@@ -149,6 +143,7 @@ shellcheck = "latest"
 shfmt = "latest"
 sonarqube-cli = "latest"
 sqlite = "latest"
+sqruff = "latest" # Fast Rust SQL linter/formatter and LSP outside projects; projects pin their own
 starship = "latest"
 stylua = "latest" # Lua formatter LazyVim uses outside this repository
 tflint = "latest" # Terraform linter LazyVim uses outside projects; projects pin their own
@@ -166,14 +161,6 @@ yazi = "latest"
 yq = "latest"
 zellij = "latest"
 zoxide = "latest"
-
-[tools."github:a2aproject/a2a-cli"]
-version = "latest" # Official CLI client for Agent2Agent (A2A) agents
-
-[tools."github:a2aproject/a2a-cli".platforms]
-linux-arm64 = { asset_pattern = "*linux_arm64*" }
-linux-x64 = { asset_pattern = "*linux_amd64*" }
-macos-arm64 = { asset_pattern = "*darwin_arm64*" }
 
 [tools."github:googleworkspace/cli"]
 # Upstream ships glibc and musl assets side by side; select musl explicitly for portability.

@@ -30,7 +30,7 @@ After:
   - _Default (routine emails, replies, scheduling, admin)_: plain `<p>`, `<strong>`, `<ul>`/`<ol>`, and `<a href="...">` so the message matches native Gmail compose and `.gmail_signature` without newsletter chrome:
 
     ```html
-    <p>Bonjour Alice,</p>
+    <p>Hi Alice,</p>
     <p><strong>We can switch to Provider B on Thursday, 19 November at 17:00 CET</strong> with zero downtime and $42k/year lower compute spend (38% below Q3).</p>
     <ul>
       <li><strong>Action needed:</strong> confirm the maintenance window by Wednesday 12:00 CET.</li>
@@ -81,7 +81,7 @@ Spend drops ==38% this quarter== after consolidating the cluster.
 
 - **Jira & Confluence (`acli`)**: author native ADF panels (`info`, `note`, `warning`, `success`, `error`), status lozenges, tables, and expand macros rather than raw Markdown strings.
 
-- **Slides (`draft-typst-deck`)**: target one visual focal point and at most 30 visible words per slide using `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-row(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, and `#brand-card(...)`; move context and caveats into `#speaker-note[...]`.
+- **Slides (`draft-typst-deck`)**: target one visual focal point and at most 30 visible words per slide using `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-card(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, `#step-card(...)`, and `#flow-arrow(...)` (reserve `#show: brand-card.with(...)` for standalone PNG/SVG visual cards); move context and caveats into `#speaker-note("...")`.
 
 - **Chat & Slack (`gws` Chat)**: limit posts to 80 words or fewer, lead with a bold one-line ask or outcome, separate points into short bullets, and use a single `---` rule when needed.
 

@@ -72,4 +72,4 @@ Expected result:
 
 ## License
 
-[{{License name}}](LICENSE){{ — third-party notices link if needed.}}
+[{{License name}}](LICENSE){{ (see third-party notices if needed).}}

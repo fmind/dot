@@ -142,6 +142,14 @@ def test_stale_copies_detects_changed_and_missing_theme_keys(monkeypatch: pytest
     ]
 
 
+def test_stale_raw_copies_detects_changed_typst_file() -> None:
+    expected = (ROOT / "skills/draft-typst-deck/templates/fmind.typ").read_bytes()
+    assert theme_pin.stale_raw_copies("b" * 40, lambda _url: expected) == []
+    assert theme_pin.stale_raw_copies("b" * 40, lambda _url: b"stale") == [
+        "skills/draft-typst-deck/templates/fmind.typ: differs from themes/typst/fmind.typ"
+    ]
+
+
 def test_copied_theme_parsers_ignore_comments() -> None:
     jsonc = '{\n  // Source: theme\n  "$schema": "https://example.com/schema.json",\n  "a": 1\n}'
     assert theme_pin.parse(jsonc, "fastfetch/fmind.json") == {"$schema": "https://example.com/schema.json", "a": 1}

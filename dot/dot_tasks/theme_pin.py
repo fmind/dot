@@ -37,6 +37,11 @@ COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
     "dot_config/starship.toml": ("themes/starship/fmind.toml", (("palette",), ("palettes",))),
 }
 
+# Byte-for-byte raw copies synchronized with upstream files in COPIED's revision.
+RAW_COPIES: dict[str, str] = {
+    "skills/draft-typst-deck/templates/fmind.typ": "themes/typst/fmind.typ",
+}
+
 Fetch = Callable[[str], bytes]
 _PIN_ERRORS = (
     OSError,
@@ -131,6 +136,15 @@ def stale_copies(revision: str, download: Fetch, read: Callable[[Path], str] = r
     return stale
 
 
+def stale_raw_copies(revision: str, download: Fetch) -> list[str]:
+    """List raw byte-for-byte theme copies that differ from upstream files at a revision."""
+    return [
+        f"{source}: differs from {upstream}"
+        for source, upstream in RAW_COPIES.items()
+        if download(RAW.format(revision=revision, path=upstream)) != (ROOT / source).read_bytes()
+    ]
+
+
 def main() -> int:
     """Advance the theme pin to upstream main, or verify a given revision."""
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
@@ -142,7 +156,7 @@ def main() -> int:
         revision, template = rev or resolve_head(), path.read_text(encoding="utf-8")
         download = prefetch(revision, template)
         updated = pin(template, revision, download)
-        if stale := stale_copies(revision, download):
+        if stale := [*stale_copies(revision, download), *stale_raw_copies(revision, download)]:
             joined = "".join(f"{line}\n" for line in stale)
             sys.stderr.write(f"{joined}Copy the upstream blocks from {revision}, then rerun.\n")
             return 1

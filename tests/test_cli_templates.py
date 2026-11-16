@@ -103,7 +103,11 @@ def test_concrete_python_templates_pass_repo_ruff_checks() -> None:
     ruff = ROOT / "dot/.venv/bin/ruff"
     assert ruff.is_file()
     targets = [
+        "skills/agent-frameworks/references/evaluation/templates/eval_runner.py",
+        "skills/python-stack/references/foundation/templates/telemetry.py",
         "skills/python-stack/references/python-script/templates/script.py",
+        "skills/python-mlops/templates/settings.py",
+        "skills/python-mlops/templates/pipeline.py",
         "skills/agy/references/antigravity-sdk/templates/orchestrator.py",
         "skills/github-actions/references/ci-cd/templates/image-platforms.py",
         "skills/draft-typst-deck/templates/editable_deck.py",

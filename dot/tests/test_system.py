@@ -213,6 +213,10 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
             sp = system_module.expand_path(sk)
             sp.parent.mkdir(parents=True, exist_ok=True)
             sp.symlink_to(shared)
+    for rev_dir, rev_glob in system_module._AGENT_REVIEWERS.values():  # noqa: SLF001
+        rd = system_module.expand_path(rev_dir)
+        rd.mkdir(parents=True, exist_ok=True)
+        (rd / rev_glob.replace("*", "code")).write_text("---\nname: fmind-review-code\n---\n")
     root = tmp_path / ".agents/sessions" / SESSION_STORE_VERSION
     for agent in ("agy", "claude", "pi"):
         (root / agent).mkdir(parents=True)
@@ -271,6 +275,15 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
     assert broken_agents["pi"]["condition"] == "unreadable"
     copilot_persona.symlink_to(tmp_path / ".agents/AGENTS.md")
     corrupt_bundle.unlink()
+
+    opencode_rev = system_module.expand_path(system_module._AGENT_REVIEWERS["opencode"][0])  # noqa: SLF001
+    sample_rev = opencode_rev / "fmind-review-code.md"
+    sample_rev.unlink()
+    missing_rev = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert missing_rev["opencode"]["status"] == "fail"
+    assert missing_rev["opencode"]["condition"] == "broken"
+    assert "reviewers" in missing_rev["opencode"]["details"]
+    sample_rev.write_text("---\nname: fmind-review-code\n---\n")
 
     assert {r["name"]: r["status"] for r in sec["auth"]} == {
         "gh": "warn",

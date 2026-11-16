@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -64,18 +65,22 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
     return result.stdout
 
 
-def _materialize_shared_layer(project: Path, replacements: dict[str, str]) -> None:
+def _materialize_shared_layer(
+    project: Path, replacements: dict[str, str], *, license_template: str = "PROPRIETARY"
+) -> None:
     _run(project, "git", "init", "-q", "-b", "main")
     _write(project, "src/starter_py/py.typed", "")
     _write(project, "README.md", "# Starter Python\n")
     _write(
         project,
         "LICENSE",
-        _render("MIT", replacements, owner="project-scaffolding", guide="project-license"),
+        _render(license_template, replacements, owner="project-scaffolding", guide="project-license"),
     )
     _write(project, ".gitignore", _render("gitignore", replacements))
     _write(project, ".ignore", _render("ignore", replacements))
     _write(project, "AGENTS.md", _render("AGENTS.md.template", replacements))
+    _write(project, "mise.toml", _render("mise.toml", replacements))
+    _write(project, "lefthook.yml", _render("lefthook.yml", replacements))
     _write(project, "dprint.json", _render("dprint.json", replacements, owner="mise", guide=""))
     _write(project, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
     for wf in ("ci.yml", "security.yml"):
@@ -103,9 +108,12 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     manifest = _render("pyproject.toml.template", replacements)
     parsed = tomllib.loads(manifest)
     assert parsed["project"]["dependencies"] == []
+    assert parsed["project"]["license"] == "LicenseRef-Proprietary"
     assert parsed["project"]["authors"] == [{"name": "Fixture Author"}]
     assert parsed["project"]["urls"]["Security"] == "https://github.com/example/starter-py/security/policy"
     assert "scripts" not in parsed["project"]
+    if profile == "library":
+        manifest = manifest.replace('license = "LicenseRef-Proprietary"', 'license = "MIT"')
     if profile in {"cli", "mcp"}:
         manifest = manifest.replace('source = ["starter_py"]', 'patch = ["subprocess"]\nsource = ["starter_py"]')
     if profile in {"cli", "api", "web", "mcp"}:
@@ -113,11 +121,12 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
 
     _write(project, "pyproject.toml", manifest)
     _write(project, ".python-version", f"{version}\n")
-    _materialize_shared_layer(project, replacements)
+    _materialize_shared_layer(project, replacements, license_template="MIT" if profile == "library" else "PROPRIETARY")
     # Match bootstrap order: uv add builds the existing foundation before the profile replaces it.
     _write(project, "src/starter_py/__init__.py", _render("init-library.py", replacements))
 
     if profile == "library":
+        _run(project, "uv", "add", "--dev", "zensical>=0.1.1,<0.2", "mkdocstrings-python>=2.0.11")
         _write(project, "tests/test_library.py", _render("test_library.py", replacements))
     elif profile == "cli":
         _write(project, "src/starter_py/__init__.py", _render("init-cli.py", replacements, guide="argparse"))
@@ -158,6 +167,9 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "pydantic>=2.14.3",
             "pydantic-settings>=2.16.3",
             "structlog>=26.1.0",
+            "opentelemetry-api>=1.45.2",
+            "opentelemetry-sdk>=1.45.2",
+            "opentelemetry-exporter-otlp-proto-http>=1.45.2",
         )
         _run(project, "uv", "add", "--dev", "anyio>=4.16.0", "testcontainers>=4.15.0")
         _write(
@@ -165,6 +177,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "src/starter_py/__init__.py",
             _render("init.py", replacements, owner="python-web", guide="litestar"),
         )
+        _write(project, "src/starter_py/telemetry.py", _render("telemetry.py", replacements))
         _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
         for name in ("test_web.py", "test_integration.py"):
             _write(project, f"tests/{name}", _render(name, replacements, owner="python-web", guide="litestar"))
@@ -177,7 +190,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             'DATABASE_URL=postgresql+asyncpg://env.invalid/db\nCORS_ORIGINS=["https://allowed.example"]\n',
         )
     elif profile == "mcp":
-        _run(project, "uv", "add", "mcp[cli]>=2.3.0")
+        _run(project, "uv", "add", "mcp>=2.3.0")
         _write(
             project,
             "src/starter_py/__init__.py",
@@ -202,7 +215,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "polars>=2.1.0",
             "pandera[polars]>=0.36.0",
             "scikit-learn>=1.9.1",
-            "omegaconf>=2.3.0",
+            "pydantic-settings[yaml]>=2.16.3",
             "pydantic>=2.14.3",
         )
         for mod in ("settings.py", "pipeline.py"):
@@ -228,13 +241,16 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(project, "uv", "run", "--frozen", "ruff", "format", "--check")
     _run(project, "uv", "run", "--frozen", "ty", "check")
     _run(project, "uv", "run", "--frozen", "deptry", ".")
-    _run(project, "uv", "run", "--frozen", "pytest", "-m", "not integration", "--cov", "--cov-fail-under=85")
+    _run(
+        project, "uv", "run", "--frozen", "pytest", "-m", "not integration and not e2e", "--cov", "--cov-fail-under=85"
+    )
     _run(project, "uv", "build", "--clear", "--no-sources", "--out-dir", "dist")
-    # The strict docs build renders every module's API page and fails on broken cross-references.
-    _write(project, "zensical.toml", _render("zensical.toml", replacements))
-    _write(project, "docs/index.md", _render("docs-index.md", replacements))
-    _run(project, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
-    assert (project / "site/reference/starter_py/index.html").is_file()
+    if profile == "library":
+        # Opt-in strict docs build renders every module's API page and fails on broken cross-references.
+        _write(project, "zensical.toml", _render("zensical.toml", replacements))
+        _write(project, "docs/index.md", _render("docs-index.md", replacements))
+        _run(project, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
+        assert (project / "site/reference/starter_py/index.html").is_file()
 
     runtime = project / "runtime"
     _run(project, "uv", "venv", str(runtime))
@@ -293,6 +309,115 @@ def test_pep723_script_starter_lock_audit_and_typecheck(tmp_path: Path) -> None:
     script_python = _run(tmp_path, "uv", "python", "find", "--script", str(script)).strip()
     ty_bin = str(ROOT / "dot/.venv/bin/ty")
     _run(tmp_path, ty_bin, "check", "--python", script_python, str(script))
+
+    eval_script = tmp_path / "eval_runner.py"
+    eval_script.write_text(
+        (ROOT / "skills/agent-frameworks/references/evaluation/templates/eval_runner.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    _run(tmp_path, "uv", "lock", "--script", str(eval_script))
+    assert (tmp_path / "eval_runner.py.lock").is_file()
+    assert _run(tmp_path, "uv", "run", "--locked", "--script", str(eval_script), "--version") == "0.1.0\n"
+    dataset = tmp_path / "cases.json"
+    dataset.write_text(
+        json.dumps([{"case_id": "c1", "prompt": "p1", "expected": "ok", "trials": 3}]),
+        encoding="utf-8",
+    )
+    eval_out = json.loads(
+        _run(tmp_path, "uv", "run", "--locked", "--script", str(eval_script), str(dataset), "--k", "2")
+    )
+    assert eval_out["mean_pass_at_k"] == 1.0
+    assert eval_out["mean_pass_power_k"] == 1.0
+    eval_python = _run(tmp_path, "uv", "python", "find", "--script", str(eval_script)).strip()
+    _run(tmp_path, ty_bin, "check", "--python", eval_python, str(eval_script))
+
+    eval_check = "\n".join(
+        [
+            "import asyncio, importlib.util, sys",
+            "from pathlib import Path",
+            "spec = importlib.util.spec_from_file_location('eval_runner', Path('eval_runner.py'))",
+            "mod = importlib.util.module_from_spec(spec)",
+            "assert spec.loader is not None",
+            "sys.modules['eval_runner'] = mod",
+            "spec.loader.exec_module(mod)",
+            "assert mod.pass_power_k(3, 1, 2) == 0.0",
+            "assert mod.pass_power_k(4, 3, 2) == 0.5",
+            "assert mod.pass_at_k(4, 1, 2) == 0.5",
+            "for bad in ((3, -1, 1), (3, 4, 1), (2, 1, 3)):",
+            "    try:",
+            "        mod.pass_power_k(*bad)",
+            "    except ValueError:",
+            "        pass",
+            "    else:",
+            "        raise AssertionError(f'expected ValueError for {bad}')",
+            "async def run_checks():",
+            "    dup = [mod.EvalCase(case_id='a', prompt='p', expected='ok', trials=2), mod.EvalCase(case_id='a', prompt='p', expected='ok', trials=2)]",
+            "    try:",
+            "        await mod.evaluate_cases(dup, lambda c, t: asyncio.sleep(0, result='ok'), lambda c, o: True, k=1)",
+            "    except ValueError:",
+            "        pass",
+            "    else:",
+            "        raise AssertionError('expected duplicate case_id ValueError')",
+            "    short = [mod.EvalCase(case_id='s', prompt='p', expected='ok', trials=1)]",
+            "    try:",
+            "        await mod.evaluate_cases(short, lambda c, t: asyncio.sleep(0, result='ok'), lambda c, o: True, k=2)",
+            "    except ValueError:",
+            "        pass",
+            "    else:",
+            "        raise AssertionError('expected trials < k ValueError')",
+            "    active_judges = 0",
+            "    peak_judges = 0",
+            "    async def queued_runner(_c, t):",
+            "        if t == 0:",
+            "            await asyncio.sleep(0.06)",
+            "        return 'ok'",
+            "    async def slow_judge(_c, _o):",
+            "        nonlocal active_judges, peak_judges",
+            "        active_judges += 1",
+            "        peak_judges = max(peak_judges, active_judges)",
+            "        await asyncio.sleep(0.04)",
+            "        active_judges -= 1",
+            "        return True",
+            "    cases = [mod.EvalCase(case_id='t1', prompt='p', expected='ok', trials=3)]",
+            "    res = await mod.evaluate_cases(cases, queued_runner, lambda _c, _o: True, judge=slow_judge, k=1, concurrency=1)",
+            "    assert res['median_latency_ms'] < 30.0, res",
+            "    assert peak_judges == 1, peak_judges",
+            "    async def mixed_runner(_c, t):",
+            "        if t == 0:",
+            "            raise RuntimeError('transient failure')",
+            "        if t == 1:",
+            "            return mod.TrialResult(output='ok', forbidden_attempts=1, cost_usd=0.02)",
+            "        return mod.TrialResult(output='ok', state={'saved': True}, trajectory=['read'], cost_usd=0.01)",
+            "    mixed = await mod.evaluate_cases(cases, mixed_runner, lambda _c, r: r.output == 'ok', k=1, concurrency=2)",
+            "    assert mixed['total_errors'] == 1, mixed",
+            "    assert mixed['total_forbidden_attempts'] == 1, mixed",
+            "    assert mixed['results'][0]['passed'] == 1, mixed",
+            "asyncio.run(run_checks())",
+        ]
+    )
+    _run(tmp_path, eval_python, "-c", eval_check)
+
+    empty_dataset = tmp_path / "empty_cases.json"
+    empty_dataset.write_text("[]", encoding="utf-8")
+    short_dataset = tmp_path / "short_cases.json"
+    short_dataset.write_text('[{"case_id": "c1", "prompt": "p1", "expected": "ok"}]', encoding="utf-8")
+    bad_dataset = tmp_path / "bad_cases.json"
+    bad_dataset.write_text('["not-a-dict"]', encoding="utf-8")
+    clean_env = {k: v for k, v in os.environ.items() if k not in {"UV_PROJECT", "VIRTUAL_ENV", "COVERAGE_FILE"}}
+    clean_env.update({"CI": "1", "NO_COLOR": "1", "UV_NO_PROGRESS": "1", "UV_PYTHON_DOWNLOADS": "never"})
+    for cli_args in (["--trials", "1", "--k", "2", str(short_dataset)], [str(bad_dataset)], [str(empty_dataset)]):
+        proc = subprocess.run(
+            ["uv", "run", "--locked", "--script", str(eval_script), *cli_args],
+            cwd=str(tmp_path),
+            env=clean_env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert proc.returncode == 1
+        assert "Error: " in proc.stderr
+        assert "Traceback" not in proc.stderr
 
 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
@@ -353,6 +478,8 @@ def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
     }
     iac_tpl = ROOT / "skills/infra-as-code/templates"
     file_map = {
+        "README.md": "README.md",
+        "tofu.yml": ".github/workflows/tofu.yml",
         "versions.tf": "versions.tf",
         "main.tf": "main.tf",
         "variables.tf": "variables.tf",
@@ -373,8 +500,16 @@ def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
     _write(iac, "trivy.yaml", (ROOT / "skills/code-security/references/trivy/templates/trivy.yaml").read_text())
     _write(iac, "dprint.json", (ROOT / "skills/mise/templates/dprint.json").read_text())
     _write(iac, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
+    _write(
+        iac,
+        ".github/jactionlint.yaml",
+        (ROOT / "skills/github-actions/templates/jactionlint.yaml").read_text(encoding="utf-8"),
+    )
 
     _run(iac, "tofu", "fmt", "-check", "-recursive")
+    _run(iac, "jactionlint", "--profile", "pedantic")
+    _run(iac, "terraform-docs", ".")
+    _run(iac, "dprint", "fmt", "README.md")
     _run(iac, "dprint", "check")
     _run(iac, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner")
     _run(
@@ -391,6 +526,8 @@ def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
     )
     _run(iac, "tofu", "init", "-backend=false", "-input=false")
     _run(iac, "tofu", "validate")
+    _run(iac, "tflint", "--init")
+    _run(iac, "tflint", "--recursive")
     _run(iac, "tofu", "test")
 
     tpl = tmp_path / "copier-tpl"
@@ -447,7 +584,7 @@ def test_editable_pptx_script_builds_valid_deck(tmp_path: Path) -> None:
         assert "approve Provider B" in notes1
 
     # Also verify rendering a standalone figure-card PNG and embedding it via --figure.
-    for name in ("fmind-slides.typ", "figure-card.typ"):
+    for name in ("fmind.typ", "fmind-slides.typ", "figure-card.typ"):
         shutil.copy2(templates_dir / name, tmp_path / name)
     card_png = tmp_path / "card.png"
     assert helper.main(["render", str(tmp_path / "figure-card.typ"), "-o", str(card_png), "--allow-font-warnings"]) == 0

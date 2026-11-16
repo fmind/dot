@@ -780,9 +780,7 @@ def test_typst_figure_compilation_width_cap_warnings_and_companion_assets(
 
     src_ok = tmp_path / "clean.md"
     src_ok.write_text("# Doc\n\nBody.\n", encoding="utf-8")
-    gws_called = False
     monkeypatch.setattr(mod, "run_gws", lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("gws called")))
-    assert not gws_called
     for bad_slug in ("../escape", "a/b", ".hidden", ""):
         assert mod.main([str(src_ok), "--drive-folder", "folder_1", "--doc-slug", bad_slug]) == 1
         assert "Invalid doc slug" in capsys.readouterr().err
@@ -807,6 +805,15 @@ def test_upload_fails_closed_on_duplicate_drive_targets_and_api_errors(
     )
     with pytest.raises(RuntimeError, match="Google API error"):
         mod.run_gws(["drive", "files", "get"])
+
+    for bad_stdout in ("", "[]", "Error [503]", '{"error": {"code": 403}', '{"error": {\n{"code": 403}'):
+        monkeypatch.setattr(
+            mod.subprocess,
+            "run",
+            lambda cmd, payload=bad_stdout, **_kw: mod.subprocess.CompletedProcess(cmd, 0, payload, ""),
+        )
+        with pytest.raises(RuntimeError, match=r"expected (?:valid )?JSON object"):
+            mod.run_gws(["drive", "files", "get"])
 
     compiled = tmp_path / "Memo.md"
     compiled.write_text("# Memo\n", encoding="utf-8")

@@ -5,7 +5,7 @@ description: "Find Google developer docs and vendor skills (google/skills) acros
 
 # Google Developer Catalog
 
-Discover vendor skills in [google/skills](https://github.com/google/skills); local owners stay authoritative: [gcloud](../SKILL.md), [cloud-run](../../cloud-run/SKILL.md), [infra-as-code](../../infra-as-code/SKILL.md), [gws](../../gws/SKILL.md), [agy](../../agy/SKILL.md), [model-providers](../../model-providers/SKILL.md), [agent-frameworks](../../agent-frameworks/SKILL.md), [colab](../../colab/SKILL.md), and [kaggle](../../kaggle/SKILL.md).
+Discover vendor skills in [google/skills](https://github.com/google/skills); local owners stay authoritative: [gcloud](../SKILL.md), [cloud-run](../../cloud-run/SKILL.md), [infra-as-code](../../infra-as-code/SKILL.md), [gws](../../gws/SKILL.md), [agy](../../agy/SKILL.md), [model-providers](../../model-providers/SKILL.md), [agent-frameworks](../../agent-frameworks/SKILL.md), [colab](../../colab/SKILL.md), and [orchestration-and-competitions](../../python-mlops/references/orchestration-and-competitions.md).
 
 ## Workflow
 

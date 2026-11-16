@@ -30,7 +30,7 @@ Use the customer's or project's brand guide/template first (ask if missing; neve
 1. **Isolate scratch, account, destination, and format**: run `umask 077; SCRATCH="$(mktemp -d)"` and execute every direct `gws` call from `"$SCRATCH"`. Check `gws auth status` without printing secrets, resolve the target Drive folder or file ID (`supportsAllDrives: true`, checking existing `mimeType`), and confirm `.gdoc` vs `.md` when creating a new doc with no stated format.
 1. **Author and upload in `"$SCRATCH"`**:
    - **Standard `.gdoc`**: import inline-styled HTML (with Base64 PNG figures), copy a template with explicit target `parents`, or create/update via `documents.batchUpdate` per [references/gdoc.md](references/gdoc.md) and [gws Docs recipes](../gws/references/services.md#docs).
-   - **Markdown `.md`**: follow [references/dialect.md](references/dialect.md) (no YAML frontmatter, Setext `---`/`===`, raw HTML, or GitHub alerts; compile local `.typ`/`.svg` and column-0 `mermaid` blocks to PNG refs) with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py):
+   - **Markdown `.md`**: follow [references/dialect.md](references/dialect.md) (no YAML frontmatter, Setext `---`/`===`, raw HTML, or GitHub alerts; compile local `.typ`/`.svg` and column-0 `mermaid` blocks to PNG refs) with [`scripts/compile_markdown_doc.py`](scripts/compile_markdown_doc.py) (backed by [`scripts/figure_render.py`](scripts/figure_render.py) and [`scripts/docs_drive.py`](scripts/docs_drive.py)):
 
      ```bash
      # Create or upsert <Title>.md and assets/<doc-slug>/ in a Drive folder

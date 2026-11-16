@@ -9,11 +9,12 @@ description = "Encrypted secrets stay in-tree."
 paths = ['''\.age$''']
 
 [[allowlists]]
-description = "Peer-dependency version key for @inquirer/password in the locked firebase-tools graph."
+description = "Peer-dependency version key for @inquirer/password in retired firebase-tools lock history; check:leaks:full still needs it."
 condition = "AND"
 regexTarget = "line"
 paths = ['''^dot_config/mise/locks/npm-firebase-tools/''']
 regexes = ['''@inquirer/password''']
+commits = ["3e05d243334cb6e46f62a1e3dd3c9950fe2706f5"]
 
 [[allowlists]]
 description = "CLI flag prose in past auth-status revisions (`gcloud auth application-default login`, `...`) is not a password assignment; check:leaks:full still needs it."
@@ -21,6 +22,19 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^skills/auth-status/SKILL\.md$''']
 regexes = ['''gcloud auth application-default login''']
+commits = [
+  "03be9c8f50c5d88e358da9f09fcff9a84526d273",
+  "4b16a553e161a5a9d904d7f2b7b20ca8f1cb2cb7",
+  "5aea81b1a3a0c1e4c278768de9defff964af6abc",
+  "7223c4039474df23211c990e3dbc3a097398ea57",
+  "80a9204c8717e4fb4c0ad3ced0d2d1f023ca1e55",
+  "91a507a25910f204106115a80a221b86ab180f9f",
+  "b8d923bc396e6a264bb28abc586d8d523bf8c263",
+  "b937f953657a78f151c19792c61419b243340691",
+  "e294cb410c88a64e52b2e04b9de7e905e5580f08",
+  "e9af7a28d71c6fc4c1c645499bb8acd86d11607a",
+  "f03a5511a667543cd3b1942fd028af9ba07ac9b2",
+]
 
 [[allowlists]]
 description = "Synthetic RFC 2606 .example.invalid test fixture in retired Go test."

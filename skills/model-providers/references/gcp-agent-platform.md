@@ -13,6 +13,23 @@ Default new integrations to GCP Agent Platform (Gemini Enterprise Agent Platform
 1. **Check endpoint and residency**: `global` routes via `https://aiplatform.googleapis.com` (`/v1/projects/{project}/locations/global/publishers/google/models/{model}`) without regional residency guarantees—use a regional location when residency requires it.
 1. **Probe without leaking tokens**: refresh ADC in memory without printing tokens, and classify auth, API, IAM, model-access, and quota failures separately. OpenCode uses provider ID `google-vertex` (`options.project`, `options.location: "global"`).
 
+## Async `google-genai` (`3.3.0+`) Patterns
+
+- **Async structured output (`aio`)**: keep direct model calls cleanly typed without wrapper frameworks (`client.aio` inside an `asyncio` lifespan):
+  ```python
+  response = await client.aio.models.generate_content(
+      model="gemini-4-hydrogen",
+      contents=prompt,
+      config=types.GenerateContentConfig(
+          response_mime_type="application/json",
+          response_schema=MyModel,
+          thinking_config=types.ThinkingConfig(thinking_level="HIGH"),
+      ),
+  )
+  result = MyModel.model_validate_json(response.text)
+  ```
+- **Bounded retries, batch, & telemetry**: wrap transient 429/503/network errors with deadline-aware `stamina` (`26.2+`) per [api-client](../../python-stack/references/api-client/GUIDE.md); keep static instructions + schemas at prefix start for implicit durable caching (`>= 4,096` tokens on Gemini 4 Hydrogen); offload non-interactive bulk runs to `await client.aio.batches.create(model=..., src=...)`; emit OTel `gen_ai.*` span attributes (model, token counts, finish reason) without prompt/completion bodies unless policy explicitly permits ([observability](../../python-stack/references/observability.md)).
+
 ## Explicit key fallback
 
 No personal Agent Platform key exists here. If ADC is impossible and a key is explicitly requested, load a project-scoped `aiplatform.googleapis.com`-restricted key via secret manager or `with-secret`, passing it to the client (`google-genai` 2.15.0+ supports enterprise keys with project/location; older versions restrict keys to express mode) or `x-goog-api-key`—never via `GOOGLE_API_KEY`, `GEMINI_API_KEY`, URLs, or mixed with ADC.

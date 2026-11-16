@@ -16,7 +16,7 @@ Deploy Python services to Cloud Run via immutable `@sha256:` digests, private IA
 
 ## Workflow
 
-1. **Confirm target and bootstrap once**: verify gcloud account, project, region, service, and Artifact Registry repo; run [bootstrap.md](references/bootstrap.md) for APIs, registry, separate runtime/deployer SAs, and WIF (`[infra-as-code](../infra-as-code/SKILL.md)` owns multi-service fleets).
+1. **Confirm target and bootstrap once**: verify gcloud account, project, region, service, and Artifact Registry repo; run [bootstrap.md](references/bootstrap.md) for APIs, registry, separate runtime/deployer SAs, and WIF ([infra-as-code](../infra-as-code/SKILL.md) owns multi-service fleets).
 1. **Validate locally**: pin, lock, and install Trivy + Cosign, build a non-root `linux/amd64` image, and pass `mise run all` + `check:image` ([deployment.md](references/deployment.md), [containerize](../docker/references/containerize/GUIDE.md)).
 1. **Publish, sign, and deploy privately**: once authorized, build/push one `@sha256:` digest, run [cosign release sequence](../docker/references/cosign.md#release-sequence), deploy with `--service-account` + `--invoker-iam-check --no-allow-unauthenticated` (or [service.yaml](templates/service.yaml)), and optionally wire [deploy.yml](templates/deploy.yml) + [verify-private.py](templates/verify-private.py).
 1. **Verify and report**: confirm private-IAM postcondition and health/readiness, then report ready revision, `@sha256:` digest, pinned secret versions, runtime SA, traffic split, and rollback revision.

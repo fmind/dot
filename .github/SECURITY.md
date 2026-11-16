@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the [latest release](https://github.com/fmind/dot/releases/latest) is supported. Fixes land on `main` and ship in the next release; older tags receive no backports.
+Only the [latest release](https://github.com/fmind/dot/releases/latest) is supported. Fixes land on main and ship in the next release; older tags receive no backports.
 
 ## Reporting a vulnerability
 
@@ -12,6 +12,11 @@ This is a personal project maintained on a best-effort basis; there is no respon
 
 ## Scope
 
-In scope: `install.sh`, the chezmoi source tree, the `dot` CLI, the GitHub workflows, and the agent configurations and skills shipped here.
+In scope: `install.sh`, the chezmoi source tree, the `dot` CLI, the GitHub workflows, and the agent configurations and skills shipped here ([trust model](../install.sh), [mise trade-offs](../dot_config/mise/config.toml)).
 
-By design, setup runs unpinned third-party installers (mise.run, then the Antigravity vendor script during apply) and installs workstation tools with aqua and GitHub signature and attestation checks off (npm provenance and packslip signatures stay on; repository tools keep mise's defaults); theme files are pinned to an upstream commit and fonts to release versions, all with SHA-256 checksums. See [`install.sh`](../install.sh) and the trade-off stated in [`dot_config/mise/config.toml`](../dot_config/mise/config.toml). Report vulnerabilities in mise, chezmoi, the agent harnesses, or any installed tool to their upstream projects.
+Out of scope and upstream boundaries:
+
+- **Third-party installers**: setup invokes external installer scripts (`mise.run` and the Antigravity vendor installer during apply) before locked verification applies.
+- **Workstation vs repository tool verification**: workstation tools skip aqua/GitHub signature and attestation checks while keeping npm provenance and packslip signatures active; repository tools keep mise defaults.
+- **Theme and font pins**: theme files pin to an immutable upstream commit and fonts pin to release versions, both verified via SHA-256 checksums.
+- **Upstream vulnerabilities**: report vulnerabilities in mise, chezmoi, agent harnesses, or installed tools directly to their upstream projects.

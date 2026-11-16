@@ -12,16 +12,17 @@ metadata:
 
 # Python Web Applications
 
-Keep an existing project's framework. Default to Litestar for new APIs/services, Django for integrated ORM/admin/auth, or Gradio/NiceGUI for Python UIs. Browser UIs follow [web-frontend](../web-frontend/SKILL.md) and live Chrome verification ([chrome-devtools](../chrome-devtools/SKILL.md)). Read only the matching guide and its required resources.
+Keep an existing project's framework. Default to Litestar for new APIs/services, Django for integrated ORM/admin/auth, or `python-ui` (Gradio/NiceGUI) for Python UIs. Browser UIs follow [web-frontend](../web-frontend/SKILL.md) and live Chrome verification ([chrome-devtools](../chrome-devtools/SKILL.md)). Read only the matching guide and its required resources.
 
 ## Task guides
 
 <!-- guides:start -->
 
+- [database-and-jobs](references/database-and-jobs.md): Configure async Alembic migrations, connection pools, SQLite WAL, pgqueuer, and Cloud Tasks workers.
 - [django](references/django/GUIDE.md): Django applications, ORM, admin, authentication, and native testing.
 - [fastapi](references/fastapi.md): Existing or explicitly chosen FastAPI services and generated agent scaffolds.
-- [gradio](references/gradio.md): Gradio model demos and interactive interfaces.
 - [litestar](references/litestar/GUIDE.md): Litestar ASGI applications, request boundaries, and scaffolding.
-- [nicegui](references/nicegui.md): NiceGUI dashboards and general browser interfaces.
+- [python-ui](references/python-ui.md): Build Gradio model demos and NiceGUI dashboards or browser utilities.
+- [security-and-auth](references/security-and-auth.md): Implement OIDC/JWT validation, webhook HMAC checks, Litestar CSRF/session cookies, and HTTP security headers.
 
 <!-- guides:end -->

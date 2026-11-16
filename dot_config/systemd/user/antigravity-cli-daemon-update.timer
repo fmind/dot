@@ -4,6 +4,7 @@ Description=Nightly check that agy's remote-control daemon runs the current bina
 
 [Timer]
 OnCalendar=*-*-* 04:30:00
+Persistent=true
 
 [Install]
 WantedBy=timers.target

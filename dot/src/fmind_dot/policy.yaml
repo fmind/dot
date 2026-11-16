@@ -192,6 +192,7 @@ doctor_tools:
   - git
   - git-cliff
   - gws
+  - jactionlint
   - lefthook
   - mise
   - nvim
@@ -201,15 +202,17 @@ doctor_tools:
   - python
   - ruff
   - sqlite3
+  - sqruff
+  - supagents
   - tree-sitter
   - trivy
   - ty
+  - typst
   - uv
+  - vale
 
 completions:
   plain:
-    - a2a
-    - astro
     - betterleaks
     - chezmoi
     - copilot

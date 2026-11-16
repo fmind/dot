@@ -19,7 +19,9 @@ WORKFLOWS = [
     *sorted((ROOT / ".github/workflows").glob("*.yml")),
     *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
     ROOT / "skills/cloud-run/templates/deploy.yml",
+    ROOT / "skills/code-security/templates/codeql.yml",
     ROOT / "skills/documentation-site/templates/docs.yml",
+    ROOT / "skills/infra-as-code/templates/tofu.yml",
 ]
 
 

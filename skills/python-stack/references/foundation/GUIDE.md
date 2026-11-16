@@ -9,10 +9,10 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; preserve existing project
 
 ## Defaults
 
-- **Interpreter & layout**: `mise` owns Python/ `.python-version` alignment ([tool-versions](../../../mise/references/tool-versions.md#workstation-and-projects)); `uv` owns `.venv` and `uv.lock`. Use `src/<package>/` (`dependencies = []` until earned); qualify min Python via `uv run --isolated --locked --python <min> pytest`.
+- **Interpreter & layout**: `mise` owns Python/ `.python-version` alignment (`3.14` default; `3.15` for pure-Python packages whose deps support it; [tool-versions](../../../mise/references/tool-versions.md#workstation-and-projects)); `uv` owns `.venv` and `uv.lock`. Use `src/<package>/` (`dependencies = []` until earned); qualify min Python via `uv run --isolated --locked --python <min> pytest`.
 - **Proven packages**: `pydantic`/`pydantic-settings`, `pyyaml` (`safe_load`), `httpx2` + `stamina` ([api-client](../api-client/GUIDE.md)), `structlog` + OTel ([observability](../observability.md)), Polars, `argparse` or Typer, and `sqlite3` (`PRAGMA foreign_keys=ON; journal_mode=WAL; busy_timeout=5000`).
-- **Quality gate**: Ruff, `ty`, `deptry` (`known_first_party = ["<package>"]` on `uv_build` `src/` layouts, `extend_exclude` for non-`tests/` repo tasks, `per_rule_ignores` `DEP002` for CLI/URL/settings packages), `pytest` (`pytest-socket`, `pytest-timeout`, warnings as errors, 85% branch coverage), and `dprint` (`format:dprint`).
-- **Docs, templates, migrations**: Zensical API docs (`mkdocstrings` + `api-autonav`, not `pdoc`); explicit Jinja escaping + `StrictUndefined`; rehearse Alembic/Django migrations on a backup copy.
+- **Quality gate**: Ruff, `ty`, `deptry` (`known_first_party = ["<package>"]` on `uv_build` `src/` layouts, `extend_exclude` for non-`tests/` repo tasks, `per_rule_ignores` `DEP002` for CLI/URL/settings packages), `pytest` (`pytest-socket`, `pytest-timeout`, warnings as errors, 85% branch coverage), `jactionlint`, and `dprint` (`format:dprint`).
+- **Docs, templates, migrations**: opt-in Zensical API docs for libraries/docs sites (`mkdocstrings-python` + `api-autonav`, not `pdoc`); explicit Jinja escaping + `StrictUndefined`; rehearse Alembic/Django migrations on a backup copy.
 
 ## Workflow
 

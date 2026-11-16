@@ -15,36 +15,25 @@ run_auto_install = false
 quiet = true
 
 [tools]
-# Scaffold selectors: replace with exact baseline pins and add Python before installation.
+# Scaffold selectors: replace with exact baseline pins before locking and installation.
 betterleaks = "latest"
 dprint = "latest"
+jactionlint = "latest"
 lefthook = "latest"
+# Default to 3.14; bump to 3.15 for pure-Python packages whose deps all support it.
+python = "3.14"
+shellcheck = "latest"
 uv = "latest"
 
 [tasks.all]
 alias = "a"
-description = "Check, test, and build the project and its docs without rewriting source files"
+description = "Check, test, and build the project without rewriting source files"
 run = ["mise run check", "mise run test", "mise run build"]
 
 [tasks.build]
 alias = "b"
-description = "Build the Python distribution and the documentation site"
-depends = ["build:docs", "build:package"]
-
-[tasks."build:docs"]
-alias = "bd"
-# Strict: broken links, anchors, and docstring cross-references fail the build.
-description = "Build the documentation site with its API reference (Zensical)"
-run = "uv run --locked zensical build --clean --strict"
-
-[tasks."build:package"]
-alias = "bp"
 description = "Build Python distribution artifacts (wheel and sdist)"
 run = "uv build --clear --no-sources"
-
-[tasks."serve:docs"]
-description = "Preview the documentation site (override port via PORT=8001)"
-run = "uv run --locked zensical serve -a 127.0.0.1:${PORT:-8000}"
 
 [tasks.check]
 alias = "c"
@@ -53,7 +42,16 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no network (pre-commit)"
-depends = ["check:deps", "check:format", "check:leaks", "check:lint", "check:types"]
+depends = ["check:actions", "check:deps", "check:format", "check:leaks", "check:lint", "check:types"]
+
+[tasks."check:actions"]
+alias = "ca"
+description = "Lint GitHub Actions workflows and shell snippets offline (jactionlint + shellcheck)"
+run = "jactionlint --profile pedantic"
+
+[tasks."check:actions:online"]
+description = "Audit GitHub Actions workflows with online checks"
+run = "jactionlint --online=strict --strict-exit"
 
 [tasks."check:network"]
 description = "Run the checks that download vulnerability data (pre-push)"
@@ -77,12 +75,12 @@ run = [
 [tasks."check:leaks"]
 alias = "cs"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-# Load this project's own .betterleaks.toml when present; betterleaks 1.10+ skips it otherwise.
-run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+# betterleaks 1.10+ loads .betterleaks.toml only when named explicitly.
+run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:lint"]
 alias = "cl"
@@ -142,19 +140,9 @@ run = ["UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check", "
 alias = "t"
 description = "Run offline tests with the coverage gate"
 # The positive fail_under in pyproject.toml preserves the total and coverage gate.
-run = 'uv run --locked pytest -q -m "not integration" --cov --cov-report='
-
-[tasks."test:integration"]
-alias = "ti"
-description = "Run opt-in Docker-backed integration tests"
-run = "uv run --locked pytest -q -m integration --force-enable-socket --timeout=600"
+run = 'uv run --locked pytest -q -m "not integration and not e2e" --cov --cov-report='
 
 [tasks.upgrade]
 alias = "u"
 description = "Upgrade dependencies to latest compatible versions, refusing known malware"
 run = "UV_MALWARE_CHECK=1 uv sync --upgrade --preview-features malware-check"
-
-[tasks.watch]
-alias = "w"
-description = "Re-run offline tests on source changes"
-run = 'uv run --locked pytest-watcher . -q -m "not integration"'

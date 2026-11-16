@@ -20,10 +20,7 @@ STARTERS = {
     "terraform": "skills/infra-as-code/templates/mise.toml",
     "documentation-site": "skills/documentation-site/templates/mise.toml",
 }
-DOCS_STARTERS = (
-    "skills/documentation-site/templates/mise.toml",
-    "skills/python-stack/references/foundation/templates/mise.toml",
-)
+DOCS_STARTERS = ("skills/documentation-site/templates/mise.toml",)
 # A hung task must fail its own test instead of consuming the CI job limit.
 TIMEOUT_SECONDS = 120
 

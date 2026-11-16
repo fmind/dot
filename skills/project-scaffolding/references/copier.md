@@ -5,7 +5,7 @@ description: "Author new reusable Copier templates, generate projects, and apply
 
 # Copier
 
-Default for new reusable templates; keep existing Cookiecutter templates and `.cruft.json` projects on [Cookiecutter/Cruft](cookiecutter.md) unless migration is requested (formats and baselines are incompatible). [bootstrap](bootstrap.md) owns generated project setup.
+Default for new reusable templates; keep existing `.cruft.json` checkouts on legacy Cookiecutter/Cruft below unless migration is requested (formats and baselines are incompatible). [bootstrap](bootstrap.md) owns generated project setup.
 
 ## Workflow
 
@@ -14,7 +14,7 @@ Default for new reusable templates; keep existing Cookiecutter templates and `.c
 1. **Generate into a fresh disposable directory**:
 
    ```bash
-   copier copy --defaults --vcs-ref <reviewed-commit> --data project_slug=demo ./template ./generated
+   copier copy --defaults --vcs-ref <reviewed-commit> --data slug=demo-app --data holder=Example --data description=Demo . ./generated
    ```
 
 1. **Verify output**: check paths, contents, modes, and provenance across default, non-default, and invalid answers, then run the generated project's gate.
@@ -37,3 +37,13 @@ Default for new reusable templates; keep existing Cookiecutter templates and `.c
 ## Documentation
 
 - [Creating templates](https://copier.readthedocs.io/en/stable/creating/) · [Configuration](https://copier.readthedocs.io/en/stable/configuring/) · [Updating projects](https://copier.readthedocs.io/en/stable/updating/) · [Releases](https://github.com/copier-org/copier/releases)
+
+## Legacy Cookiecutter / Cruft Repositories
+
+Maintain existing Cookiecutter / `.cruft.json` checkouts (such as legacy [fmind/cookiecutter-mlops-package](https://github.com/fmind/cookiecutter-mlops-package)); new projects start from [bootstrap](bootstrap.md) + [ml-jobs](../../python-mlops/references/ml-jobs.md), and new reusable templates default to Copier above.
+
+1. **Pin the runner**: run `uvx --from 'cookiecutter==<version>' cookiecutter` or `uvx --from 'cruft==<version>' cruft` with a reviewed exact release (avoid global installs).
+1. **Review before rendering**: templates execute hooks, extensions, and template code, so inspect them at an immutable commit and pass `--checkout`. Keep `--accept-hooks no` until hooks are reviewed; disabling hooks alone does not make an untrusted template safe.
+1. **Render into a fresh directory**: never use `--overwrite-if-exists`; verify paths, contents, modes, and unresolved markers, then run the generated project's gate.
+1. **Update through Cruft in an isolated candidate**: run `cruft check` and `cruft diff` with the reviewed `--checkout`, then `cruft update --checkout <commit> --skip-apply-ask`; inspect conflicts and `.rej` files, never skip failing files to claim success, and never rebuild `.cruft.json` from memory.
+1. **Migrate owned templates to Copier**: Cruft has not released since `2.16.0` (2024-12-25) ([Cookiecutter CLI](https://cookiecutter.readthedocs.io/en/stable/cli_options.html) · [Cruft](https://cruft.github.io/cruft/) · [Cookiecutter releases](https://github.com/cookiecutter/cookiecutter/releases) · [Cruft releases](https://github.com/cruft/cruft/releases)).

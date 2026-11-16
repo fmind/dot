@@ -19,7 +19,7 @@ quiet = true
 
 [vars]
 # Skill templates scaffold other repositories' workflows; the workflow linters skip them unless named.
-workflow_templates = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml"
+workflow_templates = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml skills/infra-as-code/templates/tofu.yml skills/code-security/templates/codeql.yml"
 # Plain shell scripts that shfmt formats; chezmoi shell templates are rendered and linted only.
 shell_scripts = "install.sh run_*.sh dot_local/bin/executable_*"
 # uv installs the dot entry point here; the absolute path avoids Graphviz's dot on PATH.
@@ -56,6 +56,8 @@ python = "3.14"
 shellcheck = "latest"
 shfmt = "latest"
 stylua = "latest"
+terraform-docs = "latest"
+tflint = "latest"
 trivy = "latest"
 typos = "latest"
 typst = "latest"
@@ -161,7 +163,7 @@ description = "Lint, format-check, type-check, and validate Python packaging and
 run = [
   "uv run --frozen --project dot ruff check .",
   "uv run --frozen --project dot ruff format --check .",
-  "uv run --frozen --project dot ty check --project dot --extra-search-path tests dot tests skills --exclude 'skills/*/references/*/templates' --exclude 'skills/python-mlops/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
+  "uv run --frozen --project dot ty check --project dot --extra-search-path tests --extra-search-path skills/draft-typst-deck/scripts --extra-search-path skills/draft-doc/scripts --extra-search-path skills/draft-mail/scripts dot tests skills --exclude 'skills/*/references/*/templates' --exclude 'skills/python-mlops/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
   "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py",
   "uv run --frozen --directory dot deptry .",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
@@ -375,7 +377,7 @@ run = [
 alias = "mu"
 description = "Upgrade Python dependencies, mise tools, the theme pin, dprint plugins, and Neovim plugins"
 run = [
-  "uv lock --upgrade --project dot",
+  "UV_MALWARE_CHECK=1 uv sync --upgrade --preview-features malware-check --project dot",
   # Refresh version pins before installing the selected releases.
   "{{vars.repo_mise}} lock --bump --yes",
   "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",

@@ -5,7 +5,7 @@ description: "Google agent scaffolding, lifecycle, and official skill discovery.
 
 # Agents CLI
 
-Scaffold, run, evaluate, and deploy Google Cloud agents with `agents-cli`; [google-adk](../google-adk.md) owns Python ADK code inside the project.
+Opt-in enterprise scaffolding for Agent Runtime, Agent Gateway, Terraform, and BigQuery analytics via `agents-cli`; new agents default to [google-adk](../google-adk.md) on [python-stack](../../../python-stack/references/foundation/references/bootstrap.md).
 
 ## Workflow
 

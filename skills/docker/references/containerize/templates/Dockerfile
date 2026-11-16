@@ -21,10 +21,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:3.14.10-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV HOST=0.0.0.0
 WORKDIR /app
-# Runtime images install only the locked application environment; retaining pip
-# adds an unused package installer and its vendored dependency attack surface.
-RUN python -m pip uninstall --yes --root-user-action=ignore pip \
+# Install OS CA certificates (needed by httpx2/OpenSSL) and drop pip's unused package-installer surface.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && python -m pip uninstall --yes --root-user-action=ignore pip \
   && groupadd --gid 10001 app \
   && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
 # Root-owned: the runtime user can read and run the environment but never rewrite it.

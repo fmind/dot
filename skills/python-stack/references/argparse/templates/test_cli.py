@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 
 import pytest
@@ -28,6 +29,21 @@ def run(capsys: pytest.CaptureFixture[str], *args: str) -> tuple[int, str, str]:
 
 def test_greet(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(capsys, "greet", "--name", "Ada") == (0, "Hello, Ada!\n", "")
+
+
+def test_greet_json(capsys: pytest.CaptureFixture[str]) -> None:
+    code, out, err = run(capsys, "greet", "--name", "Ada", "--json")
+    assert code == 0
+    assert json.loads(out) == {"greeting": "Hello, Ada!"}
+    assert err == ""
+
+
+def test_operational_failure_boundary(capsys: pytest.CaptureFixture[str]) -> None:
+    code, out, err = run(capsys, "greet", "--name", " ")
+    assert code == 1
+    assert out == ""
+    assert err == "Error: ValueError. Check the input and retry.\n"
+    assert "Traceback" not in err
 
 
 @pytest.mark.parametrize("command", [[], ["greet"]])

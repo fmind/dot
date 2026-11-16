@@ -19,7 +19,9 @@ quiet = true
 # Scaffold selectors: replace with exact pins; CI installs only what this table declares.
 betterleaks = "latest"
 dprint = "latest"
+jactionlint = "latest"
 lefthook = "latest"
+shellcheck = "latest"
 uv = "latest"
 
 [tasks.all]
@@ -51,12 +53,21 @@ run = ["uv lock --check", "dprint check"]
 [tasks."check:leaks"]
 alias = "cs"
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-# Load this project's own .betterleaks.toml when present; betterleaks 1.10+ skips it otherwise.
-run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+# betterleaks 1.10+ loads .betterleaks.toml only when named explicitly.
+run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
-run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
+
+[tasks."check:actions"]
+alias = "ca"
+description = "Lint GitHub Actions workflows and shell snippets offline (jactionlint + shellcheck)"
+run = "jactionlint --profile pedantic"
+
+[tasks."check:actions:online"]
+description = "Audit GitHub Actions workflows with online checks"
+run = "jactionlint --online=strict --strict-exit"
 
 [tasks."check:vuln"]
 alias = "cv"
@@ -86,7 +97,7 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run offline checks (pre-commit)"
-depends = ["check:format", "check:leaks"]
+depends = ["check:actions", "check:format", "check:leaks"]
 
 [tasks."check:network"]
 description = "Audit locked dependencies and build the site with vendored font/Mermaid assets (pre-push)"

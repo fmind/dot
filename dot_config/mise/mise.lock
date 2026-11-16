@@ -2071,29 +2071,6 @@ checksum_source = "mise-versions"
 url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.2/app-aarch64-apple-darwin.zip"
 url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/734229272"
 
-[[tools.astro]]
-version = "1.47.0"
-backend = "github:astronomer/astro-cli"
-specifiers = ["latest"]
-
-[tools.astro."platforms.linux-arm64"]
-checksum = "sha256:6868b035cfe7aa0f7af5cbf534ac2572b2acee0150c2a49992e34bdad5c03e24"
-checksum_source = "mise-versions"
-url = "https://github.com/astronomer/astro-cli/releases/download/v1.47.0/astro_1.47.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/678987001"
-
-[tools.astro."platforms.linux-x64"]
-checksum = "sha256:7e843ed4c2d8958db1499db448961bde99197f2204c8e1a30e401d992cf7f755"
-checksum_source = "mise-versions"
-url = "https://github.com/astronomer/astro-cli/releases/download/v1.47.0/astro_1.47.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/678987161"
-
-[tools.astro."platforms.macos-arm64"]
-checksum = "sha256:61d78574820e1e6844842bdfb244ffd3375ddbb9ffc52e7e56317ef4c6b66ef2"
-checksum_source = "mise-versions"
-url = "https://github.com/astronomer/astro-cli/releases/download/v1.47.0/astro_1.47.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/astronomer/astro-cli/releases/assets/678986897"
-
 [[tools.atuin]]
 version = "18.24.8"
 backend = "aqua:atuinsh/atuin"
@@ -3082,48 +3059,6 @@ checksum_source = "mise-versions"
 url = "https://github.com/DataDog/pup/releases/download/v2.4.7/pup_2.4.7_Darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/DataDog/pup/releases/assets/742038462"
 
-[[tools."github:a2aproject/a2a-cli"]]
-version = "0.4.0"
-backend = "github:a2aproject/a2a-cli"
-specifiers = ["latest"]
-
-[tools."github:a2aproject/a2a-cli".options]
-asset_pattern = "*linux_arm64*"
-
-[tools."github:a2aproject/a2a-cli"."platforms.linux-arm64"]
-checksum = "sha256:36382ad763580a364cfe345f87650ecfe7793c6f1b866f94eac5e6a303a5e177"
-checksum_source = "mise-versions"
-url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.4.0/a2a_0.4.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/710960713"
-
-[[tools."github:a2aproject/a2a-cli"]]
-version = "0.4.0"
-backend = "github:a2aproject/a2a-cli"
-specifiers = ["latest"]
-
-[tools."github:a2aproject/a2a-cli".options]
-asset_pattern = "*linux_amd64*"
-
-[tools."github:a2aproject/a2a-cli"."platforms.linux-x64"]
-checksum = "sha256:b1242b3e0aaea26002bc61824d318b590b47dbc5e509a9a1f31a17c8be4198a7"
-checksum_source = "mise-versions"
-url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.4.0/a2a_0.4.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/710960779"
-
-[[tools."github:a2aproject/a2a-cli"]]
-version = "0.4.0"
-backend = "github:a2aproject/a2a-cli"
-specifiers = ["latest"]
-
-[tools."github:a2aproject/a2a-cli".options]
-asset_pattern = "*darwin_arm64*"
-
-[tools."github:a2aproject/a2a-cli"."platforms.macos-arm64"]
-checksum = "sha256:26573b82a42598232fdfdede65ab748a46c8c83059470bedf60c2e024141bd38"
-checksum_source = "mise-versions"
-url = "https://github.com/a2aproject/a2a-cli/releases/download/v0.4.0/a2a_0.4.0_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/a2aproject/a2a-cli/releases/assets/710960715"
-
 [[tools."github:docker/buildx"]]
 version = "0.39.0"
 backend = "github:docker/buildx"
@@ -3803,12 +3738,6 @@ aube = { path = "locks/npm-cf/1.0.0-beta.32", digest = "sha256:2e3dadefb70115b42
 backend = "npm:cf"
 specifiers = ["latest"]
 
-[[tools."npm:firebase-tools"]]
-version = "15.36.0"
-aube = { path = "locks/npm-firebase-tools/15.36.0", digest = "sha256:d840f72a717a718ec2810d8fb7579bfabcf64bdf498dbca30a3f08c5fd091a67" }
-backend = "npm:firebase-tools"
-specifiers = ["latest"]
-
 [[tools."npm:skills"]]
 version = "1.8.1"
 aube = { path = "locks/npm-skills/1.8.1", digest = "sha256:feea553339456325640178c34bc369c6eee4070ef960e95660a708c4ebb4e138" }
@@ -3870,15 +3799,6 @@ uv = { path = "locks/pypi-brain-framework/26.0.0~60d65a25", digest = "sha256:821
 [tools."pypi:brain-framework".options]
 python = "3.14"
 
-[[tools."pypi:copier"]]
-version = "9.19.1"
-backend = "pypi:copier"
-specifiers = ["latest"]
-uv = { path = "locks/pypi-copier/9.19.1~3571cf8b", digest = "sha256:798f0490e3a1fe80a834d7ecd5e0629ac23de45a818accc37d28b47e0a245ddd" }
-
-[tools."pypi:copier".options]
-python = "3.14"
-
 [[tools."pypi:fmind"]]
 version = "3.0.1"
 backend = "pypi:fmind"
@@ -3905,16 +3825,6 @@ uv = { path = "locks/pypi-huggingface-hub/2.4.0~2b5d816f", digest = "sha256:a26d
 
 [tools."pypi:huggingface_hub".options]
 python = "3.14"
-
-[[tools."pypi:kaggle"]]
-version = "2.2.5"
-backend = "pypi:kaggle"
-specifiers = ["latest"]
-uv = { path = "locks/pypi-kaggle/2.2.5~35e9d436", digest = "sha256:0a3bd55008e05c8d239c5a5db5074bdc463546ebf08f46fb33e3bb2e2b9b53a6" }
-
-[tools."pypi:kaggle".options]
-python = "3.14"
-with = '["six"]'
 
 [[tools."pypi:marimo"]]
 version = "0.25.2"
@@ -4116,6 +4026,29 @@ conda_deps = [
     "ncurses-6.6-he64c551_1",
     "readline-8.3-h8b90a29_1",
 ]
+
+[[tools.sqruff]]
+version = "0.44.0"
+backend = "aqua:quarylabs/sqruff"
+specifiers = ["latest"]
+
+[tools.sqruff."platforms.linux-arm64"]
+checksum = "sha256:51f7be35efb9585aafd9240323792bedef7e5bd3dd48bcc686c7b7b60be4cc32"
+checksum_source = "mise-versions"
+url = "https://github.com/quarylabs/sqruff/releases/download/v0.44.0/sqruff-linux-aarch64-musl.tar.gz"
+url_api = "https://api.github.com/repos/quarylabs/sqruff/releases/assets/692210811"
+
+[tools.sqruff."platforms.linux-x64"]
+checksum = "sha256:3d0dd223770e99fb17199c16327bdf15bf238261a001815aa172f140817d7e9a"
+checksum_source = "mise-versions"
+url = "https://github.com/quarylabs/sqruff/releases/download/v0.44.0/sqruff-linux-x86_64-musl.tar.gz"
+url_api = "https://api.github.com/repos/quarylabs/sqruff/releases/assets/692210043"
+
+[tools.sqruff."platforms.macos-arm64"]
+checksum = "sha256:a4246a192080b9d9d6ef3a747fce3cba4daed42da3c80a097670cd4ed4c4fa41"
+checksum_source = "mise-versions"
+url = "https://github.com/quarylabs/sqruff/releases/download/v0.44.0/sqruff-darwin-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/quarylabs/sqruff/releases/assets/692221515"
 
 [[tools.starship]]
 version = "1.27.0"

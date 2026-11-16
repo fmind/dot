@@ -14,12 +14,22 @@ return {
       for _, filetype in ipairs(dprint_filetypes) do
         opts.formatters_by_ft[filetype] = { "dprint", lsp_format = "fallback" }
       end
-      -- Require an explicit .sqlfluff config so project dialects (DuckDB, PostgreSQL, SQLite) are respected.
+      -- Require an explicit .sqlfluff or .sqruff config so project SQL dialects are respected.
       opts.formatters.sqlfluff = {
         args = { "format", "-" },
         cwd = require("conform.util").root_file({ ".sqlfluff" }),
         require_cwd = true,
       }
+      opts.formatters.sqruff = {
+        command = "sqruff",
+        args = { "fix", "--quiet", "--stdin-filename", "$FILENAME", "-" },
+        stdin = true,
+        cwd = require("conform.util").root_file({ ".sqruff" }),
+        require_cwd = true,
+      }
+      for _, filetype in ipairs({ "mysql", "plsql", "sql" }) do
+        opts.formatters_by_ft[filetype] = { "sqlfluff", "sqruff", stop_after_first = true }
+      end
       -- Ruff is the single Python formatting and import-order owner.
       opts.formatters_by_ft.python = { "ruff_organize_imports", "ruff_format" }
       -- The terraform extra calls a terraform binary; the workstation installs OpenTofu instead.

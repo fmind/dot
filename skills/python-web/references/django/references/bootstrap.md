@@ -23,7 +23,7 @@ uv run python manage.py startapp <domain>
 
 Delete `main.py`, replace `<domain>/tests.py` with `<domain>/tests/test_*.py` (pytest skips `tests.py`), strip generated boilerplate/unused imports, and run `uv run ruff check --fix . && uv run ruff format .`. Keep `config/` to settings, root URLs, and WSGI/ASGI; put logic in domain apps (not `core`/`utils`).
 
-Adapt [pyproject.toml.template](../../../../python-stack/references/foundation/templates/pyproject.toml.template) and [mise.toml](../../../../python-stack/references/foundation/templates/mise.toml): set `[tool.uv] package = false` (drop build metadata), add Ruff `DJ` rules, set `DJANGO_SETTINGS_MODULE = "config.settings"`, mark only DB tests with `pytest-django`, point `testpaths` and `[tool.coverage.run] source` at app packages, widen Ruff test ignores to `"**/tests/**"`, and set `[tool.deptry] extend_exclude = [".*/tests/"]` (avoids empty-`testpaths` error under `filterwarnings = ["error"]`, zero-coverage failure, and `S101` on nested tests).
+Adapt [pyproject.toml.template](../../../../python-stack/references/foundation/templates/pyproject.toml.template) and [mise.toml](../../../../python-stack/references/foundation/templates/mise.toml): set `[tool.uv] package = false` (drop build metadata), add Ruff `DJ` rules, update `[tool.deptry] known_first_party = ["config", "<domain>"]`, set `DJANGO_SETTINGS_MODULE = "config.settings"`, mark only DB tests with `pytest-django`, point `testpaths` and `[tool.coverage.run] source` at app packages, and set `[tool.deptry] extend_exclude = [".*/tests/"]` (avoids empty-`testpaths` error under `filterwarnings = ["error"]`, zero-coverage failure, and `S101` on nested tests).
 
 ## Harden the Generated Project
 
@@ -42,4 +42,4 @@ uv run --locked python manage.py makemigrations --check --dry-run
 uv run --locked python manage.py check --deploy --fail-level WARNING
 ```
 
-Use `manage.py runserver` only for `watch`; make `build` emit collected static assets + OCI image rather than a wheel.
+Add `[tasks.dev]` (`uv run --locked python manage.py runserver`) when needed (omit `watch`); make `build` emit collected static assets + OCI image rather than a wheel.

@@ -59,4 +59,4 @@ Never auto-start a daemon or VM, mutate the default context, or touch existing c
 ## Documentation
 
 - [Docker docs](https://docs.docker.com/) · [Compose](https://docs.docker.com/compose/) · [Lazydocker](https://github.com/jesseduffield/lazydocker) · [Engine releases](https://docs.docker.com/engine/release-notes/)
-- Companion skills: [cloud-run](../cloud-run/SKILL.md), [trivy](../code-security/references/trivy/GUIDE.md), [airflow](../airflow/SKILL.md).
+- Companion skills: [cloud-run](../cloud-run/SKILL.md), [trivy](../code-security/references/trivy/GUIDE.md), [orchestration-and-competitions](../python-mlops/references/orchestration-and-competitions.md).

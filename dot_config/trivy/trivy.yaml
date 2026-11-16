@@ -24,13 +24,17 @@ scan:
     - "**/.cache"
     - "**/.pytest_cache"
     - "**/.ruff_cache"
+    - "**/.terraform"
     - "**/.ty_cache"
     - "**/.venv"
     - "**/__pycache__"
+    - "**/node_modules"
     - .agents/prompts
     - .agents/tmp
     - .claude
     - .gemini
     - .git
+    - dist
+    - site
 vulnerability:
   ignore-unfixed: true

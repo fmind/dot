@@ -12,6 +12,7 @@
 .coverage*
 .env*
 !.env.example
+.playwright-cli/
 .pytest_cache/
 .ruff_cache/
 .ty_cache/
@@ -20,5 +21,8 @@ __pycache__/
 build/
 dist/
 htmlcov/
+mutants/
+playwright-report/
 site/
+test-results/
 tmp/
