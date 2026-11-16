@@ -37,3 +37,7 @@ jobs:
       - name: Audit locked dependencies and configured checkout scans
         # Delegate to the task so the scheduled scan cannot drift from the local gate.
         run: mise run check:network
+      - name: Audit workflows online
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: mise run check:actions:online

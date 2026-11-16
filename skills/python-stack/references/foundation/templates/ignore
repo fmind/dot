@@ -2,5 +2,7 @@
 
 # Low-value search targets for Neovim search (ripgrep/fd). Ruff and ty skip these
 # paths too, so never list Python sources such as test fixture modules.
+*.lock
+CHANGELOG.md
 tests/**/__snapshots__/
 *.min.*

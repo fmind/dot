@@ -10,7 +10,7 @@ Default for new reusable templates; keep existing Cookiecutter templates and `.c
 ## Workflow
 
 1. **Review before running**: inspect `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions at an immutable commit. Keep `--trust` off unless executable features are reviewed and authorized. Require Copier `>=9.19.0` (earlier versions have untrusted-execution/prefix [advisories](https://github.com/copier-org/copier/security/advisories)).
-1. **Author `copier.yml`**: declare types/validators, use `.jinja` suffixes, set `_envops: {undefined: jinja2.StrictUndefined}`, and include `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` for provenance. Never store secrets in answers or examples.
+1. **Author `copier.yml`**: start from [copier.yml](../templates/copier.yml) with `_min_copier_version: "9.19.0"`, `_subdirectory: template` (so Copier never copies template-repo `.github/`, `tests/`, or lockfiles into generated projects), typed validators, `.jinja` suffixes, `_envops: {undefined: jinja2.StrictUndefined}`, and `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` for provenance. Never store secrets in answers or examples.
 1. **Generate into a fresh disposable directory**:
 
    ```bash

@@ -15,12 +15,12 @@ Prefer an existing CLI or maintained SDK when it fits; [xh](../../../xh/SKILL.md
 
 ## Gotchas
 
-- **`httpx2` vs `httpx`**: `encode/httpx` stalled at `0.28.1` (2024-12); OpenAI, Anthropic, MCP, and `google-genai` 3.x use `httpx2`, whereas `google-adk`, `a2a-sdk`, Litestar, `respx`, and `pytest-httpx` still use `httpx`. Never call `httpx2.alias_httpx()` in libraries (apps may call it only before any `httpx` import).
+- **`httpx2` vs `httpx`**: `encode/httpx` stalled at `0.28.1` (2024-12); OpenAI, Anthropic, MCP, NiceGUI `4.0+`, and `google-genai` 3.x use `httpx2`, whereas `google-adk`, `a2a-sdk`, Litestar, `respx`, and `pytest-httpx` still use `httpx`. Never call `httpx2.alias_httpx()` in libraries (apps may call it only before any `httpx` import).
 - **OS trust store in `httpx2`**: `certifi` is not used — add CAs to host/image stores (including distroless/scratch images) or set `SSL_CERT_FILE`; never disable TLS verification.
 - **Transport retries**: cover connect failures (`ConnectError`, `ConnectTimeout`) only, never HTTP status codes.
 - **Stream bounds**: enforce byte caps while reading chunks and close responses/clients on cancel (`httpx2` `client.sse()` defaults `max_event_size` to 1 MiB).
 - **Secrets in URLs & retry logs**: `httpx`/`httpx2` log full URLs (with query strings) at `INFO` — raise loggers to `WARNING`, pass credentials in headers, validate base URLs at config load, and never pass secrets as args to `@stamina.retry` callables (`stamina` logs call args at `WARNING`; bind on `self` or override `stamina.instrumentation.set_on_retry_hooks(...)`).
-- **Deadline-aware `stamina`**: `@stamina.retry(on=predicate, attempts=N, timeout=deadline)` — return `False` for permanent errors or when `Retry-After` exceeds remaining deadline (`stamina 26.1` otherwise sleeps past `timeout`); test with `with stamina.set_testing(True, attempts=N):`.
+- **Deadline-aware `stamina` (`26.2+`)**: `@stamina.retry(on=predicate, attempts=N, timeout=deadline)` — return `False` for permanent errors or when `Retry-After` exceeds remaining deadline (older `26.1` slept past `timeout`); test with `with stamina.set_testing(True, attempts=N):`.
 - **Never mask errors as `[]`**: empty results mean zero records, never swallowed `403`s, truncated pages, or parse errors.
 - **Untrusted or webhook URLs**: string parsing alone falls to DNS rebinding and redirects — enforce connect-time IP checks and manual redirect validation per [ssrf-egress](../../../code-security/references/code-review/references/ssrf-egress.md).
 

@@ -9,7 +9,7 @@ Build Gradio model demos around Python functions and explicit component events; 
 
 ## Workflow
 
-1. **Check the locked release**: inspect `uv run python -c 'from importlib.metadata import version; print(version("gradio"))'`; use `uv add gradio` for packages or preserve PEP 723 metadata in scripts.
+1. **Check the locked release (`6.32.0+`)**: add `'gradio>=6.32.0'` for packages or preserve PEP 723 metadata in scripts; inspect `uv run python -c 'from importlib.metadata import version; print(version("gradio"))'`.
 1. **Start simple**: prefer single-screen `Interface` / `ChatInterface` over multi-tab `Blocks`, tucking advanced parameters into a closed `gr.Accordion`.
 1. **Style via supported APIs**: apply a calm light theme from `~/.agents/DESIGN.md` ([web-frontend](../../web-frontend/SKILL.md)) unless branded otherwise. Use `gr.HTML` (`html_template`, `css_template`, `js_on_load`, plus `head` for external scripts since inline `<script>` never runs) instead of brittle internal DOM selectors.
 1. **Bind locally**: run `demo.launch(server_name="127.0.0.1", share=False)`. Public `share` tunnels, Spaces uploads, and remote endpoints require explicit authorization.

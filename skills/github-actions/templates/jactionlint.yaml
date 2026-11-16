@@ -1,0 +1,7 @@
+# Docs: https://jactionlint.jdx.dev/config
+rules:
+  # No release-age cooldown, as for mise tools: pins move on release day, and online audits fail on warnings.
+  action-release-cooldown: off
+  # dependabot.yml sets open-pull-requests-limit: 0 for security-updates-only mode;
+  # upgrade-tools owns routine version bumps.
+  dependabot-missing-actions-update: off

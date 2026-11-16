@@ -29,7 +29,7 @@ jactionlint --fix                           # mechanical fixes; review diff clea
 
 ## Gotchas
 
-- **Scope rule overrides narrowly**: use `.github/jactionlint.yaml` (`rules:` for deliberate repository-policy conflicts such as `dependabot-missing-actions-update: off` under security-only Dependabot or `action-release-cooldown: off` when [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades; `ignores:` with `rule`, `file`, `reason` for one-offs) or `# jactionlint ignore=RULE`; never disable `unpinned-uses` globally.
+- **Scope rule overrides narrowly**: copy [jactionlint.yaml](../templates/jactionlint.yaml) to `.github/jactionlint.yaml` (`rules:` for deliberate repository-policy conflicts such as `dependabot-missing-actions-update: off` under security-only Dependabot or `action-release-cooldown: off` when [upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades; `ignores:` with `rule`, `file`, `reason` for one-offs) or `# jactionlint ignore=RULE`; never disable `unpinned-uses` globally.
 - **`pull_request_target` default block**: starting 2026-12-02, GitHub blocks it by default on public repos; scope any exception to the single workflow file via [event policy](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
 - **Keep `--online` out of local/PR gates**: it calls the GitHub API and hits rate limits; reserve for manual audits or scheduled jobs.
 

@@ -7,17 +7,18 @@ import asyncio
 from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from importlib.metadata import version
-from typing import Literal
+from typing import Any, Literal
 
 import structlog
 from granian import Granian
 from granian.constants import Interfaces
 from granian.server import MPServer, MTServer
-from litestar import Litestar, Response, get
+from litestar import Litestar, Request, Response, get
 from litestar.config.cors import CORSConfig
 from litestar.di import NamedDependency, Provide
 from litestar.logging.config import StructLoggingConfig
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
+from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
@@ -65,6 +66,12 @@ async def readiness_check(db_session: NamedDependency[AsyncSession]) -> Response
     return await check_readiness(db_session)
 
 
+def handle_internal_error(request: Request[Any, Any, Any], exc: Exception) -> Response[dict[str, object]]:
+    """Log only exception type and path on 500s so tracebacks and secret strings stay out of responses and logs."""
+    logger.error("Unhandled internal error", error=type(exc).__name__, path=request.url.path)
+    return Response({"status_code": 500, "detail": "Internal Server Error"}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 def create_app(config: Settings) -> Litestar:
     """Build an application whose database resources follow its lifespan."""
     engine = create_async_engine(config.database_url.get_secret_value())
@@ -83,8 +90,8 @@ def create_app(config: Settings) -> Litestar:
 
     logging_plugin = StructlogPlugin(
         StructlogConfig(
-            # The "debug" default drops unhandled 500s whenever app.debug is False.
-            structlog_logging_config=StructLoggingConfig(log_exceptions="always"),
+            # Disable stock exception formatting so custom handler logs exception type only without raw secrets.
+            structlog_logging_config=StructLoggingConfig(log_exceptions="never"),
             # Request logging is on by default and records request and response bodies.
             enable_middleware_logging=False,
         )
@@ -94,6 +101,7 @@ def create_app(config: Settings) -> Litestar:
         route_handlers=[health_check, readiness_check],
         dependencies={"db_session": Provide(provide_db_session)},
         cors_config=CORSConfig(allow_origins=config.cors_origins),
+        exception_handlers={HTTP_500_INTERNAL_SERVER_ERROR: handle_internal_error},
         lifespan=[database_lifespan],
         plugins=[logging_plugin],
     )

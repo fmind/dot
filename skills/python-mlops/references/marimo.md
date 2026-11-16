@@ -9,7 +9,7 @@ Author reactive Python notebooks and apps; install upstream skills via [vendor-s
 
 ## Workflow
 
-1. **Edit with disk reload**: run `marimo edit --watch notebook.py` (via `uv run marimo` when project-declared, else the `mise`-locked workstation CLI; preserve PEP 723 metadata). Keep loopback binding and token auth enabled because cells can access local files, networks, and credentials.
+1. **Edit with disk reload (`0.25.2+`)**: run `marimo edit --watch notebook.py` (via `uv run marimo` when project-declared, else the `mise`-locked workstation CLI; preserve PEP 723 metadata). Add `"notebooks/*.py" = ["B018"]` under `[tool.ruff.lint.per-file-ignores]` for trailing display expressions. Keep loopback binding and token auth enabled because cells can access local files, networks, and credentials.
 1. **Check before fixing**: run `marimo check --strict notebook.py` (fails on warnings). Scope `marimo check --fix notebook.py` to the target file, inspect the diff, and re-run `--strict`; avoid `--unsafe-fixes` without review.
 1. **Export deliberately**: `marimo export html` executes cells (source and outputs may carry private data), and `marimo run` still executes Python server-side.
 

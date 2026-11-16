@@ -9,7 +9,7 @@ Connect an editor or client frontend to an agent process via Agent Client Protoc
 
 ## Python implementation
 
-1. **Pin the SDK**: inspect peer protocol versions and add `uv add agent-client-protocol` (`agentclientprotocol/python-sdk`) when needed.
+1. **Pin the SDK**: inspect peer protocol versions and add `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'agent-client-protocol>=1.0.0'` (`agentclientprotocol/python-sdk`) when needed.
 1. **Use SDK bases and schemas**: adapt official client/echo-agent examples using async base classes and generated `acp.schema` models rather than raw JSON-RPC dicts.
 1. **Negotiate capabilities first**: open a session before prompting; handle streamed updates, tool calls, cancellations, and permission prompts bounded strictly by the user's granted authority.
 1. **Isolate stdio and subprocesses**: reserve stdout for protocol frames (logs to stderr); spawn only approved executables with explicit argv, cwd, and env, tearing them down on completion, cancel, or error.

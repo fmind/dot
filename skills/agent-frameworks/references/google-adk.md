@@ -9,7 +9,7 @@ Implement Python ADK agents inside the project; [agents-cli](agents-cli/GUIDE.md
 
 ## Workflow
 
-1. **Inspect first**: check the locked SDK, model, tools, session service, and entry point; apply [python-stack](../../python-stack/references/foundation/GUIDE.md) defaults without altering generated layout.
+1. **Bootstrap or inspect**: for pure-Python ADK packages without `agents-cli`'s Terraform/Gateway scaffold, layer `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'google-adk>=2.14.1'` onto the [Python foundation](../../python-stack/references/foundation/references/bootstrap.md); otherwise keep the locked SDK, model, tools, session service, and generated layout intact.
 1. **Match SDK version**: verify upstream skill assumptions against the locked ADK version.
 1. **Set the runtime contract**: use a single agent unless orchestration is needed; otherwise build a graph `Workflow` (`google.adk.workflow`)—ADK 2 deprecates `SequentialAgent`, `ParallelAgent`, and `LoopAgent` (`Workflow` cannot yet be an `LlmAgent` sub-agent). Align app, user, and session IDs across runner and session service.
 1. **Wire narrow tools**: define `root_agent` in `app/agent.py`; give tools full type hints, clear docstrings, bounded I/O, explicit errors, and code-enforced authorization/idempotency while keeping business logic in testable modules and prompts in source.

@@ -12,12 +12,16 @@ CI runs [mise](../../../mise/SKILL.md) `all` so checks match local [lefthook](..
 1. **Add CI**: copy [ci.yml](templates/ci.yml) to `.github/workflows/ci.yml` (`mise run all` plus a clean `git status --porcelain` check).
 1. **Add scheduled scans**: copy [security.yml](templates/security.yml) to `.github/workflows/security.yml` for full-history [betterleaks](../../../code-security/references/betterleaks.md) (`check:leaks:full`) and `check:network` audits; when scanning containers, IaC, or non-`uv` lockfiles, pin `trivy` in `mise.toml` and wire `check:scan` + `trivy.yaml` into `check:network` per [trivy](../../../code-security/references/trivy/GUIDE.md).
 1. **Add CD**: copy [cd.yml](templates/cd.yml) to `.github/workflows/cd.yml` and stdlib-only [image-platforms.py](templates/image-platforms.py) to `.github/scripts/image-platforms.py`; set `ENABLE_DEPLOY_PYPI`, `ENABLE_DEPLOY_CONTAINER`, or both after a read-only `validate` job passes `mise run all`. Configure the `pypi` environment and PyPI Trusted Publisher before package publishing; for images, include public Sigstore disclosure per [cosign](../../../docker/references/cosign.md) (or an approved private signer) and provide the [containerize](../../../docker/references/containerize/GUIDE.md) `Dockerfile`, `trivy.yaml`, and `trivy` + `cosign` in `mise.toml`.
-1. **Wire workflow linting**: pin `jactionlint` and `shellcheck` in `mise.toml` `[tools]` and add `check:actions` to `check:local` `depends`:
+1. **Wire workflow linting**: copy [jactionlint.yaml](../../templates/jactionlint.yaml) to `.github/jactionlint.yaml` and [dependabot.yml](../../templates/dependabot.yml) to `.github/dependabot.yml`, pin `jactionlint` and `shellcheck` in `mise.toml` `[tools]`, and add `check:actions` to `check:local` `depends`:
 
    ```toml
    [tasks."check:actions"]
    description = "Validate GitHub Actions workflows and Dependabot config"
    run = "jactionlint --profile pedantic"
+
+   [tasks."check:actions:online"]
+   description = "Audit workflows online for impostor commits and vulnerable actions"
+   run = "jactionlint --online=strict --strict-exit"
    ```
 
 1. **Verify locally**: run `mise run all` (apply the [dirty-tree rule](../../../mise/SKILL.md#gotchas) when unrelated edits exist).

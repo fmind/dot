@@ -7,7 +7,7 @@ description: "Track reproducible MLflow experiments, data lineage, metrics, mode
 
 Reuse the project's tracker and current authorization; local notebooks do not authorize uploading data or registering models.
 
-- **Default to local SQL**: use `sqlite:///mlflow.db` plus a Git-ignored artifact directory for new local stores. MLflow 3.13+ rejects file stores (`./mlruns`) unless `MLFLOW_ALLOW_FILE_STORE=true` (legacy projects only); run `mlflow migrate-filestore` only as a separate rehearsed migration.
+- **Default to local SQL (`mlflow>=3.18.0`)**: use `sqlite:///mlflow.db` plus a Git-ignored artifact directory for new local stores. MLflow 3.13+ rejects file stores (`./mlruns`) unless `MLFLOW_ALLOW_FILE_STORE=true` (legacy projects only); run `mlflow migrate-filestore` only as a separate rehearsed migration.
 - **Log explicitly, never bulk-dump**: disable unneeded autolog capture (input examples, datasets, models, registration). Never log raw rows, resolved configs, env dumps, whole directories, or PII-bearing lineage URIs/parameters.
 - **Record replay state**: commit SHA + dirty flag, lockfile, data digest, split policy, and seeds.
 - **Separate write effects**: artifact logging stays here; version registration and alias moves belong to [model-delivery](model-delivery.md).

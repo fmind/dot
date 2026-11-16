@@ -10,7 +10,7 @@ pre-commit:
       run: mise run format:dprint {staged_files}
       stage_fixed: true
     - name: format OpenTofu
-      glob: "**/*.{tf,tfvars,tftest.hcl}"
+      glob: "**/*.{tf,tofu,tfvars,tftest.hcl,tofutest.hcl}"
       run: mise run format:tofu {staged_files}
       stage_fixed: true
     - name: check

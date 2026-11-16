@@ -7,6 +7,8 @@ min_version = "2026.11.8"
 
 [settings]
 lockfile = true
+lockfile_platforms = ["linux-arm64", "linux-x64", "macos-arm64"]
+minimum_release_age = "0d"
 
 [settings.task]
 run_auto_install = false
@@ -15,19 +17,24 @@ quiet = true
 
 [tools]
 # Scaffold selectors: replace with exact pins; CI installs only what this table declares.
+betterleaks = "latest"
 dprint = "latest"
+lefthook = "latest"
 uv = "latest"
 
 [tasks.all]
-description = "Check formatting and build the docs strictly without rewriting source files"
+alias = "a"
+description = "Check formatting, secrets, vulnerabilities, and strict docs build without rewriting files"
 # check already builds the docs through check:network; a second build would repeat its downloads.
 run = "mise run check"
 
 [tasks.install]
-description = "Install documentation dependencies, refusing packages with known malware advisories"
-run = "UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check"
+alias = "i"
+description = "Install documentation dependencies and git hooks, refusing known malware advisories"
+run = ["UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check", "lefthook install"]
 
 [tasks.format]
+alias = "f"
 description = "Format Markdown and configuration files"
 depends = ["format:dprint"]
 
@@ -37,11 +44,33 @@ description = "Format JSON, Markdown, TOML, YAML with dprint"
 run = "dprint fmt --allow-no-files"
 
 [tasks."check:format"]
-description = "Check Markdown and configuration formatting (dprint)"
-run = "dprint check"
+alias = "cf"
+description = "Check Markdown, lockfile, and configuration formatting"
+run = ["uv lock --check", "dprint check"]
+
+[tasks."check:leaks"]
+alias = "cs"
+description = "Scan working-tree files, including untracked files, for leaked secrets"
+# Load this project's own .betterleaks.toml when present; betterleaks 1.10+ skips it otherwise.
+run = "betterleaks dir . --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+
+[tasks."check:leaks:full"]
+description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
+run = "betterleaks git --unsafe-auto-load-config --redact=100 --verbose --no-banner"
+
+[tasks."check:vuln"]
+alias = "cv"
+description = "Scan documentation dependencies for vulnerabilities (uv audit)"
+run = "uv audit --preview-features audit-command --locked"
+
+[tasks.build]
+alias = "b"
+description = "Build the documentation site"
+run = "mise run build:docs"
 
 # Strict builds fail on broken links, anchors, snippets, and plugin warnings; exit status 1 on any issue.
 [tasks."build:docs"]
+alias = "bd"
 description = "Build the documentation site strictly (Zensical)"
 run = "uv run --locked zensical build --clean --strict"
 
@@ -50,14 +79,15 @@ description = "Preview the documentation site (override port via PORT=8001)"
 run = "uv run --locked zensical serve -a 127.0.0.1:${PORT:-8000}"
 
 [tasks.check]
+alias = "c"
 description = "Run all static and documentation checks"
 # Course repositories also add their lab tests here; a docs build is not a lab test.
 depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run offline checks (pre-commit)"
-depends = ["check:format"]
+depends = ["check:format", "check:leaks"]
 
 [tasks."check:network"]
-description = "Build the site with its vendored font and Mermaid assets (pre-push)"
-depends = ["build:docs"]
+description = "Audit locked dependencies and build the site with vendored font/Mermaid assets (pre-push)"
+depends = ["build:docs", "check:vuln"]

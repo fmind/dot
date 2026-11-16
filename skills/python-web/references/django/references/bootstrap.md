@@ -2,7 +2,7 @@
 
 ## Decide Before Scaffolding
 
-- **Target stable releases**: pick the latest stable Django series (or current LTS when constrained) and stable Python; let `uv.lock` pin patches and exclude pre-releases.
+- **Target stable releases (`6.1.3+`)**: pick the latest stable Django `6.1.x` release (or current LTS when constrained) and stable Python; let `uv.lock` pin patches and exclude pre-releases.
 - **Match recipes to series**: built-in CSP, template partials, and `django.tasks` require Django `6.0+`; `MAILERS`, fetch modes, and mail/CSP checks require `6.1+` (use LTS equivalents on older series).
 - **Match DB to production**: SQLite for small/local prototypes; PostgreSQL in dev and CI when Postgres semantics, concurrency, or extensions matter.
 - **Settle `AUTH_USER_MODEL` before first migration**: subclass `AbstractUser` upfront if user identity may evolve.

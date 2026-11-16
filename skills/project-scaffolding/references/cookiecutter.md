@@ -5,7 +5,7 @@ description: "Generate from existing Cookiecutter templates and update Cruft-tra
 
 # Cookiecutter
 
-Keep existing Cookiecutter templates, such as [fmind/cookiecutter-mlops-package](https://github.com/fmind/cookiecutter-mlops-package), and `.cruft.json` projects on Cookiecutter/Cruft; [Copier](copier.md) is the default for new templates.
+Maintain existing Cookiecutter / `.cruft.json` projects (such as legacy [fmind/cookiecutter-mlops-package](https://github.com/fmind/cookiecutter-mlops-package) checkouts); new projects start from [bootstrap](bootstrap.md) + [ml-jobs](../../python-mlops/references/ml-jobs.md), and new reusable templates default to [Copier](copier.md).
 
 1. **Pin the runner**: run `uvx --from 'cookiecutter==<version>' cookiecutter` or `uvx --from 'cruft==<version>' cruft` with a reviewed exact release.
 1. **Review before rendering**: templates execute hooks, extensions, and template code, so review them at an immutable commit and pass it with `--checkout`. Use `--accept-hooks no` until the hooks are reviewed; disabling hooks alone does not make a template safe.

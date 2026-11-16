@@ -46,5 +46,5 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; preserve existing project
 ## Foundation resources & Docs
 
 - Shared config: [pyproject.toml.template](templates/pyproject.toml.template), [mise.toml](templates/mise.toml), [lefthook.yml](templates/lefthook.yml), [AGENTS.md](templates/AGENTS.md.template), [gitignore](templates/gitignore), [ignore](templates/ignore).
-- Library & docs starters: [init-library.py](templates/init-library.py), [test_library.py](templates/test_library.py), [zensical.toml](templates/zensical.toml), [docs-index.md](templates/docs-index.md).
+- Library & docs starters: [init-library.py](templates/init-library.py), [test_library.py](templates/test_library.py), [telemetry.py](templates/telemetry.py), [zensical.toml](templates/zensical.toml), [docs-index.md](templates/docs-index.md).
 - Upstream skills & docs: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins) ([vendor-skills](../../../agent-project/references/vendor-skills.md)) · [Python](https://docs.python.org/3/) · [uv docs](https://docs.astral.sh/uv/) · [Ruff docs](https://docs.astral.sh/ruff/) · [ty docs](https://docs.astral.sh/ty/).

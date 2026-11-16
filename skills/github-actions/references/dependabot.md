@@ -26,7 +26,7 @@ Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`
    | `package.json` + lockfile    | `npm`               |
    | `go.mod`                     | `gomod`             |
 
-1. **Write `.github/dependabot.yml`**: `open-pull-requests-limit: 0` disables version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping:
+1. **Write `.github/dependabot.yml`**: start from [dependabot.yml](../templates/dependabot.yml); `open-pull-requests-limit: 0` disables version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping:
 
    ```yaml
    # Docs: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference

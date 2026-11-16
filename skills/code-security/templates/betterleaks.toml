@@ -1,0 +1,13 @@
+# Docs: https://github.com/betterleaks/betterleaks/blob/v1.x/docs/config.md
+title = "<slug>"
+
+[extend]
+useDefault = true
+
+# Add narrow, documented allowlists only for verified false positives:
+# [[allowlists]]
+# description = "Explain why this synthetic fixture or lock key is safe."
+# condition = "AND"
+# regexTarget = "line"
+# paths = ['''^tests/fixtures/''']
+# regexes = ['''example-placeholder-token''']

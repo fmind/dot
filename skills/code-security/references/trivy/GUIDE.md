@@ -5,7 +5,7 @@ description: "Scan dependencies, IaC, images, and licenses; generate SBOMs."
 
 # Trivy
 
-Scan non-`uv` dependencies, IaC, images, licenses, and SBOMs with committed `trivy.yaml` (`exit-code: 1` required to block; omit `secret` from `scan.scanners` so [betterleaks](../betterleaks.md) stays sole secret scanner; pure-Python repos without containers or IaC rely on `uv audit` + [jactionlint](../../../github-actions/references/jactionlint.md)). Check active scanners, severities, exclusions, and `ignore-unfixed` before claiming coverage (`uv.lock` and `aube-lock.yaml` carry no license metadata, so `license` evaluates container/OS and installed package metadata).
+Scan non-`uv` dependencies, IaC, images, licenses, and SBOMs with committed [trivy.yaml](templates/trivy.yaml) (`exit-code: 1` required to block; omit `secret` from `scan.scanners` so [betterleaks](../betterleaks.md) stays sole secret scanner; pure-Python repos without containers or IaC rely on `uv audit` + [jactionlint](../../../github-actions/references/jactionlint.md)). Check active scanners, severities, exclusions, and `ignore-unfixed` before claiming coverage (`uv.lock` and `aube-lock.yaml` carry no license metadata, so `license` evaluates container/OS and installed package metadata).
 
 ## Commands
 

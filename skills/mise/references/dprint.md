@@ -11,7 +11,7 @@ Format JSON, Markdown, TOML, and YAML with `dprint` (Python formatting and linti
 
 Commit a version-pinned `dprint.json` (or `.config/dprint.json`, 0.64+) at the repo root; never rely on global fallback config in gates, which can prompt before `fmt`.
 
-1. **Copy (default)**: copy `fmind/dot`'s root `dprint.json`, remove dot-specific excludes (`dot_config/mise/locks/**`, `modify_*`), and bump plugins per repo.
+1. **Copy (default)**: copy [dprint.json](../templates/dprint.json) (or `fmind/dot`'s root `dprint.json`), prune unused excludes, and bump plugins per repo.
 1. **Extends**: reference a local path or commit-pinned URL (`"https://raw.githubusercontent.com/fmind/dot/<commit>/dprint.json"`) in `"extends"` and override locally.
 
 ## Commands

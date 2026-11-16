@@ -9,7 +9,7 @@ Unified vendor-neutral Python telemetry: `structlog` JSON on stdout, OpenTelemet
 
 ## Workflow
 
-1. **Minimal packages**: lock `structlog`, OTel API/SDK, OTLP exporter, and active HTTP/framework instrumentors (`opentelemetry-instrumentation-httpx` splits `HTTPXClientInstrumentor` and `HTTPX2ClientInstrumentor`; FastAPI `0.142+` has native OTel per [fastapi](../../python-web/references/fastapi.md)). Avoid vendor SDKs in app code.
+1. **Minimal packages**: lock `structlog`, OTel API/SDK, OTLP exporter, and active HTTP/framework instrumentors (`opentelemetry-instrumentation-httpx` splits `HTTPXClientInstrumentor` and `HTTPX2ClientInstrumentor`; FastAPI `0.142+` has native OTel per [fastapi](../../python-web/references/fastapi.md)), starting from [telemetry.py](foundation/templates/telemetry.py). Avoid vendor SDKs in app code.
 1. **Structured stdout logs**: emit one JSON line per event using `severity`, `message`, and `time` (Cloud Logging promotes those exact keys, not `level`/`msg`).
 1. **OTLP config**: set `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_EXPORTER_OTLP_PROTOCOL`; disable export in local dev when unconfigured (SDK defaults otherwise dial `localhost`).
 1. **Trace-log correlation**: inject `trace_id`, `span_id`, `logging.googleapis.com/trace`, and `logging.googleapis.com/spanId` from `trace.get_current_span().get_span_context()` when valid.

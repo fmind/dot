@@ -9,7 +9,7 @@ Build browser utilities with Python components and event handlers; use [gradio](
 
 ## Workflow
 
-1. **Read the installed reference (`3.12.0+`)**: preserve packaged or PEP 723 setup and inspect the version-matched `llms.md` before consulting online examples (which track `main`):
+1. **Read the installed reference (`4.0.0+`)**: add `'nicegui>=4.0.0'` (`httpx2` client included for testing with the `nicegui.testing` `User` fixture) or preserve PEP 723 setup, and inspect the version-matched `llms.md` before consulting online examples (which track `main`):
    ```bash
    uv run python -c 'from importlib.metadata import version; from importlib.util import find_spec; from pathlib import Path; print(version("nicegui")); print(Path(find_spec("nicegui").origin).with_name("llms.md"))'
    ```

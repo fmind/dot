@@ -1,12 +1,12 @@
 ---
-description: <One sentence that states who this site serves and what they can achieve.>
+description: <description>
 hide:
   - navigation
 ---
 
-# <Project>
+# <slug>
 
-<Project> helps <audience> <achieve an outcome>. Start with the shortest path to a first verified result.
+<slug> helps <audience> <achieve an outcome>. Start with the shortest path to a first verified result.
 
 <div class="grid cards" markdown>
 
@@ -14,7 +14,7 @@ hide:
 
   ---
 
-  Install <Project> and run the first command in five minutes.
+  Install <slug> and run the first command in five minutes.
 
   [:octicons-arrow-right-24: Quickstart](index.md#quickstart)
 
@@ -61,7 +61,7 @@ hide:
 Run the first command and compare its output:
 
 ```console
-$ <command> --version
+$ <slug> --version
 <expected output>
 ```
 

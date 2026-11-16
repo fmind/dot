@@ -9,9 +9,9 @@ Scaffold, run, evaluate, and deploy Google Cloud agents with `agents-cli`; [goog
 
 ## Workflow
 
-1. **Install `agents-cli` with CVE overrides**: while `google-agents-cli==1.13.0` caps `pyopenssl<26.2` (`cryptography<48`) and `litellm<1.97.0` upstream, pass `--override` (or `[tool.uv] override-dependencies = ["cryptography>=50.0.0", "litellm>=1.100.4"]` in project `pyproject.toml`). Workstation mise sets `AGENTS_CLI_TELEMETRY=0`; keep it off elsewhere unless opted in (`agents-cli info` checks state).
+1. **Install `agents-cli` with CVE overrides**: while `google-agents-cli==1.14.0` caps `pyopenssl<26.2` (`cryptography<48`), pass `--override` (or `[tool.uv] override-dependencies = ["cryptography>=50.0.0"]` in project `pyproject.toml`; omit the `[lint]` extra, which caps `ruff<0.16`). Workstation mise sets `AGENTS_CLI_TELEMETRY=0`; keep it off elsewhere unless opted in (`agents-cli info` checks state).
    ```bash
-   uv tool install --override <(printf 'cryptography>=50.0.0\nlitellm>=1.100.4\n') "google-agents-cli==1.13.0"
+   uv tool install --override <(printf 'cryptography>=50.0.0\n') "google-agents-cli==1.14.0"
    agents-cli --version
    ```
 1. **Default to the full ADK scaffold** (Agent Runtime, Gateway-ready image, BigQuery analytics, GitHub Actions, Terraform, `AGENTS.md`): `--skip-checks --yes` skips interactive cloud setup (rehearse flag changes in temp dirs per [scaffold qualification](references/scaffold-qualification.md)). Review upstream `google/agents-cli` skills project-scoped via [vendor-skill policy](../../../agent-project/references/vendor-skills.md) (never `agents-cli setup` or global installs):

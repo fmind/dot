@@ -21,7 +21,7 @@ Since 1.10, `.betterleaks.toml` loads only with `--config <file>` or `--unsafe-a
 
 ## Mise Task
 
-Wire `check:leaks` (working tree, including untracked/gitignored `.env` unless allowlisted in `.betterleaks.toml`, run pre-commit via [lefthook](../../github-actions/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
+Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.betterleaks.toml`; scans working tree including untracked/gitignored `.env` unless allowlisted in `.betterleaks.toml`, run pre-commit via [lefthook](../../github-actions/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
 
 ## When a Secret Is Found
 

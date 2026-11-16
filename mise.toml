@@ -50,6 +50,7 @@ jactionlint = "latest"
 lefthook = "latest"
 lychee = "latest"
 neovim = "latest"
+opentofu = "latest"
 # Keep binary-only Python tools installable while their wheels catch up with 3.15.
 python = "3.14"
 shellcheck = "latest"
@@ -94,6 +95,7 @@ depends = [
   "check:skills",
   "check:supagents",
   "check:tasks",
+  "check:tofu",
   "check:typos",
 ]
 
@@ -159,7 +161,7 @@ description = "Lint, format-check, type-check, and validate Python packaging and
 run = [
   "uv run --frozen --project dot ruff check .",
   "uv run --frozen --project dot ruff format --check .",
-  "uv run --frozen --project dot ty check --project dot --extra-search-path tests dot tests skills --exclude 'skills/*/references/*/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
+  "uv run --frozen --project dot ty check --project dot --extra-search-path tests dot tests skills --exclude 'skills/*/references/*/templates' --exclude 'skills/python-mlops/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
   "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py",
   "uv run --frozen --directory dot deptry .",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
@@ -201,6 +203,10 @@ run = "uv run --frozen --project dot supagents check --strict --project --source
 [tasks."check:tasks"]
 description = "Validate repository task definitions"
 run = "mise tasks validate"
+
+[tasks."check:tofu"]
+description = "Check OpenTofu starter HCL formatting"
+run = "tofu fmt -check -recursive skills/infra-as-code/templates"
 
 [tasks."check:typos"]
 description = "Check spelling across documentation, skills, and sources (typos)"
@@ -285,7 +291,7 @@ env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
 run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
-description = "Materialize and execute the Python library, CLI, and web starter contracts"
+description = "Materialize and execute Python, MCP, ML, script, docs, OpenTofu, Copier, and deck starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
 run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q --force-enable-socket --timeout=600 tests/test_python_starter.py"
 

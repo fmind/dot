@@ -1,5 +1,16 @@
 # Docs: https://git-scm.com/docs/gitignore
 
+# Local agent scratch and host state; shared skills stay versioned.
+.agents/prompts/
+.agents/tmp/
+.claude/*
+!.claude/skills
+.gemini/
+
+# Environment overrides and secrets; commit examples only.
+.env*
+!.env.example
+
 # Provider binaries and module cache (re-created by `tofu init`)
 .terraform/
 # State never belongs in git: it stores every attribute, secrets included

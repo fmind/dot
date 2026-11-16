@@ -20,3 +20,7 @@ paths = ["src"]
 # Appends one "API Reference" page per module to the nav.
 [project.plugins.api-autonav]
 modules = ["src/<package>"]
+
+# Self-host Google Fonts and Mermaid so built docs never leak requests to external CDNs.
+[project.plugins.privacy]
+assets_include = ["fonts.googleapis.com/*", "fonts.gstatic.com/*", "unpkg.com/mermaid@*"]

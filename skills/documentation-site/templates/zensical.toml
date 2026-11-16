@@ -3,15 +3,15 @@
 # Every key below was validated with `zensical build --clean --strict` on Zensical 0.1.1.
 
 [project]
-site_name = "<Project>"
+site_name = "<slug>"
 # Canonical URL with the hosting prefix and a trailing slash. It is required for
 # instant navigation and previews, the sitemap, social cards, and llms.txt links.
-site_url = "https://<owner>.github.io/<repository>/"
-site_description = "<One sentence for search engines and social cards.>"
-site_author = "<Author>"
-copyright = "Copyright &copy; <year> <Author>"
-repo_url = "https://github.com/<owner>/<repository>"
-repo_name = "<owner>/<repository>"
+site_url = "https://<owner>.github.io/<slug>/"
+site_description = "<description>"
+site_author = "<holder>"
+copyright = "Copyright &copy; <year> <holder>"
+repo_url = "https://github.com/<owner>/<slug>"
+repo_name = "<owner>/<slug>"
 # Edit/view buttons; adjust the branch and docs_dir when they differ.
 edit_uri = "edit/main/docs/"
 # Explicit navigation keeps reading order reviewable; a section's index.md is its overview page.
@@ -46,7 +46,7 @@ features = [
   "navigation.instant.progress",
   "navigation.path",
   "navigation.sections",
-  "navigation.tabs", # remove for sites with fewer than three top-level sections
+  # "navigation.tabs", # enable for sites with three or more top-level sections
   "navigation.top",
   "navigation.tracking",
   "search.highlight",
@@ -88,7 +88,7 @@ toggle.name = "Switch to system preference"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/<owner>/<repository>"
+link = "https://github.com/<owner>/<slug>"
 name = "Source repository"
 
 [project.markdown_extensions]
@@ -132,7 +132,7 @@ pymdownx.tilde = {}
 # llms.txt index plus Markdown copies for agents; only listed pages get the Copy as Markdown button.
 # "**/*.md" skips root pages, so keep both patterns or curate explicit sections.
 [project.plugins.llmstxt]
-markdown_description = "<What an agent should know before reading these pages.>"
+markdown_description = "<description>"
 full_output = "llms-full.txt"
 sections = { "Documentation" = ["*.md", "**/*.md"] }
 

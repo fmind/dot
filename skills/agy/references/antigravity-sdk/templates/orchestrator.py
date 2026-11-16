@@ -1,3 +1,4 @@
+#!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.14"
 # dependencies = ["google-antigravity==0.1.23"]
@@ -10,6 +11,7 @@ Set `GOOGLE_CLOUD_PROJECT` for the authorized ADC identity, then run
 is the orchestration contract, so change it here rather than in the prompt.
 """
 
+import argparse
 import asyncio
 import os
 import pathlib
@@ -17,6 +19,8 @@ import sys
 
 import pydantic
 from google.antigravity import Agent, LocalAgentConfig, hooks, policy, types
+
+__version__ = "0.1.0"
 
 
 class Audit(pydantic.BaseModel):
@@ -30,14 +34,14 @@ def record_finding(area: str, detail: str) -> str:
     """Records one audit finding for the given area."""
     # Policies gate custom tools by function name (deny_all() blocks this one
     # unless allowed), but the function body runs unsandboxed: keep it side-effect free.
-    print(f"finding_recorded area_chars={len(area)} detail_chars={len(detail)}", file=sys.stderr)
+    sys.stderr.write(f"finding_recorded area_chars={len(area)} detail_chars={len(detail)}\n")
     return "recorded"
 
 
 @hooks.pre_turn
 async def trace_turn(_prompt: types.Content) -> types.HookResult:
     """Record a turn boundary without copying private prompt content."""
-    print("turn_started", file=sys.stderr)
+    sys.stderr.write("turn_started\n")
     return types.HookResult(allow=True)
 
 
@@ -123,11 +127,25 @@ async def main(workspace: str) -> None:
             raise RuntimeError(f"audit stopped before completion: {response.stop_reason.value}")
         result = Audit.model_validate(await response.structured_output())
         if response.usage_metadata:
-            print(f"tokens: {response.usage_metadata.total_token_count}", file=sys.stderr)
-    print(result.verdict)
+            sys.stderr.write(f"tokens: {response.usage_metadata.total_token_count}\n")
+    sys.stdout.write(f"{result.verdict}\n")
     for finding in result.findings:
-        print(f"- {finding}")
+        sys.stdout.write(f"- {finding}\n")
+
+
+def cli() -> int:
+    """Parse CLI arguments and run one bounded orchestration."""
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser.add_argument("workspace", nargs="?", default=".", help="Workspace directory to inspect")
+    parser.add_argument("--version", action="version", version=__version__)
+    args = parser.parse_args()
+    try:
+        asyncio.run(main(args.workspace))
+    except (OSError, ValueError, RuntimeError) as error:
+        sys.stderr.write("Error: Orchestration failed. Check workspace access, credentials, and model configuration.\n")
+        raise SystemExit(1) from error
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else "."))
+    raise SystemExit(cli())

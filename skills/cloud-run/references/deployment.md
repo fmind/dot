@@ -83,5 +83,11 @@ description: "Build, scan, sign, deploy private Cloud Run revisions, and verify 
    '''
    ```
 
-1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` (merge jobs if also using the [github-actions CD template](../../github-actions/references/ci-cd/templates/cd.yml), since WIF pins `cd.yml@`) and stdlib-only [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`. Pin `<version>`, configure `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, `CLOUDRUN_SERVICE`, and `ENABLE_DEPLOY_CLOUDRUN=true`, and keep the uncredentialed `validate` gate ahead of `deploy-cloud-run` ([github-actions](../../github-actions/references/ci-cd/GUIDE.md)).
-1. **Roll out through a candidate**: create the service once manually first (`--no-traffic` fails on nonexistent services), keep `gcloud_version` equal to `setup-gcloud` `version`, and define `test:candidate` to probe `/health` and `/ready` on `CANDIDATE_URL` with an invoker ID token (`run.routes.invoke`) before CD runs `update-traffic --to-revisions <revision>=100 --remove-tags candidate` (or strips `candidate` on failure/cancellation).
+1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` (merge jobs if also using the [github-actions CD template](../../github-actions/references/ci-cd/templates/cd.yml), since WIF pins `cd.yml@`), stdlib-only [verify-private.py](../templates/verify-private.py) to `.github/scripts/verify-private.py`, and [probe-candidate.py](../templates/probe-candidate.py) to `.github/scripts/probe-candidate.py`. Pin `<version>`, configure `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_RUNTIME_SA`, `GCP_REGION`, `GCP_ARTIFACT_IMAGE`, `CLOUDRUN_SERVICE`, and `ENABLE_DEPLOY_CLOUDRUN=true`, and keep the uncredentialed `validate` gate ahead of `deploy-cloud-run` ([github-actions](../../github-actions/references/ci-cd/GUIDE.md)).
+1. **Roll out through a candidate**: create the service once manually first (`--no-traffic` fails on nonexistent services), keep `gcloud_version` equal to `setup-gcloud` `version`, and wire `test:candidate` (probing `/health` and `/ready` on `CANDIDATE_URL` with an invoker ID token before `update-traffic` promotes the revision):
+
+   ```toml
+   [tasks."test:candidate"]
+   description = "Probe candidate Cloud Run /health and /ready endpoints"
+   run = 'python3 .github/scripts/probe-candidate.py "$CANDIDATE_URL"'
+   ```

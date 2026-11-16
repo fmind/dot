@@ -2,13 +2,22 @@
 
 Start from [python-stack](../../../../python-stack/references/foundation/GUIDE.md), adding only needed integrations; existing services keep their framework, server, and database.
 
-## Database-backed example
+## Stateless API example
 
-Omit SQLAlchemy, readiness queries, and Postgres fixtures when no database is needed.
+For stateless webhook, AI, or Cloud Run microservices without a database:
+
+```bash
+UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.8' 'pydantic>=2.14.3' 'pydantic-settings>=2.16.3' 'structlog>=26.1.0' 'opentelemetry-api>=1.45.2' 'opentelemetry-sdk>=1.45.2' 'opentelemetry-exporter-otlp-proto-http>=1.45.2'
+UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev 'anyio>=4.16.0'
+```
+
+Place [init-api.py](../templates/init-api.py) at `src/<package>/__init__.py`, [telemetry.py](../../../../python-stack/references/foundation/templates/telemetry.py) at `src/<package>/telemetry.py`, [main.py](../../../../python-stack/references/argparse/templates/main.py) at `src/<package>/__main__.py`, and [test_api.py](../templates/test_api.py) at `tests/test_api.py`; drop `test:integration` from `mise.toml` unless integration tests are added.
+
+## Database-backed example
 
 1. **Install dependencies** via [uv](../../../../python-stack/references/foundation/GUIDE.md#uv):
    ```bash
-   UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.7' 'sqlalchemy[postgresql-asyncpg]>=2.1.8' 'pydantic>=2.14.3' 'pydantic-settings>=2.16.2' 'structlog>=26.1.0'
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'litestar>=2.25.0' 'granian[reload,uvloop]>=2.8.8' 'sqlalchemy[postgresql-asyncpg]>=2.1.8' 'pydantic>=2.14.3' 'pydantic-settings>=2.16.3' 'structlog>=26.1.0'
    UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev 'anyio>=4.16.0' 'testcontainers>=4.15.0'
    ```
    Base `litestar` already includes CLI, `TestClient`, `msgspec`, and `polyfactory`: add `[jinja]` only for templates, skip `[standard]` (avoids installing `uvicorn` beside Granian), pin `[uvloop]` explicitly (Granian picks `rloop` -> `uvloop` -> `asyncio`), and use `sqlalchemy[postgresql-asyncpg]` (`asyncpg` + `greenlet`, no deptry ignore needed).
@@ -24,4 +33,4 @@ Omit SQLAlchemy, readiness queries, and Postgres fixtures when no database is ne
 - **`sync_to_thread` on sync handlers**: set `sync_to_thread=True` (blocking) or `False` (non-blocking) explicitly, or `LitestarWarning` fails strict warnings.
 - **Outbound HTTP**: share one `httpx2.AsyncClient` (`httpx.AsyncClient` if already locked) per [api-client](../../../../python-stack/references/api-client/GUIDE.md).
 - **Static & SSR**: serve content-hashed files via `create_static_files_router(..., cache_control=CacheControlHeader(max_age=31_536_000, immutable=True, public=True))` + standalone [tailwind](../../../../web-frontend/references/tailwind.md) (no CDN). Import `HTMXPlugin`/`HTMXRequest` from `litestar.plugins.htmx` and `JinjaTemplateEngine` from `litestar.plugins.jinja` (`litestar.contrib.jinja` is removed in `3.0`); skip Node-bound `litestar-vite` and `litestar-inertia`.
-- **Logs**: wire `StructlogPlugin` + `_granian` in `log_dictconfig` (TTY console / non-TTY JSON), keep `log_exceptions="always"`, and leave request logging off (captures bodies by default). See [observability](../../../../python-stack/references/observability.md).
+- **Logs**: disable `StructLoggingConfig(log_exceptions="never")` and handle `500`s with a redacted handler (`error=type(exc).__name__`, `path=request.url.path`), leave middleware request logging off (captures bodies by default), and propagate `_granian` in `log_dictconfig`. Wire [telemetry.py](../../../../python-stack/references/foundation/templates/telemetry.py) per [observability](../../../../python-stack/references/observability.md).

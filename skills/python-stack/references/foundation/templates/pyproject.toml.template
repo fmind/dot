@@ -90,7 +90,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "T201"]
+"**/tests/**" = ["S101", "S603", "S607", "T201"]
 
 [tool.deptry]
 # deptry does not infer uv_build's src/ layout when scanning `.`.
@@ -113,8 +113,7 @@ timeout = "60"
 
 [tool.coverage.run]
 branch = true
-# Measure `python -m <package>` subprocess tests; drop once in-process tests cover the suite (sitecustomize slows subprocess-heavy runs).
-patch = ["subprocess"]
+# CLI starters add `patch = ["subprocess"]` to measure `python -m <package>` subprocess tests.
 source = ["<package>"]
 
 [tool.coverage.report]

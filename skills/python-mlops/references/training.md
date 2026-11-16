@@ -5,7 +5,7 @@ description: "Validate Polars or pandas data with Pandera, prevent leakage, and 
 
 # Data and Model Training
 
-Tabular defaults: [polars](polars.md) frames, Pandera schemas, and a scikit-learn `Pipeline` baseline; keep any framework the project already chose.
+Tabular defaults: [polars](polars.md) (`>=2.1.0`) frames, Pandera (`>=0.36.0`) schemas, and a scikit-learn (`>=1.9.1`) `Pipeline` baseline ([pipeline.py](../templates/pipeline.py)); keep any framework the project already chose.
 
 - **Use `pandera.pandas` on pandas**: install `uv add 'pandera[pandas]'` and `import pandera.pandas as pa` (top-level `pandera` emits `FutureWarning` under strict warning filters).
 - **Derive splits from the deployment question**: treat the bike reference's two-month temporal split, schemas, and thresholds as examples only.

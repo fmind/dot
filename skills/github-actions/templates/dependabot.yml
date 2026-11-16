@@ -1,0 +1,29 @@
+# Docs: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
+# Security updates only: `open-pull-requests-limit: 0` disables noisy version PRs while
+# Dependabot still opens one grouped fix PR per ecosystem when an alert has a patched release.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: "fix(deps)"
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: "fix(deps)"
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"

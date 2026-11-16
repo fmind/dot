@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-typst-deck
   created: "2026-11-13"
-  updated: "2026-11-15"
+  updated: "2026-11-16"
 ---
 
 # Draft Typst Slide Deck

@@ -9,13 +9,12 @@ Build typed MCP tools, resources, prompts, and clients with the official `mcp` P
 
 ## Workflow
 
-1. **Initialize and lock**: inspect the installed SDK before using APIs beyond quickstart.
+1. **Initialize and lock**: start from the [Python foundation](../../../python-stack/references/foundation/references/bootstrap.md), install the SDK, and inspect it before using APIs beyond quickstart:
    ```bash
-   uv init --package <slug> && cd <slug>
-   UV_MALWARE_CHECK=1 uv add --preview-features malware-check "mcp[cli]"
-   UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev pytest
+   UV_MALWARE_CHECK=1 uv add --preview-features malware-check "mcp[cli]>=2.3.0"
    ```
-1. **Define `MCPServer`** (`mcp.server`): type-hint and document every handler to generate accurate JSON Schemas. Prefix tool names by service, set `ToolAnnotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`—hints never replace authz), paginate lists with cursor + total, and return actionable errors.
+   Copy [server.py](templates/server.py) to `src/<package>/server.py` (re-export `main` in `__init__.py`, add `patch = ["subprocess"]` under `[tool.coverage.run]`, and declare `[project.scripts]` `<slug> = "<package>:main"`).
+1. **Define `MCPServer`** (`mcp.server`): type-hint and document every handler to generate accurate JSON Schemas. Prefix tool names by service, set `ToolAnnotations` (`read_only_hint`, `destructive_hint`, `idempotent_hint`, `open_world_hint`—hints never replace authz), paginate lists with cursor + total, and return actionable errors.
 1. **Select transport**: stdio for local child processes (stdout protocol-only, logs to stderr) or Streamable HTTP at `/mcp` for hosted services:
    ```bash
    uv run --locked mcp run src/<package>/server.py:server

@@ -220,6 +220,29 @@ checksum = "sha256:1dbd148222b051ba6c307c4d17a318ed083df018a4f6a5a0ce46955ffc9ab
 url = "https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-macos-arm64.tar.gz"
 url_api = "https://api.github.com/repos/neovim/neovim/releases/assets/625399162"
 
+[[tools.opentofu]]
+version = "1.13.9"
+backend = "aqua:opentofu/opentofu"
+specifiers = ["latest"]
+
+[tools.opentofu."platforms.linux-arm64"]
+checksum = "sha256:5dc196dde75b667e4806d358310ec96742774cd0993c54c1237efee5644b69b8"
+checksum_source = "mise-versions"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.9_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714326765"
+
+[tools.opentofu."platforms.linux-x64"]
+checksum = "sha256:b34b327cc1ef07178207b6f2cd1f5276537d3e5b7be316500f6dac50d4c0a857"
+checksum_source = "mise-versions"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.9_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714326349"
+
+[tools.opentofu."platforms.macos-arm64"]
+checksum = "sha256:496f4c3064b5c3bff79174b3dae4faaf65a66774eb8e2bf074f895412c5f124f"
+checksum_source = "mise-versions"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.9/tofu_1.13.9_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/714325678"
+
 [[tools.python]]
 version = "3.14.10"
 backend = "core:python"

@@ -10,6 +10,7 @@ from unittest.mock import create_autospec
 
 import pytest
 from granian.server import MPServer
+from litestar import get
 from litestar.testing import AsyncTestClient
 from pydantic import SecretStr
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,6 +23,7 @@ from <package> import (
     create_app,
     create_default_app,
     create_server,
+    handle_internal_error,
     main,
 )
 from <package> import __main__ as module_entrypoint
@@ -137,6 +139,26 @@ async def test_readiness_reports_503_when_the_database_is_unreachable() -> None:
 
     assert response.status_code == 503
     assert response.json() == {"status": "not_ready", "database": "disconnected"}
+
+
+@pytest.mark.anyio
+async def test_internal_error_redacts_exception_details(capsys: pytest.CaptureFixture[str]) -> None:
+    @get("/boom")
+    async def boom() -> dict[str, str]:
+        raise RuntimeError("SYNTHETIC_SECRET_MARKER")
+
+    config = Settings(database_url=SecretStr("postgresql+asyncpg://unavailable.invalid/test"), environment="test")
+    app = create_app(config)
+    app.register(boom)
+
+    async with AsyncTestClient(app=app, raise_server_exceptions=False) as client:
+        response = await client.get("/boom")
+
+    assert response.status_code == 500
+    assert response.json() == {"status_code": 500, "detail": "Internal Server Error"}
+    captured = capsys.readouterr()
+    assert "SYNTHETIC_SECRET_MARKER" not in captured.out + captured.err
+    assert callable(handle_internal_error)
 
 
 def test_server_targets_the_app_factory() -> None:

@@ -9,17 +9,17 @@ Use LangChain only as [langgraph](langgraph.md) building blocks: `create_agent` 
 
 ## Workflow
 
-1. **Pin v1**: `uv add langchain` plus required provider packages, checking the [changelog](https://docs.langchain.com/oss/python/releases/changelog). Legacy chains, retrievers, indexing, `hub`, and `langchain-community` re-exports live in `langchain-classic` (`langchain_classic`).
+1. **Pin v1**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'langchain>=1.5.0'` plus required provider packages, checking the [changelog](https://docs.langchain.com/oss/python/releases/changelog). Legacy chains, retrievers, indexing, `hub`, and `langchain-community` re-exports live in `langchain-classic` (`langchain_classic`).
 1. **Assemble**: `from langchain.agents import create_agent` with configured `"provider:model"`, `state_schema=` (`AgentState` subclass), and `context_schema=` (read via `runtime.context`, not the prompt).
 1. **Contract output**: pass `response_format=` (`ToolStrategy` or `ProviderStrategy` from `langchain.agents.structured_output`), read `result["structured_response"]`, and test `StructuredOutputValidationError` and `MultipleStructuredOutputsError`.
 1. **Prefer built-in middleware** (`langchain.agents.middleware`): `ModelRetryMiddleware`, `ToolRetryMiddleware`, `ToolErrorMiddleware`, `ModelFallbackMiddleware`, `ModelCallLimitMiddleware`, `ToolCallLimitMiddleware` (loop cap), `SummarizationMiddleware`, `PIIMiddleware`, and `HumanInTheLoopMiddleware(interrupt_on={"tool_name": True}, interrupt_mode="per_call")` (1.4.6+; schema-checked per-call pause).
-1. **Attach MCP tools**: `uv add "langchain[mcp]>=1.4"` and keep `MCPAdapter` inside `async with` so tools retain the client; [mcp-setup](../../agent-harnesses/references/mcp-setup.md) owns host registration.
+1. **Attach MCP tools**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check "langchain[mcp]>=1.5.0"` and keep `MCPAdapter` inside `async with` so tools retain the client; [mcp-setup](../../agent-harnesses/references/mcp-setup.md) owns host registration.
 1. **Test deterministically**: drive `GenericFakeChatModel` (`langchain_core.language_models.fake_chat_models`) with `InMemorySaver`, subclassing `bind_tools` to return `self` and instantiating a fresh model per test.
 
 ## Gotchas
 
 - **`create_react_agent` is pre-v1**: migrate to `create_agent` and audit adjacent imports.
-- **`langchain.mcp` is beta**: emits `LangChainBetaWarning` and replaces `langchain-mcp-adapters` ([migration guide](https://docs.langchain.com/oss/python/migrate/langchain-mcp-adapters); never mix both). Require `http(s)` URLs for string targets—FastMCP resolves strings as local paths first, so never pass untrusted strings to launching transports.
+- **`langchain.mcp` is beta**: emits `LangChainBetaWarning` (breaks strict `filterwarnings = ["error"]` unless scoped with `"ignore::langchain_core._api.beta_decorator.LangChainBetaWarning"`) and replaces `langchain-mcp-adapters` ([migration guide](https://docs.langchain.com/oss/python/migrate/langchain-mcp-adapters); never mix both). Require `http(s)` URLs for string targets—FastMCP resolves strings as local paths first, so never pass untrusted strings to launching transports.
 
 ## Official Skills
 

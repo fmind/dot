@@ -9,12 +9,12 @@ Hand-write `StateGraph` topology only beyond a tool loop (pre-routing classifica
 
 ## Workflow
 
-1. **Choose persistence**: keep `InMemorySaver` to tests; install `langgraph-checkpoint-sqlite`, `-postgres` (call `.setup()` for schema migrations; keep `thread_id` <255 chars), or `-mongodb`. Isolate threads per user and test resume across a process restart.
+1. **Choose persistence**: keep `InMemorySaver` to tests; install `'langgraph>=1.2.22'` plus `langgraph-checkpoint-sqlite`, `-postgres` (call `.setup()` for schema migrations; keep `thread_id` <255 chars), or `-mongodb`. Isolate threads per user and test resume across a process restart.
 1. **Set durability per run**: `durability="sync"` for critical writes, `"async"` by default, `"exit"` only when crash loss of intermediate steps is acceptable.
 1. **Interrupt safely**: pair `interrupt()` with `Command(resume=...)` (`langgraph.types`) on the same thread; resuming replays the node from start, so keep prior side effects idempotent.
 1. **Declare node policies on `add_node`**: use `retry_policy=RetryPolicy(...)`, `timeout=TimeoutPolicy(run_timeout=..., idle_timeout=...)` (async nodes only—sync raises `ValueError`; raises retriable `NodeTimeoutError`), and `error_handler=` (parameter typed `NodeError` returning a `Command`) instead of per-node `try/except`.
 1. **Drain on shutdown**: pass `control=RunControl()` (`langgraph.runtime`), call `request_drain()` on SIGTERM (stops after the superstep with `GraphDrained`), and resume via `invoke(None, config)`.
-1. **Stream with `stream_mode`**: `stream_events(..., version="v3")` emits `LangChainBetaWarning`; pin and test event shapes before adopting.
+1. **Stream with `stream_mode`**: `stream_events(..., version="v3")` emits `LangChainBetaWarning` (scope `"ignore::langchain_core._api.beta_decorator.LangChainBetaWarning"` in `pyproject.toml` when used); pin and test event shapes before adopting.
 
 ## Gotchas
 

@@ -252,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-o", "--output", type=Path, default=Path("editable-deck.pptx"), help="Output .pptx path.")
     parser.add_argument("--title", default="Architecture Decision Briefing", help="Deck cover title.")
     parser.add_argument("--figure", type=Path, default=None, help="Optional 2x PNG figure rendered by Typst.")
+    parser.add_argument("--version", action="version", version="0.1.0")
     args = parser.parse_args(argv)
     if args.figure is not None and not args.figure.is_file():
         sys.stderr.write(f"Error: Missing figure file: {args.figure}\n")
