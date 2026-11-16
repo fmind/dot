@@ -5,22 +5,18 @@ description: "Decide when a custom agent role pays off, write per-host definitio
 
 # Cross-harness agents
 
-Hosts share no custom-agent format, so each role must be maintained per host. Prefer the shared persona plus skills—add a named role only after repeated delegations reuse identical instructions.
-
-## When a role pays off
-
-Delegate only for context-heavy read/search work or clean-context reviews that avoid self-preference; keep edits and decisions in the coordinator, verifying load-bearing subagent claims against cited evidence ([Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)). A general-purpose subagent prompted with the skill to load suffices in most cases.
+Hosts share no native custom-agent format. Prefer the shared persona plus skills for procedures; add named roles for clean-context adversarial reviews ([subagent](../../subagent/SKILL.md)), compiling one `.agents/supagents/<role>.md` source via [`supagents`](https://github.com/fmind/agent-supagents) when multi-harness or writing native host files directly when single-harness ([Anthropic](https://www.anthropic.com/research/multi-agent-research-system), [Cognition](https://cognition.com/blog/multi-agents-working)).
 
 ## Native definitions
 
-| Host        | Personal profile                      | Project profile                  | Invoke or inspect                            |
-| ----------- | ------------------------------------- | -------------------------------- | -------------------------------------------- |
-| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>/agent.md` | `agy agent`; `agy --agent <role>`; `/agents` |
-| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name  |
-| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`           |
-| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agents`; delegation by name  |
+| Host        | Personal profile                      | Project profile                  | Invoke or inspect                                      |
+| ----------- | ------------------------------------- | -------------------------------- | ------------------------------------------------------ |
+| Antigravity | `~/.gemini/config/agents/<role>.md`   | `.agents/agents/<role>.md`       | `agy agent`; `agy --agent <role>`; `/agents`           |
+| Claude Code | `~/.claude/agents/<role>.md`          | `.claude/agents/<role>.md`       | `claude --agent <role>`; delegation by name            |
+| Copilot     | `~/.copilot/agents/<role>.agent.md`   | `.github/agents/<role>.agent.md` | `/agent`; `copilot --agent <role>`                     |
+| OpenCode    | `~/.config/opencode/agents/<role>.md` | `.opencode/agents/<role>.md`     | `opencode debug agents --standalone`; delegate by name |
 
-All four use YAML frontmatter + Markdown body (Pi uses TypeScript extensions and prompt templates rather than custom-agent role files). Claude's `skills` preloads only on subagent delegation (not `claude --agent <role>`), so preload only always-needed skills and cite conditional skills by path; `claude agents` lists background sessions, not roles. Inherit the model where supported and pass task context explicitly.
+All four use YAML frontmatter + Markdown body (Antigravity also discovers `.agents/agents/<role>/agent.md`; Codex uses `.codex/agents/<role>.toml`; Pi uses TypeScript extensions rather than role files). Claude's `skills` preloads only on subagent delegation (not `claude --agent <role>`), and `claude agents` lists background sessions rather than roles. Inherit the model where supported and pass task context explicitly.
 
 ## Permission limits
 

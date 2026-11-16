@@ -1,0 +1,7 @@
+# Docs: https://vale.sh/docs/topics/styles/
+extends: occurrence
+message: "Keep prose paragraphs scannable (<= 80 words); split or use bullets."
+level: warning
+scope: paragraph
+max: 80
+token: \b\w+\b

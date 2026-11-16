@@ -17,6 +17,7 @@ mise.lock
 mise.toml
 ruff.toml
 skills
+supagents.yaml
 tests
 
 # Machine-specific CLI configuration stays local.

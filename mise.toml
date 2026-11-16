@@ -59,6 +59,7 @@ trivy = "latest"
 typos = "latest"
 typst = "latest"
 uv = "latest"
+vale = "latest"
 
 # Canonical project tasks.
 
@@ -91,6 +92,7 @@ depends = [
   "check:python",
   "check:shell",
   "check:skills",
+  "check:supagents",
   "check:tasks",
   "check:typos",
 ]
@@ -189,8 +191,12 @@ run = [
   "gh skill publish --dry-run skills",
   "uv run --frozen --directory dot python -m dot_tasks.skill_contracts",
   # Generated-project templates link relative to their future repository.
-  "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md'",
+  "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md'",
 ]
+
+[tasks."check:supagents"]
+description = "Validate cross-harness subagent sources and generated configurations"
+run = "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tasks."check:tasks"]
 description = "Validate repository task definitions"
@@ -216,7 +222,7 @@ run = "uv run --frozen --project dot coverage report --rcfile=dot/pyproject.toml
 [tasks.format]
 alias = "f"
 description = "Format all active sources and documents"
-depends = ["format:dprint", "format:lua", "format:python", "format:shell", "format:skills"]
+depends = ["format:dprint", "format:lua", "format:python", "format:shell", "format:skills", "format:supagents"]
 
 [tasks."format:dprint"]
 description = "Format JSON, Markdown, TOML, and YAML"
@@ -229,6 +235,11 @@ run = "dprint fmt --allow-no-files"
 [tasks."format:skills"]
 description = "Generate parent routing indexes from guide metadata"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --sync"
+
+[tasks."format:supagents"]
+description = "Compile canonical subagent sources into native harness profiles"
+wait_for = ["format:dprint"]
+run = "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 # Lefthook passes staged files to these formatters; mise hands variadic arguments
 # over as one shell-quoted string, which `eval "set -- ..."` splits back safely.

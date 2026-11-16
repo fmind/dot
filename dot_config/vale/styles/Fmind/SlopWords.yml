@@ -1,0 +1,29 @@
+# Docs: https://vale.sh/docs/topics/styles/
+extends: existence
+message: "Drop AI cliché '%s'; state the concrete fact or outcome directly."
+level: error
+ignorecase: true
+tokens:
+  - cutting-edge
+  - delve
+  - delves
+  - delving
+  - game-changer
+  - game-changing
+  - holistic
+  - holistically
+  - in today's fast-paced
+  - it is important to note
+  - it's important to note
+  - it is worth noting
+  - it's worth noting
+  - navigate the complexities
+  - paradigm shift
+  - seamless
+  - seamlessly
+  - synergistic
+  - synergy
+  - tapestry
+  - testament to
+  - unleash
+  - unlock the power

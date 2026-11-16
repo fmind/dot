@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/humanize
   created: "2026-08-20"
-  updated: "2026-11-15"
+  updated: "2026-11-16"
   kind: task
 ---
 
@@ -24,11 +24,11 @@ Apply these three filters before writing a word:
 
 Before: _"Checked `loader.py`; bumped `chunk_size=100_000` and `memory=8Gi` in `infra/main.tf`; all `14` `pytest` cases pass; please review PR `#418`."_
 
-After: **Batch imports are healthy again — [approve PR 418](https://example.com/org/repo/pull/418) before 17:00 UTC.** Peak memory now stays well below our 8 GB limit.
+After: **Batch imports are healthy again: [approve PR 418](https://example.com/org/repo/pull/418) before 17:00 UTC.** Peak memory now stays well below our 8 GB limit.
 
 ## Hard rules
 
-- **Zero prose backticks**: never put backticks around products, formats, acronyms, metrics, files, branches, or status labels in human copy. Write Python 3.14, JSON, BigQuery, Cloud Run, 42 ms, or the config file — never wrap everyday prose words in code spans. Reserve monospace strictly for literal commands, code snippets, or paths a reader must copy verbatim to run.
+- **Zero em dashes or prose backticks**: drop em dashes (`—`) in external human copy (use colons, commas, parentheses, or periods) and never put backticks around products, formats, acronyms, metrics, files, branches, or status labels. Write Python 3.14, JSON, BigQuery, Cloud Run, 42 ms, or the config file; reserve monospace strictly for literal commands, code snippets, or paths a reader must copy verbatim to run.
 - **Zero jargon**: translate stack traces, internal flag names, exit codes, and plumbing into business or user outcomes (`service restarted cleanly` beats `OOMKilled exit 137 in ingest-worker`).
 - **Signal over completeness**: state the headline outcome first, round numbers cleanly with a baseline (`+18% throughput vs last quarter`), and push logs or raw tables into a collapsible drawer, appendix, or speaker note.
 - **Proportional visual hierarchy**: break up any block taller than three lines with a bold lead-in or short list first; step up to a color badge, tinted callout banner, separator line, comparison table, or chart following `~/.agents/DESIGN.md` when structure or stakes warrant it—never force highlight blocks onto short emails or replies.
@@ -50,4 +50,6 @@ After: **Batch imports are healthy again — [approve PR 418](https://example.co
 
 ## Pre-send gate
 
-Read the draft like a busy stakeholder scrolling on a phone: cut any paragraph over three lines, remove every prose backtick and internal jargon word, confirm the key number and next step stand out visually at a glance, and move secondary proof behind a collapse or speaker note.
+1. **Lint deterministically**: run `vale --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` (or omit `--config` when the repo defines `.vale.ini`) to catch AI clichés, em dashes (`—`), prose backtick clusters, and `> 80`-word paragraphs in `< 100 ms`.
+1. **Scan like a busy human on a phone**: cut any paragraph over three lines, strip remaining prose backticks and internal jargon, confirm the key number and next step stand out at a glance, and push secondary proof into a collapse, appendix, or speaker note.
+1. **Audit high-stakes copy adversarially**: freeze external briefs, decks, docs, and announcements and run `fmind-review-human` (plus `fmind-review-pitch` or `fmind-review-design` when applicable; see [subagent](../subagent/SKILL.md)).

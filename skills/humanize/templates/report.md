@@ -39,8 +39,8 @@
 
 **{Choose option X because of the clear margin in speed and reliability.}** Top risk is {risk}, mitigated by {control}; we would revisit only if {flip condition}.
 
-- [ ] **{First action}** — {Owner}, by {Date}.
-- [ ] **{Follow-up action}** — {Owner}, by {Date}.
+- [ ] **{First action}**: {Owner}, by {Date}.
+- [ ] **{Follow-up action}**: {Owner}, by {Date}.
 
 <details>
 <summary>Supporting visual, method, and sources</summary>

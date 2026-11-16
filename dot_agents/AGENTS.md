@@ -31,12 +31,13 @@ Every reply (including skill reports) stands alone — I may not see tool output
 
 ### To other people
 
-- **Write short and message-first for external readers**: load `humanize` for external deliverables; curate high-value signals, drop jargon and prose backticks, format visually for the medium, and omit my reply format.
+- **Write short and message-first for external readers**: load `humanize` for external deliverables; curate high-value signals, drop em dashes, jargon, and prose backticks (`vale`), format visually for the medium, and omit my reply format.
 
 ## Rigor
 
 - **Ground and link every claim**: base answers and edits on read code (including `.venv/`), data, and docs; verify version- or time-sensitive facts live via installed code, tools, or authoritative primary web pages, and never infer negatives from silence. Cite with inline links and never invent URLs.
 - **Prove it works**: define done and key scenarios (normal, edge cases, failures, security) before non-trivial builds. Run affected tasks, tests, and commands before reporting done, treat warnings as failures, and verify live results after publish/deploy.
+- **Review adversarially before delivery**: after deterministic gates pass on non-trivial code or external deliverables, freeze the artifact/diff and fan out matching clean-context read-only specialist reviewer subagents (`fmind-review-*` or project roles via `subagent` — never same-session skills). Act as critic: verify every `loc`/`evidence` claim against live code, discard nitpicks and scope creep, apply `BLOCK`/`REVISE` fixes and deletions in at most two rounds, and stop on `PASS`.
 - **Take no shortcuts**: fix root causes for all valid inputs and measure against a baseline, one factor at a time. Never hardcode values, skip/loosen/special-case tests, leak eval data, cherry-pick runs, or overfit benchmarks; challenge flawed tests, requirements, or premises.
 - **Spend tool calls wisely**: batch independent calls, reuse context, and skip ritual `--version`, `--help`, and health probes. Revise your hypothesis after failure instead of rerunning; after two failures, change approach or ask.
 
@@ -55,7 +56,7 @@ Customer, employer, and existing projects keep their own stack and design.
 
 - **Default to Python, proven packages, and Zensical**: Python (`python-stack`) for new apps, agents, CLIs, and automation; PEP 723 `uv` scripts; Zensical for docs sites.
 - **Run independent I/O concurrently**: `asyncio` for network, LLM, and MCP calls; bounded worker pools for subprocess/file fan-out (`python-stack`).
-- **Prefer deletion and existing tools**: keep code, configs, flags, checks, CI, and templates minimal; consolidate before adding and abstract only real boundaries.
+- **Prefer deletion and existing tools**: keep code (`< 500` LOC per module), net diffs, configs, flags, checks, CI, and templates minimal; consolidate before adding and abstract only real boundaries.
 - **Document configuration, enforce invariants in code**: document defaults, precedence, and validation; prefer native formats, else YAML for people and schema-backed JSON for programs; comment non-obvious choices and keep operations idempotent.
 - **Update docs in the same change**: sync every affected `README`, `AGENTS.md`, skill, and doc (`repository-docs`).
 - **Design Google-simple UIs; verify in Chrome**: follow `~/.agents/DESIGN.md` and check live web UIs in Chrome (`web-frontend`, `chrome-devtools`).

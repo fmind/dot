@@ -100,6 +100,7 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 "pypi:marimo" = { version = "latest", python = "3.14" }
 # Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
 "pypi:pgcli" = { version = "latest", python = "3.14", with = ["psycopg[binary]"] }
+"pypi:supagents" = { version = "latest", python = "3.14" } # Cross-harness subagent compiler across projects
 "pypi:vulture" = { version = "latest", python = "3.14" } # Python dead-code scanner for full-review sweeps outside projects; projects pin their own
 acli = "latest"
 age = "latest"
@@ -162,6 +163,7 @@ typos = "latest"
 typst = "latest" # Composed diagrams and standalone PDFs outside projects; projects pin their own
 usage = "latest" # Powers mise CLI completions
 uv = "latest"
+vale = "latest" # Deterministic anti-slop prose linter across projects and drafts
 vault = "latest"
 xh = "latest"
 yazi = "latest"

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-11-14"
+  updated: "2026-11-16"
 ---
 
 # Web Frontend
@@ -24,7 +24,7 @@ Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Def
    DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@1.0.0 retrieve "<guide-id>[,<guide-id>]"
    ```
 1. **Compile Tailwind**: follow [standalone Tailwind](references/tailwind.md) when Tailwind is used (`tailwindcss` compiles CSS; reserve `npx` for guidance/token CLIs).
-1. **Verify live in Chrome**: exercise the primary flow with [chrome-devtools](../chrome-devtools/SKILL.md), confirming zero console/network errors, clean responsive viewports, keyboard flow, and accessibility; fix defects, recheck, and stop without open-ended polish loops.
+1. **Verify live in Chrome & audit accessibility/CWV**: exercise the primary flow at desktop and `390x844` mobile viewports with [chrome-devtools](../chrome-devtools/SKILL.md) (including `lighthouse_audit`), confirming zero console/network errors, `>= 4.5:1` text contrast, keyboard flow, and zero layout shift; run `fmind-review-design` and `fmind-review-web` ([subagent](../subagent/SKILL.md)) on non-trivial surfaces, fix verified defects, and stop without open-ended polish loops.
 
 ## Gotchas
 

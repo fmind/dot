@@ -1,0 +1,7 @@
+# Docs: https://vale.sh/docs/topics/styles/
+extends: existence
+message: "Avoid em dashes ('—') in human copy; use a period, colon, comma, or parentheses."
+level: warning
+nonword: true
+tokens:
+  - "—"

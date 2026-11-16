@@ -125,7 +125,7 @@ Contributor guides: [AGENTS.md](AGENTS.md) and [releases & qualification](.agent
   >
 </a>
 
-Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins. Built-in subagents inherit the shared persona and skills without custom role files; see [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins. Read-only `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) audit code, contracts, security, SRE/ops, perf, FinOps, data, MLOps, AI, UX, web, and human communication across the first four hosts via [supagents](https://github.com/fmind/agent-supagents); see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 
 ## Agent skills
 
@@ -134,7 +134,8 @@ Setup links [`skills/`](skills/) into `~/.agents/skills/` beside standalone inst
 Common slash commands:
 
 - **Deliverables & writing:** `/clipboard` copies the last output ([clipboard](skills/clipboard/SKILL.md)); `/humanize` turns dense drafts into clear, visual human communication; `/draft-doc` builds Google Docs; `/draft-typst-deck` builds branded Typst PDF and Google Slides decks; `/draft-mail` drafts Gmail replies without sending.
-- **Engineering & maintenance:** `/full-review` audits a repo or PR and smoke-tests tasks; `/trim <path>` cuts tokens without losing facts; `/skillify` captures workflows and session lessons; `/fmind` queries Fmind's public portfolio, articles, and daily news ([fmind](skills/fmind/SKILL.md)); `/auth-status` checks CLI logins; `/task-prompts` writes handoffs (`agy -c` resumes, `/compact` compacts).
+- **Quality & review:** `/full-review` audits a repo or PR and smoke-tests tasks; `/subagent` designs and orchestrates adversarial reviewer subagents ([subagent](skills/subagent/SKILL.md)); `/trim <path>` cuts tokens without losing facts.
+- **Skills & operations:** `/skillify` captures workflows and session lessons; `/fmind` queries Fmind's public portfolio, articles, and daily news ([fmind](skills/fmind/SKILL.md)); `/auth-status` checks CLI logins; `/task-prompts` writes handoffs (`agy -c` resumes, `/compact` compacts).
 
 ## Credentials
 
