@@ -1,12 +1,4 @@
-"""Latest normalized transcript and usage for each agent session.
-
-Each session is one owner-only JSONL bundle, ``sessions/v3/<agent>/<session_id>.jsonl``. Schema 4
-puts the manifest (provenance, counts, and the usage time span) on the first line, the usage
-document (or ``null``) on the second, and one normalized record on each following line, so
-metadata reads never decode usage samples. Schema 3 bundles embed usage in the manifest and start
-records on the second line; read paths accept both schemas and sync rewrites changed sources as
-schema 4. Publication replaces the whole file atomically, so transcript and usage never diverge.
-"""
+"""Latest normalized transcript and usage for each schema-4 agent session."""
 
 from __future__ import annotations
 
@@ -16,200 +8,201 @@ import json
 import os
 import re
 import stat
-from collections import deque
 from collections.abc import Generator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal
-
-from pydantic import Field, StrictBool, StrictStr, TypeAdapter, ValidationError
+from typing import Any, Literal
 
 from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 4
-# Schema 3 embeds usage in the manifest line and stays readable alongside schema 4.
-READABLE_SCHEMA_VERSIONS = (3, SESSION_SCHEMA_VERSION)
+READABLE_SCHEMA_VERSIONS = (SESSION_SCHEMA_VERSION,)
 SESSION_PARSER_VERSION = "16"
-# Every released parser stays readable: a bundle whose source the provider deleted can never be
-# recaptured. Earlier captures are flagged as legacy until their sources are recaptured.
-READABLE_PARSER_VERSIONS = (
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "10",
-    "11",
-    "12",
-    "13",
-    "14",
-    "15",
-    SESSION_PARSER_VERSION,
-)
+READABLE_PARSER_VERSIONS = tuple(str(v) for v in range(7, 17))
 SESSION_STORE_VERSION = "v3"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
-
-NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
-NonEmptyStr = Annotated[str, Field(strict=True, min_length=1)]
-
 Completeness = Literal["complete", "partial"]
 IngestionStatus = Literal["ingested", "unchanged", "retained", "skipped"]
 
 
 def is_valid_session_id(value: str) -> bool:
-    """Accept only one safe path component: no separators, dots, or traversal."""
+    """Accept only one safe path component without separators, dots, or traversal."""
     return bool(_COMPONENT.fullmatch(value))
 
 
-@dataclass
+@dataclass(slots=True)
 class SessionLog:
-    """One source-neutral conversation record."""
-
-    ts: StrictStr
-    agent: StrictStr
-    sid: StrictStr
-    role: StrictStr
-    content: StrictStr
-    cwd: StrictStr = ""
-    model: StrictStr = ""
-    meta: StrictBool = False
+    ts: str
+    agent: str
+    sid: str
+    role: str
+    content: str
+    cwd: str = ""
+    model: str = ""
+    meta: bool = False
 
     def to_dict(self) -> dict[str, Any]:
-        return _LOG_ADAPTER.dump_python(self, exclude_defaults=True)
-
-    @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> SessionLog:
-        try:
-            return _LOG_ADAPTER.validate_python(value)
-        except ValidationError:
-            raise ValueError("invalid normalized transcript record") from None
-
-
-_LOG_ADAPTER = TypeAdapter(SessionLog)
+        out: dict[str, Any] = {
+            "ts": self.ts,
+            "agent": self.agent,
+            "sid": self.sid,
+            "role": self.role,
+            "content": self.content,
+        }
+        return out | {k: v for k, v in (("cwd", self.cwd), ("model", self.model), ("meta", self.meta)) if v}
 
 
-@dataclass
+@dataclass(slots=True)
 class SessionSource:
-    """Evidence retained about the raw source of one capture."""
-
     type: str = ""
     fingerprint: str = ""
-    # Cheap stat evidence (sizes and modification times) that lets sync skip an unchanged source.
     signature: str = ""
     malformed: int = 0
     skipped: int = 0
-    # A subagent transcript is a sidechain of its parent's session; the parent can be unknown.
     sidechain: bool = False
     parent_session_id: str = ""
 
 
-@dataclass
-class SessionManifest:
-    """Provenance, counts, and usage for the stored copy of one session."""
+def _non_empty_str(raw: object) -> str:
+    if type(raw) is not str or not raw:
+        raise ValueError("invalid session manifest")
+    return raw
 
-    agent: NonEmptyStr
-    session_id: NonEmptyStr
-    parser_version: NonEmptyStr
-    source_type: NonEmptyStr
-    source_fingerprint: NonEmptyStr
-    ingested_at: NonEmptyStr
+
+def _opt_str(value: dict[str, Any], key: str) -> str:
+    if key not in value:
+        return ""
+    if type(raw := value[key]) is not str:
+        raise ValueError("invalid session manifest")
+    return raw
+
+
+def _non_neg_int(value: dict[str, Any], key: str, *, required: bool = False) -> int:
+    if key not in value:
+        if required:
+            raise ValueError("invalid session manifest")
+        return 0
+    if type(raw := value[key]) is not int or raw < 0:
+        raise ValueError("invalid session manifest")
+    return raw
+
+
+@dataclass(slots=True)
+class SessionManifest:
+    agent: str
+    session_id: str
+    parser_version: str
+    source_type: str
+    source_fingerprint: str
+    ingested_at: str
     completeness: Completeness
-    record_count: NonNegativeInt
-    malformed_records: NonNegativeInt = 0
-    skipped_records: NonNegativeInt = 0
-    high_water_mark: StrictStr = ""
-    cwd: StrictStr = ""
-    source_signature: StrictStr = ""
-    usage: Annotated[dict[str, Any], Field(strict=True)] | None = None
-    sidechain: StrictBool = False
-    parent_session_id: StrictStr = ""
-    # Set when `usage` was retained from an earlier capture: the parser that measured it.
-    usage_parser_version: StrictStr = ""
-    # Earliest and latest measured usage (UTC ISO 8601); empty when unknown. Window queries skip
-    # sessions outside them without decoding their usage line.
-    usage_first_timestamp: StrictStr = ""
-    usage_last_timestamp: StrictStr = ""
+    record_count: int
+    malformed_records: int = 0
+    skipped_records: int = 0
+    high_water_mark: str = ""
+    cwd: str = ""
+    source_signature: str = ""
+    usage: dict[str, Any] | None = field(default=None, repr=False)
+    sidechain: bool = False
+    parent_session_id: str = ""
+    usage_parser_version: str = ""
+    usage_first_timestamp: str = ""
+    usage_last_timestamp: str = ""
     schema_version: int = SESSION_SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
-        """The schema 4 manifest line; usage is published on its own line."""
         return {
-            "schema_version": self.schema_version,
             "agent": self.agent,
             "session_id": self.session_id,
             "parser_version": self.parser_version,
             "source_type": self.source_type,
             "source_fingerprint": self.source_fingerprint,
-            "source_signature": self.source_signature,
             "ingested_at": self.ingested_at,
-            "high_water_mark": self.high_water_mark,
-            "cwd": self.cwd,
             "completeness": self.completeness,
             "record_count": self.record_count,
             "malformed_records": self.malformed_records,
             "skipped_records": self.skipped_records,
+            "high_water_mark": self.high_water_mark,
+            "cwd": self.cwd,
+            "source_signature": self.source_signature,
             "sidechain": self.sidechain,
             "parent_session_id": self.parent_session_id,
             "usage_parser_version": self.usage_parser_version,
             "usage_first_timestamp": self.usage_first_timestamp,
             "usage_last_timestamp": self.usage_last_timestamp,
+            "schema_version": self.schema_version,
         }
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> SessionManifest:
+        if not isinstance(value, dict):
+            raise ValueError("invalid session manifest")
+        sv, pv, upv = value.get("schema_version"), value.get("parser_version"), value.get("usage_parser_version")
         if (
-            value.get("schema_version") not in READABLE_SCHEMA_VERSIONS
-            or value.get("parser_version") not in READABLE_PARSER_VERSIONS
+            type(sv) is not int
+            or sv not in READABLE_SCHEMA_VERSIONS
+            or type(pv) is not str
+            or pv not in READABLE_PARSER_VERSIONS
+            or (upv is not None and upv != "" and (type(upv) is not str or upv not in READABLE_PARSER_VERSIONS))
         ):
-            raise _unsupported_format(value.get("schema_version"), value.get("parser_version"))
-        # Constructor defaults support new captures; all three counters are required on disk.
-        if not {"record_count", "malformed_records", "skipped_records"} <= value.keys():
+            bad_pv = upv if upv and sv in READABLE_SCHEMA_VERSIONS and pv in READABLE_PARSER_VERSIONS else pv
+            newer = (type(sv) is int and sv > SESSION_SCHEMA_VERSION) or (
+                isinstance(bad_pv, str) and bad_pv.isdigit() and int(bad_pv) > int(SESSION_PARSER_VERSION)
+            )
+            raise ValueError(
+                "session format written by a newer dot; install that dot version to read this archive"
+                if newer
+                else "unsupported session format; recapture available sources with dot stats"
+            )
+        if "usage" in value:
             raise ValueError("invalid session manifest")
-        if value["schema_version"] != 3 and "usage" in value:
-            # Schema 4 publishes usage on its own line; an embedded copy would be ambiguous.
+        completeness = value.get("completeness")
+        if completeness == "complete":
+            parsed_completeness: Completeness = "complete"
+        elif completeness == "partial":
+            parsed_completeness = "partial"
+        else:
             raise ValueError("invalid session manifest")
-        try:
-            manifest = _MANIFEST_ADAPTER.validate_python(value)
-        except ValidationError as error:
-            field = error.errors(include_input=False, include_context=False, include_url=False)[0]["loc"][0]
-            raise ValueError(f"invalid manifest field {field}") from None
+        sidechain = value.get("sidechain", False)
+        if type(sidechain) is not bool:
+            raise ValueError("invalid session manifest")
+        manifest = cls(
+            agent=_non_empty_str(value.get("agent")),
+            session_id=_non_empty_str(value.get("session_id")),
+            parser_version=_non_empty_str(pv),
+            source_type=_non_empty_str(value.get("source_type")),
+            source_fingerprint=_non_empty_str(value.get("source_fingerprint")),
+            ingested_at=_non_empty_str(value.get("ingested_at")),
+            completeness=parsed_completeness,
+            record_count=_non_neg_int(value, "record_count", required=True),
+            malformed_records=_non_neg_int(value, "malformed_records"),
+            skipped_records=_non_neg_int(value, "skipped_records"),
+            high_water_mark=_opt_str(value, "high_water_mark"),
+            cwd=_opt_str(value, "cwd"),
+            source_signature=_opt_str(value, "source_signature"),
+            sidechain=sidechain,
+            parent_session_id=_opt_str(value, "parent_session_id"),
+            usage_parser_version=_opt_str(value, "usage_parser_version"),
+            usage_first_timestamp=_opt_str(value, "usage_first_timestamp"),
+            usage_last_timestamp=_opt_str(value, "usage_last_timestamp"),
+            schema_version=sv,
+        )
         if (
             not is_valid_session_id(manifest.agent)
             or not is_valid_session_id(manifest.session_id)
             or (manifest.parent_session_id and not is_valid_session_id(manifest.parent_session_id))
         ):
             raise ValueError("invalid session manifest identity")
-        if manifest.usage_parser_version and manifest.usage_parser_version not in READABLE_PARSER_VERSIONS:
-            raise _unsupported_format(SESSION_SCHEMA_VERSION, manifest.usage_parser_version)
         return manifest
 
 
-def _unsupported_format(schema_version: object, parser_version: object) -> ValueError:
-    """Recapture fixes an older format; only a newer dot can read a format written by a newer dot."""
-    newer = (isinstance(schema_version, int) and schema_version > SESSION_SCHEMA_VERSION) or (
-        isinstance(parser_version, str)
-        and parser_version.isdigit()
-        and int(parser_version) > int(SESSION_PARSER_VERSION)
-    )
-    if newer:
-        return ValueError("session format written by a newer dot; install that dot version to read this archive")
-    return ValueError("unsupported session format; recapture available sources with dot agent session sync")
-
-
-_MANIFEST_ADAPTER = TypeAdapter(SessionManifest)
-
-
-@dataclass
+@dataclass(slots=True)
 class SessionIngestionResult:
     status: IngestionStatus
     manifest: SessionManifest
-    # Retained only: the archived bundle is a complete current-parser copy of exactly this complete
-    # capture's records, so the archive kept nothing but usage (see _holds_current_transcript).
     current_transcript: bool = False
 
 
@@ -217,27 +210,12 @@ def fingerprint_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def _json_bytes(value: object, *, sort_keys: bool = False) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=sort_keys, allow_nan=False, separators=(",", ":")).encode()
+
+
 def fingerprint_json(value: object) -> str:
-    """Fingerprint structured source data with canonical native JSON."""
-    return fingerprint_bytes(
-        json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()
-    )
-
-
-def _json_line(value: dict[str, Any]) -> bytes:
-    return (json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n").encode()
-
-
-def marshal_session_logs(logs: list[SessionLog]) -> bytes:
-    return b"".join(_json_line(log.to_dict()) for log in logs)
-
-
-def fingerprint_logs(logs: list[SessionLog]) -> str:
-    return fingerprint_bytes(marshal_session_logs(logs))
-
-
-def session_high_water(logs: list[SessionLog]) -> str:
-    return max((log.ts for log in logs), default="")
+    return fingerprint_bytes(_json_bytes(value, sort_keys=True))
 
 
 def propagate_models(logs: list[SessionLog]) -> None:
@@ -252,25 +230,21 @@ def propagate_models(logs: list[SessionLog]) -> None:
 
 
 def format_utc_z(value: datetime | None = None, *, seconds: bool = False) -> str:
-    """Format a UTC timestamp with a trailing ``Z`` offset."""
     instant = datetime.now(UTC) if value is None else value.astimezone(UTC)
     return instant.isoformat(timespec="seconds" if seconds else "auto").replace("+00:00", "Z")
 
 
 def session_store_root() -> Path:
-    return Path.home() / ".agents" / "sessions" / SESSION_STORE_VERSION
+    return Path.home() / ".agents/sessions" / SESSION_STORE_VERSION
 
 
 def session_bundle_path(agent: str, session_id: str) -> Path:
-    if not is_valid_session_id(agent):
-        raise ValueError(f"invalid agent format: {agent!r}")
-    if not is_valid_session_id(session_id):
-        raise ValueError(f"invalid session_id format: {session_id!r}")
+    if not is_valid_session_id(agent) or not is_valid_session_id(session_id):
+        raise ValueError(f"invalid session target: {agent!r}/{session_id!r}")
     return session_store_root() / agent / f"{session_id}{BUNDLE_SUFFIX}"
 
 
 def parse_utc_instant(value: object) -> datetime | None:
-    """Parse an ISO 8601 timestamp as UTC; one without an offset is UTC. None when invalid."""
     if not isinstance(value, str) or not value:
         return None
     try:
@@ -281,104 +255,52 @@ def parse_utc_instant(value: object) -> datetime | None:
 
 
 def usage_window(usage: dict[str, Any] | None) -> tuple[str, str]:
-    """Return the first and last measured instants, or empty strings when any are unknown."""
+    """Return earliest and latest usage instants, or empty strings when any are unknown."""
     if usage is None:
         return "", ""
     samples = usage.get("samples")
-    values = [sample.get("timestamp") if isinstance(sample, dict) else None for sample in samples or ()] or [
-        usage.get("timestamp")
-    ]
-    instants = [parse_utc_instant(value) for value in values]
-    if not instants or any(instant is None for instant in instants):
-        # An unknown instant could fall inside any window, so the session must always be read.
+    raw = (
+        [s.get("timestamp") if isinstance(s, dict) else None for s in samples] if samples else [usage.get("timestamp")]
+    )
+    instants = [parse_utc_instant(v) for v in raw]
+    if not instants or any(i is None for i in instants):
         return "", ""
-    known = [instant for instant in instants if instant is not None]
+    known = [i for i in instants if i is not None]
     return min(known).isoformat(), max(known).isoformat()
 
 
-def _parse_usage(line: bytes, path: Path) -> dict[str, Any] | None:
+def _parse_json_object(line: bytes, label: str, path: Path, *, allow_none: bool = False) -> dict[str, Any] | None:
     try:
         value = json.loads(line)
     except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
-        raise ValueError(f"invalid session usage in {path}: {error}") from error
-    if value is not None and not isinstance(value, dict):
-        raise ValueError(f"invalid session usage in {path}")
+        raise ValueError(f"invalid session {label} in {path}: {error}") from error
+    if value is None and allow_none:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError(f"invalid session {label} in {path}")
     return value
 
 
-def _parse_manifest(header: bytes, path: Path) -> SessionManifest:
-    try:
-        value = json.loads(header)
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
-        raise ValueError(f"invalid session manifest in {path}: {error}") from error
-    if not isinstance(value, dict):
-        raise ValueError(f"invalid session manifest in {path}")
-    try:
-        manifest = SessionManifest.from_dict(value)
-    except ValueError as error:
-        raise ValueError(f"{error}: {path}") from error
-    if manifest.agent != path.parent.name or f"{manifest.session_id}{BUNDLE_SUFFIX}" != path.name:
-        raise ValueError(f"session manifest does not match its path: {path}")
-    return manifest
-
-
 def read_session_manifest(path: Path, *, usage: bool = True) -> SessionManifest:
-    """Read the manifest and its usage; transcript content is never decoded.
-
-    Metadata readers pass ``usage=False`` so schema 4 never decodes usage samples; the manifest's
-    usage is then None for every schema, so no caller depends on a value it did not request.
-    """
     with path.open("rb") as stream:
-        manifest = _parse_manifest(stream.readline(), path)
-        if not usage:
-            manifest.usage = None
-        elif manifest.schema_version != 3:
-            manifest.usage = _parse_usage(stream.readline(), path)
+        if (value := _parse_json_object(stream.readline(), "manifest", path)) is None:
+            raise ValueError(f"invalid session manifest in {path}")
+        try:
+            manifest = SessionManifest.from_dict(value)
+        except ValueError as error:
+            raise ValueError(f"{error}: {path}") from error
+        if manifest.agent != path.parent.name or f"{manifest.session_id}{BUNDLE_SUFFIX}" != path.name:
+            raise ValueError(f"session manifest does not match its path: {path}")
+        if usage:
+            manifest.usage = _parse_json_object(stream.readline(), "usage", path, allow_none=True)
     return manifest
 
 
-def read_manifest_usage(path: Path, manifest: SessionManifest) -> dict[str, Any] | None:
-    """Read usage for a manifest loaded with ``usage=False`` without re-parsing line 1."""
-    if manifest.schema_version == 3:
-        return read_session_manifest(path).usage
-    with path.open("rb") as stream:
-        stream.readline()
-        return _parse_usage(stream.readline(), path)
-
-
-def _parse_records(lines: list[bytes], manifest: SessionManifest, path: Path) -> list[SessionLog]:
-    logs: list[SessionLog] = []
-    for number, line in enumerate(lines, start=1):
-        try:
-            value = json.loads(line)
-            if not isinstance(value, dict):
-                raise ValueError
-            log = SessionLog.from_dict(value)
-        except (UnicodeDecodeError, ValueError, RecursionError) as error:
-            raise ValueError(f"invalid normalized transcript record {number} in {path}") from error
-        if log.agent != manifest.agent or log.sid != manifest.session_id:
-            raise ValueError(f"normalized transcript record {number} does not match its session in {path}")
-        logs.append(log)
-    if len(logs) != manifest.record_count:
-        raise ValueError(
-            f"normalized transcript contains {len(logs)} records, expected {manifest.record_count}: {path}"
-        )
-    return logs
-
-
-def read_session_bundle(path: Path) -> tuple[SessionManifest, list[SessionLog]]:
-    # Records end at LF only: JSON strings may contain Unicode line separators.
-    header, *lines = path.read_bytes().split(b"\n")
-    manifest = _parse_manifest(header, path)
-    if manifest.schema_version != 3:
-        if not lines:
-            raise ValueError(f"invalid session usage in {path}")
-        manifest.usage = _parse_usage(lines.pop(0), path)
-    return manifest, _parse_records([line for line in lines if line.strip()], manifest, path)
+def agent_bundle_paths(directory: Path) -> list[Path]:
+    return sorted(p for p in directory.iterdir() if p.suffix == BUNDLE_SUFFIX and is_valid_session_id(p.stem))
 
 
 def discover_session_bundles() -> list[Path]:
-    """List bundle files; hidden names are temporary files or sync state."""
     root = session_store_root()
     try:
         mode = root.stat().st_mode
@@ -386,69 +308,39 @@ def discover_session_bundles() -> list[Path]:
         return []
     if not stat.S_ISDIR(mode):
         raise NotADirectoryError(f"session archive is not a directory: {root}")
-    # Path.is_dir() suppresses filesystem errors in Python 3.14. An inaccessible
-    # archive must fail instead of silently reporting no captured sessions.
     return sorted(
-        path
+        p
         for agent in root.iterdir()
         if is_valid_session_id(agent.name) and stat.S_ISDIR(agent.stat().st_mode)
-        for path in agent_bundle_paths(agent)
+        for p in agent_bundle_paths(agent)
     )
-
-
-def agent_bundle_paths(directory: Path) -> list[Path]:
-    """List one agent's bundles; any other name is a temporary file, sync state, or a stray copy."""
-    return sorted(
-        path for path in directory.iterdir() if path.suffix == BUNDLE_SUFFIX and is_valid_session_id(path.stem)
-    )
-
-
-def _bundle_content(manifest: SessionManifest, logs: list[SessionLog]) -> bytes:
-    manifest.schema_version = SESSION_SCHEMA_VERSION
-    manifest.usage_first_timestamp, manifest.usage_last_timestamp = usage_window(manifest.usage)
-    usage = (json.dumps(manifest.usage, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n").encode()
-    return _json_line(manifest.to_dict()) + usage + marshal_session_logs(logs)
-
-
-def _write_bundle(root: Path, manifest: SessionManifest, logs: list[SessionLog], *, ensure_root: bool = True) -> None:
-    base = private_directory(root) if ensure_root else root
-    directory = private_directory(base / manifest.agent)
-    write_private_file(directory / f"{manifest.session_id}{BUNDLE_SUFFIX}", _bundle_content(manifest, logs))
 
 
 def _loses_measurement(previous: dict[str, Any], current: dict[str, Any] | None) -> bool:
-    """Token measurements and recorded cost are independent evidence, including known zero."""
     if current is None:
         return True
+    prev_cost = bool(previous.get("cost_known") or previous.get("cost_usd"))
+    curr_cost = bool(current.get("cost_known") or current.get("cost_usd"))
     return (
         previous.get("measurement_kind") == "provider-reported"
         and current.get("measurement_kind") != "provider-reported"
-    ) or bool(
-        (previous.get("cost_known") or previous.get("cost_usd"))
-        and not (current.get("cost_known") or current.get("cost_usd"))
-    )
-
-
-def _holds_current_transcript(
-    archived: SessionManifest, archived_logs: list[SessionLog], captured: SessionManifest, logs: list[SessionLog]
-) -> bool:
-    """Prove a retained archive lost nothing: both copies complete, same parser, identical records."""
-    return (
-        captured.completeness == archived.completeness == "complete"
-        and archived.parser_version == captured.parser_version
-        and archived_logs == logs
-    )
+    ) or (prev_cost and not curr_cost)
 
 
 @contextmanager
 def _write_lock(root: Path) -> Generator[None]:
-    """Serialize publication: atomic replacement protects readers, the lock protects each
-    read/compare/write decision against another sync process. Keep the lock inode stable."""
-    lock = private_directory(root) / ".write.lock"
-    descriptor = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(descriptor, "rb") as stream:
+    fd = os.open(private_directory(root) / ".write.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "rb") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
         yield
+
+
+def _write_bundle(root: Path, agent: str, name: str, manifest: SessionManifest, raw_logs: bytes) -> None:
+    manifest.usage_first_timestamp, manifest.usage_last_timestamp = usage_window(manifest.usage)
+    write_private_file(
+        private_directory(root / agent) / name,
+        _json_bytes(manifest.to_dict()) + b"\n" + _json_bytes(manifest.usage) + b"\n" + raw_logs,
+    )
 
 
 def ingest_session(
@@ -458,123 +350,67 @@ def ingest_session(
     source: SessionSource | None = None,
     *,
     usage: dict[str, Any] | None = None,
-    expected_generation: tuple[str, str] | None = None,
 ) -> SessionIngestionResult:
-    """Keep the latest copy of a session, but never replace it with a shorter transcript.
-
-    Absent usage (a first capture, malformed input, or a provider metric error) is never
-    evidence, so any archived measurement is retained.
-    """
-    source = source or SessionSource()
-    path = session_bundle_path(agent, session_id)
+    """Keep the latest copy of a session without replacing it with a shorter transcript or losing usage."""
+    source, path = source or SessionSource(), session_bundle_path(agent, session_id)
     for number, log in enumerate(logs, start=1):
         if log.agent != agent or log.sid != session_id:
             raise ValueError(f"session record {number} does not match its session")
     propagate_models(logs)
-    fingerprint = source.fingerprint or fingerprint_logs(logs)
+    raw_logs = b"".join(_json_bytes(log.to_dict()) + b"\n" for log in logs)
     usage_cwd = raw_cwd if isinstance(usage, dict) and isinstance(raw_cwd := usage.get("cwd"), str) else ""
     manifest = SessionManifest(
         agent=agent,
         session_id=session_id,
         parser_version=SESSION_PARSER_VERSION,
         source_type=source.type or "normalized",
-        source_fingerprint=fingerprint,
-        source_signature=source.signature,
+        source_fingerprint=source.fingerprint or fingerprint_bytes(raw_logs),
         ingested_at=format_utc_z(),
-        high_water_mark=session_high_water(logs),
-        cwd=next((log.cwd for log in logs if log.cwd), usage_cwd),
         completeness="partial" if source.malformed else "complete",
         record_count=len(logs),
         malformed_records=source.malformed,
         skipped_records=source.skipped,
+        high_water_mark=max((log.ts for log in logs), default=""),
+        cwd=next((log.cwd for log in logs if log.cwd), usage_cwd),
+        source_signature=source.signature,
         usage=usage,
         sidechain=source.sidechain,
         parent_session_id=source.parent_session_id,
     )
-    retain_usage = False
-    if not logs and usage is None:
-        try:
-            path.stat()
-        except FileNotFoundError:
-            return SessionIngestionResult("skipped", manifest)
+    if not logs and usage is None and not path.exists():
+        return SessionIngestionResult("skipped", manifest)
     root = session_store_root()
     with _write_lock(root):
-        # exists() hides permission errors on supported Python versions. An unreadable
-        # capture must never become an absent one before publication repairs permissions.
         try:
             stored = read_session_manifest(path)
         except FileNotFoundError:
             stored = None
         if stored is None and not logs and usage is None:
             return SessionIngestionResult("skipped", manifest)
-        generation = (stored.parser_version, stored.source_fingerprint) if stored else ("", "")
-        if expected_generation is not None and generation != expected_generation:
-            # The source was parsed before taking this lock. A competing publication
-            # wins even when both captures contain the same number of messages.
-            if stored is None:
-                return SessionIngestionResult("retained", manifest)
-            try:
-                _, archived_logs = read_session_bundle(path)
-            except OSError, ValueError:
-                # An unreadable competing copy proves nothing about the transcript.
-                return SessionIngestionResult("retained", stored)
-            current = _holds_current_transcript(stored, archived_logs, manifest, logs)
-            return SessionIngestionResult("retained", stored, current_transcript=current)
+        retain_usage = False
         if stored is not None:
+            same = (
+                stored.parser_version == manifest.parser_version
+                and stored.source_fingerprint == manifest.source_fingerprint
+            )
             retain_usage = stored.usage is not None and _loses_measurement(stored.usage, usage)
             if retain_usage:
-                # Keep the archived measurement and its parser, but still publish a transcript that
-                # does not shrink. An empty signature makes sync retry until the source measures again.
                 manifest.usage = stored.usage
                 manifest.usage_parser_version = stored.usage_parser_version or stored.parser_version
                 manifest.cwd = manifest.cwd or stored.cwd
                 manifest.source_signature = ""
-            elif (stored.parser_version, stored.source_fingerprint) == (
-                manifest.parser_version,
-                manifest.source_fingerprint,
-            ) and (stored.usage == manifest.usage or stored.source_type == manifest.source_type == "copilot-db"):
-                # Copilot's fingerprint includes usage; whole-database source_bytes
-                # can grow for unrelated sessions without changing this measurement.
-                # Same content: keep its capture time, refresh only the source signature.
+            elif same and stored.usage == manifest.usage:
                 if stored.source_signature != manifest.source_signature:
                     manifest.ingested_at = stored.ingested_at
-                    _write_bundle(root, manifest, logs, ensure_root=False)
+                    _write_bundle(root, agent, path.name, manifest, raw_logs)
                 return SessionIngestionResult("unchanged", stored)
             if len(logs) < stored.record_count:
-                # A truncated or rotated source must not shrink the archived conversation.
                 return SessionIngestionResult("retained", stored)
-            _, previous_logs = read_session_bundle(path)
-            lengths: dict[tuple[str, str], deque[int]] = {}
-            for log in logs:
-                lengths.setdefault((log.role, log.ts), deque()).append(len(log.content))
-            for old in previous_logs:
-                matches = lengths.get((old.role, old.ts))
-                if not matches or matches.popleft() < len(old.content):
-                    # Match in source order without confusing inserted user records or
-                    # model/CWD corrections with an earlier assistant's streamed chunks.
-                    return SessionIngestionResult("retained", stored)
-            if (
-                retain_usage
-                and previous_logs == logs
-                and stored.parser_version == manifest.parser_version
-                and (stored.completeness == "complete" or manifest.completeness != "complete")
-            ):
-                # Only the measurement changed: the archived bundle is already current. A partial
-                # archive falls through only so a complete capture of the same records can replace it.
-                current = stored.completeness == manifest.completeness == "complete"
-                return SessionIngestionResult("retained", stored, current_transcript=current)
-        _write_bundle(root, manifest, logs, ensure_root=False)
-        if retain_usage:
-            # The bundle just published holds this capture's records; only the usage is archived.
-            current = manifest.completeness == "complete"
-            return SessionIngestionResult("retained", manifest, current_transcript=current)
-        return SessionIngestionResult("ingested", manifest)
-
-
-def report_ingestion(result: SessionIngestionResult) -> str:
-    manifest = result.manifest
-    return (
-        f"agent-session: {result.status} {manifest.agent} records={manifest.record_count} "
-        f"malformed={manifest.malformed_records} skipped={manifest.skipped_records} "
-        f"completeness={manifest.completeness}"
-    )
+            if retain_usage and same and (stored.completeness == "complete" or manifest.completeness != "complete"):
+                complete = stored.completeness == manifest.completeness == "complete"
+                return SessionIngestionResult("retained", stored, current_transcript=complete)
+        _write_bundle(root, agent, path.name, manifest, raw_logs)
+        status = "retained" if retain_usage else "ingested"
+        return SessionIngestionResult(
+            status, manifest, current_transcript=retain_usage and manifest.completeness == "complete"
+        )

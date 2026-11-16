@@ -32,7 +32,7 @@ User state lives in `~/.pi/agent/` (`PI_CODING_AGENT_DIR`): `private_dot_pi/priv
 - **Project trust gates code, not context files**: trust enables `.pi/settings.json`, `.pi/mcp.json`, `.pi/{extensions,skills,prompts,themes}`, `.pi` system prompts, and `.agents/skills` for the folder and all subdirectories—`dot trust` writes repo roots only; never trust a parent directory holding third-party clones.
 - **Extensions run in-process**: TypeScript in `~/.pi/agent/extensions/`, trusted `.pi/extensions/`, and `pi install <source>` packages run with full permissions at startup; vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md). Managed `google-vertex.ts` resolves dynamic Vertex location and startup model/thinking state.
 - **Built-in MCP**: `pi mcp add`/`list` and `~/.pi/agent/mcp.json` (`mcpServers`, stdio or streamable HTTP; `--no-mcp` disables per run) per [mcp-setup](mcp-setup.md).
-- **JSONL session trees**: `~/.pi/agent/sessions/--<cwd>--/<timestamp>_<session-id>.jsonl` stores branches; `/fork` and `/clone` copy prior entries, which `dot agent session sync` deduplicates with the parent.
+- **JSONL session trees**: `~/.pi/agent/sessions/--<cwd>--/<timestamp>_<session-id>.jsonl` stores branches; `/fork` and `/clone` copy prior entries, which `dot stats` deduplicates with the parent during sync.
 
 ## Gotchas
 

@@ -15,7 +15,7 @@ Default new integrations to GCP Agent Platform (Gemini Enterprise Agent Platform
 
 ## Explicit key fallback
 
-No personal Agent Platform key exists here. If ADC is impossible and a key is explicitly requested, load a project-scoped `aiplatform.googleapis.com`-restricted key via secret manager or `dot secret run`, passing it to the client (`google-genai` 2.15.0+ supports enterprise keys with project/location; older versions restrict keys to express mode) or `x-goog-api-key`—never via `GOOGLE_API_KEY`, `GEMINI_API_KEY`, URLs, or mixed with ADC.
+No personal Agent Platform key exists here. If ADC is impossible and a key is explicitly requested, load a project-scoped `aiplatform.googleapis.com`-restricted key via secret manager or `with-secret`, passing it to the client (`google-genai` 2.15.0+ supports enterprise keys with project/location; older versions restrict keys to express mode) or `x-goog-api-key`—never via `GOOGLE_API_KEY`, `GEMINI_API_KEY`, URLs, or mixed with ADC.
 
 ## Primary sources
 

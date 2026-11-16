@@ -1,48 +1,57 @@
-"""Workstation diagnostics, completions, and installation freshness."""
+"""Workstation diagnostics and installation freshness."""
 
 import argparse
 import os
-import re
 import shutil
 import stat
 import sys
-import tempfile
 import tomllib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
 from fmind_dot import __version__
+from fmind_dot.archive.store import SESSION_STORE_VERSION, agent_bundle_paths, session_store_root
+from fmind_dot.archive.sync import read_sync_state, source_root
 from fmind_dot.auth import (
     GCLOUD_CLI_TOKEN,
     PROBE_TIMEOUT_SECONDS,
     adc_ready,
     gcloud_ready,
-    github_keyring_remedy,
     github_status,
     github_token_plaintext,
     workspace_ready,
 )
-from fmind_dot.command import FISH_COMPLETION, Parser, add_json
-from fmind_dot.config import expand_path, xdg_dir
+from fmind_dot.command import Parser, add_json
+from fmind_dot.config import expand_path, policy
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
-from fmind_dot.orphan import find_orphans
-from fmind_dot.private_files import private_directory, write_atomic_file
-from fmind_dot.process import CommandResult, Runner, run_parallel
+from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.reporting import diagnostic_report, write_json
-from fmind_dot.state import State, require_tools
+from fmind_dot.state import State
 
-# Operating thresholds shared with the persona and the dot-cli disk-space guide.
 _GIB = 1024**3
-_DISK_FAIL_GIB = 10
-_DISK_WARN_GIB = 20
-_MEMORY_FAIL_GIB = 1
-_COMPLETION_TIMEOUT_SECONDS = 60.0
+_DISK_FAIL_GIB, _DISK_WARN_GIB, _MEMORY_FAIL_GIB = 10, 20, 1
 _PROBE_CONCURRENCY = 8
-_SECRET_PERMISSIONS = 0o600
-_OPTIONAL_SECRETS = ("~/.private.fish",)
-_SIGNING_PRIVATE_KEY = "~/.ssh/id_ed25519_signing"
-_SIGNING_PUBLIC_KEY = "~/.ssh/id_ed25519_signing.pub"
+_SIGNING_PRIVATE_KEY, _SIGNING_PUBLIC_KEY = "~/.ssh/id_ed25519_signing", "~/.ssh/id_ed25519_signing.pub"
+DOCTOR_SECRETS = ("~/.config/chezmoi/key.txt", _SIGNING_PRIVATE_KEY)
+_SHARED_PERSONA, _SHARED_SKILLS = "~/.agents/AGENTS.md", "~/.agents/skills"
+_AGENT_HOSTS: dict[str, tuple[str, str]] = {
+    "agy": ("~/.gemini/GEMINI.md", "~/.gemini/config/skills"),
+    "claude": ("~/.claude/CLAUDE.md", "~/.claude/skills"),
+    "pi": ("~/.pi/agent/AGENTS.md", ""),
+}
+
+_DOCTOR_GROUPS = (
+    ("auth", "CLI Authentication"),
+    ("secrets", "Secrets & Encryption"),
+    ("docker", "System Services"),
+    ("resources", "System Resources"),
+    ("tools", "CLI Tools"),
+    ("install", "Install Freshness"),
+    ("agents", "Agent Harnesses"),
+)
+DOCTOR_TOOLS: tuple[str, ...] = tuple(policy()["doctor_tools"])
+PACKAGE_DIRECTORY = Path(__file__).resolve().parent
 
 
 @dataclass(frozen=True)
@@ -55,226 +64,13 @@ class CheckResult:
     group: str = ""
 
     def payload(self) -> dict[str, str]:
-        """Sparse dot.diagnostics/v1 entry: empty optional fields are omitted."""
         fields = {"condition": self.condition, "path": self.path, "details": self.details, "group": self.group}
-        return {"name": self.name, "status": self.status} | {key: value for key, value in fields.items() if value}
-
-
-def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
-    if not content.strip():
-        raise DotError(f"generated Fish script is empty: {path.name}")
-    require_tools(state, [["fish"]])
-    timeout = _COMPLETION_TIMEOUT_SECONDS
-    try:
-        state.runner.run(["fish", "--no-config", "--no-execute"], input_text=content, timeout=timeout)
-    except (DotError, OSError) as error:
-        raise DotError(f"generated Fish script failed syntax validation: {path.name}") from error
-    try:
-        write_atomic_file(path, content.encode("utf-8"), mode=mode)
-    except OSError as error:
-        raise DotError(f"failed to publish Fish script: {path.name}") from error
-
-
-def _completion_available(state: State, tool: str) -> bool:
-    executable = state.runner.which(tool)
-    if executable is None:
-        return False
-    mise = state.runner.which("mise")
-    # Disabled optional tools can leave executable shims pointing at mise.
-    # Resolve only those shims; a real executable needs no mise configuration.
-    if tool != "mise" and mise is not None and executable.resolve() == mise.resolve():
-        result = state.runner.run(["mise", "which", tool], timeout=_COMPLETION_TIMEOUT_SECONDS, check=False)
-        if result.returncode:
-            if "not currently active" in result.stderr or "No version is set" in result.stderr:
-                return False
-            raise DotError(f"failed to resolve mise completion executable for {tool}")
-    return True
-
-
-@dataclass(frozen=True)
-class CompletionSource:
-    """One Fish completion source: a native generator command or a mise package's bundled script."""
-
-    binary: str = ""
-    args: tuple[str, ...] = ()
-    package: str = ""
-
-
-# Every entry is generated; unlisted fields fall back to `<tool> completion fish`.
-COMPLETION_SOURCES: dict[str, CompletionSource] = {
-    "a2a": CompletionSource(),
-    "ast-grep": CompletionSource(args=("completions", "fish")),
-    "astro": CompletionSource(),
-    "atuin": CompletionSource(args=("gen-completions", "--shell", "fish")),
-    "bat": CompletionSource(args=("--completion", "fish")),
-    "betterleaks": CompletionSource(),
-    "bf": CompletionSource(binary="env", args=("_BF_COMPLETE=source_fish", "bf")),
-    "cf": CompletionSource(args=("complete", "fish")),
-    "chezmoi": CompletionSource(),
-    "colab": CompletionSource(binary="env", args=("_COLAB_COMPLETE=source_fish", "colab")),
-    "copilot": CompletionSource(),
-    "cosign": CompletionSource(),
-    "databricks": CompletionSource(),
-    "delta": CompletionSource(args=("--generate-completion", "fish")),
-    "doggo": CompletionSource(args=("completions", "fish")),
-    # A constant callback script (command.FISH_COMPLETION); the installed dot answers each completion.
-    "dot": CompletionSource(),
-    "dprint": CompletionSource(args=("completions", "fish")),
-    "fastfetch": CompletionSource(package="github:fastfetch-cli/fastfetch"),
-    "fd": CompletionSource(args=("--gen-completions", "fish")),
-    "gh": CompletionSource(args=("completion", "-s", "fish")),
-    "git-cliff": CompletionSource(package="git-cliff"),
-    "git-lfs": CompletionSource(binary="git", args=("lfs", "completion", "fish")),
-    "hf": CompletionSource(binary="env", args=("_HF_COMPLETE=fish_source", "hf")),
-    "hyperfine": CompletionSource(package="hyperfine"),
-    "jactionlint": CompletionSource(args=("--completion=fish",)),
-    "lazygit": CompletionSource(args=("completion", "fish")),
-    "lefthook": CompletionSource(),
-    "lsd": CompletionSource(package="lsd"),
-    "lychee": CompletionSource(args=("--generate", "complete-fish")),
-    "marimo": CompletionSource(binary="env", args=("_MARIMO_COMPLETE=fish_source", "marimo")),
-    "mise": CompletionSource(),
-    "pup": CompletionSource(args=("completions", "fish")),
-    "rg": CompletionSource(args=("--generate", "complete-fish")),
-    "ruff": CompletionSource(args=("generate-shell-completion", "fish")),
-    "starship": CompletionSource(args=("completions", "fish")),
-    "tree-sitter": CompletionSource(args=("complete", "--shell", "fish")),
-    "trivy": CompletionSource(),
-    "ty": CompletionSource(args=("generate-shell-completion", "fish")),
-    "typst": CompletionSource(args=("completions", "fish")),
-    "usage": CompletionSource(args=("--completions", "fish")),
-    "uv": CompletionSource(args=("generate-shell-completion", "fish")),
-    "uvx": CompletionSource(args=("--generate-shell-completion", "fish")),
-    "xh": CompletionSource(args=("--generate", "complete-fish")),
-    "ya": CompletionSource(package="yazi"),
-    "yazi": CompletionSource(package="yazi"),
-    "yq": CompletionSource(args=("shell-completion", "fish")),
-    "zellij": CompletionSource(args=("setup", "--generate-completion", "fish")),
-    "zoxide": CompletionSource(package="zoxide"),
-}
-# Static completion scripts deployed by chezmoi in dot_config/fish/completions/.
-MANAGED_COMPLETIONS: frozenset[str] = frozenset({"agy.fish"})
-
-
-def _generate_completion(state: State, tool: str) -> str:
-    if tool == "dot":
-        return FISH_COMPLETION
-    custom = COMPLETION_SOURCES.get(tool)
-    binary = custom.binary if custom and custom.binary else tool
-    if not _completion_available(state, tool):
-        raise FileNotFoundError(tool)
-    if custom and custom.package:
-        require_tools(state, [["mise"]])
-        root = state.runner.run(
-            ["mise", "where", "--", custom.package], timeout=_COMPLETION_TIMEOUT_SECONDS
-        ).stdout.strip()
-        if not root or not Path(root).is_absolute() or not Path(root).is_dir():
-            raise DotError(f"mise returned an invalid completion package directory for {tool}")
-        matches = list(Path(root).rglob(f"{tool}.fish"))
-        if len(matches) != 1:
-            raise DotError(f"expected one bundled Fish completion for {tool}, found {len(matches)}")
-        try:
-            return matches[0].read_text(encoding="utf-8")
-        except UnicodeDecodeError as error:
-            # A per-tool DotError keeps one bad package from aborting the remaining generators.
-            raise DotError(f"bundled Fish completion for {tool} is not UTF-8") from error
-    if binary != tool and state.runner.which(binary) is None:
-        raise DotError(f"completion generator for {tool} is not installed: {binary}")
-    args = list(custom.args) if custom and custom.args else ["completion", "fish"]
-    timeout = _COMPLETION_TIMEOUT_SECONDS
-    with tempfile.TemporaryDirectory(prefix="dot-completion-") as directory:
-        try:
-            result = state.runner.run([binary, *args], cwd=Path(directory), timeout=timeout)
-        except (DotError, OSError) as error:
-            raise DotError(f"failed to generate completions for {tool}") from error
-        if not result.stdout.strip():
-            raise DotError(f"failed to generate completions for {tool}: empty output")
-    return result.stdout
-
-
-def run_completion(state: State, *, check_only: bool = False) -> None:
-    if check_only:
-        with tempfile.TemporaryDirectory(prefix="dot-completion-check-") as temporary:
-            root = Path(temporary)
-            failures = _run_completion(state, root / "completions", root / "cache")
-        success = "Completion check passed; installed scripts were not changed."
-    else:
-        directory = expand_path(state.config.completions.path)
-        cache = xdg_dir("XDG_CACHE_HOME", ".cache") / "fish"
-        # A failed generator keeps its previous script; the others still install before the exit 1.
-        failures = _run_completion(state, directory, cache)
-        success = f"\n✓ Completions updated in {directory}"
-    if failures:
-        raise DotError("completion generation failed: " + "; ".join(failures))
-    print(success, file=state.stdout)
-
-
-def _complete_tool(state: State, directory: Path, tool: str) -> tuple[str, str | None]:
-    try:
-        content = _generate_completion(state, tool)
-        _write_validated_fish(state, directory / f"{tool}.fish", content, 0o644)
-        return f"  ✓ Generated completions for {tool}", None
-    except FileNotFoundError:
-        return f"  ○ {tool} is not installed or active, skipping", None
-    except (DotError, OSError) as error:
-        return f"  ✗ Failed to generate completions for {tool}", f"{tool}: {error}"
-
-
-def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
-    try:
-        directory.mkdir(mode=0o755, parents=True, exist_ok=True)
-    except OSError as error:
-        raise DotError("failed to create completions directory") from error
-    failures: list[str] = []
-    keep = {f"{tool}.fish" for tool in COMPLETION_SOURCES} | MANAGED_COMPLETIONS
-    for path in sorted(directory.glob("*.fish")):
-        if path.name not in keep and not path.is_symlink() and path.is_file():
-            try:
-                path.unlink()
-            except OSError as error:
-                failures.append(f"{path.name}: {error}")
-    print(
-        f"=> Generating Fish autocompletions for {len(COMPLETION_SOURCES)} tools in {directory}...\n",
-        file=state.stdout,
-    )
-    for line, failure in run_parallel(
-        state.runner,
-        lambda tool: _complete_tool(state, directory, tool),
-        sorted(COMPLETION_SOURCES),
-        _PROBE_CONCURRENCY,
-    ):
-        print(line, file=state.stdout)
-        if failure is not None:
-            failures.append(failure)
-    try:
-        private_directory(cache)
-    except OSError:
-        failures.append("fish cache directory: failed to create")
-        print("  ✗ Failed to create fish cache directory", file=state.stdout)
-    else:
-        for path in sorted(cache.glob("*-init.fish")):
-            if path.name != "atuin-init.fish" and not path.is_symlink() and path.is_file():
-                try:
-                    path.unlink()
-                except OSError as error:
-                    failures.append(f"{path.name}: {error}")
-        try:
-            if _completion_available(state, "atuin"):
-                # This setup does not use Atuin AI; omit its "?" key binding.
-                args = ["atuin", "init", "fish", "--disable-ai"]
-                result = state.runner.run(args, timeout=_COMPLETION_TIMEOUT_SECONDS)
-                _write_validated_fish(state, cache / "atuin-init.fish", result.stdout, 0o600)
-                print("  ✓ Generated atuin-init.fish", file=state.stdout)
-        except (DotError, OSError) as error:
-            failures.append(f"atuin-init.fish: {error}")
-            print("  ✗ Failed to generate atuin-init.fish", file=state.stdout)
-    return failures
+        return {"name": self.name, "status": self.status} | {k: v for k, v in fields.items() if v}
 
 
 def _inspect_secret(label: str, *, fix: bool) -> CheckResult:
-    path = expand_path(label)
     try:
-        info = path.lstat()
+        info = (path := expand_path(label)).lstat()
     except FileNotFoundError:
         return CheckResult(label, "warn", "MISSING")
     except OSError:
@@ -283,53 +79,31 @@ def _inspect_secret(label: str, *, fix: bool) -> CheckResult:
         return CheckResult(label, "fail", "not a regular file")
     if info.st_uid != os.getuid():
         return CheckResult(label, "fail", "not owned by current user")
-    current = stat.S_IMODE(info.st_mode)
-    allowed = _SECRET_PERMISSIONS
-    if current & ~allowed == 0:
+    if (current := stat.S_IMODE(info.st_mode)) & ~0o600 == 0:
         return CheckResult(label, "pass", f"secure (permissions: {current:04o})")
-    if fix:
+    if not fix:
+        return CheckResult(label, "fail", f"INSECURE permissions: {current:04o} (expected 0600)")
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         try:
-            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-            try:
-                os.fchmod(descriptor, allowed)
-            finally:
-                os.close(descriptor)
-        except OSError:
-            return CheckResult(
-                label,
-                "fail",
-                f"INSECURE permissions: {current:04o} (repair failed; expected {allowed:04o})",
-            )
-        return CheckResult(label, "pass", f"repaired (permissions: {allowed:04o})")
-    return CheckResult(
-        label,
-        "fail",
-        f"INSECURE permissions: {current:04o} (expected {allowed:04o})",
-    )
+            os.fchmod(fd, 0o600)
+        finally:
+            os.close(fd)
+        return CheckResult(label, "pass", "repaired (permissions: 0600)")
+    except OSError:
+        return CheckResult(label, "fail", f"INSECURE permissions: {current:04o} (repair failed; expected 0600)")
 
 
-def _secret_results(state: State, *, fix: bool) -> list[CheckResult]:
-    results: list[CheckResult] = []
-    configured = {secret.path for secret in state.config.doctor.secrets}
-    for secret in state.config.doctor.secrets:
-        result = _inspect_secret(secret.path, fix=fix)
-        results.append(result)
-        if (
-            secret.path == _SIGNING_PRIVATE_KEY
-            and expand_path(_SIGNING_PRIVATE_KEY).is_file()
-            and not expand_path(_SIGNING_PUBLIC_KEY).is_file()
-        ):
-            results.append(CheckResult(_SIGNING_PUBLIC_KEY, "warn", "MISSING"))
-    results.extend(
-        _inspect_secret(optional, fix=fix)
-        for optional in _OPTIONAL_SECRETS
-        if optional not in configured and os.path.lexists(expand_path(optional))
-    )
+def _secret_results(*, fix: bool) -> list[CheckResult]:
+    results = [_inspect_secret(secret, fix=fix) for secret in DOCTOR_SECRETS]
+    if expand_path(_SIGNING_PRIVATE_KEY).is_file() and not expand_path(_SIGNING_PUBLIC_KEY).is_file():
+        results.append(CheckResult(_SIGNING_PUBLIC_KEY, "warn", "MISSING"))
+    if os.path.lexists(expand_path("~/.private.fish")):
+        results.append(_inspect_secret("~/.private.fish", fix=fix))
     return results
 
 
 def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
-    """Run one doctor probe; a string names why it produced no usable result."""
     try:
         return state.runner.run(list(args), timeout=PROBE_TIMEOUT_SECONDS, check=False)
     except CommandTimeoutError:
@@ -339,30 +113,25 @@ def _probe(state: State, args: Sequence[str]) -> CommandResult | str:
 
 
 def _tool_results(state: State) -> list[CheckResult]:
-    def probe(tool: str) -> CheckResult:
-        path = state.runner.which(tool)
-        if path is None:
+    def check(tool: str) -> CheckResult:
+        if (path := state.runner.which(tool)) is None:
             return CheckResult(tool, "fail", "command not found", condition="missing")
-        result = _probe(state, [str(path), "--version"])
-        if isinstance(result, str):
-            return CheckResult(tool, "fail", f"capability probe {result}", str(path), "broken")
-        if result.returncode != 0:
-            return CheckResult(tool, "fail", "capability probe failed", str(path), "broken")
-        return CheckResult(tool, "pass", "capability probe passed", str(path), "healthy")
+        if isinstance(res := _probe(state, [str(path), "--version"]), str):
+            return CheckResult(tool, "fail", f"capability probe {res}", str(path), "broken")
+        ok = res.returncode == 0
+        status, cond, word = ("pass", "healthy", "passed") if ok else ("fail", "broken", "failed")
+        return CheckResult(tool, status, f"capability probe {word}", str(path), cond)
 
-    return run_parallel(state.runner, probe, state.config.doctor.tools, _PROBE_CONCURRENCY)
+    return run_parallel(state.runner, check, DOCTOR_TOOLS, _PROBE_CONCURRENCY)
 
 
 def _auth_results(state: State) -> list[CheckResult]:
-    """Report authentication without authenticating: GitHub only confirms a login, since environment and
-    fine-grained tokens report no OAuth scopes; Google probes check the scopes dot login requests."""
-
     def github() -> CheckResult | bool:
         entry = github_status(state)
-        if github_token_plaintext(entry):
-            details = f"authenticated; token in plaintext hosts.yml: {github_keyring_remedy(state)}"
-            return CheckResult("gh", "warn", details, condition="insecure")
-        return entry is not None
+        if not github_token_plaintext(entry):
+            return entry is not None
+        msg = "authenticated; token in plaintext hosts.yml: unlock the system keyring, then run gh auth logout and dot login github"
+        return CheckResult("gh", "warn", msg, condition="insecure")
 
     configured = set(state.config.auth.login)
     checks: dict[str, tuple[str, bool, Callable[[], CheckResult | bool]]] = {
@@ -376,8 +145,7 @@ def _auth_results(state: State) -> list[CheckResult]:
         label, (tool, enabled, check) = item
         if not enabled:
             return CheckResult(label, "skip", "not configured in auth.login", condition="skipped")
-        path = state.runner.which(tool)
-        if path is None:
+        if (path := state.runner.which(tool)) is None:
             return CheckResult(label, "skip", f"{tool} not installed", condition="skipped")
         try:
             ready = check()
@@ -387,296 +155,194 @@ def _auth_results(state: State) -> list[CheckResult]:
             return CheckResult(label, "fail", "auth check failed; state unknown", str(path), "broken")
         if isinstance(ready, CheckResult):
             return replace(ready, path=str(path))
-        if ready:
-            return CheckResult(label, "pass", "authenticated", str(path), "healthy")
-        return CheckResult(label, "fail", "NOT authenticated", str(path), "unauthenticated")
+        st, msg, cond = (
+            ("pass", "authenticated", "healthy") if ready else ("fail", "NOT authenticated", "unauthenticated")
+        )
+        return CheckResult(label, st, msg, str(path), cond)
 
-    # The probes are independent network calls: concurrency bounds the worst case to one provider's timeouts, not their sum.
     return run_parallel(state.runner, run, list(checks.items()), _PROBE_CONCURRENCY)
 
 
 def _docker_results(state: State) -> list[CheckResult]:
-    path = state.runner.which("docker")
-    if path is None:
-        # A container engine is optional: absence skips and a stopped daemon warns; listing
-        # docker in doctor.tools makes its absence fail.
+    if (path := state.runner.which("docker")) is None:
         return [CheckResult("docker", "skip", "not installed (optional)", condition="skipped")]
-    result = _probe(state, ["docker", "info"])
-    if isinstance(result, str):
-        return [CheckResult("docker", "fail", f"service probe {result}", str(path), "broken")]
-    return [
-        CheckResult("docker", "pass", "running", str(path), "healthy")
-        if result.returncode == 0
-        else CheckResult("docker", "warn", "not running", str(path), "stopped")
-    ]
-
-
-# The running package: deployed by uv tool install, or the src-layout checkout under `uv run`.
-PACKAGE_DIRECTORY = Path(__file__).resolve().parent
-
-
-def _package_files(directory: Path) -> dict[str, bytes]:
-    # Bundled rate cards affect runtime behavior just as Python modules do.
-    return {
-        path.relative_to(directory).as_posix(): path.read_bytes()
-        for path in directory.rglob("*")
-        if path.is_file() and path.suffix in {".py", ".yaml"}
-    }
-
-
-def _install_staleness(source: Path) -> str:
-    """Return why the installed package is stale against a source checkout, or "" when it matches."""
-    with (source / "dot/pyproject.toml").open("rb") as stream:
-        version = tomllib.load(stream).get("project", {}).get("version")
-    if version != __version__:
-        return "installed version differs from source"
-    if _package_files(source / "dot/src/fmind_dot") != _package_files(PACKAGE_DIRECTORY):
-        return "installed Python package differs from source"
-    return ""
+    if isinstance(res := _probe(state, ["docker", "info"]), str):
+        return [CheckResult("docker", "fail", f"service probe {res}", str(path), "broken")]
+    st, msg, cond = ("pass", "running", "healthy") if res.returncode == 0 else ("warn", "not running", "stopped")
+    return [CheckResult("docker", st, msg, str(path), cond)]
 
 
 def _install_results(state: State) -> list[CheckResult]:
-    name = "dot"
-    chezmoi = state.runner.which("chezmoi")
-    if chezmoi is None:
-        return [CheckResult(name, "skip", "chezmoi not installed", condition="skipped")]
-    source_result = _probe(state, ["chezmoi", "source-path"])
-    source_text = "" if isinstance(source_result, str) or source_result.returncode else source_result.stdout.strip()
+    if state.runner.which("chezmoi") is None:
+        return [CheckResult("dot", "skip", "chezmoi not installed", condition="skipped")]
+    src_res = _probe(state, ["chezmoi", "source-path"])
+    source_text = "" if isinstance(src_res, str) or src_res.returncode else src_res.stdout.strip()
     if not source_text or len(source_text.splitlines()) != 1:
-        return [CheckResult(name, "warn", "could not resolve chezmoi source", condition="unknown")]
-    source = Path(source_text)
-    source_package = source / "dot/src/fmind_dot"
-    project = source / "dot/pyproject.toml"
-    if not source_package.is_dir() or not project.is_file():
-        return [CheckResult(name, "skip", "chezmoi source is not a Python dot checkout", condition="skipped")]
-    installed_path = str(PACKAGE_DIRECTORY)
-    # `uv run --project dot dot doctor` imports the src-layout checkout, which trivially matches itself.
+        return [CheckResult("dot", "warn", "could not resolve chezmoi source", condition="unknown")]
+    source, installed = Path(source_text), str(PACKAGE_DIRECTORY)
+    if not (source / "dot/src/fmind_dot").is_dir() or not (source / "dot/pyproject.toml").is_file():
+        return [CheckResult("dot", "skip", "chezmoi source is not a Python dot checkout", condition="skipped")]
     if PACKAGE_DIRECTORY.parent.name == "src" and (PACKAGE_DIRECTORY.parents[1] / "pyproject.toml").is_file():
-        return [
-            CheckResult(
-                name,
-                "skip",
-                "running from a source checkout; check the deployed dot instead",
-                installed_path,
-                "skipped",
-            )
-        ]
+        msg = "running from a source checkout; check the deployed dot instead"
+        return [CheckResult("dot", "skip", msg, installed, "skipped")]
     try:
-        stale = _install_staleness(source)
+        data = tomllib.loads((source / "dot/pyproject.toml").read_text(encoding="utf-8"))
+        version = data.get("project", {}).get("version")
     except OSError, tomllib.TOMLDecodeError:
-        return [CheckResult(name, "fail", "could not verify installed Python package", condition="broken")]
-    if stale:
-        return [CheckResult(name, "fail", f"STALE: {stale}", installed_path, "stale")]
-    return [CheckResult(name, "pass", "installed Python package matches source", installed_path, "healthy")]
+        return [CheckResult("dot", "fail", "could not verify installed Python package", condition="broken")]
+    if version != __version__:
+        return [CheckResult("dot", "fail", "STALE: installed version differs from source", installed, "stale")]
+    return [CheckResult("dot", "pass", "installed Python package matches source", installed, "healthy")]
 
 
-def available_memory_bytes(meminfo: Path = Path("/proc/meminfo"), *, runner: Runner | None = None) -> int | None:
-    """MemAvailable counts reclaimable cache; sysconf's free pages would under-report."""
-    if sys.platform == "darwin" and meminfo == Path("/proc/meminfo"):
-        try:
-            return vm_stat_available_bytes((runner or Runner()).run(["vm_stat"], timeout=10).stdout)
-        except DotError, OSError:
-            return None
+def _same_file(path: Path, target: Path) -> bool:
     try:
-        for line in meminfo.read_text().splitlines():
-            if line.startswith("MemAvailable:"):
-                return int(line.split()[1]) * 1024
+        return path.samefile(target)
+    except OSError:
+        return False
+
+
+def _inspect_agent(root: Path, name: str) -> CheckResult:
+    persona_path, skills_path = _AGENT_HOSTS[name]
+    shared = expand_path(_SHARED_SKILLS)
+    checks = (
+        ("persona", _same_file(expand_path(persona_path), expand_path(_SHARED_PERSONA))),
+        ("skills", _same_file(expand_path(skills_path or _SHARED_SKILLS), shared) and any(shared.glob("*/SKILL.md"))),
+    )
+    if problems := [lbl for lbl, ok in checks if not ok]:
+        msg = f"discovery broken ({','.join(problems)}); run chezmoi apply --force"
+        return CheckResult(name, "fail", msg, condition="broken")
+    try:
+        source_root(name).stat()
+        source_present = True
+    except FileNotFoundError:
+        source_present = False
+    except OSError:
+        msg = f"source unreadable; restore access and run dot stats --agent {name}"
+        return CheckResult(name, "fail", msg, condition="unreadable")
+    info = read_sync_state(root, name)
+    if isinstance(info, str):
+        last_sync, failures, retained = info, 0, 0
+    else:
+        last_sync, failures, retained = info.synced_at if info.current else "stale", info.failed, info.retained
+    try:
+        sessions = len(agent_bundle_paths(root / name))
+    except FileNotFoundError:
+        sessions = 0
+    except OSError:
+        msg = f"archive unreadable under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
+        return CheckResult(name, "fail", msg, condition="unreadable")
+    if last_sync == "unreadable" or (last_sync in {"never", "stale"} and source_present) or failures:
+        msg = f"sync {last_sync} (failures={failures}); run dot stats --agent {name}"
+        return CheckResult(name, "fail", msg, condition="unsynced")
+    note = f", retained={retained}" if retained else ""
+    details = f"archive={'readable' if sessions else 'empty'} sessions={sessions} last_sync={last_sync}{note}"
+    return CheckResult(name, "pass", details, condition="healthy")
+
+
+def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
+    if sys.platform != "linux" and meminfo == Path("/proc/meminfo"):
+        return None
+    try:
+        return next(
+            (int(ln.split()[1]) * 1024 for ln in meminfo.read_text().splitlines() if ln.startswith("MemAvailable:")),
+            None,
+        )
     except OSError, ValueError, IndexError:
         return None
-    return None
 
 
-def vm_stat_available_bytes(output: str) -> int | None:
-    """Estimate macOS available memory like psutil: total free plus inactive pages."""
-    page = re.search(r"page size of (\d+) bytes", output)
-    pages = dict(re.findall(r"^Pages (free|inactive|speculative):\s+(\d+)\.$", output, re.MULTILINE))
-    if page is None or not {"free", "inactive"} <= pages.keys():
-        return None
-    # vm_stat already subtracts speculative pages from its printed free count.
-    # Restore them to match host_statistics64's free_count used by psutil.
-    free = int(pages["free"]) + int(pages.get("speculative", 0))
-    return (free + int(pages["inactive"])) * int(page.group(1))
-
-
-def headroom_results(
-    paths: list[Path] | None = None, *, memory: int | None = None, runner: Runner | None = None
-) -> list[CheckResult]:
-    """Check each distinct filesystem behind the workspace, home, and large scratch directories.
-
-    /var/tmp is the documented scratch for large work; /tmp is often a small tmpfs, so it
-    counts only when TMPDIR selects it.
-    """
+def headroom_results(paths: list[Path] | None = None, *, memory: int | None = None) -> list[CheckResult]:
     tmpdir = os.environ.get("TMPDIR")
     candidates = paths or [Path.cwd(), Path.home(), Path("/var/tmp"), *([Path(tmpdir)] if tmpdir else [])]  # noqa: S108
     devices: dict[int, list[str]] = {}
     results: list[CheckResult] = []
-    seen_paths: set[Path] = set()
+    seen: set[Path] = set()
     for candidate in candidates:
         try:
-            path = candidate.resolve()
-            if path in seen_paths or not path.is_dir():
-                continue
-            seen_paths.add(path)
-            devices.setdefault(path.stat().st_dev, []).append(str(path))
+            if (path := candidate.resolve()) not in seen and path.is_dir():
+                seen.add(path)
+                devices.setdefault(path.stat().st_dev, []).append(str(path))
         except OSError as error:
             results.append(CheckResult("disk", "warn", f"inaccessible path: {error}", str(candidate)))
     for members in devices.values():
         try:
             free = shutil.disk_usage(members[0]).free / _GIB
+            status = "fail" if free < _DISK_FAIL_GIB else "warn" if free < _DISK_WARN_GIB else "pass"
+            results.append(CheckResult("disk", status, f"{free:.1f} GiB free", ", ".join(members)))
         except OSError as error:
             results.append(CheckResult("disk", "warn", f"disk usage unavailable: {error}", ", ".join(members)))
-            continue
-        status = "fail" if free < _DISK_FAIL_GIB else "warn" if free < _DISK_WARN_GIB else "pass"
-        results.append(CheckResult("disk", status, f"{free:.1f} GiB free", ", ".join(members)))
-    available = (
-        memory
-        if memory is not None
-        else (available_memory_bytes() if runner is None else available_memory_bytes(runner=runner))
-    )
-    if available is None:
-        results.append(CheckResult("memory", "warn", "available memory unknown on this platform"))
-    else:
-        status = "fail" if available / _GIB < _MEMORY_FAIL_GIB else "pass"
-        results.append(CheckResult("memory", status, f"{available / _GIB:.1f} GiB available"))
-    return results
-
-
-def _headroom_line(results: list[CheckResult]) -> str:
-    statuses = {result.status for result in results}
-    verdict = "FAIL" if "fail" in statuses else "WARN" if "warn" in statuses else "PASS"
-    parts = [
-        f"{result.name} {result.details}"
-        + (f" ({result.path})" if result.path else "")
-        + ("" if result.status == "pass" else f" [{result.status}]")
-        for result in results
-    ]
-    line = f"{verdict} · headroom: " + "; ".join(parts)
-    if verdict != "PASS":
-        line += f" · limits: disk {_DISK_FAIL_GIB} GiB (warn below {_DISK_WARN_GIB}), memory {_MEMORY_FAIL_GIB} GiB"
-    return line
-
-
-def _resource_results() -> list[CheckResult]:
-    """Disk only: available memory is momentary, so it stays a --headroom pre-job check."""
-    remedy = "inspect with `dot cache`, reclaim with `dot prune`"
-    return [
-        item if item.status == "pass" else replace(item, details=f"{item.details}; {remedy}")
-        for item in headroom_results(memory=0)
-        if item.name == "disk"
-    ]
-
-
-def _orphan_results(state: State) -> list[CheckResult]:
-    name = "chezmoi orphans"
-    if state.runner.which("chezmoi") is None:
-        return [CheckResult(name, "skip", "chezmoi not installed", condition="skipped")]
-    try:
-        orphans = find_orphans(state)
-    except DotError, OSError:
-        return [CheckResult(name, "warn", "could not read chezmoi state", condition="unknown")]
-    if not orphans:
-        return [CheckResult(name, "pass", "none", condition="healthy")]
-    details = f"{len(orphans)} target(s) chezmoi no longer manages; review with `dot orphan`"
-    return [CheckResult(name, "warn", details, condition="orphaned")]
-
-
-# Report order and headings; each key is the `group` of its checks in --json output.
-_DOCTOR_GROUPS = {
-    "auth": "CLI Authentication",
-    "secrets": "Secrets & Encryption",
-    "docker": "System Services",
-    "resources": "System Resources",
-    "tools": "CLI Tools",
-    "install": "Install Freshness",
-}
+    avail = available_memory_bytes() if memory is None else memory
+    if avail is None:
+        return [*results, CheckResult("memory", "warn", "available memory unknown on this platform")]
+    gibs = avail / _GIB
+    mem = CheckResult("memory", "fail" if gibs < _MEMORY_FAIL_GIB else "pass", f"{gibs:.1f} GiB available")
+    return [*results, mem]
 
 
 def run_doctor(state: State, *, fix: bool, deep: bool = False) -> list[CheckResult]:
+    root, names = session_store_root(), list(_AGENT_HOSTS)
+    remedy = "free disk space or verify with `dot doctor --headroom`"
+    disk = [
+        r if r.status == "pass" else replace(r, details=f"{r.details}; {remedy}")
+        for r in headroom_results(memory=0)
+        if r.name == "disk"
+    ]
     sections = {
         "auth": _auth_results(state)
         if deep
         else [CheckResult("authentication", "skip", "use --deep to probe providers")],
-        "secrets": _secret_results(state, fix=fix),
+        "secrets": _secret_results(fix=fix),
         "docker": _docker_results(state),
-        "resources": _resource_results(),
+        "resources": disk,
         "tools": _tool_results(state),
-        "install": [*_install_results(state), *_orphan_results(state)],
+        "install": _install_results(state),
+        "agents": run_parallel(state.runner, lambda name: _inspect_agent(root, name), names, len(names)),
     }
     return [replace(item, group=group) for group, items in sections.items() for item in items]
 
 
-def _print_doctor(state: State, results: Sequence[CheckResult]) -> None:
-    icons = {"pass": "✓", "fail": "✗", "warn": "!", "skip": "○"}
-    for group, label in _DOCTOR_GROUPS.items():
-        print(f"\n{label}", file=state.stdout)
-        for item in results:
-            if item.group == group:
-                # Several filesystems can each report a disk line; name the paths behind each.
-                details = f"{item.details} ({item.path})" if item.name == "disk" else item.details
-                print(f"  {icons[item.status]} {item.name:<20} {details}", file=state.stdout)
-
-
-def _completion(state: State, args: argparse.Namespace) -> None:
-    run_completion(state, check_only=args.check_only)
-
-
 def _doctor(state: State, args: argparse.Namespace) -> None:
     if args.headroom:
-        # Headroom never reads dot.yaml, so a broken config must not block the pre-job check.
         if args.fix or args.deep:
             raise UsageError("--headroom cannot be combined with --fix or --deep")
-        checks = headroom_results()
+        results = headroom_results()
         if args.as_json:
-            payload = [replace(item, group="resources").payload() for item in checks]
+            payload = [replace(i, group="resources").payload() for i in results]
             write_json(state.stdout, diagnostic_report("headroom", payload))
         else:
-            print(_headroom_line(checks), file=state.stdout)
-        if any(item.status == "fail" for item in checks):
-            raise SystemExit(1)
-        return
-    _ = state.config
-    results = run_doctor(state, fix=args.fix, deep=args.deep)
-    if args.as_json:
-        write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in results]))
+            verdict = next((s.upper() for s in ("fail", "warn") if any(i.status == s for i in results)), "PASS")
+            parts = [
+                f"{r.name} {r.details}"
+                + (f" ({r.path})" if r.path else "")
+                + ("" if r.status == "pass" else f" [{r.status}]")
+                for r in results
+            ]
+            lim = f" · limits: disk {_DISK_FAIL_GIB} GiB (warn below {_DISK_WARN_GIB}), memory {_MEMORY_FAIL_GIB} GiB"
+            print(f"{verdict} · headroom: {'; '.join(parts)}{'' if verdict == 'PASS' else lim}", file=state.stdout)
     else:
-        _print_doctor(state, results)
-    if any(item.status == "fail" for item in results):
+        _ = state.config
+        results = run_doctor(state, fix=args.fix, deep=args.deep)
+        if args.as_json:
+            write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in results]))
+        else:
+            icons = {"pass": "✓", "fail": "✗", "warn": "!", "skip": "○"}
+            for group, label in _DOCTOR_GROUPS:
+                print(f"\n{label}", file=state.stdout)
+                for item in results:
+                    if item.group == group:
+                        detail = f"{item.details} ({item.path})" if item.name == "disk" else item.details
+                        print(f"  {icons[item.status]} {item.name:<20} {detail}", file=state.stdout)
+    if any(i.status == "fail" for i in results):
         raise SystemExit(1)
 
 
-def register_completion(commands: Parser) -> None:
-    completion = commands.command(
-        "completion",
-        "Generate and validate Fish completions",
-        _completion,
-        epilog="Exit 1 when any generator fails; the scripts that succeeded are still installed.",
-        # `mise run completions` and the release gate own this; keep it out of everyday help.
-        hidden=True,
-    )
-    completion.add_argument(
-        "--check",
-        dest="check_only",
-        action="store_true",
-        help="Validate generators in a temporary directory without installing scripts",
-    )
-
-
 def register_doctor(commands: Parser) -> None:
-    doctor = commands.command(
-        "doctor",
-        "Check local workstation health; --deep also probes authentication",
-        _doctor,
-        # The handler validates dot.yaml itself: --headroom must work while it is broken.
-        config=False,
-        epilog=f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free "
-        f"(warns below {_DISK_WARN_GIB}). --headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory.",
-    )
-    add_json(doctor)
-    doctor.add_argument("--fix", action="store_true", help="Repair local secret-file permissions")
-    doctor.add_argument("--deep", action="store_true", help="Also probe provider authentication")
-    doctor.add_argument(
-        "--headroom",
-        action="store_true",
-        help=f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom "
-        "before large downloads or builds; prints one line",
-    )
+    epilog = f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free (warns below {_DISK_WARN_GIB}). --headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory."
+    summary = "Check local workstation health; --deep also probes authentication"
+    d = commands.command("doctor", summary, _doctor, config=False, epilog=epilog)
+    add_json(d)
+    d.add_argument("--fix", action="store_true", help="Repair local secret-file permissions")
+    d.add_argument("--deep", action="store_true", help="Also probe provider authentication")
+    headroom_help = f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom before large downloads or builds; prints one line"
+    d.add_argument("--headroom", action="store_true", help=headroom_help)

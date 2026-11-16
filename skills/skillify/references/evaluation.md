@@ -15,7 +15,7 @@ Check text output too: recently created skills within the window with zero obser
 Run startup token budget checks on every catalog edit:
 
 ```bash
-dot agent context --source . --project . --details --check
+dot context --source . --project . --details --check
 ```
 
 ## 2. Decide Whether to Trim, Merge, or Retire

@@ -38,7 +38,7 @@ Apply to new solo-maintained repositories or explicit settings passes; preserve 
 - **Do not retry paid secret-scanning subfeatures**: validity checks and non-provider patterns stay `disabled` silently on Free.
 - **Check owner-level `SECURITY.md`**: public `<owner>/.github` (`gh api repos/<owner>/.github/contents/SECURITY.md`; `fmind/.github` routes to private vulnerability reporting) covers public repos unless repo-specific scope/versions need a local `SECURITY.md`.
 - **Personal repos have no read-only collaborator role**: downgrading to `pull` returns 422 on user-owned repos (remove inactive collaborators instead; orgs support `pull`).
-- **Harden organizations once**: enforce 2FA (web UI), SHA-pinned actions, and default "GitHub recommended" code security with temporary `admin:org` (`dot login github --grant admin:org`, then `dot setup github`).
+- **Harden organizations once**: enforce 2FA (web UI), SHA-pinned actions, and default "GitHub recommended" code security with temporary `admin:org` (`dot login github --grant admin:org`, then `dot login github`).
 
 ## Documentation
 

@@ -26,22 +26,26 @@ After:
 
 ## Channel primitives
 
-- **Gmail HTML (`draft-mail`)**: Gmail strips `<style>`; inline Fmind tokens (`#202124` ink, `#174EA6` accent, `#F1F3F4` panel, `#D2E3FC` selection, `#0D652D`/`#CEEAD6` ok, `#934900`/`#FEEFC3` risk, `#A50E0E`/`#FAD2CF` blocker) inside `max-width: 640px`:
+- **Gmail HTML (`draft-mail`)**:
+  - _Default (routine emails, replies, scheduling, admin)_: plain `<p>`, `<strong>`, `<ul>`/`<ol>`, and `<a href="...">` so the message matches native Gmail compose and `.gmail_signature` without newsletter chrome:
 
-```html
-<div style="font-family: 'Google Sans', Arial, sans-serif; color: #202124; max-width: 640px; line-height: 1.5;">
-  <p style="margin: 0 0 12px; padding: 12px 14px; background: #D2E3FC; border-left: 4px solid #174EA6; border-radius: 8px;">
-    <strong style="color: #174EA6;">Decision needed:</strong> Approve the Q4 vendor switch by Thursday 17:00 CET.
-  </p>
-  <p style="margin: 0 0 12px;">
-    Consolidating onto Provider B cuts compute spend by
-    <mark style="background: #CEEAD6; color: #0D652D; padding: 1px 6px; border-radius: 4px; font-weight: 600;">38% ($42k/year)</mark>
-    with zero migration downtime.
-  </p>
-  <hr style="border: 0; border-top: 1px solid #9AA0A6; margin: 16px 0;" />
-  <p style="margin: 0; color: #595D62; font-size: 13px;">Next check-in: Friday 10:00 CET unless you raise objections.</p>
-</div>
-```
+    ```html
+    <p>Bonjour Alice,</p>
+    <p><strong>We can switch to Provider B on Thursday, 19 November at 17:00 CET</strong> with zero downtime and $42k/year lower compute spend (38% below Q3).</p>
+    <ul>
+      <li><strong>Action needed:</strong> confirm the maintenance window by Wednesday 12:00 CET.</li>
+      <li><strong>Rollout plan:</strong> <a href="https://example.com/runbook">cutover runbook</a>.</li>
+    </ul>
+    <p>Best,<br>Médéric</p>
+    ```
+
+  - _Executive/incident briefs only (skip on routine mail; pick at most one accent, never stack a banner with `<mark>`)_: Gmail strips `<style>`, so inline Fmind tokens (`#202124` ink, `#174EA6` accent, `#F1F3F4` neutral panel, `#D2E3FC` selection, `#0D652D`/`#CEEAD6` ok, `#934900`/`#FEEFC3` risk, `#A50E0E`/`#FAD2CF` blocker):
+
+    ```html
+    <p style="margin: 0 0 12px; padding: 10px 14px; background: #F1F3F4; border-left: 3px solid #174EA6; border-radius: 6px;">
+      <strong>Decision needed by Thursday 17:00 CET:</strong> approve the Q4 vendor switch ($42k/year savings).
+    </p>
+    ```
 
 - **Google Docs (`draft-doc`)**:
   - _Native `.md`_: use `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and compiled `≤440pt` Typst PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.

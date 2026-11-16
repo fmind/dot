@@ -157,7 +157,7 @@ description = "Lint, format-check, type-check, and validate Python packaging and
 run = [
   "uv run --frozen --project dot ruff check .",
   "uv run --frozen --project dot ruff format --check .",
-  "uv run --frozen --project dot ty check --project dot dot skills --exclude 'skills/*/references/*/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
+  "uv run --frozen --project dot ty check --project dot --extra-search-path tests dot tests skills --exclude 'skills/*/references/*/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
   "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py",
   "uv run --frozen --directory dot deptry .",
   "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
@@ -202,7 +202,7 @@ run = "typos --config .typos.toml"
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"
-run = "uv run --frozen --project dot dot completion --check"
+run = "uv run --frozen --directory dot python -m dot_tasks.completions --check"
 
 [tasks."check:vuln"]
 description = "Audit the locked Python dependency graph"
@@ -271,12 +271,12 @@ description = "Run the Python CLI and repository contract tests"
 # Archive tests are fsync-bound; 8 workers overlap syncs without risking OOM.
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
-run = "uv run --frozen --project dot pytest -q -n auto --maxprocesses 8 dot/tests --cov --cov-config=dot/pyproject.toml --cov-report="
+run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
 description = "Materialize and execute the Python library, CLI, and web starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
-run = "uv run --frozen --project dot pytest -q --force-enable-socket --timeout=600 dot/tests/test_python_starter.py"
+run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q --force-enable-socket --timeout=600 tests/test_python_starter.py"
 
 # Project management tasks. Every alias begins with m.
 
@@ -288,7 +288,7 @@ run = "chezmoi apply --force"
 [tasks.completions]
 alias = "mg"
 description = "Generate Fish completions for installed CLI tools"
-run = '"{{vars.dot_bin}}" completion'
+run = "uv run --frozen --directory dot python -m dot_tasks.completions"
 
 [tasks.deploy]
 alias = "me"

@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import os
-import shutil
-import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -37,11 +34,7 @@ class CliResult:
 
 
 class CliRunner:
-    """Run `fmind_dot.cli.app` in-process with captured streams.
-
-    A failure `cli.main` would report as `dot: <error>` stays on `exception` with exit code 1,
-    so tests assert on the error itself; `main` has its own reporting tests.
-    """
+    """Run `fmind_dot.cli.app` in-process with captured streams."""
 
     def invoke(
         self, app: Callable[[Sequence[str]], None], arguments: Sequence[str] = (), *, stdin: str = ""
@@ -54,49 +47,11 @@ class CliRunner:
                 app(list(arguments))
         except SystemExit as stopped:
             exit_code = stopped.code if isinstance(stopped.code, int) else int(stopped.code is not None)
-        except Exception as error:  # noqa: BLE001 - mirror the entry point: every failure becomes exit code 1
+        except Exception as error:  # noqa: BLE001 - mirror entry point: every failure becomes exit code 1
             exit_code, exception = 1, error
         finally:
             sys.stdin = previous
         return CliResult(exit_code, stdout.getvalue(), stderr.getvalue(), exception)
-
-
-ROOT = Path(__file__).resolve().parents[2]
-_REAL_HOME = os.environ.get("HOME")
-
-
-def native_binary(name: str) -> Path | None:
-    """Resolve a command, unwrapping a mise shim against the real HOME before isolated_home replaces it."""
-    executable = shutil.which(name)
-    if not executable:
-        return None
-    resolved = Path(executable).resolve()
-    if resolved.name != "mise":
-        return Path(executable)
-    env = os.environ | ({"HOME": _REAL_HOME} if _REAL_HOME else {})
-    try:
-        result = subprocess.run(
-            [str(resolved), "which", name], env=env, capture_output=True, text=True, timeout=30, check=True
-        )
-    except subprocess.CalledProcessError, subprocess.TimeoutExpired:
-        return None
-    candidate = Path(result.stdout.strip())
-    return candidate if candidate.is_absolute() and candidate.is_file() else None
-
-
-# Repository workflows and shipped workflow templates.
-WORKFLOWS = [
-    *sorted((ROOT / ".github/workflows").glob("*.yml")),
-    *sorted((ROOT / "skills/github-actions/references/ci-cd/templates").glob("*.yml")),
-    ROOT / "skills/cloud-run/templates/deploy.yml",
-    ROOT / "skills/documentation-site/templates/docs.yml",
-]
-# The Copilot session database tables the parser reads.
-COPILOT_SCHEMA = """
-CREATE TABLE sessions(id TEXT, cwd TEXT, created_at TEXT);
-CREATE TABLE turns(id INTEGER, session_id TEXT, turn_index INTEGER, user_message TEXT, assistant_response TEXT, timestamp TEXT);
-CREATE TABLE assistant_usage_events(session_id TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);
-"""
 
 
 class TerminalIO(io.StringIO):
@@ -115,8 +70,7 @@ class ScriptedRunner(Runner):
         responses: Mapping[tuple[str, ...], Sequence[CommandResult]] | None = None,
     ) -> None:
         super().__init__()
-        self.installed = installed or set()
-        self.run_handler = run
+        self.installed, self.run_handler = installed or set(), run
         self.responses = {key: list(items) for key, items in (responses or {}).items()}
         self.calls: list[list[str]] = []
         self.envs: dict[tuple[str, ...], Mapping[str, str] | None] = {}
@@ -139,8 +93,7 @@ class ScriptedRunner(Runner):
         command = list(args)
         key = tuple(command)
         self.calls.append(command)
-        self.envs[key] = env
-        self.timeouts[key] = timeout
+        self.envs[key], self.timeouts[key] = env, timeout
         if self.run_handler is not None:
             result = self.run_handler(command, cwd, input_text, check)
         elif key in self.responses:
@@ -160,23 +113,25 @@ class ScriptedRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
-        # Never launch a real process from a test.
-        del cwd, stdin, stdout, stderr, on_stderr_line
+        del cwd, stdin, stdout, stderr
         self.calls.append(list(args))
         self.interactive_envs.append(env)
         return 0
 
 
 def doctor_sections(results: Sequence[CheckResult]) -> dict[str, Any]:
-    """Group doctor checks by section, as the text report renders them, plus the overall verdict."""
+    """Group doctor checks by section, plus overall verdict."""
     sections: dict[str, Any] = {}
     for item in results:
-        sections.setdefault(item.group, []).append(
-            {key: value for key, value in item.payload().items() if key != "group"}
-        )
+        sections.setdefault(item.group, []).append({k: v for k, v in item.payload().items() if k != "group"})
     return sections | {"passed": all(item.status != "fail" for item in results)}
+
+
+def buf(stream: IO[str]) -> str:
+    """Return captured text from a StringIO stream."""
+    assert isinstance(stream, io.StringIO)
+    return stream.getvalue()
 
 
 def make_state(runner: Runner | None = None, config: Config | None = None, *, stdin: str = "") -> State:

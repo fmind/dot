@@ -20,11 +20,9 @@ if status is-interactive
     abbr -a gl lazygit
     # h:dot
     abbr -a h dot
-    abbr -a ha "dot agent stats"
-    abbr -a hc "dot cache"
+    abbr -a ha "dot stats"
     abbr -a hd "dot doctor"
     abbr -a hh "dot doctor --headroom"
-    abbr -a ho "dot orphan"
     abbr -a hp "dot pull"
     abbr -a hs "dot status --fetch --needs-attention"
     # i:fastfetch

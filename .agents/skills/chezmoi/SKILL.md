@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-11-14"
+  updated: "2026-11-15"
 ---
 
 # Chezmoi Source Standard
@@ -25,7 +25,7 @@ Pick the target type first, then attributes in [source-state reference](https://
 1. **Validate rendering**: `mise run check:chezmoi` dry-runs against a temporary config and destination excluding encrypted files on the host OS. Exercise changed Linux/macOS branches separately and report unexercised branches or encrypted targets.
 1. **Check repeatability & hooks**: verify existing-target/second-pass modifier behavior (`test_shell_modifiers.py`, `test_harness_config.py`) and `run_*`/`systemd/user` hooks per [lifecycle](references/lifecycle.md).
 1. **Apply & fold target edits**: run `mise run apply` (`chezmoi apply --force`, syncing SHA-pinned theme/font externals per [lifecycle](references/lifecycle.md)); fold manual target edits such as `~/.config/nvim/lazy-lock.json` back via `chezmoi re-add --source "$(pwd -P)"` (never `mise.lock`, which `mise run lock` owns).
-1. **Diagnose**: `mise run doctor`; `chezmoi managed` / `chezmoi unmanaged`; `dot orphan` ([orphans](../../../skills/dot-cli/references/orphans.md)); [installed-link recovery](../dot-skills/references/installed-links.md); [dot-cli](../../../skills/dot-cli/SKILL.md).
+1. **Diagnose**: `mise run doctor`; `chezmoi managed` / `chezmoi unmanaged`; [installed-link recovery](../dot-skills/references/installed-links.md); [dot-cli](../../../skills/dot-cli/SKILL.md).
 
 ## Gotchas
 

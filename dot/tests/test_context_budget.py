@@ -30,10 +30,10 @@ def test_cli_reports_scopes_and_excludes_on_demand_content(tmp_path: Path) -> No
     (local.parent / "references/large.md").write_text("private reference " * 10_000)
     (global_root / "AGENTS.md").write_text("G" * 16)
     (project / "AGENTS.md").write_text("P" * 8)
-    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--json", "--check"])
+    result = runner.invoke(app, ["context", "--project", str(project), "--json", "--check"])
     assert result.exit_code == 0, result.output
     report = json.loads(result.stdout)
-    assert report["schema"] == "dot.agent.context/v5"
+    assert report["schema"] == "dot.context/v5"
     assert report["totals"]["global"]["agents_estimated_tokens"] == 4
     assert report["totals"]["local"]["agents_estimated_tokens"] == 2
     assert report["totals"]["combined"]["skills"] == 2
@@ -84,7 +84,7 @@ def test_check_fails_on_cross_scope_duplicate_with_paths_and_guidance(tmp_path: 
     global_root, project = tmp_path / ".agents", tmp_path / "project"
     global_copy = skill(global_root, "shared")
     local_copy = skill(project / ".agents", "shared")
-    arguments = ["agent", "context", "--project", str(project)]
+    arguments = ["context", "--project", str(project)]
     plain = runner.invoke(app, arguments)
     assert plain.exit_code == 0
     assert "Duplicate skill names" in plain.stdout
@@ -112,13 +112,15 @@ def test_duplicate_paths_stay_absolute_in_json_under_home(tmp_path: Path, monkey
     global_root, project = tmp_path / ".agents", tmp_path / "project"
     skill(global_root, "shared")
     skill(project / ".agents", "shared")
-    arguments = ["agent", "context", "--project", str(project)]
+    arguments = ["context", "--project", str(project)]
     report = json.loads(runner.invoke(app, [*arguments, "--json"]).stdout)
     [duplicate] = report["duplicates"]
     assert duplicate["paths"] == [entry["path"] for entry in report["entries"] if entry["name"] == "shared"]
     # Text output abbreviates for humans only.
-    text = runner.invoke(app, arguments).stdout
+    text = runner.invoke(app, [*arguments, "--details"]).stdout
     assert "    ~/.agents/skills/shared/SKILL.md\n" in text
+    assert "\n\nSkill index:" in text
+    assert "\n\nSources\n" in text
 
 
 def test_nested_same_name_within_one_scope_is_a_duplicate(tmp_path: Path) -> None:
@@ -139,7 +141,7 @@ def test_symlinked_skill_root_is_not_a_duplicate(tmp_path: Path) -> None:
     (project / ".agents").mkdir(parents=True)
     # Bridges such as .claude/skills -> .agents/skills expose the same files, not rival copies.
     (project / ".agents/skills").symlink_to(global_root / "skills", target_is_directory=True)
-    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--check"])
+    result = runner.invoke(app, ["context", "--project", str(project), "--check"])
     assert result.exit_code == 0, result.output
     assert result.stdout.startswith("PASS")
     report = context_report(project, global_root=global_root)
@@ -178,7 +180,7 @@ def test_check_includes_instructions_and_enforces_each_strict_limit(
     index_size = report["totals"][scope]["skill_index_characters"]
     instructions = (global_root if scope == "global" else project) / "AGENTS.md"
     instructions.write_text("x" * (tokens * 4 - index_size))
-    arguments = ["agent", "context", "--project", str(project)]
+    arguments = ["context", "--project", str(project)]
     plain = runner.invoke(app, arguments)
     assert plain.exit_code == 0
     assert ("OVER BUDGET" not in plain.stdout) == passed
@@ -207,7 +209,7 @@ def test_combined_total_can_exceed_limit_when_each_scope_fits(tmp_path: Path) ->
     skill(project / ".agents", "local-fixture")
     (global_root / "AGENTS.md").write_text("g" * 12_000)
     (project / "AGENTS.md").write_text("p" * 12_000)
-    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--json", "--check"])
+    result = runner.invoke(app, ["context", "--project", str(project), "--json", "--check"])
     assert result.exit_code == 0
     report = json.loads(result.stdout)
     assert report["totals"]["combined"]["startup_estimated_tokens"] > 5_000
@@ -253,7 +255,7 @@ def test_broken_symlink_and_oversized_input_fail_instead_of_undercounting(tmp_pa
 
 def test_empty_roots_and_default_home_are_explicit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, ["agent", "context", "--json"])
+    result = runner.invoke(app, ["context", "--json"])
     assert result.exit_code == 0
     report = json.loads(result.stdout)
     assert report["totals"]["combined"]["startup_estimated_tokens"] == 0
@@ -268,7 +270,7 @@ def test_invalid_roots_fail_explicitly(tmp_path: Path) -> None:
     with pytest.raises(DotError, match="invalid path"):
         context_report(Path("~no-such-user-dot-test/project"))
     for flag in ("--project", "--source"):
-        bad = runner.invoke(app, ["agent", "context", flag, "~no-such-user-dot-test/project"])
+        bad = runner.invoke(app, ["context", flag, "~no-such-user-dot-test/project"])
         assert bad.exit_code == 2
         assert flag in bad.stderr
 
@@ -287,7 +289,7 @@ def test_combined_discovery_is_informational_when_each_scope_fits(tmp_path: Path
     before = context_report(project, global_root=global_root)
     additional = tokens * 4 - before["totals"]["combined"]["skill_index_characters"]
     path.write_text(path.read_text().replace("description: x", "description: " + "x" * (additional + 1)))
-    result = runner.invoke(app, ["agent", "context", "--project", str(project), "--check", "--json"])
+    result = runner.invoke(app, ["context", "--project", str(project), "--check", "--json"])
     assert result.exit_code == 0
     report = json.loads(result.stdout)
     assert report["budgets"]["global"]["passed"]

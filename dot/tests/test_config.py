@@ -1,191 +1,131 @@
 from __future__ import annotations
 
+import dataclasses
 import os
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
 from fmind_dot.config import (
     Config,
+    ConfigValidationError,
+    ModelPrice,
+    PricingConfig,
     config_file_path,
-    expand_path,
+    default_pricing,
+    env_path,
     load_config,
+    policy,
+    xdg_dir,
 )
 
 
-def test_python_first_defaults_replace_retired_stacks() -> None:
+def test_defaults_and_schema_version_are_python_first() -> None:
     config = Config()
-
     assert config.schema_version == 3
-    assert set(Config.model_fields) == {
-        "schema_version",
-        "agent",
-        "doctor",
-        "completions",
-        "pull",
-        "trust",
-        "auth",
-        "cache",
-        "prune",
-        "privacy",
-    }
-    assert config.privacy.allowed_tokens == []
+    assert {f.name for f in dataclasses.fields(Config)} == {"schema_version", "auth", "pull", "trust", "privacy"}
     assert config.trust.github_owners == ["fmind"]
     assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
+    assert len(config.auth.workspace.scopes) > 5
+    assert "github" in policy()
+    assert default_pricing() is not default_pricing()
 
 
 @pytest.mark.parametrize("pattern", ["fmind/agent-*", "", "~", "~/ x", "./repo"])
-def test_agy_projects_must_name_absolute_or_home_paths(tmp_path: Path, pattern: str) -> None:
+def test_agy_projects_must_be_absolute_or_home_paths(tmp_path: Path, pattern: str) -> None:
     path = tmp_path / "dot.yaml"
     path.write_text(f"trust:\n  agy_projects: ['{pattern}']\n", encoding="utf-8")
-
-    with pytest.raises(ValidationError):
+    with pytest.raises(ConfigValidationError):
         load_config(path)
 
 
-def test_doctor_inventory_covers_managed_harnesses_and_core_workflows() -> None:
-    config = Config()
-    expected = {*config.agent.sources, "bf"}
-    assert expected <= set(config.doctor.tools)
-
-
-@pytest.mark.parametrize(("value", "expected_suffix"), [("", ".cache"), ("relative/cache", ".cache"), ("~/xdg", "xdg")])
-def test_xdg_dir_ignores_empty_and_relative_overrides(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str, expected_suffix: str
+@pytest.mark.parametrize(("value", "suffix"), [("", ".cache"), ("rel/cache", ".cache"), ("~/xdg", "xdg")])
+def test_xdg_dir_and_env_path_and_config_file_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str, suffix: str
 ) -> None:
-    from fmind_dot.config import xdg_dir
-
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_CACHE_HOME", value)
-    assert xdg_dir("XDG_CACHE_HOME", ".cache") == tmp_path / expected_suffix
-
-
-def test_load_config_is_strict_and_rejects_trailing_documents(tmp_path: Path) -> None:
-    unknown = tmp_path / "unknown.yaml"
-    unknown.write_text("unknown: true\n", encoding="utf-8")
-    with pytest.raises(ValidationError):
-        load_config(unknown)
-
-    trailing = tmp_path / "trailing.yaml"
-    trailing.write_text("ai:\n  binary: claude\n---\nai:\n  binary: codex\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="exactly one YAML document"):
-        load_config(trailing)
-
-
-def test_config_overlay_replaces_lists_and_merges_maps(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text("doctor:\n  tools: [python]\ncompletions:\n  path: ~/fish\n", encoding="utf-8")
-
-    config = load_config(path)
-
-    assert config.doctor.tools == ["python"]
-    assert config.doctor.secrets == Config().doctor.secrets
-    assert config.completions.path == "~/fish"
-
-
-def test_load_config_wraps_yaml_and_decode_failures_with_path_context(tmp_path: Path) -> None:
-    malformed = tmp_path / "malformed.yaml"
-    malformed.write_text("prune: [\n", encoding="utf-8")
-    with pytest.raises(ValueError, match=r"failed to parse config file at .*malformed\.yaml"):
-        load_config(malformed)
-
-    undecodable = tmp_path / "undecodable.yaml"
-    undecodable.write_bytes(b"\xff")
-    with pytest.raises(ValueError, match=r"failed to read config file at .*undecodable\.yaml"):
-        load_config(undecodable)
-
-    directory = tmp_path / "directory.yaml"
-    directory.mkdir()
-    with pytest.raises(ValueError, match=r"failed to read config file at .*directory\.yaml"):
-        load_config(directory)
-
-
-@pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses owner directory permissions")
-def test_unreadable_default_config_never_falls_back_to_default_policy(tmp_path: Path) -> None:
-    path = tmp_path / ".config/dot.yaml"
-    path.parent.mkdir()
-    path.write_text("prune:\n  providers: [mise]\n")
-    assert load_config().prune.providers == ["mise"]
-    path.parent.chmod(0)
-    try:
-        with pytest.raises(ValueError, match="failed to read config file") as caught:
-            load_config()
-        assert isinstance(caught.value.__cause__, PermissionError)
-    finally:
-        path.parent.chmod(0o700)
-    assert load_config().prune.providers == ["mise"]
-
-
-def test_path_resolution_expands_only_current_home(tmp_path: Path) -> None:
-
-    assert expand_path("~") == tmp_path
-    assert expand_path("~/project") == tmp_path / "project"
-    assert expand_path("~someone/project") == Path("~someone/project")
+    assert xdg_dir("XDG_CACHE_HOME", ".cache") == tmp_path / suffix
+    monkeypatch.setenv("CUSTOM_DIR", "~/sub")
+    assert env_path("CUSTOM_DIR", tmp_path / "fallback") == tmp_path / "sub"
     assert config_file_path(None) == (tmp_path / ".config/dot.yaml", True)
+    assert config_file_path("~/explicit.yaml") == (tmp_path / "explicit.yaml", False)
 
 
-@pytest.mark.parametrize("content", ["", "---\n"])
-def test_empty_config_documents_use_defaults(tmp_path: Path, content: str) -> None:
+def test_load_config_overlay_and_strict_validation(tmp_path: Path) -> None:
     path = tmp_path / "dot.yaml"
-    path.write_text(content, encoding="utf-8")
+    path.write_text(
+        "pull:\n  directories: [~/code]\ntrust:\n  github_owners: [acme]\nauth:\n  workspace:\n    project: my-proj-1\n",
+        encoding="utf-8",
+    )
+    config = load_config(path)
+    assert config.pull.directories == ["~/code"]
+    assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
+    assert config.auth.workspace.project == "my-proj-1"
+    assert config.trust is not Config().trust
 
-    assert load_config(path) == Config()
-
-
-def test_config_document_requires_a_mapping(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text("- invalid\n", encoding="utf-8")
-
-    with pytest.raises(ValueError, match="must contain a YAML mapping"):
+    excess = ", ".join(f"scope_{i}" for i in range(60))
+    path.write_text(f"auth:\n  workspace:\n    extra_scopes: [{excess}]\n", encoding="utf-8")
+    with pytest.raises(ConfigValidationError, match="workspace scopes cannot exceed"):
         load_config(path)
+
+    for bad_yaml, match in (
+        ("schema_version: true\n", r"schema_version: must be 3"),
+        ("auth:\n  login: []\n", r"auth\.login: must contain at least one"),
+        ("auth:\n  login: [bogus]\n", r"auth\.login\.0: must be one of"),
+        ("auth:\n  extra: 1\n", r"auth\.extra: unknown setting"),
+    ):
+        path.write_text(bad_yaml, encoding="utf-8")
+        with pytest.raises(ConfigValidationError, match=match) as caught:
+            load_config(path)
+        assert "bogus" not in str(caught.value)
+
+    with pytest.raises(ConfigValidationError, match="must be a number"):
+        ModelPrice.from_raw({"input": True, "output": 1.0}, ("models", "x"))
+    with pytest.raises(ConfigValidationError, match=r"negative|non-negative"):
+        PricingConfig.from_raw(
+            {"as_of": "2026-11-12", "basis": "b", "sources": [], "models": {"x": {"input": -1, "output": 1}}}
+        )
 
 
 @pytest.mark.parametrize(
-    "document",
+    ("content", "exc", "match"),
     [
-        "auth:\n  github:\n    scopes: [repo]\n    remove_scopes: [repo]\n",
-        "auth:\n  github:\n    scopes: ['repo,delete_repo']\n",
-        "auth:\n  github:\n    scopes: ['--help']\n",
-        "auth:\n  github:\n    host: github.com\n",
-        "auth:\n  workspace:\n    scopes: []\n",
-        "auth:\n  workspace:\n    project: '--flags-file=oops'\n",
-        "auth:\n  workspace:\n    apis: ['--all']\n",
-        "cache:\n  providers: [unknown]\n",
-        "prune:\n  providers: []\n",
-        "pull:\n  directories: [relative-work]\n",
-        "pull:\n  directories: ['~work']\n",
-        "pull:\n  directories: ['']\n",
-        "completions:\n  path: ''\n",
-        "completions:\n  path: fish\n",
-        "agent:\n  sources:\n    claude: relative/projects\n",
-        "agent:\n  sources:\n    codex: ~/.codex/sessions\n",
-        "agent:\n  sources:\n    claud: ~/.claude/projects\n",
-        "agent:\n  notify:\n    sound: false\n",
-        "doctor:\n  secrets:\n    - path: relative/key.txt\n",
+        ("unknown: true\n", ConfigValidationError, "unknown"),
+        ("pull:\n  directories: [~/a]\n---\npull:\n  directories: [~/b]\n", ValueError, "exactly one YAML"),
+        ("- item\n", ValueError, "YAML mapping"),
+        ("pull: [\n", ValueError, r"failed to parse config file at .*line "),
+        (b"\xff", ValueError, r"failed to read config file at "),
+        ("a: " + "[" * 1000 + "]" * 1000, ValueError, r"failed to parse config file at "),
     ],
 )
-def test_workstation_policy_rejects_invalid_settings(tmp_path: Path, document: str) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text(document)
-    with pytest.raises(ValidationError):
+def test_load_config_rejects_invalid_inputs_safely(
+    tmp_path: Path, content: str | bytes, exc: type[Exception], match: str
+) -> None:
+    path = tmp_path / "bad.yaml"
+    path.write_bytes(content) if isinstance(content, bytes) else path.write_text(content, encoding="utf-8")
+    with pytest.raises(exc, match=match):
         load_config(path)
 
 
-def test_scope_lists_replace_defaults_and_default_instances_are_independent(tmp_path: Path) -> None:
-    path = tmp_path / "dot.yaml"
-    path.write_text("auth:\n  workspace:\n    scopes: [openid]\ncache:\n  providers: [uv]\n")
-    config = load_config(path)
-    assert config.auth.workspace.scopes == ["openid"]
-    assert config.auth.workspace.apis == Config().auth.workspace.apis
-    assert config.cache.providers == ["uv"]
-    first = Config()
-    first.auth.github.scopes.append("custom")
-    assert "custom" not in Config().auth.github.scopes
-
-
-def test_live_agent_sources_match_the_session_adapters() -> None:
-    from fmind_dot.archive.parsers import AGENT_ADAPTERS
-    from fmind_dot.config import LIVE_AGENTS
-
-    assert set(LIVE_AGENTS) == set(AGENT_ADAPTERS) == set(Config().agent.sources)
+def test_load_config_missing_and_unreadable_default_never_falls_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert load_config(None) == Config()
+    with pytest.raises(FileNotFoundError, match="failed to read config file"):
+        load_config(tmp_path / "missing.yaml")
+    default = tmp_path / ".config/dot.yaml"
+    default.parent.mkdir()
+    default.mkdir()
+    monkeypatch.setenv("HOME", str(tmp_path))
+    with pytest.raises(ValueError, match="failed to read config file"):
+        load_config(None)
+    if os.geteuid() != 0:
+        default.rmdir()
+        default.write_text("schema_version: 3\n", encoding="utf-8")
+        default.chmod(0o000)
+        try:
+            with pytest.raises(ValueError, match="failed to read config file"):
+                load_config(None)
+        finally:
+            default.chmod(0o600)

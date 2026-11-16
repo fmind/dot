@@ -17,7 +17,7 @@ Route durable session lessons to one canonical owner without rule bloat. Trigger
    1. project `AGENTS.md` (repo invariant);
    1. global persona (`dot_agents/AGENTS.md` in `fmind/dot`);
    1. decision log (via [bf](../../bf/SKILL.md) when present) for dated choices and "do not re-raise" calls.
-1. **Sharpen before adding**: tighten or replace existing lines and prune obsoleted text before adding anything new; verify budgets pass (`dot agent context --project .`, plus `--source .` in `fmind/dot`).
+1. **Sharpen before adding**: tighten or replace existing lines and prune obsoleted text before adding anything new; verify budgets pass (`dot context --project .`, plus `--source .` in `fmind/dot`).
 1. **Propose, then apply**: present ranked `(Lesson Learned)` diffs naming owner path and old/new text; apply only after explicit user approval and run the owner's checks (`pytest`, `mise run check:skills`, formatters).
 
 ## Gotchas

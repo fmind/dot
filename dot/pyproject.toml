@@ -10,7 +10,6 @@ license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Médéric HURIER" }]
 dependencies = [
-  "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
 ]
 
@@ -36,6 +35,7 @@ dev = [
 
 [project.scripts]
 dot = "fmind_dot.cli:main"
+with-secret = "fmind_dot.with_secret:main"
 
 [build-system]
 requires = ["uv_build>=0.13.0,<0.14"]
@@ -44,12 +44,7 @@ build-backend = "uv_build"
 [tool.ruff]
 extend = "../ruff.toml"
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = [
-  "S101", # assert statements allowed in test assertions
-  "S603", # trusted subprocess calls in test fixtures
-  "S607", # executable names without absolute paths in test subprocess calls
-]
+[tool.ruff.lint.extend-per-file-ignores]
 "tests/test_contracts.py" = [
   "SLF001", # access internal contract helpers under test
 ]
@@ -69,10 +64,10 @@ blanket-ignore-comment = "error" # require `ty: ignore[<rule>]`; Ruff PGH003 che
 addopts = ["-ra", "--allow-hosts=127.0.0.1,::1", "--allow-unix-socket"]
 filterwarnings = ["error"]
 markers = ["real_home: keep the real HOME for tests that run repository tasks through mise shims"]
-pythonpath = ["."]
+pythonpath = [".", "../tests"]
 # Umbrella for strict_config, strict_markers, strict_xfail, and strict_parametrization_ids.
 strict = true
-testpaths = ["tests"]
+testpaths = ["tests", "../tests"]
 # Fail a hung test instead of stalling the agent; a plugin string option rejects a bare TOML integer.
 timeout = "60"
 

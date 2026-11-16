@@ -17,7 +17,7 @@ set -gx LESSHISTFILE -
 set -gx MANPAGER less
 set -gx PAGER bat
 
-# "1" auto-approves tools only; "true" would also trust every directory and its hooks, bypassing `dot trust`.
+# "1" auto-approves tools only; "true" would also trust every directory and its hooks, bypassing per-folder Copilot trust (~/.copilot/config.json).
 set -gx COPILOT_ALLOW_ALL 1
 # ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively.
 set -gx OPENCODE_DISABLE_CLAUDE_CODE_SKILLS 1

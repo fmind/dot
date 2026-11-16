@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cf
   created: "2026-11-13"
-  updated: "2026-11-14"
+  updated: "2026-11-15"
 ---
 
 # Cloudflare (`cf`)
@@ -31,7 +31,7 @@ cf -q schema workers secrets update
 
 ## Secrets and Guardrails
 
-- **Keep secrets out of argv**: avoid `--text ...`; write a `0600` temp JSON file (or use `dot secret run`) and apply `cf -q workers secrets bulk --worker <script> --secrets @<tmpfile>`, then shred/remove the temp file.
+- **Keep secrets out of argv**: avoid `--text ...`; write a `0600` temp JSON file (or use `with-secret`) and apply `cf -q workers secrets bulk --worker <script> --secrets @<tmpfile>`, then shred/remove the temp file.
 - **Piped `cf deploy` skips prompts**: never pipe stdin accidentally into `cf deploy`; require explicit approval before DNS, Workers/Pages deploys, cache purges, R2/KV/D1 writes, Zero Trust/WAF rules, billing reads/writes, `api` writes, or `-y`.
 
 ## Documentation

@@ -12,9 +12,7 @@ from pathlib import Path
 import pytest
 
 from dot_tasks import theme_pin
-from tests.chezmoi_helpers import chezmoi
-
-ROOT = Path(__file__).resolve().parents[2]
+from repo_helpers import ROOT, chezmoi
 
 
 @pytest.mark.parametrize(("platform", "prefix"), [("linux", ".local/share/fonts"), ("darwin", "Library/Fonts")])

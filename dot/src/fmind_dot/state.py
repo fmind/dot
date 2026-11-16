@@ -9,26 +9,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO
 
-from pydantic import ValidationError
-
-from fmind_dot.config import Config, config_file_path, load_config
+from fmind_dot.config import Config, ConfigValidationError, config_file_path, load_config
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult, Runner
 
 
 @dataclass
 class State:
-    """Lazily load configuration so repair commands can bypass invalid YAML."""
+    """Lazily load configuration so diagnostic/config commands work cleanly."""
 
     config_argument: Path | None = None
     runner: Runner = field(default_factory=Runner)
-    # Resolve standard streams at invocation time so test capture and callers
-    # that redirect streams observe the same process state as the command.
     stdin: IO[str] = field(default_factory=lambda: sys.stdin)
     stdout: IO[str] = field(default_factory=lambda: sys.stdout)
     stderr: IO[str] = field(default_factory=lambda: sys.stderr)
     _config: Config | None = field(default=None, init=False, repr=False)
-    # Readiness probe results reused within one invocation; every login clears them.
     _probes: dict[tuple[str, ...], CommandResult | DotError] = field(default_factory=dict, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
@@ -56,7 +51,6 @@ class State:
         try:
             result = execute()
         except DotError as error:
-            # Reuse timeouts and missing-tool errors too: sequential steps after warm_probes must not wait again.
             with self._lock:
                 self._probes[key] = error
             raise
@@ -71,19 +65,12 @@ class State:
 
 
 def validated_config(path: Path | None) -> Config:
-    """Load configuration, naming the file and the repair command when validation fails."""
+    """Load configuration, naming the file when validation fails."""
+    resolved = config_file_path(path)[0]
     try:
         return load_config(path)
-    except ValidationError as error:
-        # Locations and messages only: input values could hold credentials.
-        problems = "; ".join(
-            f"{'.'.join(str(part) for part in item['loc']) or '<root>'}: {item['msg']}"
-            for item in error.errors(include_url=False, include_input=False, include_context=False)
-        )
-        raise DotError(
-            f"invalid config file at {config_file_path(path)[0]} ({error.error_count()} validation error(s)): "
-            f"{problems}; fix it with: dot config edit"
-        ) from error
+    except ConfigValidationError as error:
+        raise DotError(f"invalid config file at {resolved} (validation error): {error}; fix {resolved}") from error
 
 
 def require_tools(state: State, commands: list[list[str]]) -> None:

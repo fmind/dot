@@ -31,7 +31,7 @@ Observed precedence when skills or commands collide (checked 2026-10-04):
 | OpenCode    | Later wins: project over global               | Built-in, custom, and MCP commands win             |
 | Pi          | First wins: project, then global              | Skills use `/skill:<name>` (no collision)          |
 
-Because `.claude/skills` → `.agents/skills` exposes skills twice in OpenCode 2.x (`.claude/skills`, `.agents/skills`, `~/.config/opencode/skills`, `.opencode/skills`), fish sets `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. Keep skill names unique across global/project scopes and host built-ins; `dot agent context --check` flags duplicates between `~/.agents/skills` and `.agents/skills`.
+Because `.claude/skills` → `.agents/skills` exposes skills twice in OpenCode 2.x (`.claude/skills`, `.agents/skills`, `~/.config/opencode/skills`, `.opencode/skills`), fish sets `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. Keep skill names unique across global/project scopes and host built-ins; `dot context --check` flags duplicates between `~/.agents/skills` and `.agents/skills`.
 
 ## Native plugin catalogs
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/auth-status
   created: "2026-10-04"
-  updated: "2026-11-14"
+  updated: "2026-11-15"
 ---
 
 # Auth Status
@@ -22,7 +22,7 @@ Check login state, scopes, and expiry with read-only probes, then give the user 
    dot doctor --deep --json | jq -c '.checks[] | select(.group == "auth") | {name, status, condition, details}'
    ```
 
-1. **Check granted scopes** (`dot config show` keys `auth.{github.scopes,workspace.scopes,gcp.adc_scopes}`): run `gh auth status --active --hostname github.com` and `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. Report missing or excess grants via `dot setup github`, `gh auth refresh -h github.com --remove-scopes <scopes>`, or `dot login workspace --force`.
+1. **Check granted scopes** ([`policy.yaml`](../../dot/src/fmind_dot/policy.yaml) `{github.scopes,workspace.scope_suffixes,gcp.adc_scope_suffixes}` plus `~/.config/dot.yaml` `auth.workspace.extra_scopes`): run `gh auth status --active --hostname github.com` and `gws auth status | jq '{user, token_valid, has_refresh_token, scopes}'`. Report missing or excess grants via `dot login github`, `gh auth refresh -h github.com --remove-scopes <scopes>`, or `dot login workspace --force`.
 1. **Probe secondary connectors & env overrides**: run only relevant non-interactive read probes and check presence-only env overrides listed in [providers](references/providers.md).
 1. **Report only provider-exposed expiry**: for AWS SSO, read `jq -r 'select(has("accessToken")) | .expiresAt' ~/.aws/sso/cache/*.json`; otherwise report `"unknown"`.
 1. **Hand off**: list account, status, scope gaps, expiry, and interactive `! <command>` per provider—preferring `dot login` (`github|workspace|gcp|colab`) over raw native commands so Colab/BigQuery ADC scopes stay intact ([Colab ADC](../dot-cli/references/authentication.md#colab-adc)). Re-probe only failed items.

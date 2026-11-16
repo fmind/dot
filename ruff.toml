@@ -63,3 +63,13 @@ ignore = [
   "PLW0108", # unnecessary-lambda: style, outside Ruff's default set
   "PLW2901", # redefined-loop-name: deliberate rebinding, outside Ruff's default set
 ]
+
+[lint.per-file-ignores]
+"**/tests/**" = [
+  "S101", # assert statements allowed in test assertions
+  "S603", # trusted subprocess calls in test fixtures
+  "S607", # executable names without absolute paths in test subprocess calls
+]
+
+[lint.isort]
+known-first-party = ["dot_tasks", "fmind_dot", "repo_helpers"]

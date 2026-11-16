@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-11-14"
+  updated: "2026-11-15"
 ---
 
 # Trim
@@ -16,7 +16,7 @@ Handle `/trim <path>` or verbosity complaints by cutting words, lines, and setti
 
 ## Workflow
 
-1. **Measure baseline**: `wc -lwm <path>`, plus `dot agent context --project . --details` (add `--source .` in `fmind/dot`) for instructions and skills.
+1. **Measure baseline**: `wc -lwm <path>`, plus `dot context --project . --details` (add `--source .` in `fmind/dot`) for instructions and skills.
 1. **Inventory survivors**: list every claim, rule, number, command, flag, link, warning, and authority boundary. For configs, snapshot effective state first (`mise tasks ls --json --hidden`, `mise ls --current --json`, `mise env --json`, `mise settings`, `dprint resolved-config`, `ruff check --show-settings <file>`, `docker compose config`, `chezmoi cat <target>`, or `yq -o json` with `mikefarah/yq` v4).
 1. **Cut in order**:
    - **Duplication**: keep once at the canonical owner; link elsewhere.

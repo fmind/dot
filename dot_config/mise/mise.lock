@@ -3883,10 +3883,10 @@ uv = { path = "locks/pypi-copier/9.19.1~3571cf8b", digest = "sha256:798f0490e3a1
 python = "3.14"
 
 [[tools."pypi:fmind"]]
-version = "3.0.0"
+version = "3.0.1"
 backend = "pypi:fmind"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-fmind/3.0.0~e8742b09", digest = "sha256:06f32d2b1ace074cfc218cf84e37701348893920abe507b7cb746397b9296db9" }
+uv = { path = "locks/pypi-fmind/3.0.1~e8742b09", digest = "sha256:a471c8596bdcd043458f3ceada870aa9690c0249537db7bd8345de2756630b23" }
 
 [tools."pypi:fmind".options]
 python = "3.14"

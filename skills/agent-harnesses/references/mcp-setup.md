@@ -26,7 +26,7 @@ pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>
 ```
 
 - **Pin executables & local projects**: use `uvx --from '<package>==<version>'`, never bare `uvx <package>`. For local Python checkouts, point directly at the locked `.venv` binary (e.g., `agy mcp add brain -- <brain-checkout>/.venv/bin/bf mcp --brain <brain>`) because `uvx --from` pins only the top-level package and agy spawns `bash -c` without shell init files.
-- **Keep secrets out of args and tracked files**: `KEY=value` is non-sensitive only; supply credentials via host env refs (`{env:NAME}`, `${NAME}`, `--bearer-token-env-var`), OAuth, or `dot secret run`. Keep Claude's default `--scope local` (`~/.claude.json`) unless the user approves shared `.mcp.json` (`--scope project`; `claude mcp reset-project-choices` resets).
+- **Keep secrets out of args and tracked files**: `KEY=value` is non-sensitive only; supply credentials via host env refs (`{env:NAME}`, `${NAME}`, `--bearer-token-env-var`), OAuth, or `with-secret` ([scoped credentials](../../dot-cli/references/authentication.md#scoped-credentials)). Keep Claude's default `--scope local` (`~/.claude.json`) unless the user approves shared `.mcp.json` (`--scope project`; `claude mcp reset-project-choices` resets).
 - **OpenCode 2.x schema** ([docs](https://opencode.ai/v2/docs/mcp-servers/)): nest under `mcp.servers.<name>` (`type: "local"` with command array + `environment`, or `type: "remote"` with `url`); use `disabled` (not `enabled`) and `{env:NAME}` for secrets. Project entries replace same-name global entries wholesale.
 
 ## Configuration files

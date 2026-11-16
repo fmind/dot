@@ -7,7 +7,7 @@ Per-ecosystem commands for [upgrade-tools](../SKILL.md): bump, re-lock, pass `mi
 1. **Bump project tools**: run `mise run upgrade` in `fmind/dot`; elsewhere preview `mise outdated --bump --no-global`, then run `mise upgrade --bump --pin --no-global --no-prune` (`--no-prune` keeps prior installs past `upgrade.prune_after`'s 24h default while venvs migrate; pass `--exclude <tool>` for documented holds) and `mise lock`.
 1. **Sync runtime files**: align `.python-version` and CI pins with `mise.toml` (preserving intentional test matrices), and recreate `.venv` cleanly rather than repointing Python minor symlinks.
 
-Preview unreferenced installs afterwards (`dot prune mise` cleans cache files only, not installed versions, and external venv symlinks or running processes may still reference untracked installs):
+Preview unreferenced installs afterwards (external venv symlinks or running processes may still reference untracked installs):
 
 ```bash
 mise ls --all-sources

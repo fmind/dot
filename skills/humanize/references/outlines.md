@@ -8,7 +8,7 @@ Pick the shortest outline that serves the reader's decision. Drop empty sections
 
 No headings, zero backtick spam, 1–2 sentences per paragraph:
 
-1. **Lead signal**: the answer, news, or ask in sentence 1 (bolded or in a brief callout when decisive).
+1. **Lead signal**: the answer, news, or ask in sentence 1 with the key phrase bolded (skip callout boxes on routine mail and chat; reserve a brief callout for formal multi-stakeholder approvals or incident notices).
 1. **Why it matters**: 2–3 sentences with the key figure and baseline.
 1. **Next step**: one owner and date/timezone (optional short bullet list of ≤4 items).
 

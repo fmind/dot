@@ -1,615 +1,207 @@
 from __future__ import annotations
 
-import json
-import traceback
-from dataclasses import replace
-from datetime import UTC, datetime, timedelta
-from io import StringIO
+import io
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from fmind_dot.archive.store import ingest_session
+from fmind_dot.archive.store import SessionLog, SessionSource, ingest_session
 from fmind_dot.archive.usage import (
+    CACHE_INCLUSIVE_INPUT_HARNESSES,
+    USAGE_EXTRACTOR_VERSION,
+    USAGE_SCHEMA_VERSION,
     UsageRecord,
     UsageStats,
     aggregate_usage,
-    list_usage_records,
+    api_equivalent,
+    check_cost,
+    iter_usage_records,
     parse_flexible_time,
     write_usage_stats,
 )
-from fmind_dot.cli import app
-from tests.fakes import CliRunner
+from fmind_dot.config import ModelPrice, PricingConfig, default_pricing
 
 
-def test_usage_record_finalizes_defaults_and_computed_total() -> None:
-    record = UsageRecord(
-        harness="codex",
-        session_id="session",
-        input_tokens=1,
-        output_tokens=2,
-        cached_tokens=3,
-        cache_write_tokens=4,
-    )
-
-    with pytest.raises(ValueError, match="missing timestamp in usage record"):
-        replace(record).finalize()
-    assert record.finalize(fallback_timestamp="2026-09-01T00:00:00Z") is record
-    assert record.agent == "codex"
-    assert record.timestamp == "2026-09-01T00:00:00Z"
-    assert record.total_tokens == 3
-    # An own timestamp always wins over the fallback.
-    assert replace(record, timestamp="2026-09-02T00:00:00Z").finalize(fallback_timestamp="x").timestamp == (
-        "2026-09-02T00:00:00Z"
+def _pricing() -> PricingConfig:
+    return PricingConfig(
+        as_of="2026-11-15",
+        basis="test",
+        sources=[],
+        models={
+            "claude-sonnet-4-5": ModelPrice(
+                input=3.0, output=15.0, cache_read=0.3, cache_write=3.75, cache_write_1h=6.0
+            ),
+            "gpt-5": ModelPrice(input=1.25, output=10.0, cache_read=0.125),
+            "grok-code": ModelPrice(input=2.0, output=8.0, cache_read=0.5),
+        },
     )
 
 
-def test_usage_record_serializes_every_explicit_field() -> None:
-    record = UsageRecord(
-        timestamp="2026-09-06T10:00:00Z",
-        harness="codex",
-        agent="worker",
-        session_id="session",
-        model="gpt",
-        cwd="/repo",
-        input_tokens=1,
-        output_tokens=2,
-        cached_tokens=3,
-        cache_write_tokens=4,
-        reasoning_tokens=5,
-        total_tokens=20,
-        cost_usd=0.25,
-        turn_count=2,
-        measurement_kind="provider-reported",
-        source_bytes=123,
-    )
-
-    assert record.finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict() == {
-        "timestamp": "2026-09-06T10:00:00Z",
-        "harness": "codex",
-        "agent": "worker",
-        "session_id": "session",
-        "model": "gpt",
-        "cwd": "/repo",
-        "input_tokens": 1,
-        "output_tokens": 2,
-        "cached_tokens": 3,
-        "cache_write_tokens": 4,
-        "reasoning_tokens": 5,
-        "total_tokens": 20,
-        "cost_usd": 0.25,
-        "turn_count": 2,
-        "schema_version": "dot.agent.usage/v3",
-        "extractor_version": "2",
-        "cost_known": True,
+def _rec(harness: str = "claude", sid: str = "s1", model: str = "claude-sonnet-4-5", **kw: Any) -> UsageRecord:
+    defaults: dict[str, Any] = {
+        "timestamp": "2026-11-15T12:00:00Z",
+        "harness": harness,
+        "agent": harness,
+        "session_id": sid,
+        "model": model,
+        "input_tokens": 100,
+        "output_tokens": 50,
         "measurement_kind": "provider-reported",
-        "source_bytes": 123,
     }
+    return UsageRecord(**(defaults | kw)).finalize()
 
 
-def test_usage_record_rejects_unknown_measurement_kind() -> None:
-    value = (
-        UsageRecord(harness="codex", session_id="session").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
-    )
-    value["measurement_kind"] = "magic"
-    with pytest.raises(ValueError, match="measurement_kind"):
-        UsageRecord.from_dict(value)
+def test_usage_record_validation_roundtrip_and_check_cost() -> None:
+    assert frozenset({"codex", "grok"}) == CACHE_INCLUSIVE_INPUT_HARNESSES
+    assert check_cost(None) is None
+    for bad in (-1, True, float("inf"), "nope"):
+        with pytest.raises(ValueError, match="cost_usd"):
+            check_cost(bad)
 
+    grok = _rec("grok", "g1", "grok-code", input_tokens=100, cached_tokens=40, output_tokens=10)
+    assert grok.total_tokens == 110
+    d = grok.to_dict()
+    assert UsageRecord.from_dict(d) == grok
 
-def test_usage_record_from_dict_rejects_empty_object() -> None:
-    with pytest.raises(ValueError, match="missing timestamp in usage record"):
-        UsageRecord.from_dict({"schema_version": "dot.agent.usage/v3", "extractor_version": "2", "cost_known": False})
-
-
-@pytest.mark.parametrize("field", ["timestamp", "harness", "agent", "session_id"])
-def test_usage_record_from_dict_requires_complete_identity(field: str) -> None:
-    value = {
-        "timestamp": "2026-09-06T10:00:00Z",
-        "harness": "codex",
-        "agent": "codex",
-        "session_id": "valid",
-        "schema_version": "dot.agent.usage/v3",
-        "extractor_version": "2",
-        "cost_known": False,
-    }
-    del value[field]
-
-    with pytest.raises(ValueError, match=f"missing {field} in usage record"):
-        UsageRecord.from_dict(value)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [("input_tokens", -1), ("cost_usd", -0.01), ("cost_usd", float("inf"))],
-    ids=["negative-tokens", "negative-cost", "infinite-cost"],
-)
-def test_usage_rejects_invalid_metrics_before_serialization(field: str, value: int | float) -> None:
-    record = UsageRecord(
-        timestamp="2026-09-06T10:00:00Z",
-        harness="codex",
-        agent="codex",
-        session_id="invalid",
-    )
-    setattr(record, field, value)
-
-    with pytest.raises(ValueError, match=field):
-        record.to_dict()
-
-
-def test_usage_rejects_malformed_timestamp_at_every_boundary() -> None:
-    record = UsageRecord(
-        timestamp="not-a-time",
-        harness="codex",
-        agent="codex",
-        session_id="invalid",
-    )
-
-    with pytest.raises(ValueError, match="timestamp"):
-        record.finalize(fallback_timestamp="2026-09-01T00:00:00Z")
-    with pytest.raises(ValueError, match="timestamp"):
-        record.to_dict()
-    with pytest.raises(ValueError, match="timestamp"):
-        aggregate_usage([record], since=datetime(2026, 1, 1, tzinfo=UTC))
-
-
-@pytest.mark.parametrize(
-    "timestamp",
-    ["NaN", "Infinity", "10000-01-01T00:00:00Z", "0001-01-01T00:00:00+23:59"],
-    ids=["nan", "infinity", "unparsable-year", "utc-underflow"],
-)
-def test_usage_rejects_non_finite_and_out_of_range_timestamps(timestamp: str) -> None:
-    record = UsageRecord(
-        timestamp=timestamp,
-        harness="codex",
-        agent="codex",
-        session_id="invalid",
-    )
-
-    with pytest.raises(ValueError, match="timestamp"):
-        record.to_dict()
-    with pytest.raises(ValueError, match="timestamp"):
-        aggregate_usage([record])
-
-
-@pytest.mark.parametrize(
-    "timestamp",
-    ["2026-09-06T10:00:00.123456Z", "2026-09-06T12:00:00+02:00", "2026-09-06T10:00:00"],
-    ids=["utc-z", "explicit-offset", "implicit-utc"],
-)
-def test_usage_preserves_accepted_iso_timestamp_formats(timestamp: str) -> None:
-    record = UsageRecord(
-        timestamp=timestamp,
-        harness="codex",
-        agent="codex",
-        session_id="valid",
-    )
-
-    assert record.to_dict()["timestamp"] == timestamp
-    assert aggregate_usage([record], since=datetime(2026, 9, 6, 9, 59, tzinfo=UTC))[0].sessions == 1
-
-
-def test_aggregate_usage_projects_unknown_model_when_grouping_by_model() -> None:
-    record = UsageRecord(
-        timestamp="2026-09-06T10:00:00Z",
-        harness="codex",
-        agent="codex",
-        session_id="session",
-    )
-
-    row = aggregate_usage([record], by_model=True)[0]
-
-    assert row.model == "unknown"
-    assert row.to_dict()["model"] == "unknown"
-
-
-def test_aggregate_usage_filters_and_sums_every_metric() -> None:
-    records = [
-        UsageRecord(
-            timestamp="2026-09-06T09:00:00Z",
-            harness="codex",
-            agent="codex",
-            session_id="early",
-            model="gpt",
-            input_tokens=1,
-            total_tokens=1,
-        ),
-        UsageRecord(
-            timestamp="2026-09-06T10:00:00Z",
-            harness="codex",
-            agent="codex",
-            session_id="included",
-            model="gpt-mini",
-            input_tokens=1,
-            output_tokens=2,
-            cached_tokens=3,
-            cache_write_tokens=4,
-            reasoning_tokens=5,
-            total_tokens=15,
-            cost_usd=0.25,
-            turn_count=2,
-        ),
-        UsageRecord(
-            timestamp="2026-09-06T11:00:00Z",
-            harness="codex",
-            agent="codex",
-            session_id="late",
-            model="gpt",
-            output_tokens=10,
-            total_tokens=10,
-        ),
-        UsageRecord(
-            timestamp="2026-09-06T10:15:00Z",
-            harness="claude",
-            agent="worker",
-            session_id="other",
-            model="sonnet",
-            total_tokens=7,
-        ),
-    ]
-
-    filtered = aggregate_usage(
-        records,
-        harness="codex",
-        since=datetime(2026, 9, 6, 9, 30, tzinfo=UTC),
-        until=datetime(2026, 9, 6, 10, 30, tzinfo=UTC),
-        by_model=True,
-    )
-
-    assert [row.to_dict() for row in filtered] == [
-        {
-            "harness": "codex",
-            "model": "gpt-mini",
-            "input_tokens": 1,
-            "output_tokens": 2,
-            "cached_tokens": 3,
-            "cache_write_tokens": 4,
-            "cache_write_1h_tokens": 0,
-            "reasoning_tokens": 5,
-            "total_tokens": 15,
-            "cost_usd": 0.25,
-            "sessions": 1,
-            "requests": 2,
-            "cost_known_sessions": 1,
-            "cost_complete": True,
-            "usage_complete": True,
-            "retained_usage_sessions": 0,
-            "measurement_kind": "unknown",
-            "cwd": "",
-            "first_timestamp": "2026-09-06T10:00:00+00:00",
-            "last_timestamp": "2026-09-06T10:00:00+00:00",
-            "period_start": None,
-            "period_end": None,
-            "session_timestamp_sessions": 1,
-            "legacy_accounting_sessions": 0,
-            "measurements": 1,
-            "priced_measurements": 0,
-            "api_equivalent_usd": None,
-            "priced_sessions": 0,
-            "pricing_complete": False,
-            "unpriced_reasons": {"measurement is not provider-reported": 1},
-        }
-    ]
-
-    combined = aggregate_usage(records)
-    assert [(row.harness, row.sessions, row.total_tokens) for row in combined] == [
-        ("claude", 1, 7),
-        ("codex", 3, 26),
-    ]
-    assert aggregate_usage(records, harness="worker")[0].harness == "claude"
-
-
-def test_list_usage_records_filters_sorts_and_applies_limit() -> None:
-    records = [
-        UsageRecord(timestamp="2026-09-06T09:00:00Z", harness="codex", agent="codex", session_id="old"),
-        UsageRecord(timestamp="2026-09-06T11:00:00Z", harness="codex", agent="worker", session_id="new"),
-        UsageRecord(timestamp="2026-09-06T10:00:00Z", harness="claude", agent="claude", session_id="other"),
-    ]
-
-    assert [record.session_id for record in list_usage_records(records, harness="codex", limit=1)] == ["new"]
-    assert [record.session_id for record in list_usage_records(records, harness="worker", limit=0)] == ["new"]
-    assert [record.session_id for record in list_usage_records(records, limit=-1)] == ["new", "other", "old"]
-
-
-@pytest.mark.parametrize(
-    ("older", "newer"),
-    [
-        ("2026-09-20T12:00:00Z", "2026-09-20T12:00:00.500Z"),
-        ("2026-09-20T12:00:00+02:00", "2026-09-20T11:00:00Z"),
-    ],
-)
-def test_usage_limit_selects_latest_instant(older: str, newer: str) -> None:
-    records = [UsageRecord(timestamp=older, session_id="old"), UsageRecord(timestamp=newer, session_id="new")]
-    assert list_usage_records(records, limit=1)[0].session_id == "new"
-
-
-def test_write_usage_stats_renders_empty_and_text_contracts() -> None:
-    rows = [
-        UsageStats(
-            harness="claude",
-            model="sonnet",
-            input_tokens=1000,
-            output_tokens=2,
-            cached_tokens=3,
-            cache_write_tokens=4,
-            reasoning_tokens=5,
-            total_tokens=1014,
-            cost_usd=0.5,
-            cost_known_sessions=1,
-            sessions=1,
-            requests=2,
-        ),
-        UsageStats(
-            harness="codex",
-            model="gpt",
-            input_tokens=1,
-            output_tokens=2,
-            reasoning_tokens=1,
-            total_tokens=4,
-            cost_usd=0.125,
-            cost_known_sessions=2,
-            sessions=2,
-            requests=3,
-        ),
-    ]
-
-    output = StringIO()
-    write_usage_stats(output, [], by_model=False)
-    assert output.getvalue() == ("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
-
-    output = StringIO()
-    write_usage_stats(output, rows, by_model=True)
-    text = output.getvalue()
-    assert "Total tokens:" in text
-    assert "API equivalent:" in text
-    assert "1,014" in text
-    assert "TOTAL" not in text
-    assert "no combined session total" in text
-    assert "$0.5000" in text
-    assert "$0.1250" in text
-    assert "Coverage:" in text
-    assert "sonnet" in text
-    assert "gpt" in text
-
-    output = StringIO()
-    write_usage_stats(output, rows[:1], by_model=False)
-    assert "Model:" not in output.getvalue()
-    assert "TOTAL · unknown\n  Sessions: 1 · Total tokens: 1,014" in output.getvalue()
-
-    output = StringIO()
-    write_usage_stats(output, rows, by_model=False)
-    assert "Sessions: 3 · Total tokens: 1,018" in output.getvalue()
-    assert "$0.6250" in output.getvalue()
-
-
-def test_write_usage_stats_names_the_harnesses_with_legacy_accounting() -> None:
-    def note(*rows: UsageStats) -> str:
-        output = StringIO()
-        write_usage_stats(output, list(rows), by_model=False)
-        return " ".join(output.getvalue().split())
-
-    claude = note(UsageStats(harness="claude", sessions=3, legacy_accounting_sessions=3))
-    assert "Legacy accounting in claude: recapture available sources with 'dot agent session sync'" in claude
-    assert "sessions retained from truncated sources keep their archived measurement." in claude
-
-    # Sync rejects retired agents, so their legacy rows can never be recaptured.
-    grok = note(UsageStats(harness="grok", sessions=3, legacy_accounting_sessions=3), UsageStats(harness="claude"))
-    assert "Legacy accounting in grok: retired agents keep their archived measurement." in grok
-    assert "session sync" not in grok
-    assert "Claude" not in grok
-
-    both = note(
-        UsageStats(harness="claude", sessions=1, legacy_accounting_sessions=1),
-        UsageStats(harness="grok", sessions=1, legacy_accounting_sessions=1),
-    )
-    assert "Legacy accounting in claude, grok: recapture available sources" in both
-    assert "truncated sources and retired agents keep their archived measurement." in both
-
-    assert "Legacy accounting" not in note(UsageStats(harness="claude"))
-
-
-def test_usage_cli_lists_filters_aggregates_and_shows_records() -> None:
-    for record in (
-        UsageRecord(
-            timestamp="2026-09-06T09:00:00Z",
-            harness="codex",
-            session_id="old",
-            model="gpt",
-            total_tokens=2,
-        ),
-        UsageRecord(
-            timestamp="2026-09-06T10:00:00Z",
-            harness="codex",
-            session_id="new",
-            model="gpt-mini",
-            total_tokens=3,
-            cost_usd=0.25,
+    for mutate, pat in (
+        ({"schema_version": "old", "cost_known": False}, "unsupported usage format"),
+        ({"timestamp": "bad", "cost_known": False}, "timestamp"),
+        ({"cache_write_1h_tokens": 5, "cache_write_tokens": 2, "cost_known": False}, "cache_write_1h_tokens"),
+        (
+            {"samples": [{"timestamp": "2026-11-15T00:00:00Z", "model": "m", "input_tokens": 1}], "cost_known": False},
+            "samples",
         ),
     ):
-        ingest_session(
-            record.harness,
-            record.session_id,
-            [],
-            usage=record.finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict(),
+        with pytest.raises(ValueError, match=pat):
+            UsageRecord.from_dict(d | mutate)
+
+    for req in ("input_tokens", "output_tokens", "total_tokens", "schema_version", "extractor_version"):
+        truncated = dict(d)
+        del truncated[req]
+        with pytest.raises(ValueError, match=f"missing {req}"):
+            UsageRecord.from_dict(truncated)
+    with pytest.raises(ValueError, match="cost_known"):
+        UsageRecord.from_dict({"harness": "pi"})
+    assert (
+        UsageRecord(
+            harness="pi",
+            agent="pi",
+            session_id="s",
+            timestamp="2026-11-15T00:00:00Z",
+            schema_version=USAGE_SCHEMA_VERSION,
+            extractor_version=USAGE_EXTRACTOR_VERSION,
         )
+        .finalize()
+        .total_tokens
+        == 0
+    )
 
-    runner = CliRunner()
-    listed = runner.invoke(app, ["agent", "stats", "--sessions", "--agent", "codex", "--limit", "1", "--json"])
-    windowed = runner.invoke(app, ["agent", "stats", "--sessions", "--until", "2026-09-06T09:30:00Z", "--json"])
-    stats = runner.invoke(
-        app,
+
+def test_parse_flexible_time_and_api_equivalent() -> None:
+    now = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
+    assert parse_flexible_time("1h30m", now=now) == datetime(2026, 11, 15, 10, 30, tzinfo=UTC)
+    assert parse_flexible_time("7d", now=now) == datetime(2026, 11, 8, 12, 0, tzinfo=UTC)
+    assert parse_flexible_time("2026-11-15", end_of_day=True).hour == 23
+    with pytest.raises(ValueError, match="invalid time"):
+        parse_flexible_time("not-time")
+
+    p = _pricing()
+    c_rec = _rec(
+        "claude",
+        model="anthropic/claude-sonnet-4-5-20260101",
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_write_tokens=1_000_000,
+        cache_write_1h_tokens=500_000,
+    )
+    assert api_equivalent(c_rec, p) == pytest.approx(3.0 + 1.875 + 3.0)
+    assert api_equivalent(
+        _rec("grok", model="grok-code-build", input_tokens=1_000_000, cached_tokens=500_000, output_tokens=0), p
+    ) == pytest.approx(1.25)
+    assert api_equivalent(_rec("codex", model="gpt-5", input_tokens=10, cached_tokens=20, output_tokens=0), p) is None
+    assert api_equivalent(_rec("agy", model="gpt-5", measurement_kind="estimated"), p) is None
+    assert api_equivalent(_rec("pi", model="unknown"), p) is None
+    assert api_equivalent(_rec("claude", model="<synthetic>", input_tokens=0, output_tokens=0), p) == 0.0
+    assert api_equivalent(_rec("claude", model="claude-sonnet-4-5", input_tokens=0, output_tokens=0), p) is None
+    bundled_cost = api_equivalent(
+        _rec("claude", model="claude-sonnet-4-5", input_tokens=1_000_000, output_tokens=0), default_pricing()
+    )
+    assert bundled_cost is not None
+    assert bundled_cost > 0
+
+
+def test_iter_usage_aggregate_sidechains_and_write_stats(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    p_u = _rec("claude", "parent", cwd="/proj", cost_usd=1.0, cost_known=True).to_dict()
+    s_u = _rec(
+        "claude", "child", timestamp="2026-11-14T10:00:00Z", sidechain=True, parent_session_id="parent"
+    ).to_dict()
+    ingest_session(
+        "claude",
+        "parent",
+        [SessionLog("2026-11-15T12:00:00Z", "claude", "parent", "user", "hi", "/proj")],
+        SessionSource("claude-jsonl", "f1"),
+        usage=p_u,
+    )
+    ingest_session(
+        "claude",
+        "child",
+        [SessionLog("2026-11-14T10:00:00Z", "claude", "child", "user", "sub")],
+        SessionSource("claude-jsonl", "f2", sidechain=True, parent_session_id="parent"),
+        usage=s_u,
+    )
+
+    loaded = list(iter_usage_records(since=datetime(2026, 11, 15, 0, 0, tzinfo=UTC)))
+    assert len(loaded) == 2
+
+    bad_bundle = tmp_path / ".agents/sessions/v3/claude/corrupt.jsonl"
+    bad_bundle.write_text("{bad\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid session manifest"):
+        list(iter_usage_records())
+    bad_bundle.unlink()
+
+    rows = aggregate_usage(loaded, by_model=True, by_project=True, pricing=_pricing())
+    assert len(rows) == 1
+    assert rows[0].sessions == 1
+    assert rows[0].cost_usd == pytest.approx(1.0)
+    assert rows[0].cwd == "/proj"
+
+    partial = aggregate_usage(loaded, since=datetime(2026, 11, 15, 0, 0, tzinfo=UTC), pricing=_pricing())
+    assert partial[0].cost_known_sessions == 0
+
+    buf = io.StringIO()
+    write_usage_stats(buf, [], by_model=False)
+    assert "No usage records found" in buf.getvalue()
+
+    buf = io.StringIO()
+    write_usage_stats(
+        buf,
         [
-            "agent",
-            "stats",
-            "--tokens-only",
-            "--since",
-            "2026-09-06T09:30:00Z",
-            "--until",
-            "2026-09-06T10:30:00Z",
-            "--by-model",
-            "--json",
+            UsageStats(
+                "claude",
+                "claude-sonnet-4-5",
+                10,
+                5,
+                total_tokens=15,
+                sessions=1,
+                measurement_kind="provider-reported",
+                cost_usd=0.2,
+                cost_known_sessions=1,
+                first_timestamp="2026-11-15T00:00:00Z",
+                last_timestamp="2026-11-15T00:00:00Z",
+            )
         ],
+        by_model=False,
+        pricing=_pricing(),
     )
+    assert "TOTAL" in buf.getvalue()
 
-    assert listed.exit_code == 0
-    assert json.loads(listed.stdout)["schema"] == "dot.agent.stats.sessions/v1"
-    assert [record["session_id"] for record in json.loads(listed.stdout)["records"]] == ["new"]
-    assert [record["session_id"] for record in json.loads(windowed.stdout)["records"]] == ["old"]
-    assert stats.exit_code == 0
-    assert [(row["model"], row["total_tokens"]) for row in json.loads(stats.stdout)["usage"]] == [("gpt-mini", 3)]
-
-
-def test_parse_flexible_time_supports_durations_days_and_iso_values() -> None:
-    now = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
-
-    assert parse_flexible_time(" 1h30m15s ", now=now) == now - timedelta(hours=1, minutes=30, seconds=15)
-    assert parse_flexible_time("7d", now=now) == now - timedelta(days=7)
-    assert parse_flexible_time("2026-09-01", now=now) == datetime(2026, 9, 1, tzinfo=UTC)
-    assert parse_flexible_time("2026-09-06T14:00:00+02:00", now=now) == now
-    end = datetime(2026, 9, 6, 23, 59, 59, 999999, tzinfo=UTC)
-    assert parse_flexible_time("2026-09-06", end_of_day=True) == parse_flexible_time("20260906", end_of_day=True) == end
-
-
-@pytest.mark.parametrize("value", ["", "0d", "0h", "0m0s", "1h-no"])
-def test_parse_flexible_time_rejects_invalid_values(value: str) -> None:
-    with pytest.raises(ValueError, match="use a duration"):
-        parse_flexible_time(value, now=datetime(2026, 9, 6, tzinfo=UTC))
-
-
-@pytest.mark.parametrize("field", ["timestamp", "harness", "agent", "session_id", "model", "cwd"])
-def test_usage_record_rejects_non_string_fields(field: str) -> None:
-    value = (
-        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
+    mixed = io.StringIO()
+    write_usage_stats(
+        mixed,
+        [UsageStats("claude", measurement_kind="provider-reported"), UsageStats("agy", measurement_kind="estimated")],
+        by_model=False,
     )
-    value[field] = 1
-    with pytest.raises(ValueError, match=field):
-        UsageRecord.from_dict(value)
-
-
-@pytest.mark.parametrize("cost", ["0.25", float("nan"), -0.25, True, 10**400])
-def test_usage_record_rejects_invalid_cost(cost: object) -> None:
-    value = (
-        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
-    )
-    value["cost_usd"] = cost
-    with pytest.raises(ValueError, match="cost_usd"):
-        UsageRecord.from_dict(value)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("schema_version", "dot.agent.usage/v2"),
-        ("extractor_version", "1"),
-        ("schema_version", None),
-        ("extractor_version", None),
-    ],
-)
-def test_usage_record_rejects_unsupported_formats(field: str, value: str | None) -> None:
-    document = (
-        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
-    )
-    if value is None:
-        del document[field]
-    else:
-        document[field] = value
-    with pytest.raises(ValueError, match="unsupported usage format"):
-        UsageRecord.from_dict(document)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("input_tokens", True),
-        ("output_tokens", "1"),
-        ("source_bytes", 1.5),
-        ("cost_known", 1),
-        ("samples", ()),
-        ("samples", [{"timestamp": "2026-09-06T10:00:00Z", "input_tokens": True}]),
-        ("samples", [{"model": "test"}]),
-        ("samples", [{"timestamp": "2026-09-06T10:00:00Z", "private-marker": "private-marker"}]),
-        ("samples", [{"timestamp": "private-marker"}]),
-        ("cost_usd", "private-marker"),
-        ("cwd", {"private-marker": "private-marker"}),
-    ],
-)
-def test_usage_validation_is_strict_and_does_not_expose_input(field: str, value: object) -> None:
-    document = (
-        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
-    )
-    document[field] = value
-    with pytest.raises(ValueError, match=field) as caught:
-        UsageRecord.from_dict(document)
-    assert "private-marker" not in "".join(traceback.format_exception(caught.value))
-
-
-def test_usage_ignores_unknown_session_fields_but_preserves_unknown_cost() -> None:
-    value = (
-        UsageRecord(harness="codex", session_id="fixture").finalize(fallback_timestamp="2026-09-01T00:00:00Z").to_dict()
-    )
-    loaded = UsageRecord.from_dict(value | {"__pydantic_config__": "untrusted", "future": True})
-    assert loaded.to_dict() == value
-    assert loaded.to_dict()["cost_usd"] is None
-    assert loaded.to_dict()["cost_known"] is False
-
-
-def _claude_measurement(session_id: str, cwd: str, model: str, tokens: int, **context: Any) -> UsageRecord:
-    return UsageRecord(
-        timestamp="2026-09-06T10:00:00Z",
-        harness="claude",
-        session_id=session_id,
-        cwd=cwd,
-        model=model,
-        measurement_kind="provider-reported",
-        input_tokens=tokens,
-        **context,
-    ).finalize()
-
-
-def test_sidechains_join_their_parent_session_and_project() -> None:
-    # The subagent ran in an isolated worktree and sorts before its parent in the archive.
-    child = _claude_measurement(
-        "agent-1", "/work/worktree", "claude-haiku-4-5", 100, sidechain=True, parent_session_id="parent"
-    )
-    parent = _claude_measurement("parent", "/work/project", "claude-opus-5-5", 1000, cost_usd=0.5, cost_known=True)
-
-    [row] = aggregate_usage([child, parent], cwd="/work/project")
-    by_model = aggregate_usage([child, parent], by_model=True, by_project=True)
-    [orphans] = aggregate_usage([child, replace(child, session_id="agent-2", parent_session_id="")])
-
-    # The subagent's tokens count; its parent's recorded cost already covers it.
-    assert (row.sessions, row.input_tokens, row.measurements, row.cost_usd) == (1, 1100, 2, 0.5)
-    assert row.to_dict()["cost_complete"] is True
-    assert [(item.model, item.cwd, item.sessions, item.input_tokens) for item in by_model] == [
-        ("claude-haiku-4-5", "/work/project", 1, 100),
-        ("claude-opus-5-5", "/work/project", 1, 1000),
-    ]
-    # Without an archived parent, each parent (or unknown-parent sidechain) still counts once.
-    assert (orphans.sessions, orphans.input_tokens, orphans.to_dict()["cost_complete"]) == (2, 200, False)
-
-
-def test_requests_are_unknown_for_harnesses_that_count_prompts_or_turns() -> None:
-    records = [
-        UsageRecord(timestamp="2026-09-06T10:00:00Z", harness=harness, session_id=harness, turn_count=3).finalize()
-        for harness in ("claude", "agy")
-    ]
-    rows = {row.harness: row.to_dict() for row in aggregate_usage(records)}
-    assert rows["claude"]["requests"] == 3
-    assert rows["agy"]["requests"] is None
-
-
-def test_retained_usage_marks_cost_and_usage_incomplete() -> None:
-    record = UsageRecord(
-        timestamp="2026-09-06T10:00:00Z",
-        harness="grok",
-        session_id="kept",
-        total_tokens=5,
-        cost_usd=0.1,
-        cost_known=True,
-    ).finalize()
-    record.retained = True
-    row = aggregate_usage([record])[0].to_dict()
-    assert (row["retained_usage_sessions"], row["usage_complete"], row["cost_complete"]) == (1, False, False)
-    output = StringIO()
-    write_usage_stats(output, aggregate_usage([record]), by_model=False)
-    assert "keep usage from an earlier capture" in output.getvalue()
-    assert "retired agents never measure again" in " ".join(output.getvalue().split())
+    assert "not comparable" in mixed.getvalue()

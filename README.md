@@ -18,9 +18,9 @@ Personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS. [
 
 - **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit — tuned for keyboard speed and ultrawide layouts.
 - **Editor:** Neovim (LazyVim), unified across tools with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving and usage stats.
+- **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving (`agy`, Claude, Pi) and usage stats.
 - **Development:** Python 3.14 with uv, Ruff, ty, and pytest plus cloud/service CLIs; projects pin their own stack tools.
-- **Automation:** `dot` checks workstation health, manages multi-repo workspaces, handles provider logins and scoped secrets, and enforces agent context budgets.
+- **Automation:** `dot` checks workstation health, manages multi-repo workspaces, handles provider logins and workspace trust, and enforces agent context budgets; `with-secret` scopes per-command keys.
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ The installer requires mise 2026.11.8 or newer and installs it if absent. [Ghost
 ## Installation
 
 > [!WARNING]
-> Personal dotfiles: [adapt them](#adapting-this) and back up existing files first. Setup overwrites managed targets without backups. Agents run with autonomous permissions, and apply auto-trusts configured workspaces (Copilot inherits trust across subdirectories; keep untrusted clones outside `pull.directories`) and owner-allowlisted repos; review [trust behavior](skills/dot-cli/references/daily-workflows.md#folder-trust) before use.
+> Personal dotfiles: [adapt them](#adapting-this) and back up existing files first. Setup overwrites managed targets without backups. Agents run with autonomous permissions, and apply auto-trusts configured workspaces (Pi inherits trust across subdirectories and seeds `.git` roots; keep untrusted clones outside `pull.directories`) and owner-allowlisted repos; review [trust behavior](skills/dot-cli/references/daily-workflows.md#folder-trust) before use.
 
 Inspect [`install.sh`](install.sh), then run:
 
@@ -70,10 +70,10 @@ Ghostty and Zellij launch Fish without changing your login shell. Fish attaches 
 dot --help                # List commands
 dot doctor                # Check workstation health
 dot doctor --headroom     # Check disk and memory before large jobs
-dot config show           # Show effective settings
-dot agent stats           # Report agent token and cost usage
+dot context --check       # Check global and project context budgets
+dot stats                 # Report agent token and cost usage
 dot status --fetch        # Fetch remotes and show repo status
-dot orphan                # List unmanaged leftovers
+dot pull                  # Fast-forward clean repos
 ```
 
 Edit sources in `~/.local/share/chezmoi`, then preview and apply:
@@ -88,17 +88,17 @@ See the [Dot CLI guide](skills/dot-cli/SKILL.md) for all commands and recovery w
 
 Keyboard ergonomics:
 
-- **Fish abbreviations:** `a` `agy` (`ac` continue, `ai` interactive, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, `h` `dot` (`hd` doctor, `hh` headroom, `hs` fetched dirty status, `hp` pull, `ho` orphans, `hc` caches, `ha` agent stats).
+- **Fish abbreviations:** `a` `agy` (`ac` continue, `ai` interactive, `ap` print), `g` git (`gl` lazygit), `m` mise (`mr` `mise run`), `v` Neovim, `y` yazi, `h` `dot` (`hd` doctor, `hh` headroom, `hs` fetched dirty status, `hp` pull, `ha` stats).
 - **Zellij:** `Alt a` Antigravity, `Alt g` lazygit, `Alt y` yazi, `Alt /` session manager, `Alt i` next attention, `Alt Shift i` attention inbox; `Alt n` tiles up to four ultrawide columns before half-stacking (`Ctrl b`, `Space`); detach with `Ctrl o`, `d`.
 - **Neovim:** `<leader>gm` diffs buffer against default-branch merge-base, `Tab` accepts completions, `Enter` inserts newline, and `mise lsp` validates `mise.toml`.
 
 ### Dot configuration
 
-Machine-local overrides live in unmanaged `~/.config/dot.yaml` and merge over [built-in defaults](dot/src/fmind_dot/config.py). Edit and validate with `dot config edit`, or select a `~/.config/dot.*.yaml` profile via `dot --config <path>` or `DOT_CONFIG_PATH`.
+Machine-local overrides live in unmanaged `~/.config/dot.yaml` and merge over [built-in defaults](dot/src/fmind_dot/config.py); select a `~/.config/dot.*.yaml` profile via `dot --config <path>` or `DOT_CONFIG_PATH`.
 
 ### Usage reports
 
-`dot agent stats` reports tokens, estimated API value, and recorded provider spend (including archived Codex/Grok history; `--monthly` groups by UTC month) after syncing local transcripts via `dot agent session sync`; see [agent usage](skills/dot-cli/references/agent-usage.md).
+`dot stats` incrementally syncs local transcripts (`--no-sync` skips refresh) and reports tokens, estimated API value, and recorded provider spend (including archived Codex, Copilot, Grok, and OpenCode history); see [agent usage](skills/dot-cli/references/agent-usage.md).
 
 ## Repository tasks
 
@@ -165,13 +165,13 @@ Pi seeds Agent Platform via ADC: export `GOOGLE_CLOUD_PROJECT` after `dot login 
 
 ### Commit signing
 
-Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with a dedicated passphraseless Ed25519 key (`~/.ssh/id_ed25519_signing`) for unattended agent commits and per-machine revocation (machines without the key commit unsigned). Provision once (`dot setup github` drops temporary `write:ssh_signing_key` afterward; key titles are public):
+Each machine signs commits and annotated tags (`git tag NAME -m MSG`) with a dedicated passphraseless Ed25519 key (`~/.ssh/id_ed25519_signing`) for unattended agent commits and per-machine revocation (machines without the key commit unsigned). Provision once (`dot login github` drops temporary `write:ssh_signing_key` afterward; key titles are public):
 
 ```bash
 ssh-keygen -t ed25519 -N '' -C "git-signing@fmind.dev" -f ~/.ssh/id_ed25519_signing
 dot login github --grant write:ssh_signing_key
 gh ssh-key add ~/.ssh/id_ed25519_signing.pub --type signing --title "git signing $(date +%F)"
-dot setup github
+dot login github
 printf '*@fmind.dev namespaces="git" %s\n' "$(cat ~/.ssh/id_ed25519_signing.pub)" >>"$(chezmoi source-path)/dot_config/git/allowed_signers"
 chezmoi apply ~/.gitconfig ~/.config/git/allowed_signers
 ```
@@ -183,10 +183,10 @@ Commit [`allowed_signers`](dot_config/git/allowed_signers) for local verificatio
 Secrets are never exported at shell startup:
 
 - **Native credential seeds:** Hugging Face, Kaggle, and OpenCode (`~/.local/share/opencode/auth.json`) credentials deploy only when absent so `hf auth login`, `kaggle auth login`, and `opencode auth login` persist across apply (saved `auth.json` entries override env vars); isolate customer accounts via [customer overrides](skills/dot-cli/references/authentication.md#customer-overrides-and-isolation).
-- **Scoped secrets:** inject a personal key into one command via `dot secret run` ([scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI uses Trusted Publishing:
+- **Scoped secrets:** inject a personal key from env or `0600`/`0400` `~/.config/dot/secrets/<NAME>` into one command via `with-secret` ([scoped credentials](skills/dot-cli/references/authentication.md#scoped-credentials)). Personal model integrations default to [GCP Agent Platform with ADC](skills/model-providers/references/gcp-agent-platform.md), OpenCode uses OpenRouter, and PyPI uses Trusted Publishing:
 
-  ```bash
-  dot secret run OPENROUTER_MANAGEMENT_KEY -- <command>
+  ```sh
+  with-secret OPENROUTER_MANAGEMENT_KEY -- <command>
   ```
 
 - **Collector configs:** Brain Framework credentials under `~/.config/bf/credentials/` overwrite on apply; edit encrypted sources only.
@@ -199,7 +199,7 @@ Fork and replace personal defaults:
 1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), clone URL in [`install.sh`](install.sh), and [`allowed_signers`](dot_config/git/allowed_signers) before [commit signing](#commit-signing). Put local Git overrides in unmanaged `~/.config/git/config.local`.
 1. **Secrets:** replace the age recipient in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and remove or re-encrypt `*.age` files before applying ([Secret Management](#secret-management)).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md).
-1. **Workspaces & trust:** update `pull.directories` (also trusted in harnesses — Copilot and Pi inherit trust to subdirectories, while Pi seeds `.git` roots only — and added to Claude's `additionalDirectories`), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
+1. **Workspaces & trust:** update `pull.directories` (also trusted across Antigravity, Claude Code including `additionalDirectories`, and Pi — Pi inherits trust across subdirectories and seeds `.git` roots only), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
 1. **Theme & design:** update [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl), pinned to an [fmind/theme](https://github.com/fmind/theme) commit (`mise run upgrade` advances it; personal work only) for app themes, `~/.agents/DESIGN.md`, and `~/.agents/themes/` renderer files.
 
 ## Uninstall / rollback

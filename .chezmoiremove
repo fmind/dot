@@ -1,4 +1,5 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
+.config/fish/functions/with-secret.fish
 .pi/agent/extensions/dot-notify.ts
 {{- if eq .chezmoi.os "darwin" }}
 .cache/dot/notify.wav

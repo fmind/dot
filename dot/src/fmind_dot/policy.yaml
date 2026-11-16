@@ -1,0 +1,312 @@
+github:
+  scopes:
+    - gist
+    - notifications
+    - project
+    - read:audit_log
+    - read:gpg_key
+    - read:org
+    - read:packages
+    - read:public_key
+    - read:ssh_signing_key
+    - repo
+    - user
+    - workflow
+  remove_scopes:
+    - admin:gpg_key
+    - admin:org
+    - admin:org_hook
+    - admin:public_key
+    - admin:ssh_signing_key
+    - codespace
+    - delete:packages
+    - delete_repo
+    - write:gpg_key
+    - write:org
+    - write:packages
+    - write:public_key
+    - write:ssh_signing_key
+  implied:
+    repo:
+      - repo:status
+      - repo_deployment
+      - public_repo
+      - repo:invite
+      - security_events
+      - admin:repo_hook
+      - write:repo_hook
+      - read:repo_hook
+    public_repo:
+      - admin:repo_hook
+      - write:repo_hook
+      - read:repo_hook
+    admin:repo_hook:
+      - write:repo_hook
+      - read:repo_hook
+    write:repo_hook:
+      - read:repo_hook
+    admin:org:
+      - write:org
+      - read:org
+    write:org:
+      - read:org
+    admin:public_key:
+      - write:public_key
+      - read:public_key
+    write:public_key:
+      - read:public_key
+    admin:gpg_key:
+      - write:gpg_key
+      - read:gpg_key
+    write:gpg_key:
+      - read:gpg_key
+    admin:ssh_signing_key:
+      - write:ssh_signing_key
+      - read:ssh_signing_key
+    write:ssh_signing_key:
+      - read:ssh_signing_key
+    user:
+      - read:user
+      - user:email
+      - user:follow
+    project:
+      - read:project
+    write:packages:
+      - read:packages
+
+workspace:
+  scope_suffixes:
+    - userinfo.email
+    - admin.directory.customer.readonly
+    - admin.directory.device.chromeos.readonly
+    - admin.directory.device.mobile.readonly
+    - admin.directory.domain.readonly
+    - admin.directory.group.readonly
+    - admin.directory.orgunit.readonly
+    - admin.directory.rolemanagement.readonly
+    - admin.directory.user.readonly
+    - admin.reports.audit.readonly
+    - admin.reports.usage.readonly
+    - analytics.edit
+    - analytics.manage.users
+    - analytics.manage.users.readonly
+    - analytics.readonly
+    - business.manage
+    - calendar
+    - calendar.readonly
+    - chat.messages
+    - chat.messages.readonly
+    - chat.spaces
+    - chat.spaces.readonly
+    - chrome.management.policy.readonly
+    - chrome.management.reports.readonly
+    - contacts
+    - contacts.other.readonly
+    - contacts.readonly
+    - documents
+    - documents.readonly
+    - drive
+    - drive.readonly
+    - forms.body
+    - forms.responses.readonly
+    - gmail.modify
+    - gmail.readonly
+    - gmail.settings.basic
+    - meetings.space.readonly
+    - postmaster.traffic.readonly
+    - presentations
+    - script.projects
+    - spreadsheets
+    - tasks
+    - tasks.readonly
+    - webmasters
+    - webmasters.readonly
+    - youtube.readonly
+    - yt-analytics.readonly
+  api_names:
+    - admin
+    - analyticsadmin
+    - analyticsdata
+    - businessprofileperformance
+    - calendar-json
+    - chat
+    - chromemanagement
+    - chromepolicy
+    - cloudsupport
+    - docs
+    - drive
+    - driveactivity
+    - firebase
+    - firebaseappcheck
+    - firebasehosting
+    - firebaserules
+    - forms
+    - gmail
+    - gmailpostmastertools
+    - meet
+    - mybusinessaccountmanagement
+    - mybusinessbusinessinformation
+    - pagespeedonline
+    - people
+    - script
+    - searchconsole
+    - sheets
+    - slides
+    - tasks
+    - youtube
+    - youtubeanalytics
+
+gcp:
+  adc_scope_suffixes:
+    - userinfo.email
+    - cloud-platform
+    - sqlservice.login
+    - colaboratory
+    - bigquery.readonly
+    - logging.read
+    - cloud-platform.read-only
+  login_markers:
+    - invalid scopes value
+    - invalid_grant
+    - expired or revoked
+    - reauthenticat
+    - to obtain new credentials
+    - gcloud auth login
+    - gcloud auth application-default login
+    - not currently have an active account
+    - no credentialed accounts
+    - default credentials were not found
+    - could not automatically determine credentials
+    - credentials not found
+
+doctor_tools:
+  - age
+  - agy
+  - betterleaks
+  - bf
+  - chezmoi
+  - claude
+  - copilot
+  - dprint
+  - file
+  - gcloud
+  - gh
+  - git
+  - git-cliff
+  - gws
+  - lefthook
+  - mise
+  - nvim
+  - opencode
+  - pgcli
+  - pi
+  - python
+  - ruff
+  - sqlite3
+  - tree-sitter
+  - trivy
+  - ty
+  - uv
+
+completions:
+  plain:
+    - a2a
+    - astro
+    - betterleaks
+    - chezmoi
+    - copilot
+    - cosign
+    - databricks
+    - dot
+    - lefthook
+    - mise
+    - trivy
+  packages:
+    fastfetch: github:fastfetch-cli/fastfetch
+    git-cliff: git-cliff
+    hyperfine: hyperfine
+    lsd: lsd
+    ya: yazi
+    yazi: yazi
+    zoxide: zoxide
+  env:
+    colab: _COLAB_COMPLETE=source_fish
+    hf: _HF_COMPLETE=fish_source
+    marimo: _MARIMO_COMPLETE=fish_source
+  commands:
+    completions_fish:
+      - ast-grep
+      - doggo
+      - dprint
+      - pup
+      - starship
+      - typst
+    generate_shell_completion_fish:
+      - ruff
+      - ty
+      - uv
+    generate_complete_fish:
+      - lychee
+      - rg
+      - xh
+    custom:
+      atuin:
+        - atuin
+        - gen-completions
+        - --shell
+        - fish
+      bat:
+        - bat
+        - --completion
+        - fish
+      cf:
+        - cf
+        - complete
+        - fish
+      delta:
+        - delta
+        - --generate-completion
+        - fish
+      fd:
+        - fd
+        - --gen-completions
+        - fish
+      gh:
+        - gh
+        - completion
+        - -s
+        - fish
+      git-lfs:
+        - git
+        - lfs
+        - completion
+        - fish
+      jactionlint:
+        - jactionlint
+        - --completion=fish
+      lazygit:
+        - lazygit
+        - completion
+        - fish
+      tree-sitter:
+        - tree-sitter
+        - complete
+        - --shell
+        - fish
+      usage:
+        - usage
+        - --completions
+        - fish
+      uvx:
+        - uvx
+        - --generate-shell-completion
+        - fish
+      yq:
+        - yq
+        - shell-completion
+        - fish
+      zellij:
+        - zellij
+        - setup
+        - --generate-completion
+        - fish

@@ -1,38 +1,36 @@
-"""Normalized per-session token usage records and aggregation."""
+"""Session usage record validation, API-equivalent pricing, and reporting."""
 
 from __future__ import annotations
 
+import math
 import re
-from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field, fields
+from collections.abc import Iterable, Iterator, Mapping
+from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import IO, Annotated, Any, Literal, Required, TypedDict
+from typing import IO, Any
 
-from pydantic import AfterValidator, Field, StrictBool, StrictStr, TypeAdapter, ValidationError, with_config
-
-from fmind_dot.archive.pricing import CACHE_INCLUSIVE_INPUT_HARNESSES, api_equivalent
 from fmind_dot.archive.store import (
-    NonNegativeInt,
     SessionManifest,
     discover_session_bundles,
     is_valid_session_id,
     parse_utc_instant,
-    read_manifest_usage,
     read_session_manifest,
 )
-from fmind_dot.config import PricingConfig, default_pricing
+from fmind_dot.config import ModelPrice, PricingConfig, default_pricing
 from fmind_dot.reporting import write_report_line
 
 _DURATION = re.compile(r"(?P<value>\d+)(?P<unit>h|m|s)")
+_CLAUDE_DATE_SUFFIX = re.compile(r"-20\d{6}$")
 USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
 USAGE_EXTRACTOR_VERSION = "2"
-_USAGE_IDENTITY_FIELDS = ("timestamp", "harness", "agent", "session_id")
-# Harnesses whose turn_count counts model requests; agy counts prompts and Grok completed turns.
-REQUEST_COUNTING_HARNESSES = frozenset({"claude", "codex", "copilot", "opencode", "pi"})
-# Harnesses dot no longer captures (removed 2026-10-25); their archived bundles stay queryable.
-RETIRED_AGENTS = ("codex", "grok")
-_USAGE_INTEGER_FIELDS = (
+# Providers whose reported input is the whole prompt, with cache buckets as subsets.
+CACHE_INCLUSIVE_INPUT_HARNESSES = frozenset({"codex", "grok"})
+_PRICED_HARNESSES = frozenset({"codex", "claude", "copilot", "grok", "pi"})
+_VENDOR_PREFIXES = ("anthropic/", "google/", "openai/", "x-ai/")
+RETIRED_AGENTS = ("codex", "copilot", "grok", "opencode")
+_KINDS = {"", "provider-reported", "estimated", "context-only"}
+_STRS = ("timestamp", "harness", "agent", "session_id", "model", "cwd", "parent_session_id")
+_TOKENS = (
     "input_tokens",
     "output_tokens",
     "cached_tokens",
@@ -40,213 +38,220 @@ _USAGE_INTEGER_FIELDS = (
     "cache_write_1h_tokens",
     "reasoning_tokens",
     "total_tokens",
-    "turn_count",
+)
+_INTS = (*_TOKENS, "turn_count")
+_SAMPLE_KEYS = frozenset({"timestamp", "model", *_INTS})
+_REQUIRED = frozenset(
+    (*_STRS[:4], "input_tokens", "output_tokens", "total_tokens", "schema_version", "extractor_version")
+)
+_SUM_FIELDS = (
+    "sessions",
+    "total_tokens",
+    "api_equivalent_usd",
+    "measurements",
+    "priced_measurements",
+    "cost_usd",
+    "cost_known_sessions",
 )
 
 
-def _parse_usage_timestamp(value: str) -> datetime:
-    parsed = parse_utc_instant(value)
-    if parsed is None:
+def _parse_ts(value: object) -> datetime:
+    if (parsed := parse_utc_instant(value)) is None:
         raise ValueError("usage record field 'timestamp' must be a valid ISO 8601 timestamp")
     return parsed
 
 
-def _sample_timestamp(value: str) -> str:
-    _parse_usage_timestamp(value)
+def _check_int(value: object, name: str) -> int:
+    if type(value) is not int or value < 0:
+        raise ValueError(f"usage record field {name!r} must be a non-negative integer")
     return value
 
 
-@with_config(extra="forbid", strict=True)
-class UsageSample(TypedDict, total=False):
-    """Only request timing, model, and counters may enter compact measurements."""
-
-    timestamp: Required[Annotated[str, AfterValidator(_sample_timestamp)]]
-    model: str
-    input_tokens: NonNegativeInt
-    output_tokens: NonNegativeInt
-    cached_tokens: NonNegativeInt
-    cache_write_tokens: NonNegativeInt
-    cache_write_1h_tokens: NonNegativeInt
-    reasoning_tokens: NonNegativeInt
-    total_tokens: NonNegativeInt
-    turn_count: NonNegativeInt
+def _check_counts(obj: Any, *, extra: tuple[str, ...] = ()) -> None:
+    for name in (*_INTS, *extra):
+        _check_int(_val(obj, name, 0), name)
+    if _val(obj, "cache_write_1h_tokens", 0) > _val(obj, "cache_write_tokens", 0):
+        raise ValueError("usage record field 'cache_write_1h_tokens' must not exceed 'cache_write_tokens'")
 
 
-@with_config(revalidate_instances="always")
+def check_cost(value: object) -> float | None:
+    if value is None:
+        return None
+    msg = "usage record field 'cost_usd' must be a non-negative finite number"
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(msg)
+    try:
+        cost = float(value)
+    except OverflowError as error:
+        raise ValueError(msg) from error
+    if cost < 0 or not math.isfinite(cost):
+        raise ValueError(msg)
+    return cost
+
+
 @dataclass
 class UsageRecord:
-    timestamp: StrictStr = ""
-    harness: StrictStr = ""
-    agent: StrictStr = ""
-    session_id: StrictStr = ""
-    model: StrictStr = ""
-    cwd: StrictStr = ""
-    input_tokens: NonNegativeInt = 0
-    output_tokens: NonNegativeInt = 0
-    cached_tokens: NonNegativeInt = 0
-    cache_write_tokens: NonNegativeInt = 0
-    # Claude 1-hour cache writes, a subset of cache_write_tokens priced at their own rate.
-    cache_write_1h_tokens: NonNegativeInt = 0
-    reasoning_tokens: NonNegativeInt = 0
-    total_tokens: NonNegativeInt = 0
-    cost_usd: Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] = 0.0
-    cost_known: StrictBool = False
-    turn_count: NonNegativeInt = 0
-    schema_version: StrictStr = USAGE_SCHEMA_VERSION
-    extractor_version: StrictStr = USAGE_EXTRACTOR_VERSION
-    measurement_kind: Literal["", "provider-reported", "estimated", "context-only"] = ""
-    source_bytes: NonNegativeInt = 0
-    legacy_accounting: StrictBool = False
-    # Session context read from the manifest, never stored in usage: a subagent transcript
-    # (sidechain) is measured on its own but belongs to its parent's session.
-    sidechain: StrictBool = False
-    parent_session_id: StrictStr = ""
-    # Manifest context too: the usage was kept from an earlier, smaller capture of a source that grew.
-    retained: StrictBool = False
-    # Compact request measurements: timestamp, model, and token counters only.
-    samples: Annotated[list[UsageSample], Field(strict=True)] = field(default_factory=list)
+    timestamp: str = ""
+    harness: str = ""
+    agent: str = ""
+    session_id: str = ""
+    model: str = ""
+    cwd: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_tokens: int = 0
+    cache_write_tokens: int = 0
+    cache_write_1h_tokens: int = 0
+    reasoning_tokens: int = 0
+    total_tokens: int = 0
+    cost_usd: float = 0.0
+    turn_count: int = 0
+    schema_version: str = USAGE_SCHEMA_VERSION
+    extractor_version: str = USAGE_EXTRACTOR_VERSION
+    cost_known: bool = False
+    measurement_kind: str = ""
+    source_bytes: int = 0
+    sidechain: bool = False
+    parent_session_id: str = ""
+    samples: list[dict[str, Any]] = field(default_factory=list)
+
+    def _validate(self, *, complete: bool = True) -> None:
+        if self.schema_version != USAGE_SCHEMA_VERSION or self.extractor_version != USAGE_EXTRACTOR_VERSION:
+            raise ValueError("unsupported usage format; recapture available sources with dot stats")
+        for name in _STRS:
+            if not isinstance(getattr(self, name), str):
+                raise ValueError(f"invalid usage record field {name!r}")
+        for flag in ("cost_known", "sidechain"):
+            if type(getattr(self, flag)) is not bool:
+                raise ValueError(f"invalid usage record field {flag!r}")
+        if self.measurement_kind not in _KINDS:
+            raise ValueError("invalid usage record field 'measurement_kind'")
+        _check_counts(self, extra=("source_bytes",))
+        if (cost := check_cost(self.cost_usd)) is None:
+            raise ValueError("invalid usage record field 'cost_usd'")
+        self.cost_usd = cost
+        if complete and any(not getattr(self, name) for name in _STRS[:4]):
+            missing = next(n for n in _STRS[:4] if not getattr(self, n))
+            raise ValueError(f"missing {missing} in usage record")
+        if self.timestamp:
+            _parse_ts(self.timestamp)
+        if self.harness and not is_valid_session_id(self.harness):
+            raise ValueError("invalid harness; expected an ASCII name without path separators")
+        if not isinstance(self.samples, list):
+            raise ValueError("invalid usage samples")
+        for sample in self.samples:
+            if (
+                not isinstance(sample, dict)
+                or not _SAMPLE_KEYS.issuperset(sample)
+                or not isinstance(sample.get("model", ""), str)
+            ):
+                raise ValueError("invalid usage samples")
+            try:
+                _parse_ts(sample.get("timestamp"))
+                _check_counts(sample)
+            except ValueError as error:
+                raise ValueError(f"{error} (samples)") from None
+        if self.samples and any(sum(s.get(n, 0) for s in self.samples) != getattr(self, n) for n in _INTS):
+            raise ValueError("usage samples do not reconcile with session totals")
 
     def set_samples(self, samples: list[UsageRecord], *, timed: bool = True) -> None:
-        """Reconcile a session to deduplicated request measurements."""
-        for name in _USAGE_INTEGER_FIELDS:
-            setattr(self, name, sum(getattr(sample, name) for sample in samples))
+        for name in _INTS:
+            setattr(self, name, sum(getattr(s, name) for s in samples))
         self.model = ""
         for sample in samples:
             self.observe_model(sample.model)
         self.samples = (
-            [
-                {
-                    "timestamp": sample.timestamp,
-                    "model": sample.model,
-                    **{name: getattr(sample, name) for name in _USAGE_INTEGER_FIELDS},
-                }
-                for sample in samples
-            ]
+            [{"timestamp": s.timestamp, "model": s.model, **{n: getattr(s, n) for n in _INTS}} for s in samples]
             if timed
             else []
         )
 
     def observe_model(self, model: str) -> None:
         if model:
-            self.model = model if not self.model or self.model == model else "mixed"
+            self.model = model if self.model in {"", model} else "mixed"
 
     def finalize(self, *, fallback_timestamp: str = "") -> UsageRecord:
-        """Complete derived fields; an undated measurement takes the caller's source evidence, never the clock."""
         self._validate(complete=False)
-        if not self.agent:
-            self.agent = self.harness
-        if not self.timestamp:
-            # A capture-time stamp would move usage between periods and change on every recapture.
-            self.timestamp = fallback_timestamp
+        self.agent, self.timestamp = self.agent or self.harness, self.timestamp or fallback_timestamp
         if self.total_tokens == 0:
-            self.total_tokens = self.input_tokens + self.output_tokens
-            if self.harness not in CACHE_INCLUSIVE_INPUT_HARNESSES:
-                self.total_tokens += self.cached_tokens + self.cache_write_tokens
+            cache = (
+                0 if self.harness in CACHE_INCLUSIVE_INPUT_HARNESSES else self.cached_tokens + self.cache_write_tokens
+            )
+            self.total_tokens = self.input_tokens + self.output_tokens + cache
         self._validate(complete=True)
         return self
 
     def to_dict(self) -> dict[str, Any]:
         self._validate(complete=True)
-        optional = {
-            "model",
-            "cwd",
-            "cached_tokens",
-            "cache_write_tokens",
-            "cache_write_1h_tokens",
-            "reasoning_tokens",
-            "turn_count",
-            "measurement_kind",
-            "source_bytes",
-            "sidechain",
-            "parent_session_id",
-        }
-        result = _USAGE_ADAPTER.dump_python(
-            self,
-            exclude={name for name in optional if not getattr(self, name)}
-            | {"legacy_accounting", "retained", "samples"},
-        )
-        result["cost_usd"] = self.cost_usd if self.cost_known or self.cost_usd > 0 else None
-        result["cost_known"] = self.cost_known or self.cost_usd > 0
-        if self.samples:
-            result["samples"] = self.samples
-        return result
+        known = self.cost_known or self.cost_usd > 0
+        out = {k: v for k, v in asdict(self).items() if k in _REQUIRED or v}
+        return out | {"cost_usd": self.cost_usd if known else None, "cost_known": known}
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> UsageRecord:
-        arguments = {item.name: value[item.name] for item in fields(cls) if item.name in value}
-        if arguments.get("cost_usd") is None:
-            arguments.pop("cost_usd", None)
-        if (
-            value.get("schema_version") != USAGE_SCHEMA_VERSION
-            or value.get("extractor_version") != USAGE_EXTRACTOR_VERSION
-        ):
-            raise ValueError("unsupported usage format; recapture available sources with dot agent session sync")
         if "cost_known" not in value:
             raise ValueError("missing cost_known in usage record")
-        record = cls(**arguments)
+        if missing := sorted(_REQUIRED - value.keys()):
+            raise ValueError(f"missing {missing[0]} in usage record")
+        data = {k: v for k, v in value.items() if k in {f.name for f in fields(cls)}}
+        if data.get("cost_usd") is None:
+            data["cost_usd"] = 0.0
+        record = cls(**data)
         record._validate(complete=True)
         return record
 
-    def _validate(self, *, complete: bool) -> None:
-        try:
-            validated = _USAGE_ADAPTER.validate_python(self)
-        except ValidationError as error:
-            # Only expose the declared top-level field, never source values or nested keys.
-            field = error.errors(include_input=False, include_context=False, include_url=False)[0]["loc"][0]
-            if field in {*_USAGE_INTEGER_FIELDS, "source_bytes"}:
-                raise ValueError(f"usage record field {field!r} must be a non-negative integer") from None
-            raise ValueError(f"invalid usage record field {field!r}") from None
-        except OverflowError:
-            raise ValueError("usage record field 'cost_usd' must be a non-negative finite number") from None
-        self.cost_usd = validated.cost_usd
-        if complete:
-            for name in _USAGE_IDENTITY_FIELDS:
-                if not getattr(self, name):
-                    raise ValueError(f"missing {name} in usage record")
-        if self.schema_version != USAGE_SCHEMA_VERSION or self.extractor_version != USAGE_EXTRACTOR_VERSION:
-            raise ValueError("unsupported usage format")
-        if self.timestamp:
-            _parse_usage_timestamp(self.timestamp)
-        if self.harness and not is_valid_session_id(self.harness):
-            raise ValueError("invalid harness; expected an ASCII name without path separators")
-        if self.samples and any(
-            sum(sample.get(name, 0) for sample in self.samples) != getattr(self, name) for name in _USAGE_INTEGER_FIELDS
-        ):
-            raise ValueError("usage samples do not reconcile with session totals")
-        if self.cache_write_1h_tokens > self.cache_write_tokens or any(
-            sample.get("cache_write_1h_tokens", 0) > sample.get("cache_write_tokens", 0) for sample in self.samples
-        ):
-            raise ValueError("usage record field 'cache_write_1h_tokens' must not exceed 'cache_write_tokens'")
 
-
-_USAGE_ADAPTER = TypeAdapter(UsageRecord)
-
-
-# Document-level facts of dot.agent.stats/v4; rows carry only what varies between them.
-USAGE_TIME_BASIS = "request timestamps where available; otherwise whole session at recorded timestamp"
-
-
-def _sample_record(record: UsageRecord, sample: UsageSample) -> UsageRecord:
-    return UsageRecord(
-        harness=record.harness,
-        agent=record.agent or record.harness,
-        session_id=record.session_id,
-        cwd=record.cwd,
-        measurement_kind=record.measurement_kind,
-        legacy_accounting=record.legacy_accounting,
-        retained=record.retained,
-        **sample,
+def _lookup_rate(model: str, harness: str, pricing: PricingConfig) -> ModelPrice | None:
+    if rate := pricing.models.get(model):
+        return rate
+    bare = next((model.removeprefix(p) for p in _VENDOR_PREFIXES if model.startswith(p)), model)
+    if bare != model and (rate := pricing.models.get(bare)):
+        return rate
+    if harness == "grok" and bare.endswith("-build") and (rate := pricing.models.get(bare[:-6])):
+        return rate
+    return (
+        pricing.models.get(_CLAUDE_DATE_SUFFIX.sub("", bare.replace(".", "-"))) if bare.startswith("claude-") else None
     )
 
 
-@dataclass
-class _SessionEvidence:
-    """Session-level evidence within one report row, shared by a parent and its sidechains."""
+def _val(obj: Any, key: str, default: Any = 0) -> Any:
+    return obj.get(key, default) if isinstance(obj, Mapping) else getattr(obj, key, default)
 
-    priced: bool = True
-    session_timestamp: bool = False
-    legacy: bool = False
-    retained: bool = False
+
+def api_equivalent(
+    record: Any, pricing: PricingConfig, *, harness: str = "", measurement_kind: str = ""
+) -> float | None:
+    """Apply exact model rates to known accounting conventions only."""
+    if (measurement_kind or _val(record, "measurement_kind", "")) != "provider-reported":
+        return None
+    agent = harness or _val(record, "harness", "")
+    if agent not in _PRICED_HARNESSES:
+        return None
+    inp, out, cached, write, write_1h, _, _total = (int(_val(record, k)) for k in _TOKENS)
+    if not (inp or out or cached or write):
+        # Absent/unreported breakdowns stay unpriced; Claude local <synthetic> turns are known zero.
+        return 0.0 if _val(record, "model", "") == "<synthetic>" else None
+    model = str(_val(record, "model", ""))
+    if model in {"", "mixed", "unknown"} or (rate := _lookup_rate(model, agent, pricing)) is None:
+        return None
+    if agent in CACHE_INCLUSIVE_INPUT_HARNESSES:
+        inp -= cached + write
+        if inp < 0:
+            return None
+    parts = (
+        (inp, rate.input),
+        (out, rate.output),
+        (cached, rate.cache_read),
+        (write - write_1h, rate.cache_write),
+        (write_1h, rate.cache_write_1h),
+    )
+    if any(tokens and price is None for tokens, price in parts):
+        return None
+    try:
+        cost = sum(tokens * price for tokens, price in parts if price is not None) / 1_000_000
+    except OverflowError:
+        return None
+    return cost if math.isfinite(cost) else None
 
 
 @dataclass
@@ -262,134 +267,63 @@ class UsageStats:
     total_tokens: int = 0
     cost_usd: float = 0.0
     sessions: int = 0
-    # Model requests; None once a harness without request counts contributes to the row.
-    requests: int | None = 0
     measurement_kind: str = "unknown"
     cwd: str = ""
     cost_known_sessions: int = 0
     api_equivalent_usd: float = 0.0
-    priced_sessions: int = 0
-    unpriced_reasons: dict[str, int] = field(default_factory=dict)
-    first_timestamp: str = ""
-    last_timestamp: str = ""
-    period_start: str = ""
-    period_end: str = ""
-    legacy_accounting_sessions: int = 0
-    retained_usage_sessions: int = 0
-    session_timestamp_sessions: int = 0
     measurements: int = 0
     priced_measurements: int = 0
+    first_timestamp: str = ""
+    last_timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"harness": self.harness}
-        if self.model:
-            result["model"] = self.model
-        result.update(
-            {
-                "input_tokens": self.input_tokens,
-                "output_tokens": self.output_tokens,
-                "cached_tokens": self.cached_tokens,
-                "cache_write_tokens": self.cache_write_tokens,
-                "cache_write_1h_tokens": self.cache_write_1h_tokens,
-                "reasoning_tokens": self.reasoning_tokens,
-                "total_tokens": self.total_tokens,
-                "cost_usd": self.cost_usd if self.cost_known_sessions else None,
-                "cost_known_sessions": self.cost_known_sessions,
-                # Usage kept from an earlier capture undercounts a source that has grown since.
-                "cost_complete": self.cost_known_sessions == self.sessions and not self.retained_usage_sessions,
-                "usage_complete": not self.retained_usage_sessions,
-                "measurement_kind": self.measurement_kind,
-                "cwd": self.cwd,
-                "first_timestamp": self.first_timestamp or None,
-                "last_timestamp": self.last_timestamp or None,
-                "period_start": self.period_start or None,
-                "period_end": self.period_end or None,
-                "session_timestamp_sessions": self.session_timestamp_sessions,
-                "legacy_accounting_sessions": self.legacy_accounting_sessions,
-                "retained_usage_sessions": self.retained_usage_sessions,
-                "measurements": self.measurements,
-                "priced_measurements": self.priced_measurements,
-                "api_equivalent_usd": self.api_equivalent_usd if self.priced_measurements else None,
-                "priced_sessions": self.priced_sessions,
-                "pricing_complete": self.priced_measurements == self.measurements,
-                "unpriced_reasons": self.unpriced_reasons,
-                "sessions": self.sessions,
-                "requests": self.requests,
-            }
-        )
-        return result
-
-
-def iter_usage_records(since: datetime | None = None, until: datetime | None = None) -> Iterator[UsageRecord]:
-    """Yield the usage measured for each archived session.
-
-    A window skips decoding sessions whose whole family (a session and its sidechains) was measured
-    outside it: such a family adds no row or cost, while a member outside the window must still
-    mark its family partial so a provider session cost is never attributed to only part of it.
-    """
-    paths = discover_session_bundles()
-    selected: Iterable[tuple[Path, SessionManifest | None]]
-    if since is not None or until is not None:
-        headers = [read_session_manifest(path, usage=False) for path in paths]
-        active = {_family(manifest) for manifest in headers if _may_overlap(manifest, since, until)}
-        selected = (
-            (path, manifest) for path, manifest in zip(paths, headers, strict=True) if _family(manifest) in active
-        )
-    else:
-        selected = ((path, None) for path in paths)
-    for path, header in selected:
-        if header is None:
-            manifest = read_session_manifest(path)
-        else:
-            manifest = header
-            manifest.usage = read_manifest_usage(path, manifest)
-        if manifest.usage is None:
-            continue
-        record = UsageRecord.from_dict(manifest.usage)
-        if record.harness != manifest.agent or record.session_id != manifest.session_id:
-            raise ValueError(f"session usage does not match its session: {path}")
-        # Accounting changes need recapture; a newer parser alone does not invalidate
-        # earlier explicit-zero evidence from otherwise unchanged provider parsers.
-        # Retained usage keeps the accounting of the parser that measured it.
-        measured_by = manifest.usage_parser_version or manifest.parser_version
-        record.legacy_accounting = measured_by in {"3", "4", "5", "6"} or (
-            record.harness == "grok" and measured_by == "7"
-        )
-        record.sidechain, record.parent_session_id = manifest.sidechain, manifest.parent_session_id
-        record.retained = bool(manifest.usage_parser_version)
-        yield record
+        data = asdict(self)
+        if not self.model:
+            data.pop("model")
+        for key in ("first_timestamp", "last_timestamp"):
+            data[key] = data[key] or None
+        return data | {
+            "cost_usd": self.cost_usd if self.cost_known_sessions else None,
+            "api_equivalent_usd": self.api_equivalent_usd if self.priced_measurements else None,
+            "pricing_complete": self.priced_measurements == self.measurements,
+        }
 
 
 def _family(manifest: SessionManifest) -> tuple[str, str]:
     return manifest.agent, (manifest.parent_session_id if manifest.sidechain else "") or manifest.session_id
 
 
-def _may_overlap(manifest: SessionManifest, since: datetime | None, until: datetime | None) -> bool:
-    """False only when the manifest's recorded usage span lies wholly outside the window."""
+def _overlaps(manifest: SessionManifest, since: datetime | None, until: datetime | None) -> bool:
     if not (manifest.usage_first_timestamp and manifest.usage_last_timestamp):
         return True
-    first = _parse_usage_timestamp(manifest.usage_first_timestamp)
-    last = _parse_usage_timestamp(manifest.usage_last_timestamp)
+    first, last = _parse_ts(manifest.usage_first_timestamp), _parse_ts(manifest.usage_last_timestamp)
     return not ((since is not None and last < since) or (until is not None and first > until))
 
 
+def iter_usage_records(*, since: datetime | None = None, until: datetime | None = None) -> Iterator[UsageRecord]:
+    paths = discover_session_bundles()
+    if since is not None or until is not None:
+        headers = [read_session_manifest(path, usage=False) for path in paths]
+        active = {_family(manifest) for manifest in headers if _overlaps(manifest, since, until)}
+        paths = [path for path, manifest in zip(paths, headers, strict=True) if _family(manifest) in active]
+    for path in paths:
+        manifest = read_session_manifest(path, usage=True)
+        if manifest.usage is None:
+            continue
+        record = UsageRecord.from_dict(manifest.usage)
+        if record.harness != manifest.agent or record.session_id != manifest.session_id:
+            raise ValueError(f"session usage does not match its session: {path}")
+        record.sidechain, record.parent_session_id = manifest.sidechain, manifest.parent_session_id
+        yield record
+
+
 def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: bool = False) -> datetime:
-    value = value.strip()
-    now = now or datetime.now(UTC)
-    position = 0
-    duration = timedelta()
-    while match := _DURATION.match(value, position):
-        amount = int(match.group("value"))
-        unit = match.group("unit")
-        if unit == "h":
-            duration += timedelta(hours=amount)
-        elif unit == "m":
-            duration += timedelta(minutes=amount)
-        else:
-            duration += timedelta(seconds=amount)
-        position = match.end()
-    # An empty window is a mistake, so 0h is rejected like 0d.
-    if position == len(value) and duration:
+    value, now = value.strip(), now or datetime.now(UTC)
+    pos, duration = 0, timedelta()
+    while match := _DURATION.match(value, pos):
+        duration += timedelta(**{{"h": "hours", "m": "minutes", "s": "seconds"}[match["unit"]]: int(match["value"])})
+        pos = match.end()
+    if pos == len(value) and duration:
         return now - duration
     if value.endswith("d") and value[:-1].isdigit() and int(value[:-1]) > 0:
         return now - timedelta(days=int(value[:-1]))
@@ -401,16 +335,7 @@ def parse_flexible_time(value: str, *, now: datetime | None = None, end_of_day: 
         ) from error
     if end_of_day and re.fullmatch(r"\d{4}-?\d{2}-?\d{2}", value):
         parsed = parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)
-
-
-def _month(timestamp: datetime) -> tuple[str, str]:
-    """Return the UTC calendar month containing `timestamp` as ISO start and exclusive end."""
-    start = datetime(timestamp.year, timestamp.month, 1, tzinfo=UTC)
-    end = datetime(start.year + (start.month == 12), start.month % 12 + 1, 1, tzinfo=UTC)
-    return start.isoformat(), end.isoformat()
+    return (parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)).astimezone(UTC)
 
 
 def aggregate_usage(
@@ -423,216 +348,109 @@ def aggregate_usage(
     cwd: str = "",
     by_project: bool = False,
     pricing: PricingConfig | None = None,
-    monthly: bool = False,
 ) -> list[UsageStats]:
-    rates = pricing if pricing is not None else default_pricing()
-    grouped: dict[tuple[str, str, str, str, str], UsageStats] = {}
-    sessions: dict[tuple[str, str, str, str, str], dict[object, _SessionEvidence]] = {}
+    rates, items = pricing if pricing is not None else default_pricing(), list(records)
+    parents = {(r.harness, r.session_id): (i, r.cwd) for i, r in enumerate(items) if not r.sidechain}
+    grouped: dict[tuple[str, str, str, str], UsageStats] = {}
+    seen: dict[tuple[str, str, str, str], set[object]] = {}
     costs: dict[object, tuple[float, bool]] = {}
-    cost_groups: dict[object, set[tuple[str, str, str, str, str]]] = {}
-    partial_sessions: set[object] = set()
+    cost_groups: dict[object, set[tuple[str, str, str, str]]] = {}
+    partial: set[object] = set()
 
-    def include(record: UsageRecord, session: object, project: str) -> None:
-        """Add one measurement to the rows of its session; `project` is that session's CWD."""
-        if not record.sidechain:
+    for index, record in enumerate(items):
+        if record.sidechain:
+            session, project = parents.get(
+                (record.harness, record.parent_session_id),
+                ((record.harness, record.parent_session_id or record.session_id), record.cwd),
+            )
+        else:
+            session, project = index, record.cwd
             costs[session] = (record.cost_usd, record.cost_known or record.cost_usd > 0)
         if (harness and harness not in {record.harness, record.agent}) or (cwd and project != cwd):
-            partial_sessions.add(session)
-            return
-        selected: dict[tuple[str, str, str, str, str], list[bool]] = {}  # priced flag per included sample
-        samples = [_sample_record(record, sample) for sample in record.samples] or [record]
-        for sample in samples:
-            timestamp = _parse_usage_timestamp(sample.timestamp)
-            if (since and timestamp < since) or (until and timestamp > until):
-                partial_sessions.add(session)
+            partial.add(session)
+            continue
+        selected: set[tuple[str, str, str, str]] = set()
+        kind, group = record.measurement_kind or "unknown", project if by_project else ""
+        for sample in record.samples or [record]:
+            ts = _parse_ts(_val(sample, "timestamp", ""))
+            if (since and ts < since) or (until and ts > until):
+                partial.add(session)
                 continue
-            period_start, period_end = _month(timestamp) if monthly else ("", "")
-            model = (sample.model or "unknown") if by_model else ""
-            kind = record.measurement_kind or "unknown"
-            group = project if by_project else ""
-            key = (period_start, record.harness, model, kind, group)
-            row = grouped.setdefault(
-                key, UsageStats(harness=record.harness, model=model, measurement_kind=kind, cwd=group)
-            )
-            row.period_start, row.period_end = period_start, period_end
-            stamp = timestamp.isoformat()
+            model = (str(_val(sample, "model", "")) or "unknown") if by_model else ""
+            key = (record.harness, model, kind, group)
+            row = grouped.setdefault(key, UsageStats(record.harness, model, measurement_kind=kind, cwd=group))
+            stamp = ts.isoformat()
             row.first_timestamp = min(row.first_timestamp, stamp) if row.first_timestamp else stamp
             row.last_timestamp = max(row.last_timestamp, stamp)
-            equivalent, reason = api_equivalent(sample, rates)
-            selected.setdefault(key, []).append(equivalent is not None)
             row.measurements += 1
-            if equivalent is None:
-                row.unpriced_reasons[reason] = row.unpriced_reasons.get(reason, 0) + 1
-            else:
-                row.api_equivalent_usd += equivalent
+            eq = api_equivalent(sample, rates, harness=record.harness, measurement_kind=record.measurement_kind)
+            if eq is not None:
+                row.api_equivalent_usd += eq
                 row.priced_measurements += 1
-            for name in _USAGE_INTEGER_FIELDS:
-                if name != "turn_count":
-                    setattr(row, name, getattr(row, name) + getattr(sample, name))
-            if row.requests is not None:
-                row.requests = (
-                    row.requests + sample.turn_count if record.harness in REQUEST_COUNTING_HARNESSES else None
-                )
+            for name in _TOKENS:
+                setattr(row, name, getattr(row, name) + int(_val(sample, name, 0)))
+            selected.add(key)
         cost_groups.setdefault(session, set()).update(selected)
-        for key, included in selected.items():
-            evidence = sessions.setdefault(key, {}).setdefault(session, _SessionEvidence())
-            evidence.priced = evidence.priced and all(included)
-            evidence.session_timestamp = evidence.session_timestamp or not record.samples
-            evidence.legacy = evidence.legacy or record.legacy_accounting
-            evidence.retained = evidence.retained or record.retained
+        for key in selected:
+            seen.setdefault(key, set()).add(session)
 
-    # Each top-level record is its own session; a sidechain joins its parent's session and project.
-    parents: dict[tuple[str, str], tuple[object, str]] = {}
-    orphans: list[UsageRecord] = []
-    for index, record in enumerate(records):
-        if not record.sidechain:
-            parents[(record.harness, record.session_id)] = (index, record.cwd)
-            include(record, index, record.cwd)
-        elif parent := parents.get((record.harness, record.parent_session_id)):
-            include(record, *parent)
-        else:
-            # Archive order is by name: the parent can still follow. Only these wait in memory.
-            orphans.append(record)
-    for record in orphans:
-        session = (record.harness, record.parent_session_id or record.session_id)
-        include(record, *parents.get((record.harness, record.parent_session_id), (session, record.cwd)))
-    # Provider session costs include sidechains. Attribute them only after every member
-    # is classified, when the complete session belongs to one selected row.
     for session, (cost, known) in costs.items():
-        keys = cost_groups.get(session, set())
-        if session not in partial_sessions and len(keys) == 1:
+        if session not in partial and len(keys := cost_groups.get(session, set())) == 1:
             row = grouped[next(iter(keys))]
             row.cost_usd += cost
             row.cost_known_sessions += known
-    for key, evidence in sessions.items():
-        row = grouped[key]
-        row.sessions = len(evidence)
-        row.priced_sessions = sum(item.priced for item in evidence.values())
-        row.session_timestamp_sessions = sum(item.session_timestamp for item in evidence.values())
-        row.legacy_accounting_sessions = sum(item.legacy for item in evidence.values())
-        row.retained_usage_sessions = sum(item.retained for item in evidence.values())
+    for key, ids in seen.items():
+        grouped[key].sessions = len(ids)
     return [grouped[key] for key in sorted(grouped)]
 
 
-def list_usage_records(
-    records: Iterable[UsageRecord],
-    *,
-    harness: str = "",
-    limit: int = 50,
-    since: datetime | None = None,
-    until: datetime | None = None,
-    cwd: str = "",
-) -> list[UsageRecord]:
-    """Newest sessions first; the date filters use each session's last measured activity."""
-
-    def selected(record: UsageRecord) -> bool:
-        timestamp = _parse_usage_timestamp(record.timestamp)
-        return (
-            (not harness or harness in {record.harness, record.agent})
-            and (not cwd or record.cwd == cwd)
-            and not (since and timestamp < since)
-            and not (until and timestamp > until)
-        )
-
-    filtered = [record for record in records if selected(record)]
-    filtered.sort(key=lambda record: _parse_usage_timestamp(record.timestamp), reverse=True)
-    return filtered[:limit] if limit > 0 else filtered
+def _ratio_cost(amount: float, numerator: int, denominator: int) -> str:
+    return "unknown" if not numerator else f"${amount:.4f}" + (" (partial)" if numerator < denominator else "")
 
 
 def write_usage_stats(
     output: IO[str], rows: list[UsageStats], *, by_model: bool, pricing: PricingConfig | None = None
 ) -> None:
     if not rows:
-        output.write("No usage records found. Run 'dot agent session sync' to archive existing sessions.\n")
+        output.write("No usage records found. Run 'dot stats' to archive existing sessions.\n")
         return
 
-    def write(text: str = "") -> None:
+    def put(text: str = "") -> None:
         write_report_line(output, text)
 
-    write()
-    write("Token usage")
-    first = min((row.first_timestamp for row in rows if row.first_timestamp), default="unknown")
-    last = max((row.last_timestamp for row in rows if row.last_timestamp), default="unknown")
-    write(f"Coverage: {first[:10]} to {last[:10]} (archived usage only).")
-    write("API equivalent is an estimate in USD, separate from recorded cost.")
+    first = min((r.first_timestamp for r in rows if r.first_timestamp), default="unknown")
+    last = max((r.last_timestamp for r in rows if r.last_timestamp), default="unknown")
+    put()
+    put("Token usage")
+    put(f"Coverage: {first[:10]} to {last[:10]} (archived usage only).")
+    put("API equivalent is an estimate in USD, separate from recorded cost.")
     if pricing is not None and pricing.as_of:
-        write(f"Rate card: {pricing.as_of} · {pricing.basis}")
-    periods = any(row.period_start for row in rows)
+        put(f"Rate card: {pricing.as_of} · {pricing.basis}")
     total = UsageStats(harness="TOTAL", first_timestamp=first, last_timestamp=last)
 
     def write_row(row: UsageStats) -> None:
-        write()
-        write(f"{row.harness} · {row.measurement_kind}")
+        api = _ratio_cost(row.api_equivalent_usd, row.priced_measurements, row.measurements)
+        rec = _ratio_cost(row.cost_usd, row.cost_known_sessions, row.sessions)
+        put()
+        put(f"{row.harness} · {row.measurement_kind}")
         if by_model and row.model:
-            write(f"  Model: {row.model}")
+            put(f"  Model: {row.model}")
         if row.cwd:
-            write(f"  Project: {row.cwd}")
-        if row.period_start:
-            write(f"  Period: {row.period_start[:10]} to {row.period_end[:10]} (end exclusive)")
-        write(f"  Sessions: {row.sessions:,} · Total tokens: {row.total_tokens:,}")
-        write(
-            f"  API equivalent: {_equivalent_display(row)} · Priced: {row.priced_measurements:,}/{row.measurements:,}"
-        )
-        write(f"  Recorded cost: {_cost_display(row)}")
+            put(f"  Project: {row.cwd}")
+        put(f"  Sessions: {row.sessions:,} · Total tokens: {row.total_tokens:,}")
+        put(f"  API equivalent: {api} · Priced: {row.priced_measurements:,}/{row.measurements:,}")
+        put(f"  Recorded cost: {rec}")
         if row.first_timestamp and row.harness != "TOTAL":
-            write(f"  Coverage: {row.first_timestamp[:10]} to {row.last_timestamp[:10]}")
+            put(f"  Coverage: {row.first_timestamp[:10]} to {row.last_timestamp[:10]}")
 
     for row in rows:
         write_row(row)
-        for name in (
-            "sessions",
-            "total_tokens",
-            "api_equivalent_usd",
-            "priced_sessions",
-            "measurements",
-            "priced_measurements",
-            "cost_usd",
-            "cost_known_sessions",
-        ):
-            setattr(total, name, getattr(total, name) + getattr(row, name))
-    if flagged := sorted({row.harness for row in rows if row.legacy_accounting_sessions}):
-        # Retained sessions keep their measuring parser, so a sync cannot clear them; retired agents never sync.
-        live = [name for name in flagged if name not in RETIRED_AGENTS]
-        kept = "sessions retained from truncated sources" if live else ""
-        if len(live) < len(flagged):
-            kept = f"{kept} and retired agents" if kept else "retired agents"
-        advice = "recapture available sources with 'dot agent session sync'; " if live else ""
-        note = f"Legacy accounting in {', '.join(flagged)}: {advice}{kept} keep their archived measurement."
-        if "claude" in flagged:
-            note += " Old Claude totals may count repeated response blocks."
-        write(note)
-    if retained := sum(row.retained_usage_sessions for row in rows):
-        final = any(row.retained_usage_sessions and row.harness in RETIRED_AGENTS for row in rows)
-        write(
-            f"{retained:,} session(s) keep usage from an earlier capture of a source that has grown; "
-            "their tokens and cost are incomplete until the source measures again"
-            + ("; retired agents never measure again." if final else ".")
-        )
-    if any(row.session_timestamp_sessions for row in rows):
-        write("Some usage has only a session timestamp; its monthly allocation is approximate.")
-    if periods:
-        write("Period ends are exclusive; sessions spanning periods may appear in more than one row.")
-        return
-    kinds = {row.measurement_kind for row in rows}
-    if len(kinds) > 1:
-        write("No combined total: measurement kinds are not comparable.")
-        return
-    if by_model:
-        write("Sessions using multiple models appear in each model row; no combined session total.")
-        return
-    total.measurement_kind = next(iter(kinds))
-    write_row(total)
-
-
-def _equivalent_display(row: UsageStats) -> str:
-    if not row.priced_measurements:
-        return "unknown"
-    suffix = " (partial)" if row.priced_measurements < row.measurements else ""
-    return f"${row.api_equivalent_usd:.4f}{suffix}"
-
-
-def _cost_display(row: UsageStats) -> str:
-    if not row.cost_known_sessions:
-        return "unknown"
-    suffix = " (partial)" if row.cost_known_sessions < row.sessions else ""
-    return f"${row.cost_usd:.4f}{suffix}"
+        for k in _SUM_FIELDS:
+            setattr(total, k, getattr(total, k) + getattr(row, k))
+    if len(kinds := {r.measurement_kind for r in rows}) > 1:
+        put("No combined total: measurement kinds are not comparable.")
+    elif by_model:
+        put("Sessions using multiple models appear in each model row; no combined session total.")
+    else:
+        total.measurement_kind = next(iter(kinds))
+        write_row(total)

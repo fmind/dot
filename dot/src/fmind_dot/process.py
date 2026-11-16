@@ -16,149 +16,104 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from types import FrameType
 from typing import IO
 
 from fmind_dot.errors import CommandTimeoutError, DotError
 
-# SIGTERM grace before SIGKILL: long enough for git to unlock, short enough for Ctrl+C.
 _TERMINATION_GRACE_SECONDS = 2.0
-_TERMINATION_TIMEOUT_SECONDS = 3
-
-
-@dataclass(frozen=True)
-class CommandResult:
-    """Captured command outcome."""
-
-    stdout: str
-    stderr: str
-    returncode: int
-
-
 _CREDENTIAL_URL = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]+@")
-# Provider token prefixes, API keys, AWS access keys, JWTs, plus any long opaque run that could be a credential.
 _PREFIXED_TOKEN = re.compile(
     r"(?:\b(?:gh[opsur]_|github_pat_|glpat-|sk-|xai-|pypi-|hf_|npm_)[A-Za-z0-9_+/=-]{20,}"
-    r"|\bxox[abprs]-[A-Za-z0-9_+/=-]{10,}"
-    r"|\bAIza[A-Za-z0-9_+/=-]{35,}"
-    r"|\bya29\.[A-Za-z0-9._-]{20,}"
-    r"|(?<![A-Za-z0-9])1//0[A-Za-z0-9_+/=-]{20,}"
-    r"|\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"
+    r"|\bxox[abprs]-[A-Za-z0-9_+/=-]{10,}|\bAIza[A-Za-z0-9_+/=-]{35,}|\bya29\.[A-Za-z0-9._-]{20,}"
+    r"|(?<![A-Za-z0-9])1//0[A-Za-z0-9_+/=-]{20,}|\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"
     r"|\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+)"
 )
 _OPAQUE_TOKEN = re.compile(rf"{_PREFIXED_TOKEN.pattern}|(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{{32,}}")
-# An absolute or home path is the diagnostic's most useful part: keep it whole (dot-directories
-# included), redacting only provider-prefixed tokens inside it. URL paths follow ":", so they stay checked.
 _PATH = re.compile(r"(?<![^\s'\"(=])[~/][^\s'\"]*")
-# A path segment of 20+ token characters mixing upper case, lower case, and digits is a secret, such as a
-# base64 token that starts with "/"; hex hashes, UUIDs, and dotted or short names never match.
 _TOKEN_SEGMENT = re.compile(
     r"(?<![^/])(?=[A-Za-z0-9_+=-]*[A-Z])(?=[A-Za-z0-9_+=-]*[a-z])(?=[A-Za-z0-9_+=-]*[0-9])"
     r"[A-Za-z0-9_+=-]{20,}(?=/|[:.,;)]*$)"
 )
 
 
+@dataclass(frozen=True)
+class CommandResult:
+    stdout: str
+    stderr: str
+    returncode: int
+
+
 def _redact(text: str) -> str:
     redacted, position = [], 0
     for path in _PATH.finditer(text):
-        redacted += [_OPAQUE_TOKEN.sub("<redacted>", text[position : path.start()])]
-        redacted += [_TOKEN_SEGMENT.sub("<redacted>", _PREFIXED_TOKEN.sub("<redacted>", path.group()))]
+        redacted += [
+            _OPAQUE_TOKEN.sub("<redacted>", text[position : path.start()]),
+            _TOKEN_SEGMENT.sub("<redacted>", _PREFIXED_TOKEN.sub("<redacted>", path.group())),
+        ]
         position = path.end()
     return "".join([*redacted, _OPAQUE_TOKEN.sub("<redacted>", text[position:])])
 
 
 def diagnostic_line(text: str, limit: int = 160) -> str:
     """Return the first non-empty output line without credentials, control characters, or excess length."""
-    line = next((item.strip() for item in text.splitlines() if item.strip()), "")
-    line = "".join(character for character in line if character.isprintable())
-    line = _redact(_CREDENTIAL_URL.sub(r"\1<redacted>@", line))
-    return line if len(line) <= limit else line[: limit - 1].rstrip() + "…"
-
-
-def _environment(env: Mapping[str, str] | None) -> dict[str, str]:
-    command_env = os.environ.copy()
-    if env:
-        command_env.update(env)
-    return command_env
+    line = "".join(c for c in next((i.strip() for i in text.splitlines() if i.strip()), "") if c.isprintable())
+    redacted = _redact(_CREDENTIAL_URL.sub(r"\1<redacted>@", line))
+    return redacted if len(redacted) <= limit else redacted[: limit - 1].rstrip() + "…"
 
 
 def _signal(process: subprocess.Popen[str], signum: signal.Signals, *, group: bool = True) -> None:
-    """Signal the child's process group, falling back to the child itself."""
     if group:
         with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signum)
             return
-    # Popen ignores signals once the child has been reaped.
     with suppress(ProcessLookupError):
         process.send_signal(signum)
 
 
 def _terminate(process: subprocess.Popen[str], *, group: bool = True) -> None:
-    """Stop the launched process and keep escaped descendants holding pipes from blocking."""
     try:
-        # Let tools such as git release locks and refs before the hard kill.
         _signal(process, signal.SIGTERM, group=group)
         with suppress(subprocess.TimeoutExpired):
             process.wait(timeout=_TERMINATION_GRACE_SECONDS)
     finally:
-        # A second interrupt during the grace period must still kill the process.
         _signal(process, signal.SIGKILL, group=group)
-    # A descendant may create a new session while retaining these descriptors.
-    # Closing our ends keeps its lifetime from extending the caller's timeout.
     for stream in (process.stdin, process.stdout, process.stderr):
         if stream is not None:
             stream.close()
     try:
-        process.wait(timeout=_TERMINATION_TIMEOUT_SECONDS)
+        process.wait(timeout=3)
     except subprocess.TimeoutExpired:
         process.kill()
 
 
 @contextmanager
 def _deferred_launch_interrupts() -> Generator[None]:
-    """Deliver cancellation only after Popen returns ownership of the launched child."""
     if threading.current_thread() is not threading.main_thread():
         yield
         return
     pending: list[int] = []
-
-    def defer(signum: int, _frame: FrameType | None) -> None:
-        pending.append(signum)
-
     try:
         with ExitStack() as restore:
-            for signum in (signal.SIGINT, signal.SIGTERM):
-                previous = signal.getsignal(signum)
-                if callable(previous):
-                    # Callable handlers reset on exec; blocking signals here would
-                    # leave the child with an inherited cancellation-blocking mask.
-                    signal.signal(signum, defer)
-                    restore.callback(signal.signal, signum, previous)
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                if callable(prev := signal.getsignal(sig)):
+                    signal.signal(sig, lambda s, _f: pending.append(s))
+                    restore.callback(signal.signal, sig, prev)
             yield
     finally:
-        for signum in pending:
-            signal.raise_signal(signum)
+        for sig in pending:
+            signal.raise_signal(sig)
 
 
 @contextmanager
 def _deferred_interrupts() -> Generator[None]:
-    """Leave Ctrl+C to an interactive child, which shares dot's foreground process group."""
     if threading.current_thread() is not threading.main_thread():
         yield
         return
-    # A handler, unlike SIG_IGN, resets to the default in the executed child.
-    previous = signal.signal(signal.SIGINT, lambda _signum, _frame: None)
+    prev = signal.signal(signal.SIGINT, lambda _s, _f: None)
     try:
         yield
     finally:
-        signal.signal(signal.SIGINT, previous)
-
-
-def _is_terminal(stream: IO[str] | None, default: IO[str]) -> bool:
-    """Whether the child inherits a terminal on this descriptor (None means dot's own stream)."""
-    with suppress(AttributeError, OSError, ValueError):
-        return os.isatty((stream if stream is not None else default).fileno())
-    return False
+        signal.signal(signal.SIGINT, prev)
 
 
 class Runner:
@@ -170,22 +125,19 @@ class Runner:
         self._processes: set[subprocess.Popen[str]] = set()
 
     def cancel(self) -> None:
-        """Stop captured worker processes and prohibit subsequent commands."""
         self._cancelled.set()
         with self._process_lock:
             processes = tuple(self._processes)
-        # The communicating worker owns its pipes and reaps the child.
-        for process in processes:
-            _signal(process, signal.SIGTERM)
+        for proc in processes:
+            _signal(proc, signal.SIGTERM)
         deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
-        while time.monotonic() < deadline and any(process.poll() is None for process in processes):
+        while time.monotonic() < deadline and any(p.poll() is None for p in processes):
             time.sleep(0.05)
-        for process in processes:
-            _signal(process, signal.SIGKILL)
+        for proc in processes:
+            _signal(proc, signal.SIGKILL)
 
     def which(self, command: str) -> Path | None:
-        resolved = shutil.which(command)
-        return Path(resolved) if resolved else None
+        return Path(resolved) if (resolved := shutil.which(command)) else None
 
     def run(
         self,
@@ -197,7 +149,6 @@ class Runner:
         timeout: float | None = None,
         check: bool = True,
     ) -> CommandResult:
-        """Capture a command's output in its own session; undecodable bytes are replaced."""
         if not args:
             raise DotError("cannot run an empty command")
         if self._cancelled.is_set():
@@ -205,22 +156,19 @@ class Runner:
         process: subprocess.Popen[str] | None = None
         try:
             with _deferred_launch_interrupts():
-                process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
+                process = subprocess.Popen(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
                     list(args),
                     cwd=cwd,
-                    env=_environment(env),
+                    env={**os.environ, **env} if env else None,
                     stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    # Text mode also applies universal newlines; tool output is not trusted text.
                     encoding=locale.getencoding(),
                     errors="replace",
                     start_new_session=True,
                 )
                 with self._process_lock:
                     self._processes.add(process)
-            # Cancellation can land between launch and registration. Use the same
-            # cleanup path as other failures, without trying to read closed pipes.
             if self._cancelled.is_set():
                 raise DotError("operation cancelled")
             stdout, stderr = process.communicate(input_text, timeout=timeout)
@@ -237,8 +185,6 @@ class Runner:
                 with self._process_lock:
                     self._processes.discard(process)
         if check and process.returncode != 0:
-            # Tool stderr can contain credentials or provider payloads; callers opt in
-            # to rendering bounded diagnostics only after they have classified them.
             raise DotError(f"command failed ({process.returncode}): {args[0]}")
         return CommandResult(stdout=stdout, stderr=stderr, returncode=process.returncode)
 
@@ -251,49 +197,33 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
-        on_stderr_line: Callable[[str], None] | None = None,
     ) -> int:
-        """Run with the caller's terminal.
-
-        A child using the terminal stays in dot's process group, so the terminal delivers Ctrl+C and
-        Ctrl+Z to both. Without one, it gets its own group so that a SIGTERM to dot (timeout, a
-        supervisor, CI cancellation) also stops the child's descendants. `on_stderr_line` sees each
-        stderr line after it is forwarded unchanged; its errors never interrupt the child.
-        """
         if not args:
             raise DotError("cannot run an empty command")
-        streams = [(stdin, sys.stdin), (stdout, sys.stdout), (stderr, sys.stderr)]
-        detached = not any(_is_terminal(stream, default) for stream, default in streams)
-        # The child writes to the same descriptors, so pending buffered text must land first.
+        detached = True
+        for stream, default in ((stdin, sys.stdin), (stdout, sys.stdout), (stderr, sys.stderr)):
+            with suppress(AttributeError, OSError, ValueError):
+                if os.isatty((stream if stream is not None else default).fileno()):
+                    detached = False
+                    break
         for stream in (stdout or sys.stdout, stderr or sys.stderr):
             stream.flush()
         with nullcontext() if detached else _deferred_interrupts():
             process: subprocess.Popen[str] | None = None
-            forwarder: threading.Thread | None = None
             try:
                 with _deferred_launch_interrupts():
-                    process = subprocess.Popen(  # noqa: S603 - argv is always a sequence, never a shell string. # nosemgrep: dangerous-subprocess-use-audit
+                    process = subprocess.Popen(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
                         list(args),
                         cwd=cwd,
-                        env=_environment(env),
+                        env={**os.environ, **env} if env else None,
                         stdin=stdin,
                         stdout=stdout,
-                        stderr=stderr if on_stderr_line is None else subprocess.PIPE,
+                        stderr=stderr,
                         text=True,
                         errors="replace",
                         process_group=0 if detached else None,
                     )
-                if on_stderr_line is not None and process.stderr is not None:
-                    # Hand pipe ownership to the forwarder so _terminate never closes a locked BufferedReader.
-                    stderr_pipe = process.stderr
-                    process.stderr = None
-                    forwarder = threading.Thread(
-                        target=_forward_lines, args=(stderr_pipe, stderr or sys.stderr, on_stderr_line), daemon=True
-                    )
-                    forwarder.start()
                 code = process.wait()
-                if forwarder is not None:
-                    forwarder.join(_TERMINATION_TIMEOUT_SECONDS)
             except BaseException:
                 if process is not None:
                     _terminate(process, group=detached)
@@ -303,40 +233,16 @@ class Runner:
             return code
 
 
-def _forward_lines(source: IO[str], target: IO[str], on_line: Callable[[str], None]) -> None:
-    """Copy a child's stream line by line, then offer each line to a best-effort observer."""
-    with source:
-        for line in source:
-            target.write(line)
-            target.flush()
-            with suppress(Exception):
-                on_line(line)
-
-
 def run_parallel[T, R](runner: Runner, function: Callable[[T], R], items: Sequence[T], workers: int) -> list[R]:
-    """Map items over a bounded pool; an interruption cancels every running command.
-
-    A worker error propagates after the other workers finish, and the runner stays usable.
-    """
     if workers < 1:
         raise ValueError("workers must be at least 1")
-    if not items:
-        return []
-    if len(items) == 1:
-        try:
-            return [function(items[0])]
-        except BaseException as error:
-            if not isinstance(error, Exception):
-                runner.cancel()
-            raise
-    executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
+    executor = ThreadPoolExecutor(max_workers=min(workers, len(items))) if len(items) > 1 else None
     try:
-        return list(executor.map(function, items))
+        return list(executor.map(function, items)) if executor else ([function(items[0])] if items else [])
     except BaseException as error:
-        # Cancellation is permanent: cancelled runners refuse new commands, so queued workers
-        # stop at their next call. Only interruptions cancel; ordinary errors leave the runner usable.
         if not isinstance(error, Exception):
             runner.cancel()
         raise
     finally:
-        executor.shutdown(wait=True, cancel_futures=True)
+        if executor is not None:
+            executor.shutdown(wait=True, cancel_futures=True)

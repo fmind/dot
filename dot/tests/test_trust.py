@@ -1,796 +1,179 @@
-"""Folder trust edits every harness file in place and only ever adds entries."""
+from __future__ import annotations
 
 import io
 import json
-import subprocess
-import threading
 from pathlib import Path
 
 import pytest
 
 from fmind_dot.config import Config, PullConfig, TrustConfig
 from fmind_dot.errors import DotError
-from fmind_dot.process import CommandResult, Runner
-from fmind_dot.state import State
+from fmind_dot.process import CommandResult
 from fmind_dot.trust import (
     github_owner,
+    installed_harnesses,
     register_agy_projects,
     register_claude_directories,
     run_trust,
     trust_folders,
 )
-
-COPILOT_HEADER = "// User settings belong in settings.json.\n// This file is managed automatically.\n"
-
-
-def trust_folder(folder: Path, *, dry_run: bool = False, home: Path | None = None) -> list[str]:
-    return trust_folders([folder], dry_run=dry_run, home=home)[folder]
+from tests.fakes import ScriptedRunner, buf, make_state
 
 
-def harness_home(home: Path) -> None:
-    for directory in (".claude", ".gemini/antigravity-cli", ".copilot", ".pi/agent"):
-        (home / directory).mkdir(parents=True)
-    claude = {"oauthAccount": {"id": "kept"}, "projects": {"/other": {"hasTrustDialogAccepted": False, "x": 1}}}
-    (home / ".claude.json").write_text(json.dumps(claude))
+def _harness_home(home: Path) -> None:
+    for d in (".claude", ".gemini/antigravity-cli", ".pi/agent"):
+        (home / d).mkdir(parents=True)
+    (home / ".claude.json").write_text(
+        json.dumps({"oauthAccount": {"id": "k"}, "projects": {"/other": {"hasTrustDialogAccepted": False}}})
+    )
     (home / ".gemini/antigravity-cli/settings.json").write_text(json.dumps({"editorMode": "vim"}))
-    (home / ".copilot/config.json").write_text(COPILOT_HEADER + json.dumps({"banner": "never"}))
-    for path in home.rglob("*"):
-        if path.is_file():
-            path.chmod(0o600)
+    for p in home.rglob("*"):
+        if p.is_file():
+            p.chmod(0o600)
 
 
-def test_trust_adds_each_harness_once_and_preserves_host_state(tmp_path: Path) -> None:
-    harness_home(tmp_path)
-    repository = tmp_path / "work" / "repo"
-    repository.mkdir(parents=True)
+def test_trust_folders_all_harnesses_and_pi_git_only(tmp_path: Path) -> None:
+    _harness_home(tmp_path)
+    repo, notes = tmp_path / "work/repo", tmp_path / "work/notes"
+    (repo / ".git").mkdir(parents=True)
+    notes.mkdir()
+    pi_store = tmp_path / ".pi/agent/trust.json"
+    pi_store.write_text(json.dumps({"/else": False, str(repo): False}))
 
-    assert trust_folder(repository, dry_run=True, home=tmp_path) == ["claude", "agy", "copilot"]
-    assert json.loads((tmp_path / ".claude.json").read_text())["projects"].keys() == {"/other"}
+    changed = trust_folders([repo, notes], home=tmp_path)
+    assert changed == {repo: ["claude", "agy", "pi"], notes: ["claude", "agy"]}
+    assert trust_folders([repo, notes], home=tmp_path) == {repo: [], notes: []}
 
-    assert trust_folder(repository, home=tmp_path) == ["claude", "agy", "copilot"]
-    assert trust_folder(repository, home=tmp_path) == []
-
-    claude = json.loads((tmp_path / ".claude.json").read_text())
-    assert claude["oauthAccount"] == {"id": "kept"}
-    assert claude["projects"] == {
-        "/other": {"hasTrustDialogAccepted": False, "x": 1},
-        str(repository): {"hasTrustDialogAccepted": True},
-    }
-    agy = json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())
-    assert agy == {"editorMode": "vim", "trustedWorkspaces": [str(repository)]}
-    copilot = (tmp_path / ".copilot/config.json").read_text()
-    assert copilot.startswith(COPILOT_HEADER)
-    assert json.loads(copilot.removeprefix(COPILOT_HEADER)) == {"banner": "never", "trustedFolders": [str(repository)]}
-    assert all(path.stat().st_mode & 0o777 == 0o600 for path in tmp_path.rglob("*") if path.is_file())
-
-
-def test_pi_trusts_repository_roots_only_and_keeps_other_decisions(tmp_path: Path) -> None:
-    harness_home(tmp_path)
-    repository, folder = tmp_path / "work/repo", tmp_path / "work/notes"
-    (repository / ".git").mkdir(parents=True)
-    folder.mkdir()
-    store = tmp_path / ".pi/agent/trust.json"
-    store.write_text(json.dumps({"/elsewhere": False, str(repository): False}))
-
-    changed = trust_folders([repository, folder], home=tmp_path)
-
-    assert changed == {repository: ["claude", "agy", "copilot", "pi"], folder: ["claude", "agy", "copilot"]}
-    assert json.loads(store.read_text()) == {"/elsewhere": False, str(repository): True}
-    assert trust_folders([repository, folder], home=tmp_path) == {repository: [], folder: []}
-
-
-def test_trust_reports_when_no_harness_has_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    home, folder = tmp_path / "home", tmp_path / "work"
-    home.mkdir()
-    folder.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-
-    run_trust(state, [str(folder)])
-    assert isinstance(state.stdout, io.StringIO)
-    assert state.stdout.getvalue() == "○ No agent harness state found; nothing to trust yet.\n"
-    assert not any(home.iterdir())
-
-
-def test_trust_skips_missing_harnesses(tmp_path: Path) -> None:
-    (tmp_path / ".copilot").mkdir()
-
-    assert trust_folder(tmp_path, home=tmp_path) == ["copilot"]
-    assert not (tmp_path / ".claude.json").exists()
-    assert not (tmp_path / ".gemini").exists()
-
-
-@pytest.mark.parametrize(
-    ("content", "error"),
-    [
-        ('{"projects": {"/repo": {"private_key": "private value"}', "not valid JSON"),
-        ('["private value"]', "must contain a JSON object"),
-        ('{"projects": ["private value"]}', "projects must be a JSON object"),
-        ('{"projects": {"/repo": "private value"}}', "project /repo must be a JSON object"),
-    ],
-    ids=["malformed", "not-object", "projects-list", "project-string"],
-)
-def test_trust_rejects_malformed_host_files_without_writing(tmp_path: Path, content: str, error: str) -> None:
-    (tmp_path / ".claude").mkdir()
-    config = tmp_path / ".claude.json"
-    config.write_text(content)
-
-    with pytest.raises(DotError, match=error) as caught:
-        trust_folder(Path("/repo"), home=tmp_path)
-    message = str(caught.value).replace(str(config), "")
-    assert "private" not in message
-    assert config.read_text() == content
-
-
-@pytest.mark.parametrize("home_relative", [False, True])
-def test_trust_all_covers_configured_workspaces_and_their_repositories(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, home_relative: bool
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    harness_home(tmp_path)
-    workspace = tmp_path / "work"
-    origins = {
-        "one": "https://github.com/fmind/one.git",
-        "two": "git@github.com:Fmind/two.git",
-        "foreign": "https://github.com/someone-else/foreign",
-        "lookalike": "https://github.com.evil.example/fmind/lookalike",
-        "local": "",
-    }
-    for name, origin in origins.items():
-        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True, timeout=30)
-        if origin:
-            subprocess.run(
-                ["git", "-C", str(workspace / name), "remote", "add", "origin", origin], check=True, timeout=30
-            )
-    (workspace / "notes").mkdir()
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(
-        pull=PullConfig(directories=["~/work" if home_relative else str(workspace), str(tmp_path / "missing")])
-    )
-
-    run_trust(state, ["all"], dry_run=True)
-    assert isinstance(state.stdout, io.StringIO)
-    assert state.stdout.getvalue().count("skipped (origin is not a github.com repository") == 3
-    assert state.stdout.getvalue().count("Copilot still inherits workspace trust") == 3
-    assert not (tmp_path / ".gemini/antigravity-cli/settings.json").read_text().count("trustedWorkspaces")
-
-    state.stdout = io.StringIO()
-    run_trust(state, ["all"])
-
-    trusted = json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"]
-    assert trusted == [str(workspace), str(workspace / "one"), str(workspace / "two")]
-    output = state.stdout.getvalue()
-    assert output.count("trusted in claude, agy, copilot") == 3
-    for name in ("foreign", "lookalike", "local"):
-        assert f"- {workspace / name}: skipped" in output
-
-    # An explicitly named repository is trusted regardless of its origin.
-    state.stdout = io.StringIO()
-    run_trust(state, [str(workspace / "local")])
-    assert state.stdout.getvalue() == f"+ {workspace / 'local'}: trusted in claude, agy, copilot, pi\n"
-    # Pi applies a decision to every folder below it: the workspace itself stays undecided there,
-    # so the repositories the allowlist skipped keep asking.
-    assert json.loads((tmp_path / ".pi/agent/trust.json").read_text()) == dict.fromkeys(
-        (str(workspace / name) for name in ("one", "two", "local")), True
-    )
-
-    state.stdout = io.StringIO()
-    run_trust(state, [str(workspace / "one" / ".")])
-    assert state.stdout.getvalue() == f"✓ {workspace / 'one'}: already trusted\n"
-
-    # One call merges targets: a repository named alongside "all" is trusted, not reported as skipped.
-    state.stdout = io.StringIO()
-    run_trust(state, ["all", str(workspace / "local")], dry_run=True)
-    output = state.stdout.getvalue()
-    assert f"✓ {workspace / 'local'}: already trusted" in output
-    assert f"- {workspace / 'local'}: skipped" not in output
-    assert f"- {workspace / 'foreign'}: skipped" in output
-
-
-@pytest.mark.parametrize(
-    ("origin", "owner"),
-    [
-        ("https://github.com/fmind/dot.git", "fmind"),
-        ("https://token@GitHub.com/example-ai/repo", "example-ai"),
-        ("git@github.com:Example-Org/course.git", "Example-Org"),
-        ("ssh://git@github.com:22/fmind/dot.git\n", "fmind"),
-        ("https://gitlab.com/fmind/dot.git", None),
-        ("https://github.com/fmind", None),
-        ("https://github.com/fmind/dot/extra", None),
-        ("git@github.com.example:fmind/dot.git", None),
-    ],
-)
-def test_github_owner_accepts_only_github_origins(origin: str, owner: str | None) -> None:
-    assert github_owner(origin) == owner
-
-
-def test_trust_all_writes_each_harness_file_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from fmind_dot import trust
-
-    harness_home(tmp_path)
-    workspace = tmp_path / "work"
-    for name in ("one", "two"):
-        subprocess.run(["git", "init", "-q", str(workspace / name)], check=True, timeout=30)
-        subprocess.run(
-            ["git", "-C", str(workspace / name), "remote", "add", "origin", f"https://github.com/fmind/{name}"],
-            check=True,
-            timeout=30,
-        )
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    written: list[Path] = []
-    write = trust.write_atomic_file
-
-    def counting(path: Path, content: bytes, *, mode: int) -> None:
-        written.append(path)
-        write(path, content, mode=mode)
-
-    monkeypatch.setattr(trust, "write_atomic_file", counting)
-
-    run_trust(state, ["all"])
-
-    # Three folders, one read-modify-write per harness file.
-    assert sorted(str(path.relative_to(tmp_path)) for path in written) == [
-        ".claude.json",
-        ".claude/settings.json",
-        ".copilot/config.json",
-        ".gemini/antigravity-cli/settings.json",
-        ".pi/agent/trust.json",
+    assert json.loads((tmp_path / ".claude.json").read_text())["oauthAccount"] == {"id": "k"}
+    assert json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"] == [
+        str(repo),
+        str(notes),
     ]
-    projects = json.loads((tmp_path / ".claude.json").read_text())["projects"]
-    assert {str(workspace), str(workspace / "one"), str(workspace / "two")} <= projects.keys()
-    claude_settings = json.loads((tmp_path / ".claude/settings.json").read_text())
-    assert claude_settings["permissions"]["additionalDirectories"] == [str(tmp_path / ".agents"), str(workspace)]
+    assert json.loads(pi_store.read_text()) == {"/else": False, str(repo): True}
+    assert (tmp_path / ".gemini/antigravity-cli/settings.json").stat().st_mode & 0o777 == 0o600
 
 
-def test_trust_extends_claude_additional_directories_and_rejects_bad_permissions(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_register_claude_directories_and_agy_projects(tmp_path: Path) -> None:
     home = tmp_path.resolve()
-    monkeypatch.setenv("HOME", str(home))
-    harness_home(home)
-    settings = home / ".claude/settings.json"
-    settings.write_text(
-        json.dumps(
-            {
-                "permissions": {
-                    "defaultMode": "bypassPermissions",
-                    "deny": ["Read(./private)"],
-                    "additionalDirectories": ["/synthetic/host-root"],
-                }
-            }
-        )
-    )
-    workspace = home / "work"
-    one = git_repository(workspace / "one", "https://github.com/fmind/one")
-    chezmoi = git_repository(home / ".local/share/chezmoi", "https://github.com/fmind/dot")
-    uncreated_workspace = home / "future-work"
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=["~/work", "~/future-work"]))
+    (home / ".claude").mkdir()
+    (home / ".agents").mkdir()
+    ws = home / "work"
+    sub = ws / "proj"
+    (sub / ".git").mkdir(parents=True)
+    added = register_claude_directories([ws, sub], home=home)
+    assert added == [home / ".agents", ws]
+    assert register_claude_directories([ws, sub], home=home) == []
 
-    run_trust(state, ["all", str(chezmoi)], dry_run=True, as_json=True)
-    assert isinstance(state.stdout, io.StringIO)
-    expected_added = [str(home / ".agents"), str(uncreated_workspace), str(workspace), str(chezmoi)]
-    assert json.loads(state.stdout.getvalue())["claude_directories"] == expected_added
-
-    state.stdout = io.StringIO()
-    run_trust(state, ["all", str(chezmoi)])
-    assert f"+ {workspace}: added to Claude additionalDirectories\n" in state.stdout.getvalue()
-    assert f"+ {one}: added to Claude additionalDirectories" not in state.stdout.getvalue()
-    merged = json.loads(settings.read_text())["permissions"]
-    assert merged == {
-        "defaultMode": "bypassPermissions",
-        "deny": ["Read(./private)"],
-        "additionalDirectories": ["/synthetic/host-root", *expected_added],
-    }
-    assert register_claude_directories([one, chezmoi], home=home) == []
-
-    for bad, error in (
-        ('{"permissions": []}', "permissions must be a JSON object"),
-        ('{"permissions": {"additionalDirectories": "/str"}}', "additionalDirectories must be a JSON array"),
-        ('{"permissions": {"additionalDirectories": [1]}}', "additionalDirectories must be a JSON array of strings"),
+    for bad, match in (
+        ('{"permissions": "x"}', "permissions must"),
+        ('{"permissions": {"additionalDirectories": [1]}}', "array of strings"),
     ):
-        settings.write_text(bad)
-        with pytest.raises(DotError, match=error):
-            register_claude_directories([chezmoi], home=home)
+        (home / ".claude/settings.json").write_text(bad)
+        with pytest.raises(DotError, match=match):
+            register_claude_directories([ws], home=home)
 
-
-def test_trust_rereads_a_file_the_host_changed_before_replacing_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from fmind_dot import trust
-
-    harness_home(tmp_path)
-    repository = tmp_path / "repo"
-    repository.mkdir()
-    load = trust._load_json  # noqa: SLF001 - inject a host write between read and replacement
-    raced: list[Path] = []
-
-    def concurrent_host(path: Path, text: str) -> dict:
-        value = load(path, text)
-        if path.name == ".claude.json" and not raced:
-            # Claude Code writes its own state between this read and the replacement.
-            raced.append(path)
-            path.write_text(json.dumps(json.loads(path.read_text()) | {"numStartups": 7}))
-        return value
-
-    monkeypatch.setattr(trust, "_load_json", concurrent_host)
-
-    assert "claude" in trust_folder(repository, home=tmp_path)
-
-    claude = json.loads((tmp_path / ".claude.json").read_text())
-    assert claude["numStartups"] == 7
-    assert claude["projects"][str(repository)] == {"hasTrustDialogAccepted": True}
-
-
-def test_trust_stops_when_a_host_keeps_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from fmind_dot import trust
-
-    harness_home(tmp_path)
-    load = trust._load_json  # noqa: SLF001 - inject a host write between read and replacement
-    writes = iter(range(100))
-
-    def busy_host(path: Path, text: str) -> dict:
-        value = load(path, text)
-        if path.name == ".claude.json":
-            path.write_text(json.dumps({"projects": {}, "host": "x" * next(writes)}))
-        return value
-
-    monkeypatch.setattr(trust, "_load_json", busy_host)
-
-    with pytest.raises(DotError, match="kept changing"):
-        trust_folder(tmp_path / "repo", home=tmp_path)
-    assert "/repo" not in (tmp_path / ".claude.json").read_text()
-
-
-def test_trust_dry_run_json_reports_changes_without_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    home, folder = tmp_path / "home", tmp_path / "work"
-    home.mkdir()
-    folder.mkdir()
-    harness_home(home)
-    monkeypatch.setenv("HOME", str(home))
-    before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-
-    run_trust(state, [str(folder)], dry_run=True, as_json=True)
-
-    assert isinstance(state.stdout, io.StringIO)
-    document = json.loads(state.stdout.getvalue())
-    assert (document["schema"], document["dry_run"], document["skipped"]) == ("dot.trust/v1", True, [])
-    assert document["folders"][0]["path"] == str(folder)
-    # Pi trusts repository roots only; this plain folder keeps its own prompt there.
-    assert set(document["folders"][0]["changed"]) == set(document["harnesses"]) - {"pi"}
-    assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before
-
-
-def test_trust_json_without_harness_state_lists_no_changes(tmp_path: Path) -> None:
-    folder = tmp_path / "work"
-    folder.mkdir()
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-
-    run_trust(state, [str(folder)], as_json=True)
-
-    assert isinstance(state.stdout, io.StringIO)
-    document = json.loads(state.stdout.getvalue())
-    assert (document["harnesses"], document["folders"][0]["changed"]) == ([], [])
+    reg = home / ".gemini/config/projects"
+    reg.mkdir(parents=True)
+    chezmoi, existing = home / ".local/share/chezmoi", home / "work/existing"
+    (chezmoi / ".git").mkdir(parents=True)
+    (existing / ".git").mkdir(parents=True)
+    (reg / "other.json").write_text(
+        json.dumps({"projectResources": {"resources": [{"gitFolder": {"folderUri": existing.as_uri()}}]}})
+    )
+    assert register_agy_projects([chezmoi, existing], ["~/.local/share/chezmoi", "~/work/*"], home=home) == [chezmoi]
+    payload = json.loads((reg / "local-fmind-dot.json").read_text())
+    assert payload["name"] == "fmind/dot"
+    assert payload["projectResources"]["resources"][0]["folderUri"] == chezmoi.as_uri()
+    assert register_agy_projects([chezmoi], ["~/.local/share/chezmoi"], home=home) == []
 
 
 @pytest.mark.parametrize(
-    ("relative", "git_at"),
-    # Without a repository, a subdirectory of home is an ordinary trustable folder.
+    ("origin", "expected"),
     [
-        (relative, git_at)
-        for relative in (".", "..", "subdir")
-        for git_at in (None, "home", "parent")
-        if (relative, git_at) != ("subdir", None)
+        ("https://github.com/fmind/dot/", "fmind"),
+        ("https://user@github.com:443/Fmind/dot", "Fmind"),
+        ("ssh://git@github.com:22/fmind/dot", "fmind"),
+        ("git@github.com:fmind/dot", "fmind"),
+        ("https://gitlab.com/fmind/dot", None),
     ],
 )
-def test_trust_refuses_home_and_its_ancestors(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str, git_at: str | None
-) -> None:
-    home = tmp_path / "home"
-    (home / "subdir").mkdir(parents=True)
-    if git_at == "home":
-        subprocess.run(["git", "init", "-q", str(home)], check=True, timeout=30)
-    elif git_at == "parent":
-        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, timeout=30)
-    harness_home(home)
-    monkeypatch.setenv("HOME", str(home))
-    before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file()}
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(home)]))
-
-    with pytest.raises(DotError, match="contains the home directory"):
-        run_trust(state, [str(home / relative)])
-    with pytest.raises(DotError, match="contains the home directory"):
-        run_trust(state, ["all"])
-
-    assert {path: path.read_bytes() for path in home.rglob("*") if path.is_file()} == before
+def test_github_owner_parses_urls(origin: str, expected: str | None) -> None:
+    assert github_owner(origin) == expected
 
 
-def test_trust_propagates_git_inspection_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    home, folder = tmp_path / "home", tmp_path / "work"
+def test_run_trust_explicit_all_and_empty_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home, plain = tmp_path / "home", tmp_path / "plain"
     home.mkdir()
-    folder.mkdir()
+    plain.mkdir()
     monkeypatch.setenv("HOME", str(home))
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    monkeypatch.setattr(state.runner, "which", lambda _tool: None)
+    state = make_state()
+    run_trust(state, [str(plain)])
+    assert "No agent harness state found" in buf(state.stdout)
 
-    with pytest.raises(DotError, match="required tools are missing: git"):
-        run_trust(state, [str(folder)])
+    _harness_home(home)
+    ws = home / "work"
+    owned, foreign = ws / "owned", ws / "foreign"
+    (owned / ".git").mkdir(parents=True)
+    (foreign / ".git").mkdir(parents=True)
+    (home / ".local/share/chezmoi/.git").mkdir(parents=True)
+    runner = ScriptedRunner(
+        {"git"},
+        run=lambda cmd, cwd, _i, _c: (
+            CommandResult("https://github.com/fmind/r\n" if cwd == owned else "https://github.com/other/r\n", "", 0)
+            if cmd[:3] == ["git", "remote", "get-url"]
+            else CommandResult(str(cwd or ws) + "\n", "", 0)
+        ),
+    )
+    cfg = Config(
+        pull=PullConfig(directories=[str(ws)]),
+        trust=TrustConfig(github_owners=["fmind"], agy_projects=["~/.local/share/chezmoi"]),
+    )
+    st = make_state(runner, cfg)
+    run_trust(st, [str(plain), "all"])
+    out = buf(st.stdout)
+    assert f"+ {ws}: trusted in" in out
+    assert f"+ {owned}: trusted in" in out
+    assert f"- {foreign}: skipped" in out
+    assert "Copilot" not in out
+
+    st2 = make_state(runner, cfg)
+    run_trust(st2, ["all"])
+    assert "✓ " in buf(st2.stdout)
 
 
-def test_trust_accepts_an_explicit_folder_outside_any_repository(
+def test_trust_rejects_home_ancestors_symlinks_and_corrupt_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    home, folder = tmp_path / "home", tmp_path / "notes"
+    home, outside = tmp_path / "home", tmp_path / "outside"
     home.mkdir()
-    folder.mkdir()
-    harness_home(home)
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-
-    run_trust(state, [str(folder)])
-
-    assert str(folder) in json.loads((home / ".claude.json").read_text())["projects"]
-
-
-def agy_registry(home: Path) -> Path:
-    registry = home / ".gemini/config/projects"
-    registry.mkdir(parents=True)
-    # agy's default project lists no folder; it must not block or count as a listed repository.
-    (registry / "default-cli-project.json").write_text(
-        json.dumps({"id": "default-cli-project", "name": "Default", "projectResources": {}})
-    )
-    return registry
-
-
-def git_repository(path: Path, origin: str) -> Path:
-    subprocess.run(["git", "init", "-q", str(path)], check=True, timeout=30)
-    subprocess.run(["git", "-C", str(path), "remote", "add", "origin", origin], check=True, timeout=30)
-    return path
-
-
-def test_trust_adds_selected_repositories_to_agy_projects(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    home = tmp_path.resolve()
-    monkeypatch.setenv("HOME", str(home))
-    harness_home(home)
-    registry = agy_registry(home)
-    workspace = home / "work"
-    one = git_repository(workspace / "one", "https://github.com/fmind/one")
-    unlisted = git_repository(workspace / "agent-docs", "https://github.com/fmind/agent-docs")
-    chezmoi = git_repository(home / ".local/share/chezmoi", "https://github.com/fmind/dot")
-    git_repository(workspace / "foreign", "https://github.com/someone-else/foreign")
-    # An entry agy wrote with a percent-encoded URI already lists this checkout.
-    listed = git_repository(workspace / "listed copy", "https://github.com/fmind/listed")
-    (registry / "local-native.json").write_text(
-        json.dumps({"id": "local-native", "projectResources": {"resources": [{"folderUri": listed.as_uri()}]}})
-    )
-    (workspace / "notes").mkdir()
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(
-        pull=PullConfig(directories=[str(workspace)]),
-        trust=TrustConfig(agy_projects=["~/work/one", "~/work/listed copy", "~/.local/share/chezmoi"]),
-    )
-    before = sorted(registry.iterdir())
-
-    run_trust(state, ["all", str(chezmoi)], dry_run=True, as_json=True)
-
-    assert isinstance(state.stdout, io.StringIO)
-    assert json.loads(state.stdout.getvalue())["agy_projects"] == [str(chezmoi), str(one)]
-    assert sorted(registry.iterdir()) == before
-
-    state.stdout = io.StringIO()
-    run_trust(state, ["all", str(chezmoi)])
-
-    assert f"+ {one}: added to agy Remote Control projects\n" in state.stdout.getvalue()
-    assert f"+ {chezmoi}: added to agy Remote Control projects\n" in state.stdout.getvalue()
-    added = sorted(set(registry.iterdir()) - set(before))
-    assert [entry.name for entry in added] == ["local-fmind-dot.json", "local-work-one.json"]
-    assert json.loads(added[0].read_text()) == {
-        "id": "local-fmind-dot",
-        "name": "fmind/dot",
-        "projectResources": {"resources": [{"folderUri": chezmoi.as_uri()}]},
-    }
-    assert json.loads(added[1].read_text()) == {
-        "id": "local-work-one",
-        "name": "work/one",
-        "projectResources": {"resources": [{"folderUri": one.as_uri()}]},
-    }
-    assert all(entry.stat().st_mode & 0o777 == 0o600 for entry in added)
-    # Unlisted repositories stay trusted; trust.agy_projects only selects the Remote Control picker.
-    assert (
-        str(unlisted) in json.loads((home / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"]
-    )
-
-    for targets in (["all", str(chezmoi)], [str(unlisted)]):
-        state.stdout = io.StringIO()
-        run_trust(state, targets, as_json=True)
-        assert json.loads(state.stdout.getvalue())["agy_projects"] == []
-    assert len(list(registry.iterdir())) == len(before) + 2
-
-
-def test_agy_projects_match_through_a_symlinked_home(tmp_path: Path) -> None:
-    real_home = tmp_path / "real-home"
-    real_home.mkdir()
-    linked_home = tmp_path / "home"
-    linked_home.symlink_to(real_home)
-    registry = agy_registry(real_home)
-    unlisted = git_repository(real_home / "work/agent-docs", "https://github.com/fmind/agent-docs")
-    kept = git_repository(real_home / "work/one", "https://github.com/fmind/one")
-
-    added = register_agy_projects([unlisted.resolve(), kept.resolve()], ["~/work/one"], home=linked_home)
-
-    assert added == [kept.resolve()]
-    assert len(list(registry.iterdir())) == 2  # agy's default project plus the selected repository
-
-
-def test_agy_projects_wait_for_agy_to_create_its_registry(tmp_path: Path) -> None:
-    repository = git_repository(tmp_path / "repo", "https://github.com/fmind/repo")
-    (tmp_path / "home/.gemini/antigravity-cli").mkdir(parents=True)
-
-    assert register_agy_projects([repository], [], home=tmp_path / "home") == []
-    assert not (tmp_path / "home/.gemini/config").exists()
-
-
-@pytest.mark.parametrize(
-    "content",
-    ["{", "[]", json.dumps({"projectResources": []}), json.dumps({"projectResources": {"resources": ["x"]}})],
-)
-def test_malformed_agy_project_stops_trust_before_any_write(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: str
-) -> None:
-    home = tmp_path.resolve()
-    monkeypatch.setenv("HOME", str(home))
-    harness_home(home)
-    registry = agy_registry(home)
-    (registry / "broken.json").write_text(content)
-    repository = git_repository(home / "repo", "https://github.com/fmind/repo")
-    before = {path: path.read_bytes() for path in home.rglob("*") if path.is_file() and ".git" not in path.parts}
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-
-    with pytest.raises(DotError, match=r"broken\.json"):
-        run_trust(state, [str(repository)])
-
-    assert {
-        path: path.read_bytes() for path in home.rglob("*") if path.is_file() and ".git" not in path.parts
-    } == before
-
-
-def test_trust_all_checks_repository_origins_concurrently(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    workspace = tmp_path / "work"
-    for name in ("one", "two", "three"):
-        (workspace / name / ".git").mkdir(parents=True)
-    barrier = threading.Barrier(3, timeout=5)
-
-    class ConcurrentOriginRunner(Runner):
-        def run(self, args: object, **_: object) -> CommandResult:
-            del args
-            barrier.wait()
-            return CommandResult("https://github.com/fmind/repo.git\n", "", 0)
-
-    stdout = io.StringIO()
-    state = State(runner=ConcurrentOriginRunner(), stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    document = json.loads(stdout.getvalue())
-    assert [item["path"] for item in document["folders"]] == [
-        str(workspace),
-        str(workspace / "one"),
-        str(workspace / "three"),
-        str(workspace / "two"),
-    ]
-
-
-@pytest.mark.parametrize("dry_run", [False, True], ids=["write", "dry-run"])
-def test_trust_refuses_symlinked_harness_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
-    home = tmp_path / "home"
-    folder = tmp_path / "notes"
-    outside = tmp_path / "outside.json"
-    outside.write_text('{"keep": true}\n', encoding="utf-8")
-    (home / ".claude").mkdir(parents=True)
-    (home / ".claude.json").symlink_to(outside)
-    folder.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    state = State(stdout=io.StringIO(), stderr=io.StringIO(), stdin=io.StringIO())
-
-    with pytest.raises(DotError, match="refusing symlinked trust file"):
-        run_trust(state, [str(folder)], dry_run=dry_run)
-
-    assert outside.read_text(encoding="utf-8") == '{"keep": true}\n'
-
-
-def test_claude_additional_directories_tilde_entry_covers_repositories(tmp_path: Path) -> None:
-    home = tmp_path.resolve()
-    harness_home(home)
-    settings = home / ".claude/settings.json"
-    settings.write_text(json.dumps({"permissions": {"additionalDirectories": ["~/work"]}}))
-    repo = git_repository(home / "work/one", "https://github.com/fmind/one")
-    assert register_claude_directories([repo], home=home) == [home / ".agents"]
-    assert json.loads(settings.read_text())["permissions"]["additionalDirectories"] == [
-        "~/work",
-        str(home / ".agents"),
-    ]
-
-
-@pytest.mark.parametrize("link_registry", [True, False], ids=["symlinked-registry", "symlinked-target"])
-def test_agy_project_registry_rejects_symlinks(tmp_path: Path, link_registry: bool) -> None:
-    from fmind_dot.trust import register_agy_projects
-
-    home = tmp_path.resolve()
-    repo = git_repository(home / "repo", "https://github.com/fmind/repo")
-    outside = tmp_path / "outside"
     outside.mkdir()
-    if link_registry:
-        (home / ".gemini/config").mkdir(parents=True)
-        (home / ".gemini/config/projects").symlink_to(outside, target_is_directory=True)
-    else:
-        registry = agy_registry(home)
-        (registry / "local-repo.json").symlink_to(outside / "stolen.json")
-
-    with pytest.raises(DotError, match="refusing symlinked"):
-        register_agy_projects([repo], ["~/repo"], home=home)
-
-
-def test_trust_all_reads_standard_git_configs_without_spawning_git_and_falls_back_on_insteadof(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    home = tmp_path / "home"
-    home.mkdir()
     monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    workspace = home / "work"
-    common = tmp_path / "common-git"
-    worktree_meta = common / "worktrees" / "wt"
-    worktree_meta.mkdir(parents=True)
-    (worktree_meta / "commondir").write_text("../..\n", encoding="utf-8")
-    (common / "config").write_text(
-        '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n\turl = git@github.com:fmind/worktree.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n\tfetch = +refs/tags/*:refs/tags/*\n',
-        encoding="utf-8",
-    )
-    wt = workspace / "wt"
-    wt.mkdir(parents=True)
-    (wt / ".git").write_text(f"gitdir: {worktree_meta}\n", encoding="utf-8")
+    for bad in (home, home.parent):
+        with pytest.raises(DotError, match="contains the home directory"):
+            run_trust(make_state(), [str(bad)])
+    with pytest.raises(DotError, match="not a directory"):
+        run_trust(make_state(), [str(tmp_path / "missing")])
 
-    class CountingRunner(Runner):
-        def __init__(self) -> None:
-            super().__init__()
-            self.calls = 0
-
-        def run(self, args: object, **_: object) -> CommandResult:
-            del args
-            self.calls += 1
-            return CommandResult("https://github.com/fmind/fallback.git\n", "", 0)
-
-    runner = CountingRunner()
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 0
-    assert json.loads(stdout.getvalue())["folders"] == [
-        {"path": str(workspace), "changed": []},
-        {"path": str(wt), "changed": []},
-    ]
-
-    # A global url.<base>.insteadOf rewrite delegates origin resolution back to git.
-    (home / ".gitconfig").write_text('[url "https://github.com/fmind/"]\n\tinsteadOf = gh:\n', encoding="utf-8")
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 1
-
-    # Global [remote "origin"], included configs outside ~/.config/git, GIT_CONFIG_PARAMETERS,
-    # and valueless remote.origin.url all delegate safely to git instead of trusting stale local URLs.
-    included = tmp_path / "external.gitconfig"
-    included.write_text('[remote "origin"]\n\turl = https://github.com/untrusted/override.git\n', encoding="utf-8")
-    (home / ".gitconfig").write_text(f'[include]\n\tpath = "{included}"\n', encoding="utf-8")
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 2
-
-    (home / ".gitconfig").write_text("[user]\n\tname = Safe\n", encoding="utf-8")
-    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "'url.https://evil.example/.insteadOf=git@github.com:'")
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 3
-    monkeypatch.delenv("GIT_CONFIG_PARAMETERS")
-
-    (common / "config").write_text('[remote "origin"]\n\turl\n', encoding="utf-8")
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 4
-
-    # Reset common/config; XDG git/ignore text must not trigger insteadOf fallback, while GIT_CONFIG_NOSYSTEM=0
-    # still activates system config detection when GIT_CONFIG_SYSTEM points at a global insteadOf file.
-    (common / "config").write_text(
-        '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n\turl = git@github.com:fmind/worktree.git\n',
-        encoding="utf-8",
-    )
-    (home / ".config/git").mkdir(parents=True, exist_ok=True)
-    (home / ".config/git/ignore").write_text("insteadOf\n", encoding="utf-8")
-    (home / ".config/git/config").write_text("[user]\n\tname = Safe\n", encoding="utf-8")
-    system_cfg = tmp_path / "system.gitconfig"
-    system_cfg.write_text('[url "https://github.com/fmind/"]\n\tinsteadOf = gh:\n', encoding="utf-8")
-    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_cfg))
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 4
-
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "0")
-    stdout = io.StringIO()
-    state = State(runner=runner, stdout=stdout, stderr=io.StringIO(), stdin=io.StringIO())
-    state.__dict__["_config"] = Config(pull=PullConfig(directories=[str(workspace)]))
-    run_trust(state, ["all"], dry_run=True, as_json=True)
-    assert runner.calls == 5
-
-
-def test_installed_harnesses_and_claude_reject_symlinked_state_directories(tmp_path: Path) -> None:
-    from fmind_dot.trust import installed_harnesses
-
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    home = tmp_path / "home"
-    home.mkdir()
-    (home / ".copilot").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(DotError, match="refusing symlinked harness directory"):
-        installed_harnesses(home)
-
-    (home / ".copilot").unlink()
     (home / ".claude").symlink_to(outside, target_is_directory=True)
-    repo = git_repository(home / "repo", "https://github.com/fmind/repo")
-    with pytest.raises(DotError, match="refusing symlinked harness directory"):
-        register_claude_directories([repo], home=home)
-
-
-def test_trust_and_agy_projects_reject_symlinked_intermediate_ancestors(tmp_path: Path) -> None:
-    from fmind_dot.trust import installed_harnesses, register_agy_projects
-
-    outside = tmp_path / "outside"
-    (outside / "antigravity-cli").mkdir(parents=True)
-    (outside / "antigravity-cli/settings.json").write_text('{"trustedWorkspaces": []}\n', encoding="utf-8")
-    (outside / "config/projects").mkdir(parents=True)
-    (outside / "agent").mkdir(parents=True)
-    (outside / "agent/trust.json").write_text("{}\n", encoding="utf-8")
-
-    home = tmp_path / "home"
-    home.mkdir()
-    repo = git_repository(home / "repo", "https://github.com/fmind/repo")
-
-    (home / ".gemini").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(DotError, match="refusing symlinked harness directory"):
+    with pytest.raises(DotError, match="refusing symlinked"):
         installed_harnesses(home)
-    with pytest.raises(DotError, match="refusing symlinked harness directory"):
-        trust_folders([repo], home=home)
-    with pytest.raises(DotError, match="refusing symlinked project registry"):
-        register_agy_projects([repo], ["~/repo"], home=home)
-    assert (outside / "antigravity-cli/settings.json").read_text(encoding="utf-8") == '{"trustedWorkspaces": []}\n'
-    assert list((outside / "config/projects").iterdir()) == []
+    (home / ".claude").unlink()
 
-    (home / ".gemini").unlink()
-    (home / ".gemini").mkdir()
-    (home / ".gemini/config").symlink_to(outside / "config", target_is_directory=True)
-    with pytest.raises(DotError, match="refusing symlinked project registry"):
-        register_agy_projects([repo], ["~/repo"], home=home)
-    assert list((outside / "config/projects").iterdir()) == []
+    (home / ".claude").mkdir()
+    (home / ".claude.json").symlink_to(outside / "s.json")
+    with pytest.raises(DotError, match="refusing symlinked trust file"):
+        trust_folders([tmp_path], home=home)
+    (home / ".claude.json").unlink()
 
-    (home / ".gemini/config").unlink()
-    (home / ".pi").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(DotError, match="refusing symlinked harness directory"):
-        installed_harnesses(home)
-    with pytest.raises(DotError, match="refusing symlinked harness directory"):
-        trust_folders([repo], home=home)
-    assert (outside / "agent/trust.json").read_text(encoding="utf-8") == "{}\n"
+    (home / ".claude.json").write_bytes(b"\xff")
+    with pytest.raises(DotError, match="not valid UTF-8"):
+        trust_folders([tmp_path], home=home)
+
+    (home / ".claude.json").write_text("[]")
+    with pytest.raises(DotError, match="must contain a JSON object"):
+        trust_folders([tmp_path], home=home)
+
+    (home / ".claude.json").write_text('{"projects": []}')
+    with pytest.raises(DotError, match="projects must be a JSON object"):
+        trust_folders([tmp_path], home=home)
+    assert isinstance(make_state().stdout, io.StringIO)

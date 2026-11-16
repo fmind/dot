@@ -1,365 +1,328 @@
-"""Strict Python-first configuration for the dot CLI."""
+"""Strict Python-first configuration and policy catalogs for the dot CLI."""
 
 from __future__ import annotations
 
+import copy
 import functools
+import math
 import os
+import re
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
-
-class StrictModel(BaseModel):
-    """Reject misspelled keys and implicit scalar coercion at the YAML boundary."""
-
-    model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
-
 
 # `~`, `~/...`, or absolute: a relative workspace would resolve against the caller's directory.
-WorkspacePath = Annotated[str, Field(pattern=r"^(?:~|~/.+|/.*)$")]
-# The keys of archive.parsers.AGENT_ADAPTERS (a test keeps them equal); importing the parsers here would cycle.
-LIVE_AGENTS = ("agy", "claude", "copilot", "opencode", "pi")
+WORKSPACE_PATH_RE = re.compile(r"^(?:~|~/.+|/.*)$")
+GITHUB_OWNER_RE = re.compile(r"^[A-Za-z0-9](?:-?[A-Za-z0-9])*$")
+PATH_PATTERN_RE = re.compile(r"^(?:~/|/)\S[^\r\n]*$")
+SCOPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_:/.-]*$")
+PROJECT_RE = re.compile(r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
+LoginProvider = Literal["colab", "gcp", "github", "workspace"]
+LOGIN_PROVIDERS: tuple[LoginProvider, ...] = ("colab", "gcp", "github", "workspace")
+
+# Google's consent page hangs after Allow when one request holds more than 50 scopes (bisected 2026-10-26).
+WORKSPACE_SCOPE_LIMIT = 50
+_GWS_AUTH = "https://www.googleapis.com/auth/"
 
 
-class CompletionConfig(StrictModel):
-    # Completion installs prune unmanaged *.fish files here, so a relative path must never resolve to the cwd.
-    path: WorkspacePath = "~/.config/fish/completions"
+class ConfigValidationError(ValueError):
+    """Strict config or pricing validation error that never echoes invalid input values."""
+
+    def __init__(self, path: tuple[object, ...], reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        dotted = ".".join(str(part) for part in path) or "<root>"
+        super().__init__(f"{dotted}: {reason}")
 
 
-class PullConfig(StrictModel):
-    directories: list[WorkspacePath] = Field(default_factory=lambda: ["~/fmind"])
+@functools.cache
+def policy() -> dict[str, Any]:
+    """Return the bundled static tool, scope, API, and completion catalogs."""
+    loaded = yaml.safe_load(Path(__file__).with_name("policy.yaml").read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError("invalid bundled policy catalog")
+    return loaded
 
 
-# GitHub account and organization names: alphanumeric runs joined by single hyphens.
-GitHubOwner = Annotated[str, Field(pattern=r"^[A-Za-z0-9](?:-?[A-Za-z0-9])*$", max_length=39)]
-# Absolute or `~/` glob over a whole repository path: `*` stays within one segment, `**` spans several.
-PathPattern = Annotated[str, Field(pattern=r"^(?:~/|/)\S")]
+_policy = policy()
+GITHUB_SCOPES: tuple[str, ...] = tuple(_policy["github"]["scopes"])
+GITHUB_REMOVE_SCOPES: tuple[str, ...] = tuple(_policy["github"]["remove_scopes"])
+WORKSPACE_SCOPES: tuple[str, ...] = ("openid", *(f"{_GWS_AUTH}{s}" for s in _policy["workspace"]["scope_suffixes"]))
+WORKSPACE_APIS: tuple[str, ...] = tuple(f"{n}.googleapis.com" for n in _policy["workspace"]["api_names"])
+GCP_ADC_SCOPES: tuple[str, ...] = ("openid", *(f"{_GWS_AUTH}{s}" for s in _policy["gcp"]["adc_scope_suffixes"]))
 
 
-class TrustConfig(StrictModel):
-    # `dot trust all` trusts a workspace repository only when its origin is a
-    # github.com repository of one of these owners (compared case-insensitively).
-    github_owners: list[GitHubOwner] = Field(default_factory=lambda: ["fmind"])
-    # Trusted repositories that `dot trust` adds to agy's Remote Control project picker;
-    # other repositories are curated per machine in `~/.gemini/config/projects/`.
-    agy_projects: list[PathPattern] = Field(default_factory=lambda: ["~/.local/share/chezmoi"])
+def _expect_mapping(raw: object, allowed: frozenset[str], path: tuple[object, ...]) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise ConfigValidationError(path, "must be a mapping")
+    for key in raw:
+        if not isinstance(key, str):
+            raise ConfigValidationError(path, "keys must be strings")
+        if key not in allowed:
+            raise ConfigValidationError((*path, key), "unknown setting")
+    return raw
 
 
-TokenPrice = Annotated[float, Field(ge=0, allow_inf_nan=False)]
+def _expect_str(
+    raw: object,
+    path: tuple[object, ...],
+    *,
+    non_empty: bool = False,
+    pattern: re.Pattern[str] | None = None,
+    max_length: int | None = None,
+) -> str:
+    if type(raw) is not str:
+        raise ConfigValidationError(path, "must be a string")
+    if non_empty and not raw:
+        raise ConfigValidationError(path, "must not be empty")
+    if max_length is not None and len(raw) > max_length:
+        raise ConfigValidationError(path, f"must be at most {max_length} characters")
+    if pattern is not None and pattern.fullmatch(raw) is None:
+        raise ConfigValidationError(path, "does not match required format")
+    return raw
 
 
-class ModelPrice(StrictModel):
-    input: TokenPrice
-    output: TokenPrice
-    cache_read: TokenPrice | None = None
-    # Model-default cache writes (Claude: 5-minute TTL); Claude prices 1-hour writes separately.
-    cache_write: TokenPrice | None = None
-    cache_write_1h: TokenPrice | None = None
+def _expect_list[T](
+    raw: object, path: tuple[object, ...], parse_item: Callable[[object, tuple[object, ...]], T]
+) -> list[T]:
+    if not isinstance(raw, list):
+        raise ConfigValidationError(path, "must be a list")
+    return [parse_item(item, (*path, index)) for index, item in enumerate(raw)]
 
 
-class PricingConfig(StrictModel):
-    as_of: str = Field(min_length=1)
-    basis: str = Field(min_length=1)
+def _expect_price(raw: object, path: tuple[object, ...]) -> float:
+    if isinstance(raw, bool) or not isinstance(raw, int | float):
+        raise ConfigValidationError(path, "must be a number")
+    try:
+        value = float(raw)
+    except OverflowError as error:
+        raise ConfigValidationError(path, "must be a finite number") from error
+    if not math.isfinite(value) or value < 0:
+        raise ConfigValidationError(path, "must be a non-negative finite number")
+    return value
+
+
+def _parse_provider(raw: object, path: tuple[object, ...]) -> LoginProvider:
+    if raw == "colab":
+        return "colab"
+    if raw == "gcp":
+        return "gcp"
+    if raw == "github":
+        return "github"
+    if raw == "workspace":
+        return "workspace"
+    raise ConfigValidationError(path, f"must be one of {', '.join(LOGIN_PROVIDERS)}")
+
+
+@dataclass
+class PullConfig:
+    directories: list[str] = field(default_factory=lambda: ["~/fmind"])
+
+    @classmethod
+    def from_raw(cls, raw: object, path: tuple[object, ...]) -> PullConfig:
+        data = _expect_mapping(raw, frozenset({"directories"}), path)
+        if "directories" not in data:
+            return cls()
+        dirs = _expect_list(
+            data["directories"],
+            (*path, "directories"),
+            lambda v, p: _expect_str(v, p, pattern=WORKSPACE_PATH_RE),
+        )
+        return cls(directories=dirs)
+
+
+@dataclass
+class TrustConfig:
+    github_owners: list[str] = field(default_factory=lambda: ["fmind"])
+    agy_projects: list[str] = field(default_factory=lambda: ["~/.local/share/chezmoi"])
+
+    @classmethod
+    def from_raw(cls, raw: object, path: tuple[object, ...]) -> TrustConfig:
+        data = _expect_mapping(raw, frozenset({"github_owners", "agy_projects"}), path)
+        kwargs: dict[str, Any] = {}
+        if "github_owners" in data:
+            kwargs["github_owners"] = _expect_list(
+                data["github_owners"],
+                (*path, "github_owners"),
+                lambda v, p: _expect_str(v, p, pattern=GITHUB_OWNER_RE, max_length=39),
+            )
+        if "agy_projects" in data:
+            kwargs["agy_projects"] = _expect_list(
+                data["agy_projects"],
+                (*path, "agy_projects"),
+                lambda v, p: _expect_str(v, p, pattern=PATH_PATTERN_RE),
+            )
+        return cls(**kwargs)
+
+
+@dataclass
+class ModelPrice:
+    input: float
+    output: float
+    cache_read: float | None = None
+    cache_write: float | None = None
+    cache_write_1h: float | None = None
+
+    @classmethod
+    def from_raw(cls, raw: object, path: tuple[object, ...]) -> ModelPrice:
+        allowed = frozenset({"input", "output", "cache_read", "cache_write", "cache_write_1h"})
+        data = _expect_mapping(raw, allowed, path)
+        for req in ("input", "output"):
+            if req not in data:
+                raise ConfigValidationError((*path, req), "required setting missing")
+        kwargs: dict[str, float | None] = {}
+        for name in ("input", "output"):
+            kwargs[name] = _expect_price(data[name], (*path, name))
+        for opt in ("cache_read", "cache_write", "cache_write_1h"):
+            if opt in data and data[opt] is not None:
+                kwargs[opt] = _expect_price(data[opt], (*path, opt))
+        return cls(
+            input=float(kwargs["input"] or 0.0),
+            output=float(kwargs["output"] or 0.0),
+            cache_read=kwargs.get("cache_read"),
+            cache_write=kwargs.get("cache_write"),
+            cache_write_1h=kwargs.get("cache_write_1h"),
+        )
+
+
+@dataclass
+class PricingConfig:
+    as_of: str
+    basis: str
     sources: list[str]
     models: dict[str, ModelPrice]
+
+    @classmethod
+    def from_raw(cls, raw: object, path: tuple[object, ...] = ()) -> PricingConfig:
+        data = _expect_mapping(raw, frozenset({"as_of", "basis", "sources", "models"}), path)
+        for req in ("as_of", "basis", "sources", "models"):
+            if req not in data:
+                raise ConfigValidationError((*path, req), "required setting missing")
+        as_of = _expect_str(data["as_of"], (*path, "as_of"), non_empty=True)
+        basis = _expect_str(data["basis"], (*path, "basis"), non_empty=True)
+        sources = _expect_list(data["sources"], (*path, "sources"), lambda v, p: _expect_str(v, p))
+        raw_models = data["models"]
+        if not isinstance(raw_models, dict):
+            raise ConfigValidationError((*path, "models"), "must be a mapping")
+        models: dict[str, ModelPrice] = {}
+        for key, value in raw_models.items():
+            if type(key) is not str or not key:
+                raise ConfigValidationError((*path, "models"), "model names must be non-empty strings")
+            models[key] = ModelPrice.from_raw(value, (*path, "models", key))
+        return cls(as_of=as_of, basis=basis, sources=sources, models=models)
 
 
 @functools.cache
 def _parsed_default_pricing() -> PricingConfig:
-    return PricingConfig.model_validate(
-        yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text(encoding="utf-8"))
-    )
+    loaded = yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text(encoding="utf-8"))
+    return PricingConfig.from_raw(loaded)
 
 
 def default_pricing() -> PricingConfig:
-    return _parsed_default_pricing().model_copy(deep=True)
+    """Return the bundled API token price table."""
+    return copy.deepcopy(_parsed_default_pricing())
 
 
-class AgentConfig(StrictModel):
-    sources: dict[str, WorkspacePath] = Field(
-        default_factory=lambda: {
-            "agy": "~/.gemini/antigravity-cli/brain",
-            "claude": "~/.claude/projects",
-            "copilot": "~/.copilot/session-store.db",
-            "opencode": "~/.local/share/opencode/opencode.db",
-            "pi": "~/.pi/agent/sessions",
-        }
-    )
-    pricing: PricingConfig = Field(default_factory=default_pricing)
+@dataclass
+class WorkspaceConfig:
+    project: str | None = None
+    extra_scopes: list[str] = field(default_factory=list)
 
-    @field_validator("sources")
+    def __post_init__(self) -> None:
+        if len(self.scopes) > WORKSPACE_SCOPE_LIMIT:
+            raise ConfigValidationError(
+                ("auth", "workspace", "extra_scopes"),
+                f"workspace scopes cannot exceed {WORKSPACE_SCOPE_LIMIT} entries ({len(self.scopes)})",
+            )
+
     @classmethod
-    def _live_agents_only(cls, sources: dict[str, str]) -> dict[str, str]:
-        # A retired harness (codex, grok) or a typo would otherwise be ignored silently.
-        if unknown := sorted(set(sources) - set(LIVE_AGENTS)):
-            msg = f"unknown agent {', '.join(unknown)}; expected one of {', '.join(LIVE_AGENTS)}"
-            raise ValueError(msg)
-        return sources
+    def from_raw(cls, raw: object, path: tuple[object, ...]) -> WorkspaceConfig:
+        data = _expect_mapping(raw, frozenset({"project", "extra_scopes"}), path)
+        project: str | None = None
+        if "project" in data and data["project"] is not None:
+            project = _expect_str(data["project"], (*path, "project"), pattern=PROJECT_RE)
+        extra_scopes: list[str] = []
+        if "extra_scopes" in data:
+            extra_scopes = _expect_list(
+                data["extra_scopes"],
+                (*path, "extra_scopes"),
+                lambda v, p: _expect_str(v, p, non_empty=True, pattern=SCOPE_RE),
+            )
+        return cls(project=project, extra_scopes=extra_scopes)
+
+    @property
+    def scopes(self) -> list[str]:
+        return list(dict.fromkeys([*WORKSPACE_SCOPES, *self.extra_scopes]))
 
 
-class SecretConfig(StrictModel):
-    path: WorkspacePath
+@dataclass
+class AuthConfig:
+    login: list[LoginProvider] = field(default_factory=lambda: ["github", "gcp", "workspace"])
+    workspace: WorkspaceConfig = field(default_factory=WorkspaceConfig)
+
+    @classmethod
+    def from_raw(cls, raw: object, path: tuple[object, ...]) -> AuthConfig:
+        data = _expect_mapping(raw, frozenset({"login", "workspace"}), path)
+        kwargs: dict[str, Any] = {}
+        if "login" in data:
+            providers = _expect_list(data["login"], (*path, "login"), _parse_provider)
+            if not providers:
+                raise ConfigValidationError((*path, "login"), "must contain at least one provider")
+            kwargs["login"] = providers
+        if "workspace" in data:
+            kwargs["workspace"] = WorkspaceConfig.from_raw(data["workspace"], (*path, "workspace"))
+        return cls(**kwargs)
 
 
-class DoctorConfig(StrictModel):
-    tools: list[str] = Field(
-        default_factory=lambda: [
-            "age",
-            "agy",
-            "betterleaks",
-            "bf",
-            "chezmoi",
-            "claude",
-            "copilot",
-            "dprint",
-            "file",
-            "gcloud",
-            "gh",
-            "git",
-            "git-cliff",
-            "gws",
-            "lefthook",
-            "mise",
-            "nvim",
-            "opencode",
-            "pgcli",
-            "pi",
-            "python",
-            "ruff",
-            "sqlite3",
-            "tree-sitter",
-            "trivy",
-            "ty",
-            "uv",
-        ]
-    )
-    # Each secret must exist with owner-only permissions (0600 or stricter).
-    secrets: list[SecretConfig] = Field(
-        default_factory=lambda: [
-            SecretConfig(path="~/.config/chezmoi/key.txt"),
-            SecretConfig(path="~/.ssh/id_ed25519_signing"),
-        ]
-    )
+@dataclass
+class PrivacyConfig:
+    allowed_tokens: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_raw(cls, raw: object, path: tuple[object, ...]) -> PrivacyConfig:
+        data = _expect_mapping(raw, frozenset({"allowed_tokens"}), path)
+        if "allowed_tokens" not in data:
+            return cls()
+        tokens = _expect_list(data["allowed_tokens"], (*path, "allowed_tokens"), lambda v, p: _expect_str(v, p))
+        return cls(allowed_tokens=tokens)
 
 
-# Policy values are data; native command arguments and safety boundaries stay in code.
-Scope = Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_:/.-]*$")]
-Project = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
-CacheProvider = Literal["docker", "hf", "uv"]
-LoginProvider = Literal["colab", "gcp", "github", "workspace"]
-PruneProvider = Literal["docker", "dprint", "hf", "mise", "npm", "trivy", "uv"]
+@dataclass
+class Config:
+    schema_version: int = 3
+    auth: AuthConfig = field(default_factory=AuthConfig)
+    pull: PullConfig = field(default_factory=PullConfig)
+    trust: TrustConfig = field(default_factory=TrustConfig)
+    privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
 
-
-class GitHubConfig(StrictModel):
-    # Keys and packages stay read-only by default; writes (`--grant write:public_key`) are removed
-    # on `dot setup github` so a leaked token cannot plant SSH keys or overwrite published images.
-    # `gist` stays because `gh` always requests its minimum scopes (repo, read:org, gist).
-    scopes: list[Scope] = Field(
-        default_factory=lambda: [
-            "gist",
-            "notifications",
-            "project",
-            "read:audit_log",
-            "read:gpg_key",
-            "read:org",
-            "read:packages",
-            "read:public_key",
-            "read:ssh_signing_key",
-            "repo",
-            "user",
-            "workflow",
-        ]
-    )
-    remove_scopes: list[Scope] = Field(
-        default_factory=lambda: [
-            "admin:gpg_key",
-            "admin:org",
-            "admin:org_hook",
-            "admin:public_key",
-            "admin:ssh_signing_key",
-            "codespace",
-            "delete:packages",
-            "delete_repo",
-            "write:gpg_key",
-            "write:org",
-            "write:packages",
-            "write:public_key",
-            "write:ssh_signing_key",
-        ]
-    )
-
-    @model_validator(mode="after")
-    def distinct_scopes(self) -> GitHubConfig:
-        if set(self.scopes) & set(self.remove_scopes):
-            raise ValueError("GitHub scopes and remove_scopes must not overlap")
-        return self
-
-
-# Google's consent page hangs after Allow when one request holds more scopes (bisected 2026-10-26).
-WORKSPACE_SCOPE_LIMIT = 50
-
-
-class WorkspaceConfig(StrictModel):
-    project: Project | None = None
-    # gws replaces its whole grant on login, so this list owns every consumer's scope (daily user
-    # writes plus read-only sensor/CLI scopes). Cap defaults at 48 to leave two `--grant` slots
-    # below Google's 50-scope consent-page hang (WORKSPACE_SCOPE_LIMIT).
-    scopes: list[Scope] = Field(
-        default_factory=lambda: [
-            "openid",
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/admin.directory.customer.readonly",
-            "https://www.googleapis.com/auth/admin.directory.device.chromeos.readonly",
-            "https://www.googleapis.com/auth/admin.directory.device.mobile.readonly",
-            "https://www.googleapis.com/auth/admin.directory.domain.readonly",
-            "https://www.googleapis.com/auth/admin.directory.group.readonly",
-            "https://www.googleapis.com/auth/admin.directory.orgunit.readonly",
-            "https://www.googleapis.com/auth/admin.directory.rolemanagement.readonly",
-            "https://www.googleapis.com/auth/admin.directory.user.readonly",
-            "https://www.googleapis.com/auth/admin.reports.audit.readonly",
-            "https://www.googleapis.com/auth/admin.reports.usage.readonly",
-            "https://www.googleapis.com/auth/analytics.edit",
-            "https://www.googleapis.com/auth/analytics.manage.users",
-            "https://www.googleapis.com/auth/analytics.manage.users.readonly",
-            "https://www.googleapis.com/auth/analytics.readonly",
-            "https://www.googleapis.com/auth/business.manage",
-            "https://www.googleapis.com/auth/calendar",
-            "https://www.googleapis.com/auth/calendar.readonly",
-            "https://www.googleapis.com/auth/chat.messages",
-            "https://www.googleapis.com/auth/chat.messages.readonly",
-            "https://www.googleapis.com/auth/chat.spaces",
-            "https://www.googleapis.com/auth/chat.spaces.readonly",
-            "https://www.googleapis.com/auth/chrome.management.policy.readonly",
-            "https://www.googleapis.com/auth/chrome.management.reports.readonly",
-            "https://www.googleapis.com/auth/contacts",
-            "https://www.googleapis.com/auth/contacts.other.readonly",
-            "https://www.googleapis.com/auth/contacts.readonly",
-            "https://www.googleapis.com/auth/documents",
-            "https://www.googleapis.com/auth/documents.readonly",
-            "https://www.googleapis.com/auth/drive",
-            "https://www.googleapis.com/auth/drive.readonly",
-            "https://www.googleapis.com/auth/forms.body",
-            "https://www.googleapis.com/auth/forms.responses.readonly",
-            "https://www.googleapis.com/auth/gmail.modify",
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/gmail.settings.basic",
-            "https://www.googleapis.com/auth/meetings.space.readonly",
-            "https://www.googleapis.com/auth/postmaster.traffic.readonly",
-            "https://www.googleapis.com/auth/presentations",
-            "https://www.googleapis.com/auth/script.projects",
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/tasks",
-            "https://www.googleapis.com/auth/tasks.readonly",
-            "https://www.googleapis.com/auth/webmasters",
-            "https://www.googleapis.com/auth/webmasters.readonly",
-            "https://www.googleapis.com/auth/youtube.readonly",
-            "https://www.googleapis.com/auth/yt-analytics.readonly",
-        ],
-        min_length=1,
-        max_length=WORKSPACE_SCOPE_LIMIT,
-    )
-    apis: list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*\.googleapis\.com$")]] = Field(
-        default_factory=lambda: [
-            "admin.googleapis.com",
-            "analyticsadmin.googleapis.com",
-            "analyticsdata.googleapis.com",
-            "businessprofileperformance.googleapis.com",
-            "calendar-json.googleapis.com",
-            "chat.googleapis.com",
-            "chromemanagement.googleapis.com",
-            "chromepolicy.googleapis.com",
-            "cloudsupport.googleapis.com",
-            "docs.googleapis.com",
-            "drive.googleapis.com",
-            "driveactivity.googleapis.com",
-            # The brain's Firebase reader calls these through ADC, which bills this quota project.
-            "firebase.googleapis.com",
-            "firebaseappcheck.googleapis.com",
-            "firebasehosting.googleapis.com",
-            "firebaserules.googleapis.com",
-            "forms.googleapis.com",
-            "gmail.googleapis.com",
-            "gmailpostmastertools.googleapis.com",
-            "meet.googleapis.com",
-            "mybusinessaccountmanagement.googleapis.com",
-            "mybusinessbusinessinformation.googleapis.com",
-            "pagespeedonline.googleapis.com",
-            "people.googleapis.com",
-            "script.googleapis.com",
-            "searchconsole.googleapis.com",
-            "sheets.googleapis.com",
-            "slides.googleapis.com",
-            "tasks.googleapis.com",
-            "youtube.googleapis.com",
-            "youtubeanalytics.googleapis.com",
-        ],
-        min_length=1,
-    )
-
-
-class GcpConfig(StrictModel):
-    # ADC login replaces its whole grant: keep gcloud defaults, Colab (`dot login colab`), and
-    # read-only BigQuery/Logging/Cloud Platform sensor scopes together.
-    adc_scopes: list[Scope] = Field(
-        default_factory=lambda: [
-            "openid",
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/cloud-platform",
-            "https://www.googleapis.com/auth/sqlservice.login",
-            "https://www.googleapis.com/auth/colaboratory",
-            "https://www.googleapis.com/auth/bigquery.readonly",
-            "https://www.googleapis.com/auth/logging.read",
-            "https://www.googleapis.com/auth/cloud-platform.read-only",
-        ],
-        min_length=1,
-    )
-
-
-class AuthConfig(StrictModel):
-    github: GitHubConfig = Field(default_factory=GitHubConfig)
-    workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
-    gcp: GcpConfig = Field(default_factory=GcpConfig)
-    # Providers that a bare `dot login` reconciles on this machine; credential lifetimes differ per
-    # machine and account policy, so each machine lists only the providers it uses.
-    login: Annotated[list[LoginProvider], Field(min_length=1)] = ["github", "gcp", "workspace"]
-
-
-class PrivacyConfig(StrictModel):
-    # Already-public names the repository privacy check accepts on this machine; the list stays
-    # in this untracked file so the repository never names the host or employer it exempts.
-    allowed_tokens: list[str] = Field(default_factory=list)
-
-
-class CacheConfig(StrictModel):
-    providers: Annotated[list[CacheProvider], Field(min_length=1)] = ["docker", "hf", "uv"]
-
-
-class PruneConfig(StrictModel):
-    providers: Annotated[list[PruneProvider], Field(min_length=1)] = ["dprint", "hf", "mise", "npm", "trivy", "uv"]
-
-
-class Config(StrictModel):
-    schema_version: Literal[3] = 3
-    auth: AuthConfig = Field(default_factory=AuthConfig)
-    cache: CacheConfig = Field(default_factory=CacheConfig)
-    prune: PruneConfig = Field(default_factory=PruneConfig)
-    completions: CompletionConfig = Field(default_factory=CompletionConfig)
-    pull: PullConfig = Field(default_factory=PullConfig)
-    trust: TrustConfig = Field(default_factory=TrustConfig)
-    agent: AgentConfig = Field(default_factory=AgentConfig)
-    doctor: DoctorConfig = Field(default_factory=DoctorConfig)
-    privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
+    @classmethod
+    def from_raw(cls, raw: object) -> Config:
+        data = _expect_mapping(raw, frozenset({"schema_version", "auth", "pull", "trust", "privacy"}), ())
+        kwargs: dict[str, Any] = {}
+        if "schema_version" in data:
+            ver = data["schema_version"]
+            if type(ver) is not int or ver != 3:
+                raise ConfigValidationError(("schema_version",), "must be 3")
+            kwargs["schema_version"] = 3
+        if "auth" in data:
+            kwargs["auth"] = AuthConfig.from_raw(data["auth"], ("auth",))
+        if "pull" in data:
+            kwargs["pull"] = PullConfig.from_raw(data["pull"], ("pull",))
+        if "trust" in data:
+            kwargs["trust"] = TrustConfig.from_raw(data["trust"], ("trust",))
+        if "privacy" in data:
+            kwargs["privacy"] = PrivacyConfig.from_raw(data["privacy"], ("privacy",))
+        return cls(**kwargs)
 
 
 def expand_path(value: str | Path, *, home: Path | None = None) -> Path:
     text = os.fspath(value)
     if text == "~":
         return home or Path.home()
-    if text.startswith("~/"):
-        return (home or Path.home()) / text[2:]
-    return Path(text)
+    return (home or Path.home()) / text[2:] if text.startswith("~/") else Path(text)
 
 
 def env_path(name: str, default: Path, *, expand_vars: bool = True) -> Path:
@@ -371,10 +334,8 @@ def env_path(name: str, default: Path, *, expand_vars: bool = True) -> Path:
 
 def xdg_dir(name: str, default: str | Path) -> Path:
     """Resolve an XDG base-directory override; empty or relative values fall back to `default`."""
-    if raw := os.environ.get(name):
-        candidate = expand_path(os.path.expandvars(raw))
-        if candidate.is_absolute():
-            return candidate
+    if (raw := os.environ.get(name)) and (candidate := expand_path(os.path.expandvars(raw))).is_absolute():
+        return candidate
     return default if isinstance(default, Path) else Path.home() / default
 
 
@@ -382,16 +343,6 @@ def config_file_path(path: str | Path | None) -> tuple[Path, bool]:
     if path is None or os.fspath(path) == "":
         return Path.home() / ".config/dot.yaml", True
     return expand_path(path), False
-
-
-def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
-    merged = dict(base)
-    for key, value in overlay.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged[key], value)
-        else:
-            merged[key] = value
-    return merged
 
 
 def yaml_error_location(error: BaseException) -> str:
@@ -402,8 +353,7 @@ def yaml_error_location(error: BaseException) -> str:
 def load_config(path: str | Path | None = None) -> Config:
     resolved, implicit = config_file_path(path)
     try:
-        with resolved.open(encoding="utf-8") as stream:
-            documents = list(yaml.safe_load_all(stream))
+        documents = list(yaml.safe_load_all(resolved.read_text(encoding="utf-8")))
     except FileNotFoundError as error:
         if implicit:
             return Config()
@@ -412,24 +362,12 @@ def load_config(path: str | Path | None = None) -> Config:
         raise ValueError(f"failed to read config file at {resolved}: {error}") from error
     except (yaml.YAMLError, RecursionError) as error:
         where = yaml_error_location(error)
-        location = f" at {where}" if where else ""
-        # Parser messages and snippets can include credentials from malformed input.
-        raise ValueError(f"failed to parse config file at {resolved}: invalid YAML{location}") from error
+        raise ValueError(
+            f"failed to parse config file at {resolved}: invalid YAML{f' at {where}' if where else ''}"
+        ) from error
     if len(documents) > 1:
         raise ValueError(f"config file at {resolved} must contain exactly one YAML document")
-    overlay = documents[0] if documents else {}
-    if overlay is None:
-        overlay = {}
+    overlay = documents[0] if documents and documents[0] is not None else {}
     if not isinstance(overlay, dict):
         raise ValueError(f"config file at {resolved} must contain a YAML mapping")
-    if not overlay:
-        return Config()
-    defaults = Config().model_dump(mode="python")
-    try:
-        return Config.model_validate(_deep_merge(defaults, overlay))
-    except RecursionError as error:
-        raise ValueError(f"failed to parse config file at {resolved}: YAML nesting is too deep") from error
-
-
-def dump_config(config: Config) -> str:
-    return yaml.safe_dump(config.model_dump(mode="python"), allow_unicode=True, sort_keys=False)
+    return Config.from_raw(overlay) if overlay else Config()

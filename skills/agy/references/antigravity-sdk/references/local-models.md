@@ -13,4 +13,4 @@ config = LocalOpenAIAgentConfig(
 ).lightweight()
 ```
 
-Verified in 0.1.20 against a loopback fake (2026-10-03): the harness posts `{base_url}/chat/completions` without an `Authorization` header even when `OPENAI_API_KEY` is set (`GemmaEndpoint` / `ModelTarget` carry no auth fields). Front authenticated remote endpoints with a loopback proxy (e.g., LiteLLM) injecting credentials via `dot secret run` or secret manager, and test tool calls + `response_schema` in a scratch workspace first.
+Verified in 0.1.20 against a loopback fake (2026-10-03): the harness posts `{base_url}/chat/completions` without an `Authorization` header even when `OPENAI_API_KEY` is set (`GemmaEndpoint` / `ModelTarget` carry no auth fields). Front authenticated remote endpoints with a loopback proxy (e.g., LiteLLM) injecting credentials via `with-secret` or secret manager, and test tool calls + `response_schema` in a scratch workspace first.

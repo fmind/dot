@@ -18,15 +18,9 @@ from urllib.parse import unquote, urlsplit
 import yaml
 from markdown_it import MarkdownIt
 
+import fmind_dot.context_budget as cb
 from dot_tasks import ROOT
 from fmind_dot.config import yaml_error_location
-from fmind_dot.context_budget import (
-    CONTEXT_TOKEN_LIMIT,
-    DUPLICATE_GUIDANCE,
-    context_report,
-    estimated_tokens,
-    parse_frontmatter,
-)
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 
@@ -34,9 +28,10 @@ MAX_DESCRIPTION = 180
 MAX_MARKDOWN_TOKENS = 1_500
 MAX_NAME = 64
 MAX_SKILL_LINES = 500
-SKILL_KINDS = {"connector", "task", "collection"}
+SKILL_KINDS = ("connector", "task", "collection")
 GUIDE_START = "<!-- guides:start -->"
 GUIDE_END = "<!-- guides:end -->"
+_REQ_META = ("author", "source", "created", "updated")
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FRONTMATTER_FIELDS = {
@@ -83,15 +78,9 @@ SSH_KEY_COMMENT_PATTERN = re.compile(
     r"(?:ssh-(?:ed25519|rsa|dss)|ecdsa-sha2-nistp\d+|sk-(?:ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com)"
     r"[ \t]+AAAA[A-Za-z0-9+/]*=*[ \t]+([^\s\"'\\]+)"
 )
-PRIVACY_SKIP_PATHS = {
-    "dot/uv.lock",
-    "dot_config/mise/mise.lock",
-    "dot_config/nvim/lazy-lock.json",
-    "mise.lock",
-}
+PRIVACY_SKIP_PATHS = {"dot/uv.lock", "dot_config/mise/mise.lock", "dot_config/nvim/lazy-lock.json", "mise.lock"}
 PRIVACY_SKIP_PREFIXES = ("dot_config/mise/locks/",)
 SAFE_HOST_TOKENS = {
-    # A pull directory such as ~/.local/share/chezmoi contributes its public tool name.
     "chezmoi",
     "courses",
     "debian",
@@ -106,6 +95,14 @@ SAFE_HOST_TOKENS = {
     "mederic",
     "ubuntu",
 }
+_EMAIL_HINT = "use fmind.dev, fmind.ai, or RFC 2606 domains (@example.com, @example.test)"
+_SSH_HINT = "may name a machine or account; use an approved email such as git-signing@fmind.dev"
+_HOST_HINT = (
+    "from untracked host config; remove it, or list an already-public name"
+    " under privacy.allowed_tokens in ~/.config/dot.yaml"
+)
+_BUDGET_HINT = "reduce instructions or discovery without losing task triggers"
+_MISSING_GUIDE = f"add {GUIDE_START} and {GUIDE_END} markers for the guide index"
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -115,321 +112,229 @@ def _relative(root: Path, path: Path) -> str:
         return str(path)
 
 
+def _is_unsafe_char(ch: str) -> bool:
+    n = ord(ch)
+    lo = (n < 32 and ch not in "\n\r\t") or n == 127
+    return lo or unicodedata.category(ch) == "Cf" or 0xFE00 <= n <= 0xFE0F or 0xE0100 <= n <= 0xE01EF
+
+
+def _read_utf8(path: Path, rel: str, verb: str = "cannot read") -> tuple[str | None, list[str]]:
+    try:
+        text = path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return None, [f"{rel}: {'is not UTF-8' if isinstance(error, UnicodeDecodeError) else verb}: {error}"]
+    if not (unsafe := [c for c in set(text) if _is_unsafe_char(c)]):
+        return text, []
+    ch = min(unsafe, key=text.index)
+    kind = "unsafe control character" if ch.isascii() else "bidirectional or invisible Unicode"
+    return text, [f"{rel}: {kind} U+{ord(ch):04X}"]
+
+
+def _token_errors(rel: str, text: str) -> list[str]:
+    if (tokens := cb.estimated_tokens(len(text))) >= MAX_MARKDOWN_TOKENS:
+        return [f"{rel}: has {tokens} estimated tokens; must be below {MAX_MARKDOWN_TOKENS}"]
+    return []
+
+
 def _discover_skills(root: Path) -> tuple[list[tuple[str, Path]], list[str]]:
-    skills: list[tuple[str, Path]] = []
-    by_name: dict[str, Path] = {}
-    findings: list[str] = []
-    for relative in (Path("skills"), Path(".agents/skills")):
-        catalog = root / relative
-        if not catalog.is_dir():
-            continue
-        for directory in sorted(catalog.iterdir()):
-            if directory.is_symlink():
-                findings.append(f"{_relative(root, directory)}: symbolic link is not allowed")
-                continue
-            if not directory.is_dir():
-                continue
-            skill = directory / "SKILL.md"
-            if not skill.exists():
-                # Git cannot track an empty tree; any file makes this an unregistered package.
-                if any(
-                    path.is_symlink() or (path.is_file() and path.suffix not in {".pyc", ".pyo"})
-                    for path in directory.rglob("*")
-                ):
-                    findings.append(f"{_relative(root, directory)}: skill root has files but no SKILL.md")
-                continue
-            if skill.is_symlink():
-                findings.append(f"{_relative(root, skill)}: symbolic link is not allowed")
-                continue
-            if prior := by_name.get(directory.name):
-                findings.append(
-                    f"duplicate skill directory {directory.name!r} in "
-                    f"{_relative(root, prior)} and {_relative(root, skill)}; {DUPLICATE_GUIDANCE}"
-                )
-            else:
-                by_name[directory.name] = skill
-            skills.append((directory.name, skill))
+    skills, by_name, findings = [], {}, []
+    for catalog in (p for rel in ("skills", ".agents/skills") if (p := root / rel).is_dir()):
+        for d in sorted(catalog.iterdir()):
+            if d.is_symlink() or (d.is_dir() and (skill := d / "SKILL.md").is_symlink()):
+                findings.append(f"{_relative(root, d if d.is_symlink() else skill)}: symbolic link is not allowed")
+            elif d.is_dir() and not skill.exists():
+                if any(p.is_symlink() or (p.is_file() and p.suffix not in {".pyc", ".pyo"}) for p in d.rglob("*")):
+                    findings.append(f"{_relative(root, d)}: skill root has files but no SKILL.md")
+            elif d.is_dir():
+                if prior := by_name.get(d.name):
+                    a, b = _relative(root, prior), _relative(root, skill)
+                    findings.append(f"duplicate skill directory {d.name!r} in {a} and {b}; {cb.DUPLICATE_GUIDANCE}")
+                else:
+                    by_name[d.name] = skill
+                skills.append((d.name, skill))
     return skills, findings
 
 
 def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, list[str]]:
-    relative = _relative(root, path)
-    try:
-        text = path.read_bytes().decode()
-    except UnicodeDecodeError as error:
-        return None, "", [f"{relative}: is not UTF-8: {error}"]
-    except OSError as error:
-        return None, "", [f"{relative}: cannot read: {error}"]
-    if unsafe := _unsafe_text_finding(relative, text):
-        return None, text, [unsafe]
+    rel = _relative(root, path)
+    text, errors = _read_utf8(path, rel)
+    if text is None or errors:
+        return None, text or "", errors
     if len(text.splitlines()) > MAX_SKILL_LINES:
-        return None, text, [f"{relative}: exceeds the {MAX_SKILL_LINES}-line limit"]
-    if (tokens := estimated_tokens(len(text))) >= MAX_MARKDOWN_TOKENS:
-        return None, text, [f"{relative}: has {tokens} estimated tokens; must be below {MAX_MARKDOWN_TOKENS}"]
+        return None, text, [f"{rel}: exceeds the {MAX_SKILL_LINES}-line limit"]
+    if tok_err := _token_errors(rel, text):
+        return None, text, tok_err
     try:
-        metadata, body = parse_frontmatter(text, relative)
+        return *cb.parse_frontmatter(text, rel), []
     except DotError as error:
         return None, text, [str(error)]
-    return metadata, body, []
-
-
-def _unsafe_character(character: str) -> bool:
-    code = ord(character)
-    # Variation selectors are combining marks (Mn), not format characters (Cf), but
-    # runs of them can smuggle hidden instructions just as Unicode tag characters can.
-    return (
-        (code < 32 and character not in "\n\r\t")
-        or code == 127
-        or unicodedata.category(character) == "Cf"
-        or 0xFE00 <= code <= 0xFE0F
-        or 0xE0100 <= code <= 0xE01EF
-    )
-
-
-def _unsafe_text_finding(relative: str, text: str) -> str | None:
-    # Inspect each distinct character once, then report the earliest occurrence.
-    unsafe = [character for character in set(text) if _unsafe_character(character)]
-    if not unsafe:
-        return None
-    character = min(unsafe, key=text.index)
-    if character.isascii():
-        return f"{relative}: unsafe control character U+{ord(character):04X}"
-    return f"{relative}: bidirectional or invisible Unicode U+{ord(character):04X}"
-
-
-def _directly_disclosed(content: str, relative: str) -> bool:
-    boundary = r"A-Za-z0-9_.+\-/"
-    return re.search(rf"(?<![{boundary}])(?:\./)?{re.escape(relative)}(?![{boundary}])", content) is not None
 
 
 def _reachable_resources(skill: Path, texts: dict[Path, str], resources: set[Path]) -> set[Path]:
     """Follow document-relative disclosures; disconnected reference cycles stay orphaned."""
-    reached = {skill}
-    pending = [skill]
+    reached, pending = {skill}, [skill]
     while pending:
-        document = pending.pop()
-        linked = {
-            (document.parent / unquote(urlsplit(target).path)).resolve()
-            for target in _document_targets(texts[document])
-            if not urlsplit(target).scheme and not urlsplit(target).netloc and urlsplit(target).path
-        }
-        for resource in resources - reached:
-            relative = Path(os.path.relpath(resource, document.parent)).as_posix()
-            if resource.resolve() in linked or _directly_disclosed(texts[document], relative):
-                reached.add(resource)
-                # Output templates are artifacts, not routing documents.
-                if (
-                    resource in texts
-                    and resource.suffix == ".md"
-                    and "templates" not in resource.relative_to(skill.parent).parts[:-1]
-                ):
-                    pending.append(resource)
+        doc = pending.pop()
+        urls = (urlsplit(t) for t in _document_targets(texts[doc]))
+        linked = {(doc.parent / unquote(u.path)).resolve() for u in urls if not u.scheme and not u.netloc and u.path}
+        for res in resources - reached:
+            rel_esc = re.escape(Path(os.path.relpath(res, doc.parent)).as_posix())
+            pat = rf"(?<![A-Za-z0-9_.+\-/])(?:\./)?{rel_esc}(?![A-Za-z0-9_.+\-/])"
+            if res.resolve() in linked or re.search(pat, texts[doc]):
+                reached.add(res)
+                if res in texts and res.suffix == ".md" and "templates" not in res.relative_to(skill.parent).parts[:-1]:
+                    pending.append(res)
     return reached
 
 
 def _guides(directory: Path) -> list[Path]:
     """Guide metadata is authoritative; no parallel metadata.guides inventory."""
-    references = directory / "references"
-    if references.is_symlink() or not references.is_dir():
+    refs = directory / "references"
+    if refs.is_symlink() or not refs.is_dir():
         return []
     guides: list[Path] = []
-    for path in sorted(references.rglob("*.md")):
-        if path.is_symlink() or not path.is_file():
+    for path in sorted(refs.rglob("*.md")):
+        if path.is_symlink() or not path.is_file() or "templates" in path.relative_to(directory).parts[:-1]:
             continue
-        if "templates" in path.relative_to(directory).parts[:-1]:
-            continue
-        data = path.read_bytes()
-        # Preserved upstream skill documents have a license/provenance header;
-        # they remain references rather than first-party routing metadata.
-        header = data.split(b"\n---", 1)[0]
-        if path.name == "GUIDE.md" or (
-            data.startswith(b"---\n") and b"\nname:" in header and b"\nlicense:" not in header
-        ):
+        hdr = (data := path.read_bytes()).split(b"\n---", 1)[0]
+        if path.name == "GUIDE.md" or (data.startswith(b"---\n") and b"\nname:" in hdr and b"\nlicense:" not in hdr):
             guides.append(path)
     return guides
 
 
-def _guide_index_result(directory: Path, root: Path) -> tuple[str, list[str]]:
+def _bad_markers(text: str) -> bool:
+    has_start, has_end = GUIDE_START in text, GUIDE_END in text
+    return has_start != has_end or (has_start and text.index(GUIDE_START) > text.index(GUIDE_END))
+
+
+def _guide_index(directory: Path, root: Path, errors: list[str] | None = None) -> str:
     lines = [GUIDE_START, ""]
-    errors: list[str] = []
     for path in _guides(directory):
-        metadata, _, guide_errors = _frontmatter(path, root)
-        errors.extend(guide_errors)
-        if metadata is not None:
-            lines.append(
-                f"- [{metadata.get('name')}]({path.relative_to(directory).as_posix()}): {metadata.get('description')}"
-            )
-    lines.extend(["", GUIDE_END])
-    return "\n".join(lines), errors
-
-
-def _guide_index(directory: Path, root: Path) -> str:
-    return _guide_index_result(directory, root)[0]
+        meta, _, guide_errors = _frontmatter(path, root)
+        if errors is not None:
+            errors.extend(guide_errors)
+        if meta is not None:
+            lines.append(f"- [{meta.get('name')}]({path.relative_to(directory).as_posix()}): {meta.get('description')}")
+    return "\n".join([*lines, "", GUIDE_END])
 
 
 def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
     findings: list[str] = []
-    guides = _guides(skill.parent)
-    names: set[str] = set()
+    rel_skill, guides, names, targets = _relative(root, skill), _guides(skill.parent), set(), _document_targets(body)
     for path in guides:
-        metadata, _, errors = _frontmatter(path, root)
+        meta, _, errors = _frontmatter(path, root)
         findings.extend(errors)
-        if metadata is None:
+        if meta is None:
             continue
-        name = path.parent.name if path.name == "GUIDE.md" else path.stem
+        rel, name = _relative(root, path), path.parent.name if path.name == "GUIDE.md" else path.stem
         if NAME_PATTERN.fullmatch(name) is None or len(name) > MAX_NAME:
-            findings.append(f"{_relative(root, path)}: invalid guide name")
-        if set(metadata) != {"name", "description"}:
-            findings.append(
-                f"{_relative(root, path)}: first-party guide frontmatter requires only name and description"
-            )
-        if metadata.get("name") != name:
-            findings.append(f"{_relative(root, path)}: guide name must match {name!r}")
+            findings.append(f"{rel}: invalid guide name")
+        if set(meta) != {"name", "description"}:
+            findings.append(f"{rel}: first-party guide frontmatter requires only name and description")
+        if meta.get("name") != name:
+            findings.append(f"{rel}: guide name must match {name!r}")
         if f"-{skill.parent.name}-" in f"-{name}-":
-            findings.append(f"{_relative(root, path)}: guide name {name!r} must not repeat its parent skill")
+            findings.append(f"{rel}: guide name {name!r} must not repeat its parent skill")
         if name in names:
-            findings.append(f"{_relative(root, skill)}: duplicate guide {name!r}")
+            findings.append(f"{rel_skill}: duplicate guide {name!r}")
         names.add(name)
-        description = metadata.get("description")
-        if not isinstance(description, str) or not 1 <= len(description.strip()) <= MAX_DESCRIPTION:
-            findings.append(f"{_relative(root, path)}: guide description must contain 1-{MAX_DESCRIPTION} characters")
-        if path.relative_to(skill.parent).as_posix() not in _document_targets(body):
-            findings.append(f"{_relative(root, path)}: guide needs a direct link from SKILL.md")
+        desc = meta.get("description")
+        if not isinstance(desc, str) or not 1 <= len(desc.strip()) <= MAX_DESCRIPTION:
+            findings.append(f"{rel}: guide description must contain 1-{MAX_DESCRIPTION} characters")
+        if path.relative_to(skill.parent).as_posix() not in targets:
+            findings.append(f"{rel}: guide needs a direct link from SKILL.md")
     has_start, has_end = GUIDE_START in body, GUIDE_END in body
-    if has_start != has_end or (has_start and body.index(GUIDE_START) > body.index(GUIDE_END)):
-        findings.append(f"{_relative(root, skill)}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers")
+    if _bad_markers(body):
+        findings.append(f"{rel_skill}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers")
     elif (guides or has_start or "## Task guides" in body) and _guide_index(skill.parent, root) not in body:
-        if has_start and has_end:
-            findings.append(f"{_relative(root, skill)}: stale guide index; run mise run format:skills")
-        else:
-            findings.append(f"{_relative(root, skill)}: add {GUIDE_START} and {GUIDE_END} markers for the guide index")
+        hint = "stale guide index; run mise run format:skills" if has_start and has_end else _MISSING_GUIDE
+        findings.append(f"{rel_skill}: {hint}")
     return findings
 
 
 def _resource_findings(root: Path, skill: Path) -> list[str]:
-    directory = skill.parent
-    guides = set(_guides(directory))
-    texts = {skill: skill.read_text(encoding="utf-8")}
-    resources: set[Path] = set()
-    findings: list[str] = []
+    directory, rel_skill = skill.parent, _relative(root, skill)
+    guides, texts, resources, findings = set(_guides(directory)), {skill: skill.read_text(encoding="utf-8")}, set(), []
     for path in sorted(directory.rglob("*")):
-        if path == skill:
+        if path == skill or path.name == "__pycache__" or path.suffix in {".pyc", ".pyo"}:
             continue
-        relative = path.relative_to(directory)
-        rendered = relative.as_posix()
+        rel_pkg = path.relative_to(directory)
+        rendered, rel, parent_parts = rel_pkg.as_posix(), _relative(root, path), rel_pkg.parts[:-1]
         try:
             mode = path.stat(follow_symlinks=False).st_mode
         except OSError as error:
-            findings.append(f"{_relative(root, path)}: cannot inspect resource: {error}")
-            continue
-        # .gitignore (*.py[co], __pycache__/) already keeps bytecode out of every clone.
-        if path.name == "__pycache__" or path.suffix in {".pyc", ".pyo"}:
+            findings.append(f"{rel}: cannot inspect resource: {error}")
             continue
         if stat.S_ISLNK(mode):
-            findings.append(f"{_relative(root, skill)}: symbolic link {rendered!r} is not allowed")
-            continue
-        if stat.S_ISDIR(mode):
-            continue
-        first = relative.parts[0]
-        if first not in RESOURCE_DIRECTORIES:
-            findings.append(f"{_relative(root, path)}: unsupported package path; use a standard resource directory")
-            continue
-        if not stat.S_ISREG(mode):
-            findings.append(f"{_relative(root, skill)}: non-regular resource {rendered!r} is not allowed")
-            continue
-        if path.name == "SKILL.md":
-            findings.append(f"{_relative(root, path)}: nested SKILL.md enters host discovery; use a guide instead")
-        if mode & 0o111 and "scripts" not in relative.parts[:-1]:
-            findings.append(f"{_relative(root, skill)}: executable outside scripts/ at {rendered!r}")
-        resources.add(path)
-        if first == "assets":
-            continue
-        try:
-            data = path.read_bytes()
-        except OSError as error:
-            findings.append(f"{_relative(root, path)}: cannot read resource: {error}")
-            continue
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError as error:
-            findings.append(f"{_relative(root, path)}: is not UTF-8: {error}")
-            continue
-        unsafe = _unsafe_text_finding(_relative(root, path), text)
-        if unsafe:
-            findings.append(unsafe)
-        if (
-            first == "references"
-            and path.suffix == ".md"
-            and "templates" not in relative.parts[:-1]
-            and path not in guides
-            and (tokens := estimated_tokens(len(text))) >= MAX_MARKDOWN_TOKENS
-        ):
-            findings.append(
-                f"{_relative(root, path)}: has {tokens} estimated tokens; must be below {MAX_MARKDOWN_TOKENS}"
-            )
-        texts[path] = text
-    reached = _reachable_resources(skill, texts, resources)
-    findings.extend(
-        f"{_relative(root, path)}: resource is not reachable from SKILL.md" for path in sorted(resources - reached)
-    )
+            findings.append(f"{rel_skill}: symbolic link {rendered!r} is not allowed")
+        elif not stat.S_ISDIR(mode):
+            if (first := rel_pkg.parts[0]) not in RESOURCE_DIRECTORIES:
+                findings.append(f"{rel}: unsupported package path; use a standard resource directory")
+                continue
+            if not stat.S_ISREG(mode):
+                findings.append(f"{rel_skill}: non-regular resource {rendered!r} is not allowed")
+                continue
+            if path.name == "SKILL.md":
+                findings.append(f"{rel}: nested SKILL.md enters host discovery; use a guide instead")
+            if mode & 0o111 and "scripts" not in parent_parts:
+                findings.append(f"{rel_skill}: executable outside scripts/ at {rendered!r}")
+            resources.add(path)
+            if first != "assets":
+                text, read_errors = _read_utf8(path, rel, "cannot read resource")
+                findings.extend(read_errors)
+                if text is not None:
+                    is_ref = first == "references" and path.suffix == ".md" and "templates" not in parent_parts
+                    if is_ref and path not in guides:
+                        findings.extend(_token_errors(rel, text))
+                    texts[path] = text
+    unreachable = sorted(resources - _reachable_resources(skill, texts, resources))
+    findings.extend(f"{_relative(root, p)}: resource is not reachable from SKILL.md" for p in unreachable)
     return findings
 
 
 @functools.cache
 def _document_targets(content: str) -> tuple[str, ...]:
-    targets: list[str] = []
-    for token in MARKDOWN.parse(content):
-        for candidate in [token, *(token.children or [])]:
-            if candidate.type == "link_open" and isinstance(href := candidate.attrGet("href"), str):
-                targets.append(href)
-            elif candidate.type == "image" and isinstance(src := candidate.attrGet("src"), str):
-                targets.append(src)
-    return tuple(targets)
+    return tuple(
+        val
+        for token in MARKDOWN.parse(content)
+        for cand in (token, *(token.children or ()))
+        if (attr := "href" if cand.type == "link_open" else "src" if cand.type == "image" else "")
+        and isinstance(val := cand.attrGet(attr), str)
+    )
 
 
 def _metadata_findings(relative: str, metadata: Any) -> list[str]:
     if not isinstance(metadata, dict):
         return [f"{relative}: metadata must be a mapping"]
     findings: list[str] = []
-    if not all(isinstance(key, str) and isinstance(value, str) for key, value in metadata.items()):
+    if not all(isinstance(k, str) and isinstance(v, str) for k, v in metadata.items()):
         findings.append(f"{relative}: metadata keys and values must be strings")
-    kind = metadata.get("kind")
-    if not isinstance(kind, str) or kind not in SKILL_KINDS:
+    if metadata.get("kind") not in SKILL_KINDS:
         findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
-    for field in ("author", "source", "created", "updated"):
-        value = metadata.get(field)
-        if not isinstance(value, str) or not value.strip():
-            findings.append(f"{relative}: metadata.{field} must be a non-empty string")
-    return findings
+    bad = [f for f in _REQ_META if not isinstance(v := metadata.get(f), str) or not v.strip()]
+    return [*findings, *(f"{relative}: metadata.{f} must be a non-empty string" for f in bad)]
 
 
 def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
-    relative = _relative(root, path)
-    metadata, body, findings = _frontmatter(path, root)
-    if metadata is None:
+    rel = _relative(root, path)
+    meta, body, findings = _frontmatter(path, root)
+    if meta is None:
         return findings
-    unknown = sorted(set(metadata) - FRONTMATTER_FIELDS)
-    if unknown:
-        findings.append(f"{relative}: unknown frontmatter fields: {', '.join(unknown)}")
-    if "disable-model-invocation" in metadata and not isinstance(metadata["disable-model-invocation"], bool):
-        findings.append(f"{relative}: disable-model-invocation must be a boolean")
-    declared_name = metadata.get("name")
-    if declared_name != name:
-        findings.append(f"{relative}: frontmatter name {declared_name!r} must match its directory {name!r}")
-    if (
-        not isinstance(declared_name, str)
-        or len(declared_name) > MAX_NAME
-        or NAME_PATTERN.fullmatch(declared_name) is None
-    ):
-        findings.append(f"{relative}: name must be a lowercase hyphenated identifier of at most {MAX_NAME} characters")
-    description = metadata.get("description")
-    if not isinstance(description, str) or not 1 <= len(description.strip()) <= MAX_DESCRIPTION:
-        findings.append(f"{relative}: description must contain 1-{MAX_DESCRIPTION} characters")
-    if metadata.get("license") != "MIT":
-        findings.append(f"{relative}: license must be MIT")
-    findings.extend(_metadata_findings(relative, metadata.get("metadata")))
+    if unknown := sorted(set(meta) - FRONTMATTER_FIELDS):
+        findings.append(f"{rel}: unknown frontmatter fields: {', '.join(unknown)}")
+    if "disable-model-invocation" in meta and not isinstance(meta["disable-model-invocation"], bool):
+        findings.append(f"{rel}: disable-model-invocation must be a boolean")
+    if (declared := meta.get("name")) != name:
+        findings.append(f"{rel}: frontmatter name {declared!r} must match its directory {name!r}")
+    if not isinstance(declared, str) or len(declared) > MAX_NAME or NAME_PATTERN.fullmatch(declared) is None:
+        findings.append(f"{rel}: name must be a lowercase hyphenated identifier of at most {MAX_NAME} characters")
+    desc = meta.get("description")
+    if not isinstance(desc, str) or not 1 <= len(desc.strip()) <= MAX_DESCRIPTION:
+        findings.append(f"{rel}: description must contain 1-{MAX_DESCRIPTION} characters")
+    if meta.get("license") != "MIT":
+        findings.append(f"{rel}: license must be MIT")
+    findings.extend(_metadata_findings(rel, meta.get("metadata")))
     findings.extend(_guide_findings(root, path, body))
-
     findings.extend(_resource_findings(root, path))
     return findings
 
@@ -440,242 +345,152 @@ def _is_allowed_email_domain(domain: str) -> bool:
     return lowered in ALLOWED_EMAIL_DOMAINS or f".{lowered}".endswith(ALLOWED_EMAIL_SUFFIXES)
 
 
-def _load_dot_yaml_mapping(dot_yaml: Path) -> dict[str, Any] | None:
+def _privacy_error(target: Path, why: str) -> ValueError:
+    return ValueError(f"{target}: cannot load local privacy tokens; {why}")
+
+
+def _listdir(directory: Path) -> list[Path] | None:
     try:
-        raw_dot_yaml: str | None = dot_yaml.read_text(encoding="utf-8")
+        return sorted(directory.iterdir())
     except FileNotFoundError:
         return None
-    except (OSError, UnicodeError) as error:
-        # Fail closed: Python 3.14 is_file() suppresses PermissionError, which would drop local tokens.
-        msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
-        raise ValueError(msg) from error
+    except OSError as error:
+        raise _privacy_error(directory, f"fix permissions ({error.__class__.__name__})") from error
+
+
+def _load_dot_yaml_mapping(dot_yaml: Path) -> dict[str, Any] | None:
     try:
-        config = yaml.safe_load(raw_dot_yaml)
+        config = yaml.safe_load(dot_yaml.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
     except yaml.YAMLError as error:
-        where = yaml_error_location(error) or "invalid YAML"
         # Never format yaml.YAMLError directly: PyYAML embeds raw lines from untracked dot.yaml.
-        msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({where})"
-        raise ValueError(msg) from error
-    except RecursionError as error:
-        msg = f"{dot_yaml}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
-        raise ValueError(msg) from error
+        loc = yaml_error_location(error) or "invalid YAML"
+        raise _privacy_error(dot_yaml, f"fix or remove the file ({loc})") from error
+    except (OSError, UnicodeError, RecursionError) as error:
+        raise _privacy_error(dot_yaml, f"fix or remove the file ({error.__class__.__name__})") from error
     if config is not None and not isinstance(config, dict):
-        msg = f"{dot_yaml}: cannot load local privacy tokens; expected a YAML mapping"
-        raise ValueError(msg)
+        raise _privacy_error(dot_yaml, "expected a YAML mapping")
     return config
 
 
 def _workstation_tokens(home: Path, *, include_hostname: bool = False) -> set[str]:
     """Extract non-public employer/workstation identifiers from untracked local config."""
-    tokens: set[str] = set()
-    config_dir = home / ".config"
-    dot_paths: list[Path] = [config_dir / "dot.yaml"]
-    try:
-        config_entries: list[Path] | None = sorted(config_dir.iterdir())
-    except FileNotFoundError:
-        config_entries = None
-    except OSError as error:
-        msg = f"{config_dir}: cannot load local privacy tokens; fix permissions ({error.__class__.__name__})"
-        raise ValueError(msg) from error
-    if config_entries is not None:
-        dot_paths.extend(
-            path
-            for path in config_entries
-            if path.name.startswith("dot.") and path.name.endswith(".yaml") and path.name != "dot.yaml"
-        )
-    if (env_override := os.environ.get("DOT_CONFIG_PATH", "").strip()) and home.resolve() == Path.home().resolve():
-        override_path = Path(env_override).expanduser()
-        if override_path not in dot_paths:
-            dot_paths.append(override_path)
-    configs = [loaded for candidate in dot_paths if (loaded := _load_dot_yaml_mapping(candidate)) is not None]
-    # privacy.allowed_tokens exempts already-public names without writing them into this repository.
+    tokens, cfg_dir = set(), home / ".config"
+    dot_files = [p for p in _listdir(cfg_dir) or () if p.name.startswith("dot.") and p.suffix == ".yaml"]
+    dot_paths = [cfg_dir / "dot.yaml", *(p for p in dot_files if p.name != "dot.yaml")]
+    if (env := os.environ.get("DOT_CONFIG_PATH", "").strip()) and home.resolve() == Path.home().resolve():
+        dot_paths.append(Path(env).expanduser())
+    configs = [cfg for p in dict.fromkeys(dot_paths) if (cfg := _load_dot_yaml_mapping(p)) is not None]
     safe = set(SAFE_HOST_TOKENS)
-    for config in configs:
-        privacy = config.get("privacy")
-        if isinstance(privacy, dict) and isinstance(allowed := privacy.get("allowed_tokens"), list):
-            safe |= {entry.strip().lower() for entry in allowed if isinstance(entry, str)}
+    for cfg in configs:
+        if isinstance(priv := cfg.get("privacy"), dict) and isinstance(al := priv.get("allowed_tokens"), list):
+            safe |= {e.strip().lower() for e in al if isinstance(e, str)}
 
     def _add(candidate: str) -> None:
-        cleaned = candidate.strip().lower()
-        if len(cleaned) >= 4 and cleaned not in safe:
+        if len(cleaned := candidate.strip().lower()) >= 4 and cleaned not in safe:
             tokens.add(cleaned)
 
-    for config in configs:
-        auth = config.get("auth")
-        if isinstance(auth, dict):
-            for section in auth.values():
-                if isinstance(section, dict) and isinstance(project := section.get("project"), str):
-                    _add(project)
-        pull = config.get("pull")
-        if isinstance(pull, dict) and isinstance(dirs := pull.get("directories"), list):
-            for entry in dirs:
-                if isinstance(entry, str):
-                    _add(Path(entry.rstrip("/")).name)
-        trust = config.get("trust")
-        if isinstance(trust, dict) and isinstance(owners := trust.get("github_owners"), list):
-            for owner in owners:
-                if isinstance(owner, str):
-                    _add(owner)
+    for cfg in configs:
+        for sec in (cfg.get("auth") or {}).values() if isinstance(cfg.get("auth"), dict) else ():
+            if isinstance(sec, dict) and isinstance(proj := sec.get("project"), str):
+                _add(proj)
+        for s, k in (("pull", "directories"), ("trust", "github_owners")):
+            if isinstance(sec := cfg.get(s), dict) and isinstance(vals := sec.get(k), list):
+                for val in (v for v in vals if isinstance(v, str)):
+                    _add(Path(val.rstrip("/")).name if k == "directories" else val)
 
-    git_dir = home / ".config/git"
-    try:
-        git_entries: list[Path] | None = sorted(git_dir.iterdir())
-    except FileNotFoundError:
-        git_entries = None
-    except OSError as error:
-        msg = f"{git_dir}: cannot load local privacy tokens; fix permissions ({error.__class__.__name__})"
-        raise ValueError(msg) from error
-    if git_entries is not None:
-        for path in git_entries:
-            if path.name in {"allowed_signers", "colors.gitconfig", "personal.gitconfig", "theme.gitconfig"}:
+    for path in _listdir(home / ".config/git") or ():
+        if path.name in {"allowed_signers", "colors.gitconfig", "personal.gitconfig", "theme.gitconfig"}:
+            continue
+        try:
+            if not stat.S_ISREG(path.stat().st_mode):
                 continue
-            try:
-                if not stat.S_ISREG(path.stat().st_mode):
-                    continue
-                text = path.read_text(encoding="utf-8")
-            except (OSError, UnicodeError) as error:
-                msg = f"{path}: cannot load local privacy tokens; fix or remove the file ({error.__class__.__name__})"
-                raise ValueError(msg) from error
-            if path.name.startswith("config.") and len(suffix := path.name.removeprefix("config.")) >= 4:
-                _add(suffix)
-            for match in EMAIL_PATTERN.finditer(text):
-                full_email, domain = match.group(1), match.group(2)
-                if not _is_allowed_email_domain(domain):
-                    _add(full_email)
-                    _add(domain)
-                    for label in domain.split(".")[:-1]:
-                        _add(label)
-            for user_match in re.finditer(r"^\s*user\s*=\s*(.+?)\s*$", text, re.MULTILINE):
-                _add(user_match.group(1))
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise _privacy_error(path, f"fix or remove the file ({error.__class__.__name__})") from error
+        if path.name.startswith("config."):
+            _add(path.name.removeprefix("config."))
+        for match in EMAIL_PATTERN.finditer(text):
+            if not _is_allowed_email_domain(dom := match.group(2)):
+                for item in (match.group(1), dom, *dom.split(".")[:-1]):
+                    _add(item)
+        for user_match in re.finditer(r"^\s*user\s*=\s*(.+?)\s*$", text, re.MULTILINE):
+            _add(user_match.group(1))
 
     if include_hostname:
         _add(socket.gethostname().split(".")[0])
-
     return tokens
 
 
 def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
-    """Check tracked sources and git history for unapproved email domains and local host tokens."""
-    root = root.resolve()
-    resolved_home = (home if home is not None else Path.home()).resolve()
-    findings: list[str] = []
+    """Scan non-encrypted repo files and local Git commits for emails, SSH comments, and local tokens."""
+    resolved_home, findings = (Path.home() if home is None else home).resolve(), []
     try:
         tokens = _workstation_tokens(resolved_home, include_hostname=(home is None and root == ROOT))
     except ValueError as error:
         findings.append(str(error))
         tokens = set()
-    token_pattern = (
-        re.compile(
-            r"(?<![A-Za-z0-9])(?:"
-            + "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
-            + r")(?![A-Za-z0-9])",
-            re.IGNORECASE,
-        )
-        if tokens
-        else None
-    )
-
-    has_git = (root / ".git").exists()
-    if has_git:
-        listed = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
-            ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", "-z"],  # noqa: S607
-            check=True,
-            capture_output=True,
-            timeout=30,
-        ).stdout
+    escaped = "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
+    token_pat = re.compile(rf"(?<![A-Za-z0-9])(?:{escaped})(?![A-Za-z0-9])", re.IGNORECASE) if tokens else None
+    if has_git := (root / ".git").exists():
+        ls_cmd = ["git", "-C", str(root), "ls-files", "-coz", "--exclude-standard"]
+        listed = subprocess.run(ls_cmd, check=True, capture_output=True, timeout=30).stdout  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
         relatives = [item.decode("utf-8", errors="replace") for item in listed.split(b"\0") if item]
     else:
-        relatives = [
-            path.relative_to(root).as_posix()
-            for path in sorted(root.rglob("*"))
-            if path.is_file() and not path.is_symlink()
-        ]
+        relatives = [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and not p.is_symlink()]
 
-    for relative in sorted(relatives):
-        if relative in PRIVACY_SKIP_PATHS or relative.startswith(PRIVACY_SKIP_PREFIXES) or relative.endswith(".age"):
+    for rel in sorted(relatives):
+        if rel in PRIVACY_SKIP_PATHS or rel.startswith(PRIVACY_SKIP_PREFIXES) or rel.endswith(".age"):
             continue
-        path = root / relative
-        if not path.is_file() or path.is_symlink():
+        if not (path := root / rel).is_file() or path.is_symlink():
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except OSError, UnicodeDecodeError:
             continue
-        for match in EMAIL_PATTERN.finditer(text):
-            email, domain = match.group(1), match.group(2)
-            if not _is_allowed_email_domain(domain):
-                findings.append(
-                    f"{relative}: unapproved email domain {domain!r} in {email!r}; "
-                    "use fmind.dev, fmind.ai, or RFC 2606 domains (@example.com, @example.test)"
-                )
-        for match in SSH_KEY_COMMENT_PATTERN.finditer(text):
-            comment = match.group(1)
-            local, _, domain = comment.rpartition("@")
-            if not (local and _is_allowed_email_domain(domain)):
-                findings.append(
-                    f"{relative}: SSH key comment {comment!r} may name a machine or account; "
-                    "use an approved email such as git-signing@fmind.dev"
-                )
-        if token_pattern is not None and (hit := token_pattern.search(text)) is not None:
-            findings.append(
-                f"{relative}: contains local workstation identifier {hit.group(0)!r} from untracked host config; "
-                "remove it, or list an already-public name under privacy.allowed_tokens in ~/.config/dot.yaml"
-            )
+        bad = [m for m in EMAIL_PATTERN.finditer(text) if not _is_allowed_email_domain(m.group(2))]
+        findings.extend(f"{rel}: unapproved email domain {m.group(2)!r} in {m.group(1)!r}; {_EMAIL_HINT}" for m in bad)
+        for m in SSH_KEY_COMMENT_PATTERN.finditer(text):
+            local, _, dom = (comment := m.group(1)).rpartition("@")
+            if not (local and _is_allowed_email_domain(dom)):
+                findings.append(f"{rel}: SSH key comment {comment!r} {_SSH_HINT}")
+        if token_pat is not None and (hit := token_pat.search(text)) is not None:
+            findings.append(f"{rel}: contains local workstation identifier {hit.group(0)!r} {_HOST_HINT}")
 
     if has_git:
-        log_out = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
-            ["git", "-C", str(root), "log", "HEAD", "--format=%h%x09%ae%x09%ce"],  # noqa: S607
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        ).stdout
-        for line in log_out.splitlines():
-            parts = line.split("\t")
-            if len(parts) != 3:
+        log_cmd = ["git", "-C", str(root), "log", "HEAD", "--format=%h%x09%ae%x09%ce"]
+        for line in subprocess.run(log_cmd, check=True, capture_output=True, text=True, timeout=30).stdout.splitlines():  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+            if len(parts := line.split("\t")) != 3:
                 continue
-            sha, author_email, committer_email = parts
-            for role, email in (("author", author_email), ("committer", committer_email)):
-                domain = email.partition("@")[2]
-                if not domain or not _is_allowed_email_domain(domain):
-                    findings.append(
-                        f"git commit {sha}: unapproved {role} email {email!r}; use fmind.dev, fmind.ai, or github.com"
-                    )
-                elif token_pattern is not None and (hit := token_pattern.search(email)) is not None:
-                    findings.append(
-                        f"git commit {sha}: {role} email contains local workstation identifier {hit.group(0)!r}"
-                    )
-
+            pre = f"git commit {parts[0]}"
+            for role, email in (("author", parts[1]), ("committer", parts[2])):
+                dom = email.partition("@")[2]
+                if not dom or not _is_allowed_email_domain(dom):
+                    findings.append(f"{pre}: unapproved {role} email {email!r}; use fmind.dev, fmind.ai, or github.com")
+                elif token_pat is not None and (hit := token_pat.search(email)) is not None:
+                    findings.append(f"{pre}: {role} email contains local workstation identifier {hit.group(0)!r}")
     return sorted(set(findings))
 
 
 def _repository_check(root: Path) -> tuple[list[str], int]:
     root = root.resolve()
     discovered, findings = _discover_skills(root)
-
     for name, path in sorted(discovered):
         findings.extend(_skill_findings(root, name, path))
     if root == ROOT:
         findings.extend(privacy_findings(root))
-    # `dot agent context` owns the measurement; each scope is budgeted, the combined total is not.
     try:
-        context = context_report(root, source=root)
+        context = cb.context_report(root, source=root)
+        for scope, b in context["budgets"].items():
+            if not b["passed"]:
+                head = f"{scope} AGENTS.md + skill discovery contains {b['estimated_tokens']} estimated tokens"
+                findings.append(f"{head}; must be below {cb.CONTEXT_TOKEN_LIMIT}; {_BUDGET_HINT}")
+        for item in context["duplicates"]:
+            paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
+            findings.append(f"agent context: duplicate skill name {item['name']!r} in {paths}; {cb.DUPLICATE_GUIDANCE}")
     except DotError as error:
         findings.append(f"agent context: {error}")
-    else:
-        findings.extend(
-            f"{scope} AGENTS.md + skill discovery contains {budget['estimated_tokens']} estimated tokens; "
-            f"must be below {CONTEXT_TOKEN_LIMIT}; reduce instructions or discovery without losing task triggers"
-            for scope, budget in context["budgets"].items()
-            if not budget["passed"]
-        )
-        # Declared names can collide even when directory names differ; hosts then shadow one copy.
-        findings.extend(
-            f"agent context: duplicate skill name {item['name']!r} in "
-            + ", ".join(_relative(root, Path(path)) for path in item["paths"])
-            + f"; {DUPLICATE_GUIDANCE}"
-            for item in context["duplicates"]
-        )
     return sorted(set(findings)), len(discovered)
 
 
@@ -684,52 +499,42 @@ def repository_findings(root: Path) -> list[str]:
     return _repository_check(root)[0]
 
 
+def _sync_guides(root: Path) -> int:
+    discovered, errors = _discover_skills(root)
+    updates: list[tuple[Path, str, int]] = []
+    for _, path in discovered:
+        try:
+            text, mode = path.read_text(encoding="utf-8"), stat.S_IMODE(path.lstat().st_mode)
+        except (OSError, UnicodeDecodeError) as error:
+            errors.append(f"{_relative(root, path)}: cannot read UTF-8 text ({error.__class__.__name__})")
+            continue
+        if _bad_markers(text):
+            errors.append(f"{_relative(root, path)}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers")
+        elif GUIDE_START in text:
+            before, index = len(errors), _guide_index(path.parent, root, errors)
+            new = text.split(GUIDE_START, 1)[0] + index + text.split(GUIDE_END, 1)[1]
+            if len(errors) == before and new != text:
+                updates.append((path, new, mode))
+    for path, updated, mode in () if errors else updates:
+        try:
+            write_atomic_file(path, updated.encode("utf-8"), mode=mode)
+        except OSError as error:
+            errors.append(f"{_relative(root, path)}: cannot write index ({error})")
+            break
+    if errors:
+        sys.stderr.write("\n".join(errors) + "\n")
+        return 1
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("--sync", action="store_true", help="refresh marked guide indexes from guide metadata")
-    args = parser.parse_args()
-    root = ROOT
-    if args.sync:
-        discovered, sync_errors = _discover_skills(root)
-        updates: list[tuple[Path, str, int]] = []
-        for _, path in discovered:
-            try:
-                text = path.read_text(encoding="utf-8")
-                mode = stat.S_IMODE(path.lstat().st_mode)
-            except (OSError, UnicodeDecodeError) as error:
-                sync_errors.append(f"{_relative(root, path)}: cannot read UTF-8 text ({error.__class__.__name__})")
-                continue
-            has_start, has_end = GUIDE_START in text, GUIDE_END in text
-            if has_start != has_end or (has_start and text.index(GUIDE_START) > text.index(GUIDE_END)):
-                sync_errors.append(
-                    f"{_relative(root, path)}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers"
-                )
-                continue
-            if not has_start:
-                continue
-            index, guide_errors = _guide_index_result(path.parent, root)
-            if guide_errors:
-                sync_errors.extend(guide_errors)
-                continue
-            before, rest = text.split(GUIDE_START, 1)
-            _, after = rest.split(GUIDE_END, 1)
-            updated = before + index + after
-            if updated != text:
-                updates.append((path, updated, mode))
-        if sync_errors:
-            sys.stderr.write("\n".join(sync_errors) + "\n")
-            return 1
-        for path, updated, mode in updates:
-            try:
-                write_atomic_file(path, updated.encode("utf-8"), mode=mode)
-            except OSError as error:
-                sys.stderr.write(f"{_relative(root, path)}: cannot write index ({error})\n")
-                return 1
-        return 0
-    findings, count = _repository_check(root)
+    if parser.parse_args().sync:
+        return _sync_guides(ROOT)
+    findings, count = _repository_check(ROOT)
     if findings:
-        for finding in findings:
-            sys.stderr.write(f"error: {finding}\n")
+        sys.stderr.write("".join(f"error: {f}\n" for f in findings))
         return 1
     sys.stdout.write(f"Validated {count} first-party skills.\n")
     return 0

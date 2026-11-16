@@ -10,7 +10,7 @@ export GOOGLE_CLOUD_PROJECT=<project-id>  # optional: ANTIGRAVITY_MODEL, GOOGLE_
 uv run orchestrator.py <workspace>
 ```
 
-**SDK runs bill GCP or Gemini API, never the Antigravity subscription.** Default to ADC (`gcloud auth application-default login` / [model-providers](../../../../model-providers/SKILL.md)) via `LocalAgentConfig(vertex=True, project=..., location=...)` + `VertexEndpoint` (high thinking) so exported keys cannot switch backends. When Developer API is explicitly requested, pass a scoped key to `LocalAgentConfig(vertex=False, api_key=...)` via `dot secret run` ([dot-cli](../../../../dot-cli/SKILL.md)) or secret manager (native fallback `GEMINI_API_KEY`; never export globally, commit, or fall back from ADC errors).
+**SDK runs bill GCP or Gemini API, never the Antigravity subscription.** Default to ADC (`gcloud auth application-default login` / [model-providers](../../../../model-providers/SKILL.md)) via `LocalAgentConfig(vertex=True, project=..., location=...)` + `VertexEndpoint` (high thinking) so exported keys cannot switch backends. When Developer API is explicitly requested, pass a scoped key to `LocalAgentConfig(vertex=False, api_key=...)` via `with-secret` ([dot-cli](../../../../dot-cli/references/authentication.md#scoped-credentials)) or secret manager (native fallback `GEMINI_API_KEY`; never export globally, commit, or fall back from ADC errors).
 
 ## 2. Orchestrate
 

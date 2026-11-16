@@ -1,16 +1,10 @@
-"""Pin fmind/theme externals to one upstream commit with per-file checksums.
-
-The pinned files are native themes under `themes/` and the root DESIGN.md.
-Several theme files execute (Neovim Lua, Git includes), so apply
-must never fetch a moving branch; `mise run upgrade` advances the pin instead.
-Configs that cannot include a second file carry a copy of the upstream theme block;
-the pin only advances while every copy matches the target revision.
-"""
+"""Pin fmind/theme externals to one upstream commit with per-file checksums."""
 
 from __future__ import annotations
 
 import argparse
 import configparser
+import functools
 import hashlib
 import http.client
 import json
@@ -34,8 +28,7 @@ MAX_BYTES = 1_000_000
 BASE = re.compile(r'(\{\{ \$base := "https://raw\.githubusercontent\.com/fmind/theme/)([0-9a-f]{40})(" \}\})')
 ENTRY = re.compile(r'(    url = "\{\{ \$base \}\}/(?P<path>[^"]+)"\n    checksum\.sha256 = ")[0-9a-f]{64}(")')
 
-# Source file -> (upstream theme file, key paths copied from it). The upstream suffix
-# selects the parser for both sides; ripgreprc keeps only its --colors flags.
+# Source file -> (upstream theme file, key paths copied from it); suffix selects parser.
 COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
     "dot_config/fastfetch/config.jsonc": ("themes/fastfetch/fmind.json", (("display", "color"),)),
     "dot_config/lazydocker/config.yml": ("themes/lazydocker/fmind.yml", (("gui", "theme"),)),
@@ -45,25 +38,27 @@ COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
 }
 
 Fetch = Callable[[str], bytes]
+_PIN_ERRORS = (
+    OSError,
+    http.client.HTTPException,
+    ValueError,
+    configparser.Error,
+    subprocess.SubprocessError,
+    tomllib.TOMLDecodeError,
+    yaml.YAMLError,
+)
 
 
 def resolve_head(branch: str = "main") -> str:
     """Return the upstream branch commit without needing GitHub API credentials."""
-    result = subprocess.run(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
-        ["git", "ls-remote", REPOSITORY, f"refs/heads/{branch}"],  # noqa: S607
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    revision = result.stdout.split("\t", 1)[0]
+    cmd = ["git", "ls-remote", REPOSITORY, f"refs/heads/{branch}"]
+    revision = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=60).stdout.split("\t", 1)[0]  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError(f"cannot resolve {REPOSITORY} {branch}")
     return revision
 
 
 def fetch(url: str) -> bytes:
-    """Download one theme file with a size bound."""
     with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 - fixed https URL
         content = response.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
@@ -73,11 +68,10 @@ def fetch(url: str) -> bytes:
 
 def prefetch(revision: str, template: str, download: Fetch = fetch) -> Fetch:
     """Download every distinct upstream theme file for a revision concurrently."""
-    paths = [match.group("path") for match in ENTRY.finditer(template)]
-    if not paths:
+    if not (paths := [m.group("path") for m in ENTRY.finditer(template)]):
         return download
-    paths.extend(upstream for _, (upstream, _) in COPIED.items())
-    urls = list(dict.fromkeys(RAW.format(revision=revision, path=path) for path in paths))
+    raw = [RAW.format(revision=revision, path=p) for p in [*paths, *(u for u, _ in COPIED.values())]]
+    urls = list(dict.fromkeys(raw))
     with ThreadPoolExecutor(max_workers=min(8, len(urls))) as executor:
         cache = dict(zip(urls, executor.map(download, urls), strict=True))
     return lambda url: cache[url] if url in cache else download(url)
@@ -87,109 +81,74 @@ def pin(template: str, revision: str, download: Fetch) -> str:
     """Rewrite the theme revision and every theme checksum for that revision."""
     if not BASE.search(template):
         raise ValueError("theme base URL with a pinned revision not found")
-    entries = list(ENTRY.finditer(template))
-    if not entries:
+    if not ENTRY.search(template):
         raise ValueError("no checksummed theme entries found")
-    pinned = BASE.sub(lambda match: match.group(1) + revision + match.group(3), template)
+    pinned = BASE.sub(lambda m: m.group(1) + revision + m.group(3), template)
 
-    def checksum(match: re.Match[str]) -> str:
-        digest = hashlib.sha256(download(RAW.format(revision=revision, path=match.group("path")))).hexdigest()
-        return match.group(1) + digest + match.group(3)
+    def digest(m: re.Match[str]) -> str:
+        return hashlib.sha256(download(RAW.format(revision=revision, path=m.group("path")))).hexdigest()
 
-    return ENTRY.sub(checksum, pinned)
+    return ENTRY.sub(lambda m: m.group(1) + digest(m) + m.group(3), pinned)
 
 
 def parse(text: str, upstream: str) -> dict[str, Any]:
     """Parse a theme or native config in the upstream file's format."""
-    suffix = Path(upstream).suffix
-    if suffix == ".toml":
-        return tomllib.loads(text)
-    if suffix in {".yml", ".yaml"}:
-        return yaml.safe_load(text) or {}
-    if suffix == ".json":
-        # Native configs may be JSONC; only whole-line comments occur in these files.
-        return json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE))
-    if suffix == ".config":
-        # pgcli's INI dialect; values keep their quotes on both sides.
-        ini = configparser.ConfigParser(interpolation=None)
-        ini.read_string(text)
-        return {section: dict(ini[section]) for section in ini.sections()}
-    if suffix == ".ripgreprc":
-        return {"colors": [line for line in text.splitlines() if line.startswith("--colors=")]}
+    match Path(upstream).suffix:
+        case ".toml":
+            return tomllib.loads(text)
+        case ".yml" | ".yaml":
+            return yaml.safe_load(text) or {}
+        case ".json":  # Native configs may be JSONC; only whole-line comments occur in these files.
+            return json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE))
+        case ".config":  # pgcli's INI dialect; values keep their quotes on both sides.
+            (ini := configparser.ConfigParser(interpolation=None)).read_string(text)
+            return {section: dict(ini[section]) for section in ini.sections()}
+        case ".ripgreprc":
+            return {"colors": [line for line in text.splitlines() if line.startswith("--colors=")]}
     raise ValueError(f"unsupported theme format: {upstream}")
 
 
 def render(path: Path) -> str:
-    """Return a source file as chezmoi deploys it."""
     text = path.read_text(encoding="utf-8")
     if path.suffix != ".tmpl":
         return text
-    result = subprocess.run(  # nosemgrep: dangerous-subprocess-use-audit
-        ["chezmoi", "--source", ".", "execute-template"],  # noqa: S607
-        cwd=ROOT,
-        input=text,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    return result.stdout
+    cmd = ["chezmoi", "--source", ".", "execute-template"]
+    return subprocess.run(cmd, cwd=ROOT, input=text, check=True, capture_output=True, text=True, timeout=30).stdout  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
 
 
 def dig(config: dict[str, Any], keys: tuple[str, ...]) -> Any:
-    """Return the value at a key path, or None when any key is missing."""
-    value: Any = config
-    for key in keys:
-        value = value.get(key) if isinstance(value, dict) else None
-    return value
+    return functools.reduce(lambda cur, k: cur.get(k) if isinstance(cur, dict) else None, keys, config)
 
 
 def stale_copies(revision: str, download: Fetch, read: Callable[[Path], str] = render) -> list[str]:
     """List copied theme blocks that differ from the upstream files at a revision."""
-    stale = []
+    stale: list[str] = []
     for source, (upstream, paths) in COPIED.items():
         theme = parse(download(RAW.format(revision=revision, path=upstream)).decode(), upstream)
         local = parse(read(ROOT / source), upstream)
-        for keys in paths:
-            expected = dig(theme, keys)
-            if expected is None or dig(local, keys) != expected:
-                stale.append(f"{source}: {'.'.join(keys)} differs from {upstream}")
+        diffs = [k for k in paths if (exp := dig(theme, k)) is None or dig(local, k) != exp]
+        stale.extend(f"{source}: {'.'.join(k)} differs from {upstream}" for k in diffs)
     return stale
-
-
-def _commit(value: str) -> str:
-    # A branch or tag would pin a moving ref that the next run cannot parse back.
-    if not re.fullmatch(r"[0-9a-f]{40}", value):
-        raise argparse.ArgumentTypeError("expected a full 40-character lowercase commit SHA")
-    return value
 
 
 def main() -> int:
     """Advance the theme pin to upstream main, or verify a given revision."""
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
-    parser.add_argument("--revision", type=_commit, help="commit SHA to pin instead of upstream main")
-    arguments = parser.parse_args()
+    parser.add_argument("--revision", help="commit SHA to pin instead of upstream main")
+    if (rev := parser.parse_args().revision) is not None and not re.fullmatch(r"[0-9a-f]{40}", rev):
+        parser.error("expected a full 40-character lowercase commit SHA")
     path = ROOT / ".chezmoiexternal.toml.tmpl"
     try:
-        revision = arguments.revision or resolve_head()
-        template = path.read_text(encoding="utf-8")
+        revision, template = rev or resolve_head(), path.read_text(encoding="utf-8")
         download = prefetch(revision, template)
         updated = pin(template, revision, download)
         if stale := stale_copies(revision, download):
-            sys.stderr.write("".join(f"{line}\n" for line in stale))
-            sys.stderr.write(f"Copy the upstream blocks from {revision}, then rerun.\n")
+            joined = "".join(f"{line}\n" for line in stale)
+            sys.stderr.write(f"{joined}Copy the upstream blocks from {revision}, then rerun.\n")
             return 1
         if updated != template:
             path.write_text(updated, encoding="utf-8")
-    except (
-        OSError,
-        http.client.HTTPException,
-        ValueError,
-        configparser.Error,
-        subprocess.SubprocessError,
-        tomllib.TOMLDecodeError,
-        yaml.YAMLError,
-    ) as error:
+    except _PIN_ERRORS as error:
         sys.stderr.write(f"Cannot pin fmind/theme: {error}\n")
         return 1
     sys.stdout.write(f"fmind/theme pinned to {revision}\n")

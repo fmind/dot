@@ -39,7 +39,7 @@ AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
 CF_SEND_TELEMETRY = "0"
 # Also covers ad-hoc chrome-devtools-mcp runs that omit --no-usage-statistics.
 CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
-# "1" auto-approves tools only; "true" would also trust every directory and bypass `dot trust`.
+# "1" auto-approves tools only; "true" would also trust every directory and bypass per-folder Copilot trust (~/.copilot/config.json).
 COPILOT_ALLOW_ALL = "1"
 # Copilot's autoUpdate setting only stops downloads; this also makes launches ignore newer
 # cached builds, so the mise-locked version is the one that runs.

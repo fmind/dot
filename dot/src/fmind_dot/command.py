@@ -11,11 +11,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from fmind_dot.state import State
 
-Handler = Callable[["State", argparse.Namespace], None]
-# The Fish script sets this to the token under the cursor; the completed words arrive as arguments.
+Handler = Callable[["State", argparse.Namespace], Any]
 COMPLETE_VARIABLE = "_DOT_COMPLETE"
-# One callback per Tab keeps the script independent of the command tree, so an upgraded dot needs no new script.
-# Without candidates the condition fails and Fish falls back to file names (--config, --project, repositories).
 FISH_COMPLETION = f"""\
 function __dot_prepare_candidates
     set -g __dot_last_candidates ({COMPLETE_VARIABLE}="$(commandline --cut-at-cursor --current-token)" dot (commandline --cut-at-cursor --current-process --tokens-expanded)[2..])
@@ -27,12 +24,10 @@ complete --command dot --no-files --condition __dot_prepare_candidates --argumen
 
 class _HelpFormatter(argparse.HelpFormatter):
     def __init__(self, prog: str, **kwargs: Any) -> None:
-        # Agents and pipes read help once: a wide page keeps every summary on its own line.
         width = shutil.get_terminal_size().columns - 2 if sys.stdout.isatty() else 160
         super().__init__(prog, max_help_position=28, width=width, **kwargs)
 
     def _fill_text(self, text: str, width: int, indent: str) -> str:
-        # argparse joins a description or epilog into one paragraph; keep the authored breaks.
         fill = super()._fill_text
         return "\n\n".join(fill(part, width, indent) for part in text.split("\n\n"))
 
@@ -40,12 +35,10 @@ class _HelpFormatter(argparse.HelpFormatter):
 class Parser(argparse.ArgumentParser):
     """One node of the command tree; `children` and `arguments` expose it to completions and tests."""
 
-    def __init__(self, *, summary: str = "", hidden: bool = False, **kwargs: Any) -> None:
+    def __init__(self, *, summary: str = "", **kwargs: Any) -> None:
         self.summary = summary
-        self.hidden = hidden
         self.arguments: list[argparse.Action] = []
         self.children: dict[str, Parser] = {}
-        # argparse's subparsers action, created with the first child; its class is private to argparse.
         self._commands: Any = None
         super().__init__(
             description=summary, formatter_class=_HelpFormatter, allow_abbrev=False, suggest_on_error=True, **kwargs
@@ -59,37 +52,24 @@ class Parser(argparse.ArgumentParser):
     def show_help(self, state: State, _args: argparse.Namespace) -> None:
         self.print_help(state.stdout)
 
-    def _child(self, name: str, summary: str, *, hidden: bool, epilog: str) -> Parser:
+    def _child(self, name: str, summary: str, *, epilog: str) -> Parser:
         if self._commands is None:
-            # Help lists commands in registration order: register them alphabetically.
             self._commands = self.add_subparsers(title="commands", metavar="COMMAND")
-        commands: Any = self._commands
-        # argparse lists a command only when it has help; a hidden one still parses.
-        listing = {} if hidden else {"help": summary}
-        child: Parser = commands.add_parser(name, summary=summary, hidden=hidden, epilog=epilog or None, **listing)
+        child: Parser = self._commands.add_parser(name, summary=summary, epilog=epilog or None, help=summary)
         self.children[name] = child
         return child
 
     def group(
-        self,
-        name: str,
-        summary: str,
-        *,
-        handler: Handler | None = None,
-        config: bool = False,
-        hidden: bool = False,
-        epilog: str = "",
+        self, name: str, summary: str, *, handler: Handler | None = None, config: bool = False, epilog: str = ""
     ) -> Parser:
         """Add a command group; without a command it prints its help, or runs `handler`."""
-        child = self._child(name, summary, hidden=hidden, epilog=epilog)
+        child = self._child(name, summary, epilog=epilog)
         child.set_defaults(handler=handler or child.show_help, needs_config=config, parser=child)
         return child
 
-    def command(
-        self, name: str, summary: str, handler: Handler, *, config: bool = True, hidden: bool = False, epilog: str = ""
-    ) -> Parser:
+    def command(self, name: str, summary: str, handler: Handler, *, config: bool = True, epilog: str = "") -> Parser:
         """Add a leaf command; `config` validates dot.yaml before the handler runs."""
-        child = self._child(name, summary, hidden=hidden, epilog=epilog)
+        child = self._child(name, summary, epilog=epilog)
         child.set_defaults(handler=handler, needs_config=config, parser=child)
         return child
 
@@ -97,17 +77,6 @@ class Parser(argparse.ArgumentParser):
 def add_json(parser: Parser) -> None:
     """One definition keeps every structured-output flag documented identically."""
     parser.add_argument("-j", "--json", dest="as_json", action="store_true", help="Emit structured JSON")
-
-
-def non_negative(value: str) -> int:
-    """argparse type for limits where 0 means unbounded."""
-    try:
-        number = int(value)
-    except ValueError:
-        number = -1
-    if number < 0:
-        raise argparse.ArgumentTypeError("expected an integer of 0 or more")
-    return number
 
 
 def _takes_value(action: argparse.Action) -> bool:
@@ -122,7 +91,6 @@ def candidates(root: Parser, words: list[str]) -> list[tuple[str, str]]:
         if pending is not None:
             pending = None
         elif word == "--":
-            # Everything after `--` belongs to the child command (`dot secret run NAME -- COMMAND`).
             return []
         elif word.startswith("-"):
             if "=" not in word:
@@ -137,16 +105,17 @@ def candidates(root: Parser, words: list[str]) -> list[tuple[str, str]]:
     elif current.startswith("--") and "=" in current:
         flag, prefix = current.split("=", 1)
         option = next((item for item in parser.arguments if flag in item.option_strings and _takes_value(item)), None)
-        choices = option.choices if option is not None else None
-        return [(f"{flag}={choice}", "") for choice in choices or () if str(choice).startswith(prefix)]
+        return [
+            (f"{flag}={c}", "")
+            for c in (option.choices if option is not None else None) or ()
+            if str(c).startswith(prefix)
+        ]
     elif current.startswith("-"):
-        found = [(flag, _summary(item)) for item in parser.arguments for flag in item.option_strings]
+        found = [
+            (flag, " ".join((item.help or "").split())) for item in parser.arguments for flag in item.option_strings
+        ]
     else:
-        found = (
-            [(name, child.summary) for name, child in parser.children.items() if not child.hidden]
-            if positionals_used == 0
-            else []
-        )
+        found = [(name, child.summary) for name, child in parser.children.items()] if positionals_used == 0 else []
         positionals = [item for item in parser.arguments if not item.option_strings]
         active = (
             positionals[positionals_used]
@@ -156,8 +125,3 @@ def candidates(root: Parser, words: list[str]) -> list[tuple[str, str]]:
         if active is not None:
             found += [(str(choice), "") for choice in active.choices or ()]
     return [(value, description) for value, description in found if value.startswith(current)]
-
-
-def _summary(action: argparse.Action) -> str:
-    # One line per candidate: Fish splits candidates on newlines.
-    return " ".join((action.help or "").split())
