@@ -77,6 +77,7 @@ github:
 workspace:
   scope_suffixes:
     - userinfo.email
+    - userinfo.profile
     - admin.directory.customer.readonly
     - admin.directory.device.chromeos.readonly
     - admin.directory.device.mobile.readonly
@@ -93,34 +94,31 @@ workspace:
     - analytics.readonly
     - business.manage
     - calendar
-    - calendar.readonly
+    - chat.memberships
     - chat.messages
-    - chat.messages.readonly
+    - chat.messages.reactions
     - chat.spaces
-    - chat.spaces.readonly
     - chrome.management.policy.readonly
     - chrome.management.reports.readonly
+    - cloudsupport
     - contacts
     - contacts.other.readonly
-    - contacts.readonly
+    - directory.readonly
     - documents
-    - documents.readonly
     - drive
-    - drive.readonly
+    - drive.activity.readonly
     - forms.body
     - forms.responses.readonly
     - gmail.modify
-    - gmail.readonly
     - gmail.settings.basic
+    - meetings.conference.media.readonly
     - meetings.space.readonly
     - postmaster.traffic.readonly
     - presentations
     - script.projects
     - spreadsheets
     - tasks
-    - tasks.readonly
     - webmasters
-    - webmasters.readonly
     - youtube.readonly
     - yt-analytics.readonly
   api_names:

@@ -12,7 +12,7 @@ from fmind_dot import system as system_module
 from fmind_dot.archive.store import SESSION_PARSER_VERSION, SESSION_STORE_VERSION
 from fmind_dot.archive.sync import SYNC_STATE_NAME, SYNC_STATE_SCHEMA
 from fmind_dot.cli import app
-from fmind_dot.config import AuthConfig, Config
+from fmind_dot.config import WORKSPACE_APIS, AuthConfig, Config
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
 from fmind_dot.process import CommandResult
 from fmind_dot.system import available_memory_bytes, headroom_results, run_doctor
@@ -367,7 +367,7 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
             json.dumps(
                 {
                     "token_valid": True,
-                    "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/drive.activity.readonly"],
+                    "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/chat.spaces.create"],
                 }
             ),
             "",
@@ -376,9 +376,95 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
     ]
     runner = ScriptedRunner({"gcloud", "gws", "colab"}, responses={("gws", "auth", "status"): status_seq})
     st = make_state(runner, cfg)
-    auth_module.login_workspace(st, grants=["drive.activity.readonly"])
+    auth_module.login_workspace(st, grants=["chat.spaces.create"])
     assert not (gws_dir / "token_cache.json").exists()
     assert "One-off Workspace scopes" in buf(st.stderr)
+    enable_calls = [c for c in runner.calls if c[:3] == ["gcloud", "services", "enable"]]
+    assert len(enable_calls) >= 2
+    assert all(1 <= len(c[3:-3]) <= 20 for c in enable_calls)
+    assert [api for c in enable_calls for api in c[3:-3]] == list(WORKSPACE_APIS)
+
+    partial_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(
+                    json.dumps(
+                        {
+                            "client_config_exists": True,
+                            "project_id": "my-proj-1",
+                            "enabled_apis": list(WORKSPACE_APIS[:15]),
+                        }
+                    ),
+                    "",
+                    0,
+                )
+            ]
+        },
+    )
+    auth_module.setup_workspace(make_state(partial_runner, cfg), "my-proj-1")
+    partial_enables = [c[3:-3] for c in partial_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
+    assert all(len(batch) <= 20 for batch in partial_enables)
+    assert [api for batch in partial_enables for api in batch] == list(WORKSPACE_APIS[15:])
+
+    denied_err = "ERROR: (gcloud.services.enable) Permission denied to enable service [admin.googleapis.com] reason: AUTH_PERMISSION_DENIED"
+    perm_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        run=lambda cmd, *_a: (
+            CommandResult(
+                json.dumps(
+                    {
+                        "client_config_exists": True,
+                        "project_id": "my-proj-1",
+                        "enabled_apis": ["drive.googleapis.com"],
+                    }
+                ),
+                "",
+                0,
+            )
+            if cmd[:3] == ["gws", "auth", "status"]
+            else CommandResult("", denied_err, 1)
+        ),
+    )
+    st_perm = make_state(perm_runner, cfg)
+    auth_module.setup_workspace(st_perm, "my-proj-1")
+    assert "using pre-enabled APIs" in buf(st_perm.stderr)
+
+    unconfigured_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        run=lambda cmd, *_a: (
+            CommandResult(json.dumps({"client_config_exists": False}), "", 0)
+            if cmd[:3] == ["gws", "auth", "status"]
+            else CommandResult("", denied_err, 1)
+        ),
+    )
+    with pytest.raises(DotError, match="command failed"):
+        auth_module.setup_workspace(make_state(unconfigured_runner, cfg), "my-proj-1")
+
+    ready_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(
+                    json.dumps(
+                        {
+                            "client_config_exists": True,
+                            "project_id": "my-proj-1",
+                            "enabled_apis": [],
+                            "token_valid": True,
+                            "scopes": list(cfg.auth.workspace.scopes),
+                        }
+                    ),
+                    "",
+                    0,
+                )
+            ]
+        },
+    )
+    st_ready = make_state(ready_runner, cfg)
+    auth_module.login_workspace(st_ready, project="my-proj-1")
+    assert ready_runner.calls == [["gws", "auth", "status"]]
+    assert "already authenticated" in buf(st_ready.stderr)
 
     with pytest.raises(UsageError, match="invalid scope"):
         auth_module.one_off_scopes(["not valid!"], [])

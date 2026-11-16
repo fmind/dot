@@ -1,6 +1,7 @@
 """Provider-owned authentication with bounded readiness probes and integrated setup."""
 
 import argparse
+import itertools
 import json
 import os
 import shlex
@@ -145,23 +146,60 @@ def _workspace_client(state: State, project: str) -> tuple[bool, set[str] | None
     ) else None
 
 
+# Service Usage (serviceusage.googleapis.com) caps gcloud services enable at 20 services per call.
+_SERVICE_ENABLE_BATCH_SIZE = 20
+_SERVICE_ENABLE_TIMEOUT_SECONDS = 120.0
+_SERVICE_PERMISSION_MARKERS = (
+    "AUTH_PERMISSION_DENIED",
+    "serviceusage.services.enable",
+    "Permission denied to enable service",
+)
+
+
+def _enable_commands(apis: Sequence[str], project: str) -> list[list[str]]:
+    return [
+        ["gcloud", "services", "enable", *batch, "--project", project, "--quiet"]
+        for batch in itertools.batched(apis, _SERVICE_ENABLE_BATCH_SIZE, strict=False)
+    ]
+
+
+def _enable_workspace_apis(state: State, apis: Sequence[str], project: str, *, allow_permission_denied: bool) -> bool:
+    for cmd in _enable_commands(apis, project):
+        try:
+            result = state.runner.run(cmd, timeout=_SERVICE_ENABLE_TIMEOUT_SECONDS, check=False)
+        finally:
+            state.clear_probes()
+        if result.returncode == 0:
+            continue
+        if allow_permission_denied and any(m in result.stderr for m in _SERVICE_PERMISSION_MARKERS):
+            print(
+                f"Warning: cannot enable remaining Workspace APIs on {project} (missing serviceusage.services.enable); using pre-enabled APIs.",
+                file=state.stderr,
+            )
+            return False
+        if result.stderr:
+            state.stderr.write(result.stderr)
+        raise DotError(f"command failed ({result.returncode}): {cmd[0]}")
+    return True
+
+
 def setup_workspace(state: State, project: str, *, dry_run: bool = False) -> None:
     """Enable required Workspace APIs and configure the gws OAuth client for ``project``."""
-    enable = ["gcloud", "services", "enable", *WORKSPACE_APIS, "--project", project, "--quiet"]
     setup = ["gws", "auth", "setup", "--project", project]
     if dry_run:
-        _dry_run(state, enable, setup)
+        _dry_run(state, *_enable_commands(WORKSPACE_APIS, project), setup)
         return
-    require_tools(state, [enable, setup])
+    require_tools(state, [*_enable_commands(WORKSPACE_APIS, project), setup])
     configured, enabled = _workspace_client(state, project)
-    needs_apis = enabled is None or bool(set(WORKSPACE_APIS) - enabled)
-    if needs_apis:
-        _execute(state, enable)
+    missing = list(WORKSPACE_APIS) if enabled is None else [a for a in WORKSPACE_APIS if a not in enabled]
+    enabled_missing = bool(missing) and _enable_workspace_apis(
+        state, missing, project, allow_permission_denied=configured or bool(enabled)
+    )
     if not configured:
         _execute(state, setup)
         if not _workspace_client(state, project)[0]:
             raise DotError("Workspace OAuth client setup is incomplete; inspect gws auth status and retry")
-    if needs_apis or not configured:
+    if enabled_missing or not configured:
         print("Workspace setup is complete.", file=state.stderr)
 
 
@@ -197,6 +235,11 @@ def login_workspace(
         ("GOOGLE_WORKSPACE_CLI_TOKEN", "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE"),
         "external Workspace credentials override stored OAuth; unset GOOGLE_WORKSPACE_CLI_TOKEN or GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE before using dot login workspace",
     )
+    if not force and (not selected or _workspace_client(state, selected)[0]):
+        granted = workspace_granted(state)
+        if granted is not None and _norm_google([*configured, *extra]) <= granted:
+            print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
+            return
     if selected:
         setup_workspace(state, selected)
     else:

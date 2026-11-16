@@ -14,7 +14,7 @@ description: "Reconcile configured provider logins, OAuth scopes, one-off grants
 
 ## Workspace scopes & one-off grants
 
-- **50-scope hard limit**: Google's consent screen hangs above 50 scopes (`dot login workspace` defaults to 48 and refuses >50). Because `gws` replaces its full grant on login, `auth.workspace.extra_scopes` adds to the 48 bundled scopes up to that ceiling.
+- **50-scope hard limit**: Google's consent screen hangs above 50 scopes (`dot login workspace` defaults to 46 and refuses >50). Because `gws` replaces its full grant on login, `auth.workspace.extra_scopes` adds to the 46 bundled scopes up to that ceiling.
 - **Temporary `--grant`**: request `--grant <scope>` only for a specific task and revert right after (`dot login workspace --force` or `dot login github`; `repo`, `read:org`, and `gist` are `gh`'s minimum).
 - **Safe one-offs**: GitHub key/package/repo/org write scopes; Workspace Admin Directory/Chrome/Chat/Vault/Analytics/Apps Script scopes.
 - **Never request**: GitHub `admin:enterprise`, `manage_runners:enterprise`, `manage_billing:enterprise`; Gmail `https://mail.google.com/` or `gmail.settings.sharing`; Workspace `cloud-platform` (owned by `gcloud` IAM), `apps.alerts`, `chat.app.*`, `chat.import`, `youtubepartner*`, Classroom, or Brand-Account YouTube scopes outside the OAuth org.
