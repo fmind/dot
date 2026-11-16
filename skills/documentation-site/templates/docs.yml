@@ -33,7 +33,7 @@ jobs:
         uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.11.8
+          version: 2026.11.9
           # Install tools fresh on every deploy; the build itself never reads a CI cache.
           cache: false
       - name: Build site

@@ -31,7 +31,7 @@ jobs:
         with:
           cache: true
           # Pin the mise that reads the repository's lockfile; the action installs latest otherwise.
-          version: 2026.11.8
+          version: 2026.11.9
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Audit locked dependencies and configured checkout scans

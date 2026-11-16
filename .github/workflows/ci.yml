@@ -29,7 +29,7 @@ jobs:
         with:
           cache: true
           # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.8
+          version: 2026.11.9
       - name: Run canonical gate
         run: mise run all
       - name: Run starter contracts
@@ -52,7 +52,7 @@ jobs:
         uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           cache: true
-          version: 2026.11.8
+          version: 2026.11.9
       - name: Render chezmoi and shell templates
         run: |
           mise run check:chezmoi
