@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.2.1] - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- _(tests)_ Guard live sqruff Neovim probe with native_binary
+
 ## [17.2.0] - 2026-11-16
 
 ### 🚀 Features
