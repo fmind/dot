@@ -218,6 +218,7 @@ def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path:
         'printf "PATH=%s\\n" "$PATH"\n'
         'printf "MISE_SHELL=%s\\n" "${MISE_SHELL:-unset}"\n'
         'printf "__MISE_DIFF=%s\\n" "${__MISE_DIFF:-unset}"\n'
+        'printf "GIT_TERMINAL_PROMPT=%s\\n" "${GIT_TERMINAL_PROMPT:-unset}"\n'
         'printf "GH_PROMPT_DISABLED=%s\\n" "${GH_PROMPT_DISABLED:-unset}"\n'
         'printf "CLOUDSDK_CORE_DISABLE_PROMPTS=%s\\n" "${CLOUDSDK_CORE_DISABLE_PROMPTS:-unset}"\n'
         'printf "ARGS=%s\\n" "$*"\n',
@@ -252,6 +253,7 @@ def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path:
     assert str(installs) not in child_path
     assert lines["MISE_SHELL"] == "unset"
     assert lines["__MISE_DIFF"] == "unset"
+    assert lines["GIT_TERMINAL_PROMPT"] == "0"
     assert lines["GH_PROMPT_DISABLED"] == "1"
     assert lines["CLOUDSDK_CORE_DISABLE_PROMPTS"] == "1"
     assert lines["ARGS"] == "--version"

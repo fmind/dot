@@ -1,7 +1,7 @@
 # Docs: https://fishshell.com/docs/current/cmds/function.html
 # Strip mise installs/* entries and hook state so agy shells re-resolve workspace pins via shims,
-# and disable gh/gcloud prompts. Non-interactive callers replace fish via `exec` for MainPID.
-function agy --description "Run agy with mise shims first and no gh or gcloud prompts"
+# and disable git/gh/gcloud prompts. Non-interactive callers replace fish via `exec` for MainPID.
+function agy --description "Run agy with mise shims first and no git, gh, or gcloud prompts"
     set -l shims "$HOME/.local/share/mise/shims"
     set -l clean_path
     if test -d "$shims"
@@ -23,6 +23,7 @@ function agy --description "Run agy with mise shims first and no gh or gcloud pr
         -u __MISE_SHIM \
         -u __MISE_ENV_CACHE_KEY \
         PATH="$joined_path" \
+        GIT_TERMINAL_PROMPT=0 \
         GH_PROMPT_DISABLED=1 \
         CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
         "$bin" $argv

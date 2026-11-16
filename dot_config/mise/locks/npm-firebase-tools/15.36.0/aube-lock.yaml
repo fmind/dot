@@ -1000,8 +1000,8 @@ packages:
     resolution: {integrity: sha512-kB3rzJV7d9juLZh8/56QTXCwQfxyhdOMdyYk1HdQKFtF8TJTDTZQJtixWIwXdE9Jji91mC41DUNpjleo4L4eAQ==}
     engines: {node: '>=18'}
 
-  gaxios@8.3.2:
-    resolution: {integrity: sha512-7VsaTExxjbDv2ZK1YuC4jbgfN33NI/6/7zdYWUHB6mcg51v4tCBZe+xzjqPzOpVzI+C5k1Kk9OQ80WVrXAHOqw==}
+  gaxios@8.3.3:
+    resolution: {integrity: sha512-zqPbbtW5bAOZ8BRjS7bxj5VG7PBY5PwKRxpku9NplLqAPmYMoXExL1KOdaK5fHvwRETu3bPplLEsFGDdUUlrpw==}
     engines: {node: '>=22'}
 
   gcp-metadata@6.1.1:
@@ -2293,7 +2293,7 @@ snapshots:
       '@google-cloud/sql': 0.32.0(supports-color@7.2.0)
       '@googleapis/sqladmin': 42.0.0(supports-color@7.2.0)
       '@grpc/grpc-js': 1.14.7
-      gaxios: 8.3.2(supports-color@7.2.0)
+      gaxios: 8.3.3(supports-color@7.2.0)
       google-auth-library: 11.3.4(supports-color@7.2.0)
       p-throttle: 8.1.1
     transitivePeerDependencies:
@@ -3406,7 +3406,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  gaxios@8.3.2(supports-color@7.2.0):
+  gaxios@8.3.3(supports-color@7.2.0):
     dependencies:
       extend: 3.0.2
       https-proxy-agent: 7.0.6(supports-color@7.2.0)
@@ -3433,7 +3433,7 @@ snapshots:
 
   gcp-metadata@9.2.3(supports-color@7.2.0):
     dependencies:
-      gaxios: 8.3.2(supports-color@7.2.0)
+      gaxios: 8.3.3(supports-color@7.2.0)
       google-logging-utils: 2.2.0
       json-bigint: 1.0.0
     transitivePeerDependencies:
@@ -3507,7 +3507,7 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
-      gaxios: 8.3.2(supports-color@7.2.0)
+      gaxios: 8.3.3(supports-color@7.2.0)
       gcp-metadata: 9.2.3(supports-color@7.2.0)
       google-logging-utils: 2.2.0
       jws: 4.0.1
@@ -3569,7 +3569,7 @@ snapshots:
   googleapis-common@9.3.1(supports-color@7.2.0):
     dependencies:
       extend: 3.0.2
-      gaxios: 8.3.2(supports-color@7.2.0)
+      gaxios: 8.3.3(supports-color@7.2.0)
       google-auth-library: 11.3.4(supports-color@7.2.0)
       google-logging-utils: 2.2.0
       qs: 6.16.2

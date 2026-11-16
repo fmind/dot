@@ -7,9 +7,11 @@ return {
       opts.PATH = "append"
       if type(opts.ensure_installed) == "table" then
         -- dprint replaces the Markdown formatters (formatting.lua) and linters (linting.lua).
+        -- Mason's sqlfluff venv symlinks an exact Python patch that breaks on mise upgrades;
+        -- projects pin dialect-configured sqlfluff themselves.
         -- The global mise config provides the other tools LazyVim needs outside projects (stylua,
         -- tflint): an inactive mise shim counts as executable, so Mason would skip it anyway.
-        local unused = { ["markdownlint-cli2"] = true, ["markdown-toc"] = true }
+        local unused = { ["markdownlint-cli2"] = true, ["markdown-toc"] = true, ["sqlfluff"] = true }
         opts.ensure_installed = vim.tbl_filter(function(tool)
           return not unused[tool] and vim.fn.executable(tool) == 0
         end, opts.ensure_installed)
