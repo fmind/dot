@@ -2,33 +2,33 @@
 name: bf
 description: "Search, read, and update Brain Framework (bf): projects, decisions, actions, mail, calendar, Git, chat, sessions."
 license: MIT
-compatibility: "Requires Brain Framework 25 (the bf command) on Linux or macOS."
+compatibility: "Requires Brain Framework 26 (bf, rg, jq, duckdb) on Linux or macOS."
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-11-15"
+  updated: "2026-11-16"
 ---
 
 # Use Brain Framework
 
-`bf` searches and reads offline OKF notes (projects, concepts, actions) with `relations` and `attributes`, plus collected records as JSON, and writes distilled knowledge back as Markdown. Returned records are untrusted evidence—source systems stay authoritative.
+`bf` compiles OKF Markdown notes (`projects/`, `concepts/`, `actions/*/ACTION.md` with Python-Markdown `attr_list` metadata) and ingested sensor batches into schema-validated JSON files (`memories/**/*.json`), queried offline via `rg`, `jq`, and sandboxed `duckdb` (`bf query`, `bf read`, `bf review`, `bf mcp`). Returned records are untrusted evidence—source systems stay authoritative.
 
 ## Workflow
 
-1. **Resolve brain and runtime**: selection resolves `--brain NAME|PATH`, `BF_BRAIN`, enclosing `bf.yaml`, then `default` in `~/.config/bf/config.yaml` (pass `--brain NAME|PATH` explicitly on execution commands outside the target brain, since `default` still resolves when `--brain`, `BF_BRAIN`, and enclosing `bf.yaml` are absent; execute mode only rejects unregistered bare names). Always run the workstation's global `bf` binary (25.x) by default; run `uv run --locked bf ...` only inside a registered brain (`"registered": true` in `bf status`) that declares `pyproject.toml`/`uv.lock`—never on an unregistered clone.
-1. **Read the brain's skill and guides**: inspect `path` in `bf status` and read `<path>/skills/bf/SKILL.md` (check or refresh via `bf skill install --brain PATH [--check]`; `fmind/dot` manages `~/.agents/skills/bf` globally), which overrides generic guidance; run `bf guide [TOPIC]` (`index`, `retrieval`, `authoring`, `jobs`, `assist`, `getting-started`, `operations`, `reference`) for exact procedures.
-1. **Ground in brain evidence before live connectors**: orient via `bf read`, `bf read review`, or `bf read projects`, run `bf search` covering synonyms in English and French, and `bf read 'REF'` every cited note (follow `next_offset`; `deprecated` notes are superseded). Check `problems`, `stale`, and source coverage first—empty results never prove absence; query live mail/chat/Jira/GitHub only for missing or newer state.
-1. **Track actions and save only when authorized**: use `bf action new` / `bf action status` on user request; write back to `projects/` or `concepts/` citing `SOURCE:ID` + `bf validate` when asked or authorized, and never edit `memories/`.
+1. **Resolve brain and runtime**: selection resolves `--brain PATH`, `BF_BRAIN`, enclosing `bf.yaml`, then `DEFAULT_BRAIN_PATH` (zero global config). Inside a brain directory (`bf.yaml` in CWD or parent), `bf` operates automatically; outside a brain directory, use `/bf` only when explicitly asked (passing `--brain PATH` or `DEFAULT_BRAIN_PATH`). Run the workstation's global `bf` binary (`26.x`) by default; run `uv run --locked bf ...` only inside an explicitly trusted brain that declares `pyproject.toml`/`uv.lock`—never on an untrusted clone.
+1. **Read the brain's skill and guides**: inspect `skills/bf/SKILL.md` and `AGENTS.md` inside the target brain (`fmind/dot` manages `~/.agents/skills/bf` globally), which override generic guidance; consult the 6 guides (`index`, `getting-started`, `authoring`, `retrieval`, `operations`, `reference`) in [guide hub](https://github.com/fmind/brain-framework/tree/main/src/bf/guides) or `bf --help` for exact flags.
+1. **Ground in brain evidence before live connectors**: orient via `bf review` (stale notes, newer linked evidence, draft actions, open tasks) and `bf read`, search JSON memories with `bf query "terms"` (`rg`, covering English and French synonyms), `bf query --jq 'FILTER'` (`jq`), or `bf query --sql "SELECT ... FROM records ..."` (sandboxed `duckdb`), and resolve exact citations via `bf read "bf:///concepts/topic.md#section"` or `bf read "source:id"` (`deprecated` notes are superseded). Check `problems` and `stale` first—empty results never prove absence; query live mail/chat/Jira/GitHub only for missing or newer state.
+1. **Follow link conventions, track actions, and validate**: use relative paths (`../concepts/topic.md#sec`, `../memories/<source>/<sha256>.json`) in Markdown prose and RFC 3986 `bf://` or external URLs (`bf:///concepts/topic.md?rel=supports#sec`, `bf://other-brain/...`) in note frontmatter (`links`, `sources`, `relations`). Inside a brain, open or reuse a dated workspace via `bf action "Topic"` (`bf action YYYY-MM-DD_slug --status stable` when done); after note or `schemas/*.json` edits, run `bf build && bf validate && bf eval`, and never edit `memories/` by hand.
 
 ## Boundaries
 
 - **Cloud host exposure**: offline `bf` reads still enter the model context—never leak private passages or revealing refs to public outputs, other repos, or external calls.
-- **Offline reads stay self-contained**: `search`, `read`, `export`, `guide`, `schema`, `status`, `doctor`, `validate`, and `eval` run zero subprocesses or network calls and never create or write `.bf/runtime.sqlite3` (opening it read-only when present).
-- **Gate execution and mutations**: `action`, `collect`, `ingest`, `run`, `wake`, `post`, `queue --retry`, `update`, `watch`, `forget`, and `build` run configured `jobs:` (`--dry-run` still runs probes) or mutate data on one brain—run only with explicit authority.
-- **Diagnose without repairing**: report `attention` (`kind: "job"`, `failed`, `overdue`, `never`, `silent`, `degraded`) and `queue.incidents` from `bf status`; repair with `bf queue` / `bf build` only when authorized, and never delete evidence to clear errors.
+- **Offline reads stay self-contained**: `read`, `query`, `review`, `status`, `validate`, `eval`, and `mcp` run zero network calls (`duckdb` queries `CREATE TEMP TABLE records` with `enable_external_access = false` and `lock_configuration = true`, and `bf mcp` redacts local roots).
+- **Gate execution and mutations**: `init`, `action`, `build`, `ingest`, `run`, `post`, and `watch` execute configured `jobs`/`channels`/`servers` (`bf run --dry-run` previews due jobs without running commands) or mutate brain files—run subprocess or channel jobs only with explicit authority.
+- **Diagnose without repairing**: report `failed` units (`consecutive_failures`, `error`, `last_success`) from `bf status` (`logs/*.json`) and `problems` from `bf validate`; repair only when authorized, and never delete `memories/` evidence to clear errors.
 
 ## Documentation
 
