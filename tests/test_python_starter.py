@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -12,14 +15,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _render(name: str, replacements: dict[str, str], *, guide: str = "foundation") -> str:
-    owner = {"foundation": "python-stack", "argparse": "python-stack", "litestar": "python-web"}[guide]
-    content = (ROOT / "skills" / owner / "references" / guide / "templates" / name).read_text(encoding="utf-8")
+def _render(name: str, replacements: dict[str, str], *, owner: str = "python-stack", guide: str = "foundation") -> str:
+    base = ROOT / "skills" / owner / ("references/" + guide if guide else "") / "templates"
+    content = (base / name).read_text(encoding="utf-8")
     for placeholder, value in replacements.items():
         content = content.replace(placeholder, value)
     unresolved = {
         match.group()
-        for match in re.finditer(r"<(?:owner|slug|package|description|holder|python_major_minor)>", content)
+        for match in re.finditer(r"<(?:owner|slug|package|description|holder|year|python_major_minor)>", content)
     }
     assert unresolved == set(), f"{name} retains placeholders: {sorted(unresolved)}"
     return content
@@ -61,8 +64,28 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
     return result.stdout
 
 
+def _materialize_shared_layer(project: Path, replacements: dict[str, str]) -> None:
+    _run(project, "git", "init", "-q", "-b", "main")
+    _write(project, "src/starter_py/py.typed", "")
+    _write(project, "README.md", "# Starter Python\n")
+    _write(
+        project,
+        "LICENSE",
+        _render("MIT", replacements, owner="project-scaffolding", guide="project-license"),
+    )
+    _write(project, ".gitignore", _render("gitignore", replacements))
+    _write(project, ".ignore", _render("ignore", replacements))
+    _write(project, "AGENTS.md", _render("AGENTS.md.template", replacements))
+    _write(project, "dprint.json", _render("dprint.json", replacements, owner="mise", guide=""))
+    _write(project, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
+    for wf in ("ci.yml", "security.yml"):
+        _write(project, f".github/workflows/{wf}", _render(wf, replacements, owner="github-actions", guide="ci-cd"))
+    for gh_cfg in ("dependabot.yml", "jactionlint.yaml"):
+        _write(project, f".github/{gh_cfg}", _render(gh_cfg, replacements, owner="github-actions", guide=""))
+
+
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
-@pytest.mark.parametrize("profile", ["library", "cli", "web"])
+@pytest.mark.parametrize("profile", ["library", "cli", "api", "web", "mcp", "ml"])
 def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, profile: str) -> None:
     # HOME is tmp_path, so uv and Ruff caches must stay outside the generated project.
     project = tmp_path / "starter"
@@ -74,6 +97,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         "<package>": "starter_py",
         "<description>": "Starter command line application",
         "<holder>": "Fixture Author",
+        "<year>": "2026",
         "<python_major_minor>": version,
     }
     manifest = _render("pyproject.toml.template", replacements)
@@ -82,15 +106,17 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     assert parsed["project"]["authors"] == [{"name": "Fixture Author"}]
     assert parsed["project"]["urls"]["Security"] == "https://github.com/example/starter-py/security/policy"
     assert "scripts" not in parsed["project"]
-    if profile != "library":
+    if profile in {"cli", "mcp"}:
+        manifest = manifest.replace('source = ["starter_py"]', 'patch = ["subprocess"]\nsource = ["starter_py"]')
+    if profile in {"cli", "api", "web", "mcp"}:
         manifest += '\n[project.scripts]\nstarter-py = "starter_py:main"\n'
 
     _write(project, "pyproject.toml", manifest)
     _write(project, ".python-version", f"{version}\n")
-    _write(project, "README.md", "# Starter Python\n")
-    _write(project, "LICENSE", "MIT\n")
+    _materialize_shared_layer(project, replacements)
     # Match bootstrap order: uv add builds the existing foundation before the profile replaces it.
     _write(project, "src/starter_py/__init__.py", _render("init-library.py", replacements))
+
     if profile == "library":
         _write(project, "tests/test_library.py", _render("test_library.py", replacements))
     elif profile == "cli":
@@ -98,37 +124,103 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
         for name in ("test_smoke.py", "test_cli.py"):
             _write(project, f"tests/{name}", _render(name, replacements, guide="argparse"))
-    else:
+    elif profile == "api":
         _run(
             project,
             "uv",
             "add",
             "litestar>=2.25.0",
-            "granian[reload,uvloop]>=2.8.7",
+            "granian[reload,uvloop]>=2.8.8",
+            "pydantic>=2.14.3",
+            "pydantic-settings>=2.16.3",
+            "structlog>=26.1.0",
+            "opentelemetry-api>=1.45.2",
+            "opentelemetry-sdk>=1.45.2",
+            "opentelemetry-exporter-otlp-proto-http>=1.45.2",
+        )
+        _run(project, "uv", "add", "--dev", "anyio>=4.16.0")
+        _write(
+            project,
+            "src/starter_py/__init__.py",
+            _render("init-api.py", replacements, owner="python-web", guide="litestar"),
+        )
+        _write(project, "src/starter_py/telemetry.py", _render("telemetry.py", replacements))
+        _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
+        _write(project, "tests/test_api.py", _render("test_api.py", replacements, owner="python-web", guide="litestar"))
+    elif profile == "web":
+        _run(
+            project,
+            "uv",
+            "add",
+            "litestar>=2.25.0",
+            "granian[reload,uvloop]>=2.8.8",
             "sqlalchemy[postgresql-asyncpg]>=2.1.8",
             "pydantic>=2.14.3",
-            "pydantic-settings>=2.16.2",
+            "pydantic-settings>=2.16.3",
             "structlog>=26.1.0",
         )
         _run(project, "uv", "add", "--dev", "anyio>=4.16.0", "testcontainers>=4.15.0")
         _write(
             project,
             "src/starter_py/__init__.py",
-            _render("init.py", replacements, guide="litestar"),
+            _render("init.py", replacements, owner="python-web", guide="litestar"),
         )
         _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
         for name in ("test_web.py", "test_integration.py"):
-            _write(project, f"tests/{name}", _render(name, replacements, guide="litestar"))
-        _write(project, "tests/conftest.py", _render("conftest.py", replacements, guide="litestar"))
+            _write(project, f"tests/{name}", _render(name, replacements, owner="python-web", guide="litestar"))
+        _write(project, "tests/conftest.py", _render("conftest.py", replacements, owner="python-web", guide="litestar"))
+        _write(project, ".env.example", _render("env.example", replacements, owner="python-web", guide="litestar"))
         # Developer `.env` files must never leak into unit tests that instantiate Settings().
         _write(
             project,
             ".env",
             'DATABASE_URL=postgresql+asyncpg://env.invalid/db\nCORS_ORIGINS=["https://allowed.example"]\n',
         )
+    elif profile == "mcp":
+        _run(project, "uv", "add", "mcp[cli]>=2.3.0")
+        _write(
+            project,
+            "src/starter_py/__init__.py",
+            'from starter_py.server import __version__, main, server\n\n__all__ = ["__version__", "main", "server"]\n',
+        )
+        _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
+        _write(
+            project,
+            "src/starter_py/server.py",
+            _render("server.py", replacements, owner="agent-protocols", guide="mcp"),
+        )
+        _write(
+            project,
+            "tests/test_protocol.py",
+            _render("test_protocol.py", replacements, owner="agent-protocols", guide="mcp"),
+        )
+    else:
+        _run(
+            project,
+            "uv",
+            "add",
+            "polars>=2.1.0",
+            "pandera[polars]>=0.36.0",
+            "scikit-learn>=1.9.1",
+            "omegaconf>=2.3.0",
+            "pydantic>=2.14.3",
+        )
+        for mod in ("settings.py", "pipeline.py"):
+            _write(project, f"src/starter_py/{mod}", _render(mod, replacements, owner="python-mlops", guide=""))
+        _write(
+            project,
+            "tests/test_pipeline.py",
+            _render("test_pipeline.py", replacements, owner="python-mlops", guide=""),
+        )
 
     _run(project, "uv", "lock")
     _run(project, "uv", "sync", "--locked")
+    _run(project, "dprint", "fmt")
+    _run(project, "dprint", "check")
+    _run(project, "jactionlint", "--profile", "pedantic")
+    _run(
+        project, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner"
+    )
     _run(project, "uv", "run", "--frozen", "validate-pyproject", "pyproject.toml")
     # The documented gate formats materialized code for the selected Python target first.
     _run(project, "uv", "run", "--frozen", "ruff", "format")
@@ -148,25 +240,27 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(project, "uv", "venv", str(runtime))
     wheel = next((project / "dist").glob("*.whl"))
     requirements = _run(project, "uv", "export", "--locked", "--no-dev", "--no-emit-project")
-    _write(project, "runtime-requirements.txt", requirements)
-    _run(
-        project,
-        "uv",
-        "pip",
-        "install",
-        "--python",
-        str(runtime / "bin/python"),
-        "-r",
-        "runtime-requirements.txt",
-        str(wheel),
-    )
+    req_lines = [line for line in requirements.splitlines() if line and not line.startswith("#")]
+    if req_lines:
+        _write(project, "runtime-requirements.txt", requirements)
+        _run(
+            project,
+            "uv",
+            "pip",
+            "sync",
+            "--python",
+            str(runtime / "bin/python"),
+            "--require-hashes",
+            "runtime-requirements.txt",
+        )
+    _run(project, "uv", "pip", "install", "--python", str(runtime / "bin/python"), "--no-deps", str(wheel))
     outside = project / "outside"
     outside.mkdir()
     assert (
         _run(outside, str(runtime / "bin/python"), "-c", "import starter_py; print(starter_py.__version__)")
         == "0.1.0\n"
     )
-    if profile == "web":
+    if profile in {"api", "web", "mcp"}:
         for command in ([str(runtime / "bin/starter-py")], [str(runtime / "bin/python"), "-m", "starter_py"]):
             assert _run(outside, *command, "--version") == "0.1.0\n"
             for flag in ("-h", "--help"):
@@ -182,15 +276,158 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             _run(outside, *command, "--unknown-option", expected_code=2)
             _run(outside, *command, expected_code=2)
         # The CLI profile ships on the standard library alone.
-        assert [line for line in requirements.splitlines() if line and not line.startswith("#")] == []
+        assert req_lines == []
+
+
+@pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
+def test_pep723_script_starter_lock_audit_and_typecheck(tmp_path: Path) -> None:
+    script = tmp_path / "script.py"
+    script.write_text(
+        (ROOT / "skills/python-stack/references/python-script/templates/script.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    _run(tmp_path, "uv", "lock", "--script", str(script))
+    assert (tmp_path / "script.py.lock").is_file()
+    assert _run(tmp_path, "uv", "run", "--locked", "--script", str(script), "--version") == "0.1.0\n"
+    _run(tmp_path, "uv", "audit", "--preview-features", "audit-command", "--locked", "--script", str(script))
+    script_python = _run(tmp_path, "uv", "python", "find", "--script", str(script)).strip()
+    ty_bin = str(ROOT / "dot/.venv/bin/ty")
+    _run(tmp_path, ty_bin, "check", "--python", script_python, str(script))
+
+
+@pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
+def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> None:
+    site = tmp_path / "docs-starter"
+    site.mkdir()
+    _run(site, "git", "init", "-q", "-b", "main")
+    replacements = {
+        "<owner>": "example",
+        "<slug>": "starter-docs",
+        "<package>": "starter-docs",
+        "<description>": "Starter documentation site",
+        "<holder>": "Fixture Author",
+        "<year>": "2026",
+        "<audience>": "engineers",
+        "<achieve an outcome>": "ship verified documentation",
+        "<expected output>": "0.1.0",
+    }
+    tpl_dir = ROOT / "skills/documentation-site/templates"
+    _write(
+        site,
+        "pyproject.toml",
+        '[project]\nname = "starter-docs"\nversion = "0.1.0"\nrequires-python = ">=3.14"\n'
+        '[dependency-groups]\ndev = ["zensical>=0.1.1,<0.2"]\n',
+    )
+    _write(site, ".python-version", "3.14\n")
+    _write(site, "zensical.toml", _render("zensical.toml", replacements, owner="documentation-site", guide=""))
+    _write(site, "docs/index.md", _render("index.md", replacements, owner="documentation-site", guide=""))
+    _write(site, "docs/guides/lesson.md", (tpl_dir / "lesson.md").read_text(encoding="utf-8"))
+    _write(site, "includes/abbreviations.md", (tpl_dir / "abbreviations.md").read_text(encoding="utf-8"))
+    _write(site, "docs/stylesheets/fmind.css", ":root { --md-primary-fg-color: #174ea6; }\n")
+    _write(site, "mise.toml", (tpl_dir / "mise.toml").read_text(encoding="utf-8"))
+    _write(site, "dprint.json", (ROOT / "skills/mise/templates/dprint.json").read_text(encoding="utf-8"))
+    _write(site, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
+    _write(site, ".github/workflows/docs.yml", (tpl_dir / "docs.yml").read_text(encoding="utf-8"))
+
+    _run(site, "uv", "lock")
+    _run(site, "uv", "sync", "--locked")
+    _run(site, "dprint", "check")
+    _run(site, "jactionlint", "--profile", "pedantic")
+    _run(site, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner")
+    _run(site, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
+    assert (site / "site/index.html").is_file()
+    assert (site / "site/llms.txt").is_file()
+
+
+@pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
+def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
+    iac = tmp_path / "iac"
+    iac.mkdir()
+    _run(iac, "git", "init", "-q", "-b", "main")
+    replacements = {
+        "<slug>": "demo-svc",
+        "<project>": "demo-proj-123",
+        "<region>": "europe-west1",
+        "<holder>": "Fixture Author",
+        "<year>": "2026",
+    }
+    iac_tpl = ROOT / "skills/infra-as-code/templates"
+    file_map = {
+        "versions.tf": "versions.tf",
+        "main.tf": "main.tf",
+        "variables.tf": "variables.tf",
+        "outputs.tf": "outputs.tf",
+        "terraform.example.tfvars": "terraform.example.tfvars",
+        "main.tftest.hcl": "tests/main.tftest.hcl",
+        "tflint.hcl": ".tflint.hcl",
+        "terraform-docs.yml": ".terraform-docs.yml",
+        "gitignore": ".gitignore",
+        "lefthook.yml": "lefthook.yml",
+        "mise.toml": "mise.toml",
+    }
+    for src_name, dst_rel in file_map.items():
+        text = (iac_tpl / src_name).read_text(encoding="utf-8")
+        for placeholder, value in replacements.items():
+            text = text.replace(placeholder, value)
+        _write(iac, dst_rel, text)
+    _write(iac, "trivy.yaml", (ROOT / "skills/code-security/references/trivy/templates/trivy.yaml").read_text())
+    _write(iac, "dprint.json", (ROOT / "skills/mise/templates/dprint.json").read_text())
+    _write(iac, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
+
+    _run(iac, "tofu", "fmt", "-check", "-recursive")
+    _run(iac, "dprint", "check")
+    _run(iac, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner")
+    _run(
+        iac,
+        "trivy",
+        "--config",
+        "trivy.yaml",
+        "fs",
+        "--scanners",
+        "misconfig",
+        "--tf-vars",
+        "terraform.example.tfvars",
+        ".",
+    )
+    _run(iac, "tofu", "init", "-backend=false", "-input=false")
+    _run(iac, "tofu", "validate")
+    _run(iac, "tofu", "test")
+
+    tpl = tmp_path / "copier-tpl"
+    tpl.mkdir()
+    _run(tpl, "git", "init", "-q", "-b", "main")
+    _write(tpl, "copier.yml", (ROOT / "skills/project-scaffolding/templates/copier.yml").read_text(encoding="utf-8"))
+    _write(tpl, ".github/workflows/ci.yml", "name: Template CI\n")
+    _write(tpl, "template/README.md.jinja", "# {{ slug }} ({{ package }}) by {{ holder }}\n{{ description }}\n")
+    _write(tpl, "template/{{ _copier_conf.answers_file }}.jinja", "{{ _copier_answers | to_nice_yaml }}\n")
+    _run(tpl, "git", "add", ".")
+    _run(tpl, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-qm", "init")
+
+    out = tmp_path / "copier-out"
+    _run(
+        tmp_path,
+        "uvx",
+        "--from",
+        "copier>=9.19.1",
+        "copier",
+        "copy",
+        "--defaults",
+        "--data",
+        "slug=demo-app",
+        "--data",
+        "holder=Example",
+        "--data",
+        "description=Demo",
+        str(tpl),
+        str(out),
+    )
+    assert "demo-app (demo_app) by Example" in (out / "README.md").read_text(encoding="utf-8")
+    assert (out / ".copier-answers.yml").is_file()
+    assert not (out / ".github").exists()
 
 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
 def test_editable_pptx_script_builds_valid_deck(tmp_path: Path) -> None:
-    import importlib.util
-    import shutil
-    import zipfile
-
     templates_dir = ROOT / "skills" / "draft-typst-deck" / "templates"
     script = templates_dir / "editable_deck.py"
     out = tmp_path / "editable.pptx"

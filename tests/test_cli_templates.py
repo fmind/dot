@@ -97,3 +97,26 @@ def test_script_errors_do_not_disclose_exception_values(tmp_path: Path, error: s
     assert "Error:" in result.stderr
     assert "SYNTHETIC_CREDENTIAL_MARKER" not in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def test_concrete_python_templates_pass_repo_ruff_checks() -> None:
+    ruff = ROOT / "dot/.venv/bin/ruff"
+    assert ruff.is_file()
+    targets = [
+        "skills/python-stack/references/python-script/templates/script.py",
+        "skills/agy/references/antigravity-sdk/templates/orchestrator.py",
+        "skills/github-actions/references/ci-cd/templates/image-platforms.py",
+        "skills/draft-typst-deck/templates/editable_deck.py",
+        "skills/cloud-run/templates/verify-private.py",
+        "skills/cloud-run/templates/probe-candidate.py",
+    ]
+    for subcommand in (["check"], ["format", "--check"]):
+        result = subprocess.run(
+            [str(ruff), *subcommand, "--no-force-exclude", *targets],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert result.returncode == 0, f"ruff {' '.join(subcommand)} failed:\n{result.stdout}{result.stderr}"

@@ -170,6 +170,10 @@ def test_every_copy_of_the_mise_version_agrees() -> None:
     ):
         config = tomllib.loads((ROOT / template / "mise.toml").read_text(encoding="utf-8"))
         copies[f"{template}/mise.toml"] = str(config.get("min_version"))
+        settings = config.get("settings", {})
+        assert settings.get("lockfile") is True, template
+        assert settings.get("lockfile_platforms") == ["linux-arm64", "linux-x64", "macos-arm64"], template
+        assert settings.get("minimum_release_age") == "0d", template
     readme = re.search(r"requires mise ([0-9.]+[0-9])", (ROOT / "README.md").read_text(encoding="utf-8"))
     assert readme is not None
     copies["README.md"] = readme.group(1)
@@ -177,6 +181,22 @@ def test_every_copy_of_the_mise_version_agrees() -> None:
 
     assert len(copies) >= 14
     assert set(copies.values()) == {pinned_mise_version()}, copies
+
+
+def test_dprint_template_plugins_and_dockerfile_pins_match_repo_locks() -> None:
+    def load_jsonc(path: Path) -> dict[str, object]:
+        return cast(dict[str, object], json.loads(re.sub(r"(?m)^\s*//.*$", "", path.read_text(encoding="utf-8"))))
+
+    assert (
+        load_jsonc(ROOT / "skills/mise/templates/dprint.json")["plugins"] == load_jsonc(ROOT / "dprint.json")["plugins"]
+    )
+
+    lock = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))["tools"]
+    python_version = lock["python"][0]["version"]
+    uv_version = lock["uv"][0]["version"]
+    dockerfile = (ROOT / "skills/docker/references/containerize/templates/Dockerfile").read_text(encoding="utf-8")
+    assert f"FROM python:{python_version}-slim@sha256:" in dockerfile
+    assert f"COPY --from=ghcr.io/astral-sh/uv:{uv_version}@sha256:" in dockerfile
 
 
 # Run the real mise task graph and chezmoi hooks in an empty home. Only installation

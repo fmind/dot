@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
 import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 import yaml
@@ -265,3 +267,74 @@ else:
         check=False,
     )
     assert (result.returncode == 0) is (problem in {"none", "implicit-default"}), result.stderr
+
+
+def _load_probe_module() -> ModuleType:
+    helper = ROOT / "skills/cloud-run/templates/probe-candidate.py"
+    source = helper.read_text(encoding="utf-8")
+    ast.parse(source, filename=str(helper), feature_version=(3, 14))
+    assert "allow_abbrev=False" in source
+    assert "suggest_on_error=True" in source
+    spec = importlib.util.spec_from_file_location("probe_candidate", helper)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_probe_candidate_validates_url_fetches_token_and_checks_health_ready(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_probe_module()
+    for bad in ("http://cand.a.run.app", "https://cand.a.run.app/path", "https://user@cand.example.com", ""):
+        with pytest.raises(ValueError, match="Candidate URL"):
+            module.validate_candidate_url(bad)
+
+    requests_seen: list[tuple[str, str, dict[str, str]]] = []
+    statuses = {"/health": 200, "/ready": 200}
+
+    class FakeResponse:
+        def __init__(self, status: int) -> None:
+            self.status = status
+
+        def read(self) -> bytes:
+            return b'{"status":"ok"}'
+
+    class FakeConnection:
+        def __init__(self, host: str, **_kwargs: object) -> None:
+            self.host = host
+            self.path = ""
+
+        def request(self, method: str, path: str, *, headers: dict[str, str]) -> None:
+            assert method == "GET"
+            self.path = path
+            requests_seen.append((self.host, path, headers))
+
+        def getresponse(self) -> FakeResponse:
+            return FakeResponse(statuses[self.path])
+
+        def close(self) -> None:
+            return None
+
+    url = "https://candidate---svc-abc123.a.run.app"
+    module.probe_candidate(url, token_fetcher=lambda _aud: "id-tok", connection_factory=FakeConnection)
+    assert [(host, path, hdrs["Authorization"]) for host, path, hdrs in requests_seen] == [
+        ("candidate---svc-abc123.a.run.app", "/health", "Bearer id-tok"),
+        ("candidate---svc-abc123.a.run.app", "/ready", "Bearer id-tok"),
+    ]
+
+    statuses["/ready"] = 503
+    with pytest.raises(RuntimeError, match="/ready returned HTTP 503"):
+        module.probe_candidate(url, token_fetcher=lambda _aud: "id-tok", connection_factory=FakeConnection)
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    gcloud = bin_dir / "gcloud"
+    gcloud.write_text("#!/bin/sh\necho 'synthetic-id-token'\n")
+    gcloud.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    assert module.fetch_identity_token(url) == "synthetic-id-token"
+    gcloud.write_text("#!/bin/sh\necho 'not valid token'\n")
+    with pytest.raises(RuntimeError, match="identity token"):
+        module.fetch_identity_token(url)

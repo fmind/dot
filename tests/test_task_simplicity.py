@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STARTERS = {
     "python-stack": "skills/python-stack/references/foundation/templates/mise.toml",
     "terraform": "skills/infra-as-code/templates/mise.toml",
+    "documentation-site": "skills/documentation-site/templates/mise.toml",
 }
 DOCS_STARTERS = (
     "skills/documentation-site/templates/mise.toml",
