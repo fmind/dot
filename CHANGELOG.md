@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.0.0] - 2026-11-16
+
+### 🚀 Features
+
+- _(zellij)_ Enable attention startup card, command tracking, and unbind Alt+o
+
+### ♻️ Refactor
+
+- _(dot)_ [**breaking**] Streamline CLI to seven commands, drop pydantic, and migrate with-secret
+
+### 📚 Documentation
+
+- _(agents)_ Refine global AGENTS.md core principles
+
 ## [16.4.0] - 2026-11-15
 
 ### 🚀 Features
