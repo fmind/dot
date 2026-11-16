@@ -539,6 +539,9 @@ class HarnessConfigTests(unittest.TestCase):
         config_path = ROOT / "dot_config/zellij/config.kdl"
         content = config_path.read_text(encoding="utf-8")
         assert 'host_notification_protocol "off"' in content
+        assert 'startup_card "attention"' in content
+        assert "track_commands true" in content
+        assert 'unbind "Alt o"' in content
         assert 'bind "Alt Shift i" { ToggleSessionCard; }' in content
         zellij = native_binary("zellij")
         if zellij is None:

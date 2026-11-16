@@ -16,11 +16,12 @@ scroll_mode_sync false
 // Keep pane OSC 9/777/99 alerts in Zellij's attention inbox without forwarding OS popups to Ghostty.
 host_notification_protocol "off"
 
-// Keep frame/tab attention markers and the on-demand Inbox, but skip the
-// startup popup, global quiet-output noise, and standalone desktop popups.
+// Keep frame/tab attention markers, on-startup attention card, long-command
+// tracking, and the Inbox, while skipping global quiet-output noise and standalone desktop popups.
 attention {
-    startup_card "never"
+    startup_card "attention"
     idle_rule "watched"
+    track_commands true
     desktop_notifications {
         needs_you false
         failed false
@@ -41,6 +42,7 @@ keybinds {
     }
     shared_except "locked" {
         unbind "Ctrl h" // Conflicts with nvim
+        unbind "Alt o" // Symmetric with Alt i (GoToNextAttention); frees Alt o from MoveTab Right
     }
     shared_except "move" {
         bind "Alt m" { SwitchToMode "Move"; }
