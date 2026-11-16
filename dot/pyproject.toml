@@ -29,7 +29,7 @@ dev = [
   "pytest-xdist>=3.8.0",
   "pytest>=9.2.0",
   "ruff>=0.17.5",
-  "supagents>=1.5.0",
+  "supagents>=1.6.0",
   "ty>=0.0.104,<0.1",
   "validate-pyproject>=0.27",
 ]

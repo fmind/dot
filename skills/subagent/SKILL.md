@@ -6,47 +6,59 @@ metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/subagent
-  created: "2026-11-16"
+  created: "2026-09-09"
   updated: "2026-11-16"
 ---
 
 # Adversarial Reviewer Subagents
 
-Encode taste, domain standards, and quality bars as clean-context, read-only reviewer subagents outside the creation loop—never as skills (which share polluted creator context and can be skipped). Aim for **one reviewer per relevant company specialist role as a target** (not a requirement), spawning only the `1`–`4` roles matching each change; use [skillify](../skillify/SKILL.md) for procedures and [task-prompts](../task-prompts/SKILL.md) for briefs.
+Encode taste and domain standards as clean-context, read-only reviewer subagents outside the creation loop, never as skills (which share polluted creator context). Spawn `1`–`4` matching specialists per change; use [skillify](../skillify/SKILL.md) for procedures and [task-prompts](../task-prompts/SKILL.md) for briefs.
 
-## Global `fmind-review-*` Suite (13 Roles)
+## Global `fmind-review-*` Suite (17 Roles)
 
-Workstation reviewers in `~/.agents/supagents/` (`dot_agents/supagents/`) check target-repo `AGENTS.md`, `DESIGN.md`, and `SECURITY.md` first (without weakening security or `Output Contract`) before applying distilled Google and industry standards:
+Workstation reviewers (`dot_agents/supagents/`, inheriting `_reviewer.md`) check `AGENTS.md` (plus `DESIGN.md`/`SECURITY.md` when relevant) before applying Google and industry standards ([standards manifest](references/standards.md)):
 
-- **Core Engineering**: `fmind-review-code` (Google CR standard, `< 500` LOC & anti-creep, test/mutation strength), `fmind-review-interface` (Google AIP + `clig.dev`, exception/exit/error contracts, typing, docs, versioning), `fmind-review-security` (SAIF/OWASP/SLSA threat paths, IAM, isolation, pins), `fmind-review-ops` (Google SRE rollouts, timeouts, maintainability, EOL/future-proofing), `fmind-review-perf` (`asyncio`/pools, N+1/memory bounds, measured baselines), `fmind-review-finops` (non-human cloud/storage/network/CI/SaaS/AI spend, budgets, alerts).
-- **Data, ML & AI**: `fmind-review-data` (contracts, grain/joins, UTC, idempotency, PII), `fmind-review-mlops` (Google Rules of ML + ML Test Score: baselines, split leakage, train-serve skew, reproducibility, drift), `fmind-review-ai` (minimum agency, lean prompts/RAG/context, tool/MCP guardrails, multi-trial/judge evals).
-- **Human, Visual, Web & Value**: `fmind-review-human` (length targets, medium-fitted beauty/colors/borders/typos/emphasis, zero AI slop/em-dashes/prose backticks), `fmind-review-design` (M3 calm hierarchy, `DESIGN.md` tokens, WCAG contrast), `fmind-review-web` (surface-adaptive HTML/a11y, CWV causes, SEO vs private `noindex`, agentic readiness), `fmind-review-pitch` (buyer hook, proof, objections, single CTA).
+| Role                      | Focus                                                           |
+| ------------------------- | --------------------------------------------------------------- |
+| `fmind-review-arch`       | C4 bounds, `>= 2` options, boring tech, lock-in, rollback       |
+| `fmind-review-code`       | Google CR, `< 500` LOC, YAGNI, behavior tests, concurrency      |
+| `fmind-review-interface`  | Google AIP + `clig.dev`, exit/error codes, typing, SemVer       |
+| `fmind-review-security`   | SAIF/OWASP/SLSA exploit paths, keyless IAM, trust, pins         |
+| `fmind-review-ops`        | SRE expand-contract rollouts, timeouts, lifecycle, SLOs         |
+| `fmind-review-perf`       | `asyncio`/pools, N+1/`O(n^2)`, memory, cold start, baselines    |
+| `fmind-review-finops`     | Non-human cloud/CI/AI spend levers, billing alerts, quotas      |
+| `fmind-review-data`       | Contracts, grain/joins, UTC/units, idempotent merges, PII       |
+| `fmind-review-mlops`      | Rules of ML + ML Test Score: baselines, leakage, skew, drift    |
+| `fmind-review-ai`         | Min agency, lean prompts/RAG splits, MCP guardrails, evals      |
+| `fmind-review-compliance` | SPDX OSS/model/data/font licenses, ToS/DPA, GDPR, AI Act        |
+| `fmind-review-docs`       | Diataxis modes, 5-min quickstarts, code sync, `< 1,500`t skills |
+| `fmind-review-factcheck`  | SAFE atomic claims, `https://` public lookup, `Sources`, math   |
+| `fmind-review-human`      | 5-sec BLUF, medium-proportional craft, links, zero AI slop      |
+| `fmind-review-design`     | Active `DESIGN.md`, M3 hierarchy, Nielsen, WCAG, PNG/PDFs       |
+| `fmind-review-web`        | Surface type, WCAG 2.2 AA, CWV causes, SEO/noindex, HTTP        |
+| `fmind-review-pitch`      | Minto BLUF exec memos, Dunford/PR-FAQ, options, single CTA      |
 
 ## Author Per-Project Reviewers
 
-1. **Map company roles & isolate data**: inspect `AGENTS.md`, `DESIGN.md`, `SECURITY.md`, and active hosts. Prefix roles (`<org>-review-<role>` or `<org>-<stakeholder>`) without leaking customer names, URLs, or brand tokens across repos.
-1. **Distill rulebooks inline (`<= 100` body lines; zero URL fetches)**: embed domain standards + `Do Not Flag` sibling-deferral rules directly (`~60`–`90` lines; zero main-session token cost) and read repo docs locally—read-only subagents block `WebFetch`/`search_web` against exfiltration and prompt injection.
-1. **Compile or write native files**:
-   - **Multi-harness via [`supagents`](https://github.com/fmind/agent-supagents) (recommended)**: start from [reviewer.md](templates/reviewer.md) in `.agents/supagents/<name>.md` (OpenCode V2 `permissions` denies `.env`/`.envrc` natively; `AGY`/`CLAUDE`/`COPILOT` enforce read-only tool allowlists and inherit path denies from host settings), then gate in `mise.toml`:
-     ```bash
-     supagents build --project --diff
-     supagents build --project --strict
-     supagents check --project --strict
-     ```
-   - **Native host files (single-harness or customer-constrained)**: write `.agents/agents/<role>.md`, `.claude/agents/<role>.md`, `.github/agents/<role>.agent.md`, or `.opencode/agents/<role>.md` per [cross-harness-agents](../agent-project/references/cross-harness-agents.md), copying the host's read-only frontmatter block from [reviewer.md](templates/reviewer.md) verbatim so tools never fail open.
-1. **Enforce the Agent-to-Agent Output Contract**: require `VERDICT: PASS | REVISE | BLOCK` (`P0`/high-conf `P1` -> `BLOCK`, med-conf `P1`/`P2` -> `REVISE`, zero `P0`–`P2` -> `PASS`), redacted `evidence`, `DELETIONS`, and `UNVERIFIED` ([reviewer.md](templates/reviewer.md)), then run [seeded-defect calibration](references/calibration.md).
+1. **Map roles & isolate data**: inspect `AGENTS.md`, `DESIGN.md`, and `SECURITY.md`. Prefix roles (`<org>-review-<role>`) without leaking customer names, URLs, or brand tokens across repos.
+1. **Inline model-delta (`<= 80` compiled body lines)**: follow the 3-tier model-delta strategy ([standards](references/standards.md)); embed concise checks + `Do Not Flag` without copying guidebooks or fetching rules at runtime.
+1. **Compile via [`supagents`](https://github.com/fmind/agent-supagents) (`>= 1.6.0`) or native files**: keep shared host permissions, `{{BODY}}`, and `Output Contract` once in `.agents/supagents/_reviewer.md`, extending via `extends: _reviewer` ([reviewer.md](templates/reviewer.md) holds standalone blocks):
+   ```bash
+   supagents build --project --diff && supagents build --strict --project && supagents check --strict --project
+   ```
+1. **Enforce Output Contract & calibrate**: require `VERDICT: PASS | REVISE | BLOCK`, redacted `evidence`, `DELETIONS`, and `UNVERIFIED`, then run [calibration](references/calibration.md).
 
 ## Coordinator-as-Critic Loop
 
-1. **Deterministic gates first (`0` tokens)**: pass formatters, `ruff`/`ty`/`pytest`, scanners, and `vale --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` before delegating.
-1. **Freeze, materialize diffs & fan out**: write git diffs to `/var/tmp/review-<id>.diff` (read-only subagents lack shell) and pass **explicit file paths** (never bare directories) + acceptance criteria in parallel.
-1. **Audit the reviewers**: cross-check `loc` + `evidence` against live files—discard hallucinations, apply verified `BLOCK`/`REVISE` fixes + safe `DELETIONS` (escalating scope/spend/architecture calls to user `Decisions`; max `2` rounds), and stop on `PASS`.
+1. **Deterministic gates first (`0` tokens)**: run linters, tests, scanners, `vale --output=JSON`, `lychee`, and Playwright/Typst PNG renders before delegating so reviewers inspect concrete outputs with zero shell access.
+1. **Freeze, isolate & fan out**: write repo diffs to an untracked workspace scratch file when confining reads (`--settings '{"allowNonWorkspaceAccess":false}'` on headless `agy`); when running `fmind-review-factcheck` inside secret-bearing customer workspaces, launch it from an isolated `/var/tmp/<sandbox>` directory holding only sanitized claim extracts or public deliverables; fan out `1`–`4` specialists in parallel.
+1. **Audit findings**: verify every `loc` + `evidence` against live files, apply verified fixes + `DELETIONS` (max `2` rounds), and stop on `PASS`.
 
 ## Gotchas
 
-- **Session prompt caching**: active `agy`/`claude` sessions snapshot custom agents at startup—use a fresh session or headless CLI run after edits.
-- **Markers & chezmoi**: migrate handwritten files before building, exclude generated dirs from `dprint`/`.ignore`, and in `fmind/dot` use `--project --source-dir dot_agents/supagents --config supagents.yaml` + `mise run apply` (never `--global`).
+- **Session prompt caching**: active `agy`/`claude` sessions snapshot custom agents at startup; use a fresh session or headless run after edits.
+- **Markers & chezmoi**: migrate handwritten files first, exclude generated dirs from `dprint`/`.ignore`, and in `fmind/dot` pass `--project --source-dir dot_agents/supagents --config supagents.yaml` + `mise run apply`.
 
 ## Documentation
 
-- [Calibration](references/calibration.md) · [Template](templates/reviewer.md) · [fmind/agent-supagents](https://github.com/fmind/agent-supagents) · Companions: [full-review](../full-review/SKILL.md), [humanize](../humanize/SKILL.md), [cross-harness-agents](../agent-project/references/cross-harness-agents.md), [headless-review](../agy/references/headless-review/GUIDE.md).
+- [Standards](references/standards.md) · [Calibration](references/calibration.md) · [Template](templates/reviewer.md) · [fmind/agent-supagents](https://github.com/fmind/agent-supagents) · Companions: [full-review](../full-review/SKILL.md), [humanize](../humanize/SKILL.md), [cross-harness-agents](../agent-project/references/cross-harness-agents.md), [headless-review](../agy/references/headless-review/GUIDE.md).

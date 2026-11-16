@@ -3936,10 +3936,10 @@ python = "3.14"
 with = '["psycopg[binary]"]'
 
 [[tools."pypi:supagents"]]
-version = "1.5.0"
+version = "1.6.0"
 backend = "pypi:supagents"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-supagents/1.5.0~d9b2bfd9", digest = "sha256:0366c4e5e04df69aec03ed6ddf65e9f52cf3cc1b01e981ffdb6a98a1c5d5b20a" }
+uv = { path = "locks/pypi-supagents/1.6.0~d9b2bfd9", digest = "sha256:1dfc8c937aff60eb264389be6a06451bc555f8b3f5078eed5575a6d769d919fc" }
 
 [tools."pypi:supagents".options]
 python = "3.14"

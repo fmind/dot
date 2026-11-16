@@ -32,6 +32,7 @@ Every reply (including skill reports) stands alone — I may not see tool output
 ### To other people
 
 - **Write short and message-first for external readers**: load `humanize` for external deliverables; curate high-value signals, drop em dashes, jargon, and prose backticks (`vale`), format visually for the medium, and omit my reply format.
+- **Cite primary sources inline and explain them at the end**: link authoritative primary sources inline across generated content (docs, emails, decks, sheets, reports), and close substantive deliverables (Google Docs, Sheets, reports, proposals) with a short Sources section naming each primary source, what it grounds, and its date or version.
 
 ## Rigor
 
@@ -64,6 +65,7 @@ Customer, employer, and existing projects keep their own stack and design.
 ## Boundaries
 
 - **Ask before external or irreversible effects**: act freely in the workspace, including destructively on clean tracked or task-created files. Prepare a reviewable result and ask before contacting people, publishing, spending, changing production, rewriting pushed history, or deleting unrecoverable data. Run non-interactively; `--force` and `--yes` never expand authority.
+- **Guarantee rollback before big refactorings**: before large-scale code, config, doc, or sheet restructurings, rely on verified Git/GitHub commits/worktrees or Google Drive/Docs revision history when available, and take an explicit backup snapshot first whenever native versioning is absent or uncommitted state is at risk.
 - **Commit and push only on request**: Conventional Commits without AI attribution or co-author trailers (`git-delivery`). Direct commits to `main` are fine on `github.com/fmind/*` unless asked for a PR.
 - **Edit workstation config in chezmoi**: change Linux/macOS config in `~/.local/share/chezmoi` (`fmind/dot`), never deployed `~` files.
 - **Check headroom before large jobs**: run `dot doctor --headroom` before large downloads, builds, or datasets; remove only task-created files, never via broad prune commands.

@@ -16,7 +16,7 @@ Personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS. [
 
 ## Highlights
 
-- **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit — tuned for keyboard speed and ultrawide layouts.
+- **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit, tuned for keyboard speed and ultrawide layouts.
 - **Editor:** Neovim (LazyVim), unified across tools with [fmind/theme](https://github.com/fmind/theme).
 - **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving (`agy`, Claude, Pi) and usage stats.
 - **Development:** Python 3.14 with uv, Ruff, ty, and pytest plus cloud/service CLIs; projects pin their own stack tools.
@@ -47,7 +47,7 @@ The installer requires mise 2026.11.9 or newer and installs it if absent. [Ghost
 ## Installation
 
 > [!WARNING]
-> Personal dotfiles: [adapt them](#adapting-this) and back up existing files first. Setup overwrites managed targets without backups. Agents run with autonomous permissions, and apply auto-trusts configured workspaces (Pi inherits trust across subdirectories and seeds `.git` roots; keep untrusted clones outside `pull.directories`) and owner-allowlisted repos; review [trust behavior](skills/dot-cli/references/daily-workflows.md#folder-trust) before use.
+> Personal dotfiles: [adapt them](#adapting-this) and back up existing files first. Setup overwrites managed targets without backups, agents run with autonomous permissions, and apply auto-trusts configured workspaces and owner-allowlisted repos. Pi inherits trust across subdirectories and seeds `.git` roots, so keep untrusted clones outside `pull.directories` and review [trust behavior](skills/dot-cli/references/daily-workflows.md#folder-trust) before use.
 
 Inspect [`install.sh`](install.sh), then run:
 
@@ -125,7 +125,9 @@ Contributor guides: [AGENTS.md](AGENTS.md) and [releases & qualification](.agent
   >
 </a>
 
-Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins. Read-only `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) audit code, contracts, security, SRE/ops, perf, FinOps, data, MLOps, AI, UX, web, and human communication across the first four hosts via [supagents](https://github.com/fmind/agent-supagents); see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins.
+
+For clean-context quality gates, 17 read-only `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover engineering, data/AI/compliance, and docs/UX/comms across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents); see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 
 ## Agent skills
 
@@ -200,7 +202,7 @@ Fork and replace personal defaults:
 1. **Identity:** prompts in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl), clone URL in [`install.sh`](install.sh), and [`allowed_signers`](dot_config/git/allowed_signers) before [commit signing](#commit-signing). Put local Git overrides in unmanaged `~/.config/git/config.local`.
 1. **Secrets:** replace the age recipient in [`.chezmoi.toml.tmpl`](.chezmoi.toml.tmpl) and remove or re-encrypt `*.age` files before applying ([Secret Management](#secret-management)).
 1. **Persona:** edit [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md).
-1. **Workspaces & trust:** update `pull.directories` (also trusted across Antigravity, Claude Code including `additionalDirectories`, and Pi — Pi inherits trust across subdirectories and seeds `.git` roots only), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
+1. **Workspaces & trust:** update `pull.directories` (trusted across Antigravity, Claude Code including `additionalDirectories`, and Pi; see trust warning above), `trust.github_owners`, and `trust.agy_projects` in `~/.config/dot.yaml`, plus `includeIf` paths in [`dot_gitconfig.tmpl`](dot_gitconfig.tmpl). Manage mise trust via `mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`.
 1. **Theme & design:** update [`.chezmoiexternal.toml.tmpl`](.chezmoiexternal.toml.tmpl), pinned to an [fmind/theme](https://github.com/fmind/theme) commit (`mise run upgrade` advances it; personal work only) for app themes, `~/.agents/DESIGN.md`, and `~/.agents/themes/` renderer files.
 
 ## Uninstall / rollback

@@ -4,29 +4,29 @@ Verify in a **fresh session** that a reviewer subagent catches target defect cla
 
 ## Calibration Matrix
 
-Create synthetic fixtures in `/var/tmp` (never customer data in public repos):
+Create synthetic fixtures inside a clean `/var/tmp` sandbox directory (never customer data in public repos) so the fixture files stay inside the active workspace root under `allowNonWorkspaceAccess: false`:
 
 1. **Seeded defect cases (`>= 2` distinct rubric classes)**: plant concrete flaws per lens (e.g., shell interpolation + hardcoded dummy token for `security`; a `600`-LOC module + tautological mock for `code`; em dashes + prose backticks + raw unformatted wall for `human`).
 1. **Clean controls (`>= 2` clean edge cases)**: fix those exact flaws cleanly, including valid edge cases covered by `## Do Not Flag` (e.g., short plain 1:1 email for `human`; private `noindex` app without `sitemap.xml` for `web`).
 
 ## Headless Production-Contract Probe
 
-Run headless without overriding the subagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the workspace:
+Run headless from the sandbox without overriding the subagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the sandbox:
 
 ```bash
-bad_fixture=/var/tmp/subagent-fixture-bad.py
-good_fixture=/var/tmp/subagent-fixture-good.py
+sandbox=$(mktemp -d /var/tmp/subagent-cal.XXXXXX)
 bad_out=$(mktemp /var/tmp/subagent-bad.XXXXXX)
 good_out=$(mktemp /var/tmp/subagent-good.XXXXXX)
+# Populate $sandbox/bad.py and $sandbox/good.py before running:
 
-agy --agent fmind-review-code --print-timeout 5m --output-format json \
+(cd "$sandbox" && agy --agent fmind-review-code --print-timeout 5m --output-format json \
   --settings '{"allowNonWorkspaceAccess":false}' \
-  -p "Review $bad_fixture read-only using your Output Contract." > "$bad_out" &&
+  -p "Review bad.py read-only using your Output Contract.") > "$bad_out" &&
   jq -er '.status == "SUCCESS" and (.finished_reason // null) == null and (.response | test("VERDICT: (BLOCK|REVISE)"))' "$bad_out" >/dev/null
 
-agy --agent fmind-review-code --print-timeout 5m --output-format json \
+(cd "$sandbox" && agy --agent fmind-review-code --print-timeout 5m --output-format json \
   --settings '{"allowNonWorkspaceAccess":false}' \
-  -p "Review $good_fixture read-only using your Output Contract." > "$good_out" &&
+  -p "Review good.py read-only using your Output Contract.") > "$good_out" &&
   jq -er '.status == "SUCCESS" and (.finished_reason // null) == null and (.response | test("VERDICT: PASS")) and (.response | test("FINDINGS: none"))' "$good_out" >/dev/null
 ```
 
