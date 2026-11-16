@@ -16,7 +16,7 @@ Verify `gws` exit 0 before running `pages.py`, and keep `nextPageToken`/`incompl
 
 ## Docs
 
-Select native `.md` vs `.gdoc` per [draft-doc](../../draft-doc/SKILL.md#format-choice); extract `.gdoc` text across all tabs (including child tabs, tables, headers, footers, footnotes) with `docs_text.py`:
+Choose standard `.gdoc` vs native `.md` per user preference and [draft-doc](../../draft-doc/SKILL.md#format-choice); extract `.gdoc` text across all tabs (including child tabs, tables, headers, footers, footnotes) with `docs_text.py`:
 
 ```bash
 gws docs documents get --params '{"documentId":"DOC_ID","includeTabsContent":true}' > document.json

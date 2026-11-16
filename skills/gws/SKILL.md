@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-11-14"
+  updated: "2026-11-16"
 ---
 
 # Google Workspace CLI
@@ -51,4 +51,4 @@ Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tr
 
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) · [Workspace API reference](https://developers.google.com/workspace)
 - Releases: [Workspace CLI](https://github.com/googleworkspace/cli/releases) · [changelog](https://github.com/googleworkspace/cli/blob/main/CHANGELOG.md)
-- Companions: [draft-doc](../draft-doc/SKILL.md) (Google Docs `.md` or HTML->`.gdoc`), [draft-typst-deck](../draft-typst-deck/SKILL.md) (Typst PDF/PPTX & private Google Slides), [draft-mail](../draft-mail/SKILL.md) (draft-only Gmail), [acli](../acli/SKILL.md), [gcloud](../gcloud/SKILL.md), [mcp-setup](../agent-harnesses/references/mcp-setup.md).
+- Companions: [draft-doc](../draft-doc/SKILL.md) (Google Docs `.gdoc` or `.md`), [draft-typst-deck](../draft-typst-deck/SKILL.md) (Typst PDF/PPTX & private Google Slides), [draft-mail](../draft-mail/SKILL.md) (draft-only Gmail), [acli](../acli/SKILL.md), [gcloud](../gcloud/SKILL.md), [mcp-setup](../agent-harnesses/references/mcp-setup.md).

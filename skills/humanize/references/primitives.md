@@ -47,9 +47,9 @@ After:
     </p>
     ```
 
-- **Google Docs (`draft-doc`)**:
-  - _Native `.md`_: use `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and compiled `≤440pt` Typst PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.
-  - _Styled HTML_: for `<mark>` highlights, tinted banners, or shaded tables, import via `gws drive files create --json '{"name":"<Title>","mimeType":"application/vnd.google-apps.document"}' --upload <file.html> --upload-content-type text/html`.
+- **Google Docs (`draft-doc`)**: let the user choose standard `.gdoc` vs Markdown `.md` ([format choice](../../draft-doc/SKILL.md#format-choice)):
+  - _Standard `.gdoc`_ (high customization for polished reports): inline-styled HTML import (`<mark>`, 1-cell tinted callout tables, shaded table rows, Base64 Typst PNGs) or `documents.batchUpdate` (`draft-doc/references/gdoc.md`).
+  - _Markdown `.md`_ (simpler to produce/update, low customization): `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and compiled `≤440pt` Typst PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.
 
 - **GitHub PRs, issues, & READMEs (`gh`, `repository-docs`)**: pair GFM alerts, bold status pills, short tables, and `<details>` for logs:
 
