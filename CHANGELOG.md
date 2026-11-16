@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.2.0] - 2026-11-16
+
+### 🚀 Features
+
+- _(skills)_ Add standard .gdoc guide and user format choice
+- _(agents)_ Expand reviewer suite to 17 roles on supagents 1.6.0
+- Overhaul workstation tools, agent architecture, and project starters
+
+### 🧹 Miscellaneous
+
+- _(mise)_ Bump minimum mise version to 2026.11.9
+
 ## [17.1.0] - 2026-11-16
 
 ### 🚀 Features
