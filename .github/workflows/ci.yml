@@ -34,6 +34,8 @@ jobs:
         run: mise run all
       - name: Run starter contracts
         # `all` skips the network-resolving starters; Linux is the primary platform.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: mise run test:starters
       - name: Verify clean tree
         run: git status --short && [ -z "$(git status --porcelain)" ]
@@ -60,6 +62,8 @@ jobs:
       - name: Run repository tests
         run: mise run test
       - name: Run starter contracts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: mise run test:starters
       - name: Verify clean tree
         run: git status --short && [ -z "$(git status --porcelain)" ]
