@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.1.0] - 2026-11-16
+
+### 🚀 Features
+
+- _(agents)_ Add fmind-review-* subagents, subagent skill, and vale
+- _(dot)_ Add module entrypoint and expand doctor harness probes
+- _(skills)_ Add Nov 2026 starter configs, MCP/API/ML/Copier templates, and guides
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Batch workspace API enables and refine default scopes
+- _(config)_ Harden npm/fish/nvim defaults and drop firebase-tools trust overrides
+
+### 🧪 Testing
+
+- _(starters)_ Expand contract and smoke tests across all project starters
+
+### 🧹 Miscellaneous
+
+- _(bf)_ Upgrade brain-framework to 26.0.0 and sync bf skill
+
 ## [17.0.0] - 2026-11-16
 
 ### 🚀 Features
