@@ -27,11 +27,11 @@ dev = [
   "pytest-socket>=0.8.1",
   "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
-  "pytest>=9.1.1",
-  "ruff>=0.16.6",
+  "pytest>=9.2.0",
+  "ruff>=0.17.5",
   "supagents>=1.5.0",
-  "ty>=0.0.78,<0.1",
-  "validate-pyproject>=0.26",
+  "ty>=0.0.104,<0.1",
+  "validate-pyproject>=0.27",
 ]
 
 [project.scripts]
@@ -39,7 +39,7 @@ dot = "fmind_dot.cli:main"
 with-secret = "fmind_dot.with_secret:main"
 
 [build-system]
-requires = ["uv_build>=0.13.0,<0.14"]
+requires = ["uv_build>=0.13.8,<0.14"]
 build-backend = "uv_build"
 
 [tool.ruff]

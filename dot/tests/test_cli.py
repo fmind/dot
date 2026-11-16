@@ -4,11 +4,13 @@ import io
 import json
 import os
 import signal
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+from fmind_dot import __version__
 from fmind_dot import cli as cli_module
 from fmind_dot.cli import app, build_parser
 from fmind_dot.command import COMPLETE_VARIABLE, FISH_COMPLETION, candidates
@@ -40,6 +42,18 @@ def test_parser_tree_help_and_version(tmp_path: Path, monkeypatch: pytest.Monkey
     assert help_res.exit_code == 0
     assert "stats" in help_res.stdout
     assert "context" in help_res.stdout
+
+    env = os.environ | {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    mod_res = subprocess.run(
+        [sys.executable, "-m", "fmind_dot", "--version"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert mod_res.returncode == 0, mod_res.stderr
+    assert mod_res.stdout == f"dot version {__version__}\n"
 
 
 def test_state_probe_caching_validation_and_require_tools(tmp_path: Path) -> None:

@@ -11,8 +11,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from fmind_dot import __version__
-from fmind_dot.archive.store import SESSION_STORE_VERSION, agent_bundle_paths, session_store_root
-from fmind_dot.archive.sync import read_sync_state, source_root
+from fmind_dot.archive.store import (
+    SESSION_STORE_VERSION,
+    agent_bundle_paths,
+    read_session_manifest,
+    session_store_root,
+)
+from fmind_dot.archive.sync import AGENT_SOURCES, read_sync_state, source_root
 from fmind_dot.auth import (
     GCLOUD_CLI_TOKEN,
     PROBE_TIMEOUT_SECONDS,
@@ -38,6 +43,8 @@ _SHARED_PERSONA, _SHARED_SKILLS = "~/.agents/AGENTS.md", "~/.agents/skills"
 _AGENT_HOSTS: dict[str, tuple[str, str]] = {
     "agy": ("~/.gemini/GEMINI.md", "~/.gemini/config/skills"),
     "claude": ("~/.claude/CLAUDE.md", "~/.claude/skills"),
+    "copilot": ("~/.copilot/copilot-instructions.md", ""),
+    "opencode": ("~/.config/opencode/AGENTS.md", ""),
     "pi": ("~/.pi/agent/AGENTS.md", ""),
 }
 
@@ -212,6 +219,8 @@ def _inspect_agent(root: Path, name: str) -> CheckResult:
     if problems := [lbl for lbl, ok in checks if not ok]:
         msg = f"discovery broken ({','.join(problems)}); run chezmoi apply --force"
         return CheckResult(name, "fail", msg, condition="broken")
+    if name not in AGENT_SOURCES:
+        return CheckResult(name, "pass", "persona and skills linked", condition="healthy")
     try:
         source_root(name).stat()
         source_present = True
@@ -226,10 +235,13 @@ def _inspect_agent(root: Path, name: str) -> CheckResult:
     else:
         last_sync, failures, retained = info.synced_at if info.current else "stale", info.failed, info.retained
     try:
-        sessions = len(agent_bundle_paths(root / name))
+        paths = agent_bundle_paths(root / name)
+        for path in paths:
+            read_session_manifest(path, usage=False)
+        sessions = len(paths)
     except FileNotFoundError:
         sessions = 0
-    except OSError:
+    except OSError, ValueError:
         msg = f"archive unreadable under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
         return CheckResult(name, "fail", msg, condition="unreadable")
     if last_sync == "unreadable" or (last_sync in {"never", "stale"} and source_present) or failures:

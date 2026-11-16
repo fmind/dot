@@ -257,8 +257,21 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
     cfg = Config(auth=AuthConfig(login=["github", "gcp"]))
     st = make_state(ScriptedRunner({"git", "gh", "gcloud"}, run=auth_run), cfg)
     sec = doctor_sections(run_doctor(st, fix=False, deep=True))
-    assert {a["name"] for a in sec["agents"]} == {"agy", "claude", "pi"}
+    assert {a["name"] for a in sec["agents"]} == {"agy", "claude", "copilot", "opencode", "pi"}
     assert all(a["status"] == "pass" for a in sec["agents"])
+
+    copilot_persona = system_module.expand_path(system_module._AGENT_HOSTS["copilot"][0])  # noqa: SLF001
+    copilot_persona.unlink()
+    corrupt_bundle = root / "pi" / "corrupt.jsonl"
+    corrupt_bundle.write_text("{not-json\n", encoding="utf-8")
+    broken_agents = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert broken_agents["copilot"]["status"] == "fail"
+    assert broken_agents["copilot"]["condition"] == "broken"
+    assert broken_agents["pi"]["status"] == "fail"
+    assert broken_agents["pi"]["condition"] == "unreadable"
+    copilot_persona.symlink_to(tmp_path / ".agents/AGENTS.md")
+    corrupt_bundle.unlink()
+
     assert {r["name"]: r["status"] for r in sec["auth"]} == {
         "gh": "warn",
         "gcloud": "pass",
