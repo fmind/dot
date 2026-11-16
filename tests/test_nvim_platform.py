@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from repo_helpers import ROOT, native_binary
 
 
 def run_lua(tmp_path: Path, script: str, **variables: str) -> None:
@@ -150,16 +150,6 @@ def test_sqruff_linter_parses_json_nulls_and_surfaces_cli_errors(tmp_path: Path)
     sql_file = nested / "query.sql"
     sql_file.write_text("select  1\n", encoding="utf-8")
 
-    broken_repo = tmp_path / "broken-sql-repo"
-    broken_repo.mkdir()
-    (broken_repo / ".sqruff").write_text("[sqruff]\ndialect = nonexistent_dialect\n", encoding="utf-8")
-    broken_sql = broken_repo / "query.sql"
-    broken_sql.write_text("select 1\n", encoding="utf-8")
-
-    outside_cwd = tmp_path / "outside"
-    outside_cwd.mkdir()
-
-    assert shutil.which("sqruff"), "sqruff is required by the repository gate"
     run_lua(
         tmp_path,
         """
@@ -190,9 +180,43 @@ local err_diags = parser("Error: bad config\\n")
 assert(#err_diags == 1 and err_diags[1].severity == vim.diagnostic.severity.ERROR)
 assert(err_diags[1].lnum == 0 and err_diags[1].col == 0 and err_diags[1].source == "sqruff")
 assert(err_diags[1].message == "sqruff failed: Error: bad config")
+""",
+        LINTING_CONFIG=str(ROOT / "dot_config/nvim/lua/plugins/linting.lua"),
+        SQL_FILE=str(sql_file),
+        OUTSIDE_SQL=str(tmp_path / "plain.sql"),
+    )
+
+
+def test_sqruff_linter_live_cli_diagnostics_and_broken_config(tmp_path: Path) -> None:
+    sqruff = native_binary("sqruff")
+    if sqruff is None:
+        pytest.skip("sqruff native validation requires the workstation tool")
+
+    sql_repo = tmp_path / "sql-repo"
+    nested = sql_repo / "models"
+    nested.mkdir(parents=True)
+    (sql_repo / ".sqruff").write_text("[sqruff]\ndialect = postgres\n", encoding="utf-8")
+    sql_file = nested / "query.sql"
+    sql_file.write_text("select  1\n", encoding="utf-8")
+
+    broken_repo = tmp_path / "broken-sql-repo"
+    broken_repo.mkdir()
+    (broken_repo / ".sqruff").write_text("[sqruff]\ndialect = nonexistent_dialect\n", encoding="utf-8")
+    broken_sql = broken_repo / "query.sql"
+    broken_sql.write_text("select 1\n", encoding="utf-8")
+
+    outside_cwd = tmp_path / "outside"
+    outside_cwd.mkdir()
+
+    run_lua(
+        tmp_path,
+        """
+local spec = dofile(vim.env.LINTING_CONFIG)
+local opts = spec[1].opts(nil, {})
+local parser = opts.linters.sqruff.parser
 
 local live = vim.system(
-  { "sqruff", "lint", "--format", "json", "--stdin-filename", vim.env.SQL_FILE, "-" },
+  { vim.env.SQRUFF_BIN, "lint", "--format", "json", "--stdin-filename", vim.env.SQL_FILE, "-" },
   { cwd = vim.env.OUTSIDE_CWD, stdin = "select  1\\n", text = true }
 ):wait()
 local live_diags = parser((live.stdout or "") .. (live.stderr or ""))
@@ -200,7 +224,7 @@ assert(#live_diags >= 1, "live sqruff run from outside cwd should still resolve 
 assert(live_diags[1].code == "LT01" and live_diags[1].lnum == 0 and live_diags[1].col == 6)
 
 local broken = vim.system(
-  { "sqruff", "lint", "--format", "json", "--stdin-filename", vim.env.BROKEN_SQL, "-" },
+  { vim.env.SQRUFF_BIN, "lint", "--format", "json", "--stdin-filename", vim.env.BROKEN_SQL, "-" },
   { cwd = vim.env.OUTSIDE_CWD, stdin = "select 1\\n", text = true }
 ):wait()
 local broken_diags = parser((broken.stdout or "") .. (broken.stderr or ""))
@@ -208,9 +232,9 @@ assert(#broken_diags == 1 and broken_diags[1].severity == vim.diagnostic.severit
 assert(vim.startswith(broken_diags[1].message, "sqruff failed:"))
 """,
         LINTING_CONFIG=str(ROOT / "dot_config/nvim/lua/plugins/linting.lua"),
+        SQRUFF_BIN=str(sqruff),
         SQL_FILE=str(sql_file),
         BROKEN_SQL=str(broken_sql),
-        OUTSIDE_SQL=str(outside_cwd / "plain.sql"),
         OUTSIDE_CWD=str(outside_cwd),
     )
 
