@@ -28,12 +28,12 @@ Opt-in enterprise scaffolding for Agent Runtime, Agent Gateway, Terraform, and B
    agents-cli install --locked
    agents-cli lint
    uv run pytest -q tests/unit
-   # Explicitly authorized provider smoke test:
-   agents-cli run "hello"
+   # Authorized provider smoke check (domain prompt exercising tools/edges, never bare "hello"):
+   agents-cli run "<domain tool-smoke prompt>"
    ```
-1. **Evaluate behavior**: run `agents-cli eval run --dataset <versioned-cases.json> --output <results-dir>` on baseline and candidate (requires provider/GCP Eval Service authorization), then diff offline with `agents-cli eval compare <baseline.json> <candidate.json>`. Since 1.13, `eval run` and `eval grade` exit 1 on case errors (lower `--qps` on rate limits), config `thresholds:` misses, or `--fail-under METRIC=SCORE`; gate CI on the exit code.
+1. **Evaluate behavior**: run `agents-cli eval run --dataset <versioned-cases.json> --output <results-dir>` on baseline and candidate (requires provider/GCP Eval authorization), then diff offline with `agents-cli eval compare <baseline.json> <candidate.json>`. Since 1.13, `eval run` and `eval grade` exit 1 on case errors (lower `--qps` on rate limits), config `thresholds:` misses, or `--fail-under METRIC=SCORE`; gate CI on the exit code.
 1. **Instrument**: wire OpenTelemetry traces and structured logs per [observability](../../../python-stack/references/observability.md), omitting prompt, completion, secret, and PII bodies unless policy permits; pass `--otel-to-cloud` on `run` or `playground` only when authorized.
-1. **Preview and gate deployment**: preview with `agents-cli scaffold enhance --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run` (pass `--no-agent-gateway` on `cloud_run`/`gke`). Inspect Terraform (1.11+) and Agent Identity defaults (pass `--agent-runtime-identity-default service_account` or `--cloud-run-identity-default service_account` to keep explicit service accounts). Run `agents-cli deploy --dry-run` first; deploy only with approval (A2A deploys register cards in Agent Registry), and verify via `agents-cli run --url <service-url> --mode <a2a|adk> "hello"`.
+1. **Preview and gate deployment**: preview with `agents-cli scaffold enhance --deployment-target <agent_runtime|cloud_run|gke> --skip-checks --yes --dry-run` (pass `--no-agent-gateway` on `cloud_run`/`gke`). Inspect Terraform (1.11+) and Agent Identity defaults (pass `--agent-runtime-identity-default service_account` or `--cloud-run-identity-default service_account` for explicit SAs). Run `agents-cli deploy --dry-run` first; deploy only with approval (A2A deploys register Agent Registry cards), and verify via `agents-cli run --url <service-url> --mode <a2a|adk> "<domain smoke prompt>"`.
 
 ## Gotchas
 

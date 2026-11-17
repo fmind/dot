@@ -1,64 +1,48 @@
 ---
 name: subagent
-description: "Design, compile, calibrate, and orchestrate read-only adversarial reviewer subagents per project (via supagents or native host role files)."
+description: "Design, research, compile, calibrate, and orchestrate read-only adversarial reviewer subagents via supagents or native host role files."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/subagent
   created: "2026-09-09"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Adversarial Reviewer Subagents
 
-Keep content producer agents dynamic (built-in subagents paired with skills on the fly for maximum implementation flexibility). Encode taste and domain standards solely as static, clean-context, read-only reviewer `supagents` outside the creation loop—never as skills (which share polluted creator context). Spawn `1`–`4` matching specialists per change; use [skillify](../skillify/SKILL.md) for procedures and [task-prompts](../task-prompts/SKILL.md) for briefs.
+Keep content producers dynamic (built-in subagents + skills on demand). Encode quality gates as static, clean-context, read-only reviewer `supagents` outside the creation loop—never as same-session skills. Follow the 3-tier model: workstation `dot/` holds personal tools/preferences; global `fmind-review-*` holds stack-independent domain best practices; project `AGENTS.md`/`DESIGN.md`/`SECURITY.md` and `<org>-review-*` supagents override global defaults without weakening security or `Output Contract`.
 
-## Global `fmind-review-*` Suite (17 Roles)
+## Global `fmind-review-*` Suite (33 Single-Discipline Roles)
 
-Workstation reviewers (`dot_agents/supagents/`, inheriting `_reviewer.md`) check `AGENTS.md` (plus `DESIGN.md`/`SECURITY.md` when relevant) before applying Google and industry standards ([standards manifest](references/standards.md)):
+Each role (`dot_agents/supagents/`, extending `_reviewer.md`) owns **one discipline** with self-contained operational checks, unrestricted file read + sanitized primary-source web lookup, zero step caps, and grounded `## Sources`:
 
-| Role                      | Focus                                                           |
-| ------------------------- | --------------------------------------------------------------- |
-| `fmind-review-arch`       | C4 bounds, `>= 2` options, boring tech, lock-in, rollback       |
-| `fmind-review-code`       | Google CR, `< 500` LOC, YAGNI, behavior tests, concurrency      |
-| `fmind-review-interface`  | Google AIP + `clig.dev`, exit/error codes, typing, SemVer       |
-| `fmind-review-security`   | SAIF/OWASP/SLSA exploit paths, keyless IAM, trust, pins         |
-| `fmind-review-ops`        | SRE expand-contract rollouts, timeouts, lifecycle, SLOs         |
-| `fmind-review-perf`       | `asyncio`/pools, N+1/`O(n^2)`, memory, cold start, baselines    |
-| `fmind-review-finops`     | Non-human cloud/CI/AI spend levers, billing alerts, quotas      |
-| `fmind-review-data`       | Contracts, grain/joins, UTC/units, idempotent merges, PII       |
-| `fmind-review-mlops`      | Rules of ML + ML Test Score: baselines, leakage, skew, drift    |
-| `fmind-review-ai`         | Min agency, lean prompts/RAG splits, MCP guardrails, evals      |
-| `fmind-review-compliance` | SPDX OSS/model/data/font licenses, ToS/DPA, GDPR, AI Act        |
-| `fmind-review-docs`       | Diataxis modes, 5-min quickstarts, code sync, `< 1,500`t skills |
-| `fmind-review-factcheck`  | SAFE atomic claims, `https://` public lookup, `Sources`, math   |
-| `fmind-review-human`      | 5-sec BLUF, medium-proportional craft, links, zero AI slop      |
-| `fmind-review-design`     | Active `DESIGN.md`, M3 hierarchy, Nielsen, WCAG, PNG/PDFs       |
-| `fmind-review-web`        | Surface type, WCAG 2.2 AA, CWV causes, SEO/noindex, HTTP        |
-| `fmind-review-pitch`      | Minto BLUF exec memos, Dunford/PR-FAQ, options, single CTA      |
+- **Software, Quality & Languages (`8`)**: `completeness` (requirement traceability, zero stubs, state/doc sync, proof parity), `arch` (C4 bounds, `>= 2` options, rollback), `code` (logic, `< 500` LOC, YAGNI), `python` (typing, packaging, `asyncio` idioms), `shell` (POSIX/Bash/Fish quoting, traps, idempotency), `test` (behavior tests, mutation/edge strength), `cli` (streams, exit codes, TTY/flags), `api` (REST/gRPC/SDK schemas, RFC 9457, SemVer).
+- **Infra, Platform, Security & FinOps (`8`)**: `terraform` (HCL modules, validation, state/`for_each`), `docker` (multi-stage, digests, non-root, `PID 1`), `k8s` (PSS `restricted`, probes, QoS/PDB, NetPol), `cicd` (Actions permissions, SHA pins, injection/OIDC), `sre` (N-1 rollouts, timeouts/jitter, drain, SLOs), `perf` (pools/semaphores, N+1, streaming, benchmarks), `security` (exploit paths, keyless IAM, trust, pins), `finops` (budgets, autoscale ceilings, scan/egress/LLM spend).
+- **Data, SQL, ML & AI Agents (`7`)**: `sql` (grain/fan-out joins, `NULL` traps, pruning, exact decimals), `data` (contracts, UTC/units, idempotent `MERGE`/partitions, PII), `mlops` (baselines, split leakage, skew, drift), `agents` (min agency, MCP tool schemas, guardrails, trajectory evals), `rag` (contextual chunking, hybrid+rerank, chunk ACL pushdown, eval split), `skill` (`SKILL.md` routing, progressive disclosure, token budgets), `supagent` (single-lens scope, zero name-dropping, 5-block rubric, `Sources`).
+- **Docs, Fact-Checking, Writing & Compliance (`5`)**: `readme` (10s pitch, 5-min quickstart, CLI parity), `docs` (doc-mode purity, navigation, recovery/lifecycle), `factcheck` (SAFE atomic claims, primary URLs, provenance, math), `human` (5s BLUF, anti-slop, link craft), `compliance` (SPDX/copyleft, ToS/tiers, GDPR/DPA, EU AI Act).
+- **Visuals, Decks, UI/UX, Web & Pitch (`5`)**: `figures` (honest axes, Okabe-Ito CVD palettes, direct labels, source code), `deck` (assertion-evidence titles, ~30-word load, narrative spine), `design` (`DESIGN.md` tokens, usability, states, WCAG contrast), `web` (surface class, semantic HTML, CWV causes, SEO/`noindex`, CSP), `pitch` (15s BLUF, options/ROI deltas, proof, objections, single CTA).
 
-## Author Per-Project Reviewers
+## Author or Refresh Reviewers
 
-1. **Map roles & isolate data**: inspect `AGENTS.md`, `DESIGN.md`, and `SECURITY.md`. Prefix roles (`<org>-review-<role>`) without leaking customer names, URLs, or brand tokens across repos.
-1. **Inline model-delta (`<= 80` compiled body lines)**: follow the 3-tier model-delta strategy ([standards](references/standards.md)); embed concise checks + `Do Not Flag` without copying guidebooks or fetching rules at runtime.
-1. **Compile via [`supagents`](https://github.com/fmind/agent-supagents) (`>= 1.6.0`) or native files**: keep shared host permissions, `{{BODY}}`, and `Output Contract` once in `.agents/supagents/_reviewer.md`, extending via `extends: _reviewer` ([reviewer.md](templates/reviewer.md) holds standalone blocks):
-   ```bash
-   supagents build --project --diff && supagents build --strict --project && supagents check --strict --project
-   ```
-1. **Enforce Output Contract & calibrate**: require `VERDICT: PASS | REVISE | BLOCK`, redacted `evidence`, `DELETIONS`, and `UNVERIFIED`, then run [calibration](references/calibration.md).
+Follow [authoring](references/authoring.md) end-to-end:
+
+1. **Enforce 1 discipline = 1 supagent**: supagents have no progressive disclosure (`references/`); split multi-surface roles instead of stuffing two domains into one prompt.
+1. **Research primary sources in parallel**: query official Google/Microsoft/AWS/Anthropic docs, IETF/W3C/OWASP/NIST/SLSA specs, and peer-reviewed papers; extract model-delta checks (`Invariant + Why + Defect Conditions + Evidence`) with zero `"Distills <Book>"` name-dropping and verify live `## Sources` URLs (`lychee`).
+1. **Compile (`40`–`80` lines) & audit**: inherit `_reviewer` ([template](templates/reviewer.md) for standalone repos), run `supagents build --strict --project && supagents check --strict --project`, audit with `fmind-review-supagent`, and run [calibration](references/calibration.md).
 
 ## Coordinator-as-Critic Loop
 
-1. **Deterministic gates first (`0` tokens)**: run linters, tests, scanners, `vale --output=JSON`, `lychee`, and Playwright/Typst PNG renders before delegating so reviewers inspect concrete outputs with zero shell access.
-1. **Freeze, isolate & fan out**: write repo diffs to an untracked workspace scratch file when confining reads (`--settings '{"allowNonWorkspaceAccess":false}'` on headless `agy`); when running `fmind-review-factcheck` inside secret-bearing customer workspaces, launch it from an isolated `/var/tmp/<sandbox>` directory holding only sanitized claim extracts or public deliverables; fan out `1`–`4` specialists in parallel.
-1. **Audit findings**: verify every `loc` + `evidence` against live files, apply verified fixes + `DELETIONS` (max `2` rounds), and stop on `PASS`.
+1. **Deterministic gates first (`0` tokens)**: run linters, tests, scanners, `vale`, `lychee`, and PNG/PDF renders first.
+1. **Prefer project overrides & fan out**: select repo `<org>-review-*` roles when present (else `fmind-review-*`), spawning `1`–`5` matching specialists in parallel—pairing `fmind-review-completeness` alongside domain roles on multi-part builds and external deliverables (e.g., `python` + `test` + `completeness`, or `deck` + `figures` + `factcheck` + `completeness`; pass `--settings '{"allowNonWorkspaceAccess":false}'` on untrusted checkouts).
+1. **Audit findings**: verify every `rule:`, `loc:`, and `evidence:` against live files, apply verified `BLOCK`/`REVISE` fixes + `DELETIONS` (max `2` rounds), and stop on `PASS`.
 
 ## Gotchas
 
-- **Session prompt caching**: active `agy`/`claude` sessions snapshot custom agents at startup; use a fresh session or headless run after edits.
-- **Markers & chezmoi**: migrate handwritten files first, exclude generated dirs from `dprint`/`.ignore`, and in `fmind/dot` pass `--project --source-dir dot_agents/supagents --config supagents.yaml` + `mise run apply`.
+- **Session prompt caching**: active `agy`/`claude` sessions snapshot custom agents at startup; test edits in a fresh or headless session.
+- **Chezmoi build**: in `fmind/dot`, run `mise run format:supagents && mise run check:supagents` (`supagents.yaml`), register retired roles in `.chezmoiremove`, and run `mise run apply`.
 
 ## Documentation
 
-- [Standards](references/standards.md) · [Calibration](references/calibration.md) · [Template](templates/reviewer.md) · [fmind/agent-supagents](https://github.com/fmind/agent-supagents) · Companions: [full-review](../full-review/SKILL.md), [humanize](../humanize/SKILL.md), [cross-harness-agents](../agent-project/references/cross-harness-agents.md), [headless-review](../agy/references/headless-review/GUIDE.md).
+- [Authoring & Grounded Research](references/authoring.md) · [Calibration](references/calibration.md) · [Template](templates/reviewer.md) · [fmind/agent-supagents](https://github.com/fmind/agent-supagents) · Companions: [full-review](../full-review/SKILL.md), [humanize](../humanize/SKILL.md), [cross-harness-agents](../agent-project/references/cross-harness-agents.md), [headless-review](../agy/references/headless-review/GUIDE.md).

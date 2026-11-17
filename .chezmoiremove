@@ -1,6 +1,12 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
 .config/fish/functions/with-secret.fish
 .pi/agent/extensions/dot-notify.ts
+{{- range list "fmind-review-ai" "fmind-review-interface" "fmind-review-ops" }}
+{{ printf ".gemini/config/agents/%s.md" . }}
+{{ printf ".claude/agents/%s.md" . }}
+{{ printf ".copilot/agents/%s.agent.md" . }}
+{{ printf ".config/opencode/agents/%s.md" . }}
+{{- end }}
 {{- if eq .chezmoi.os "darwin" }}
 .cache/dot/notify.wav
 {{- $dotCache := joinPath $.chezmoi.destDir ".cache/dot" }}

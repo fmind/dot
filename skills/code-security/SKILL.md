@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Code Security
@@ -16,7 +16,7 @@ Investigate and fix security defects with verified evidence—scanners inform re
 
 ## Workflow
 
-Read only the matching guide and its required resources.
+Load the matching guide(s) for every active security surface (e.g., [threat-model](references/threat-model.md) + [code-review](references/code-review/GUIDE.md) + [betterleaks](references/betterleaks.md) + [trivy](references/trivy/GUIDE.md) on repository audits), and pair non-trivial security changes with clean-context `fmind-review-security` review ([subagent](../subagent/SKILL.md)).
 
 ## Task guides
 

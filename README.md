@@ -127,7 +127,7 @@ Contributor guides: [AGENTS.md](AGENTS.md) and [releases & qualification](.agent
 
 Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins.
 
-For clean-context quality gates, 17 static read-only `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover engineering, data/AI/compliance, and docs/UX/comms across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents) while keeping content producers dynamic via built-in subagents and skills; see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+For clean-context quality gates, 33 single-discipline `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover end-to-end completeness/software, cloud/platform/security, data/ML/AI, docs/writing/compliance, and figures/decks/UI/web/pitch across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents) while keeping content producers dynamic via built-in subagents and skills; see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 
 ## Agent skills
 

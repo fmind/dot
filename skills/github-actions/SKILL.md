@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github-actions
   created: "2026-07-04"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # GitHub Actions
@@ -16,7 +16,7 @@ Align local hooks, CI, security scans, and publishing with the repository's `mis
 
 ## Workflow
 
-Read only the selected guide and its linked resources.
+Load every matching guide needed to author, pin, and lint the workflow (e.g., pair [ci-cd](references/ci-cd/GUIDE.md) or [gh-aw](references/gh-aw.md) with [jactionlint](references/jactionlint.md)).
 
 ## Task guides
 

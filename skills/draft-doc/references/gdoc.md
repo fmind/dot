@@ -20,6 +20,7 @@ Drive converts `text/html` elements (`h1`–`h6`, `p`, `ul`, `ol`, `table`, `blo
   ```bash
   (
     umask 077 && cd "$SCRATCH"
+    vale --no-global --config ~/.config/vale/.vale.ini --output=JSON report.html
     jq -n --arg name "$TITLE" --arg folder "$FOLDER_ID" \
       '{name: $name, mimeType: "application/vnd.google-apps.document", parents: [$folder]}' > meta.json
     gws drive files create --params '{"supportsAllDrives":true,"fields":"id,name,mimeType,webViewLink"}' \
@@ -49,4 +50,4 @@ Edit `.gdoc` files in place without losing comments, suggestions, tabs, or histo
 
 ## Verification
 
-Re-fetch `documents.get` + `docs_text.py`, and for layout-critical reports export PDF privately (`jq -n --arg id "$FILE_ID" '{fileId: $id, mimeType: "application/pdf"}'` -> `gws drive files export --params ... --output preview.pdf` in `"$SCRATCH"`).
+Re-fetch `documents.get` + `docs_text.py` (linting extracted prose via `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON --ext=.txt` after `documents.batchUpdate` edits), and for layout-critical reports export PDF privately (`jq -n --arg id "$FILE_ID" '{fileId: $id, mimeType: "application/pdf"}'` -> `gws drive files export --params ... --output preview.pdf` in `"$SCRATCH"`).

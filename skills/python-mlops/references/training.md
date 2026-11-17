@@ -11,6 +11,7 @@ Tabular defaults: [polars](polars.md) (`>=2.1.0`) frames, Pandera (`>=0.36.0`) s
 - **Derive splits from the deployment question**: treat the bike reference's two-month temporal split, schemas, and thresholds as examples only.
 - **Keep `skops` serialization**: outside Databricks, MLflow 3.14+ logs scikit-learn models via `skops` (rejecting unreviewed custom callables/types); allowlist reviewed types in `skops_trusted_types` rather than falling back to `cloudpickle`, and load only from trusted registries (`MLmodel` records `skops_trusted_types`).
 - **Tabular GBDT & HPO**: beat the simple scikit-learn baseline first, then layer `lightgbm>=4.7.0` or `xgboost` with early stopping on a clean validation fold. Run Optuna (`optuna>=5.1.0`) studies over grouped, stratified, or time-series CV (`--study-name`, `MedianPruner` / `HyperbandPruner`, SQLite/Postgres study storage) with zero leakage between fold transforms and tuning objective.
+- **Reconcile grain, nulls, and sliced metrics**: verify primary-key uniqueness, pre/post-join row counts, and `null` vs floating `NaN` semantics before fitting; report sliced/cohort metrics, worst-group regressions, and probability calibration alongside aggregate scores.
 
 Tracking: [experiments](experiments.md) · Registry evaluation/promotion: [model-delivery](model-delivery.md).
 

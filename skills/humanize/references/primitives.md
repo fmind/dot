@@ -49,7 +49,7 @@ After:
 
 - **Google Docs (`draft-doc`)**: let the user choose standard `.gdoc` vs Markdown `.md` ([format choice](../../draft-doc/SKILL.md#format-choice)):
   - _Standard `.gdoc`_ (high customization for polished reports): inline-styled HTML import (`<mark>`, 1-cell tinted callout tables, shaded table rows, Base64 Typst PNGs) or `documents.batchUpdate` (`draft-doc/references/gdoc.md`).
-  - _Markdown `.md`_ (simpler to produce/update, low customization): `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and compiled `≤440pt` Typst PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.
+  - _Markdown `.md`_ (version-controlled Markdown + compiled `≤440pt` Typst/SVG figures): `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and Base64-compiled PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.
 
 - **GitHub PRs, issues, & READMEs (`gh`, `repository-docs`)**: pair GFM alerts, bold status pills, short tables, and `<details>` for logs:
 
@@ -81,12 +81,12 @@ Spend drops ==38% this quarter== after consolidating the cluster.
 
 - **Jira & Confluence (`acli`)**: author native ADF panels (`info`, `note`, `warning`, `success`, `error`), status lozenges, tables, and expand macros rather than raw Markdown strings.
 
-- **Slides (`draft-typst-deck`)**: target one visual focal point and at most 30 visible words per slide using `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-card(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, `#step-card(...)`, and `#flow-arrow(...)` (reserve `#show: brand-card.with(...)` for standalone PNG/SVG visual cards); move context and caveats into `#speaker-note("...")`.
+- **Slides (`draft-typst-deck`)**: target one visual focal point and ~30 visible words per slide (up to ~45 on label-rich comparative charts with units and sample sizes) using `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-card(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, `#step-card(...)`, and `#flow-arrow(...)` (reserve `#show: brand-card.with(...)` for standalone PNG/SVG visual cards); move extended context and caveats into `#speaker-note("...")`.
 
-- **Chat & Slack (`gws` Chat)**: limit posts to 80 words or fewer, lead with a bold one-line ask or outcome, separate points into short bullets, and use a single `---` rule when needed.
+- **Chat & Slack (`gws` Chat)**: target ~80 words, lead with a bold one-line ask or outcome, separate points into short bullets, and use a single `---` rule when needed.
 
 ## Framing, numbers, and scannability
 
-- **Executive / customer lens**: trade metrics in time, money, risk, reliability, or adoption; omit raw stack traces, branch names, and DB columns.
-- **Peer engineer lens**: link PRs, files, or dashboards cleanly inline without breaking flow.
-- **Honest rounding**: round `98.742%` → `99%`, `$41,892` → `$42k`, `382 ms` → `0.4 s`, paired with a baseline or limit (`0.4 s vs 1.5 s SLA`).
+- **Executive / customer lens**: trade metrics in time, money, risk, reliability, or adoption; omit raw stack traces, branch names, and DB columns unless requested.
+- **Peer engineer lens**: name exact mechanisms, root causes, and trade-offs, and link PRs, files, or dashboards cleanly inline.
+- **Honest precision & baselines**: summarize headlines cleanly (`$42k` vs `$68k` Q3 baseline, `382 ms` vs `1.5 s` SLA) while keeping exact figures in tables, SLAs (`99.95%`, never rounding away error budgets), and financial/ML metrics so row totals reconcile.

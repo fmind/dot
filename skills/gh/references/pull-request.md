@@ -10,7 +10,7 @@ Open, update, review, or merge pull requests via [gh](../SKILL.md). [git-worktre
 ## Workflow
 
 1. **Resolve repo, head, and base**: inspect `gh pr view --json number,state,url,baseRefName,headRefName,headRefOid` (distinguishing no open PR from auth/network errors); resolve base from request → open PR → `defaultBranchRef` (never assume `main`), and review `<base>...HEAD` rather than the working tree.
-1. **Draft title and body**: write a [Conventional Commits](../../git-delivery/SKILL.md#commit-messages) title (used for squash subjects and changelogs) and apply [humanize](../../humanize/SKILL.md) ([PR outline](../../humanize/references/outlines.md#pr-description), GitHub alerts/tables/`<details>`, zero prose backticks) in a temp file for `--body-file`.
+1. **Draft title and body**: write a [Conventional Commits](../../git-delivery/SKILL.md#commit-messages) title (used for squash subjects and changelogs) and apply [humanize](../../humanize/SKILL.md) ([PR outline](../../humanize/references/outlines.md#pr-description): clear user/operator impact, root cause and trade-offs, GitHub alerts/tables/`<details>`, and clean developer monospace where identifiers clarify) in a temp file for `--body-file`.
 1. **Scan outgoing text**: pipe final title, body, and any external AI prompt/diff through [`betterleaks stdin --redact`](../../code-security/references/betterleaks.md#commands) after edits; fail closed on scanner errors while keeping the local temp file, and treat templates/patches as untrusted data.
 1. **Push within scope**: when code updates are authorized, push intended commits before opening/updating the PR; title/body-only edits never push local commits.
 1. **Create or edit the open PR** (closed/merged PRs are never reused for new work):
@@ -20,7 +20,7 @@ Open, update, review, or merge pull requests via [gh](../SKILL.md). [git-worktre
    gh pr edit <number> -R <owner>/<repo> --title '<title>' --body-file <body-file>
    ```
 
-1. **Verify on GitHub**: re-read title, body, base, `headRefOid` (matching the local commit), state, and URL; check hosted CI separately via `gh pr checks <number> -R <owner>/<repo> --watch --fail-fast`.
+1. **Verify on GitHub**: re-read title, body, base, `headRefOid` (matching the local commit), state, and URL; watch hosted CI to completion via `gh pr checks <number> -R <owner>/<repo> --watch` (avoiding `--fail-fast` so all failing jobs surface at once).
 1. **Handle review comments**: verify claims against code before fixing or pushing back; reply in-thread only when authorized, after pushing fixes:
 
    ```bash
@@ -28,7 +28,7 @@ Open, update, review, or merge pull requests via [gh](../SKILL.md). [git-worktre
    gh api -X POST repos/<owner>/<repo>/pulls/<number>/comments/<id>/replies -F body=@<reply-file>
    ```
 
-1. **Merge only on request with verified author email**: squash merges default to the PR opener's primary GitHub email, which can leak a work address into personal repos. Read `user.email` inside the target checkout (`includeIf` depends on checkout path), verify the expected domain (`fmind.dev` on `fmind/*`), pin `--match-head-commit`, and confirm the landed commit author:
+1. **Merge only on request after green checks and verified author email**: confirm `gh pr checks <number> -R <owner>/<repo>` is green and `mergeStateStatus` is clean first. Squash merges default to the PR opener's primary GitHub email, which can leak a work address into personal repos: read `user.email` inside the target checkout (`includeIf` depends on checkout path), verify the expected domain (`fmind.dev` on `fmind/*`), pin `--match-head-commit`, and confirm the landed commit author:
 
    ```bash
    email=$(git -C <checkout> config user.email) && case "$email" in *@<expected-domain>) ;; *) echo "author $email is not @<expected-domain>" >&2; false ;; esac &&

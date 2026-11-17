@@ -1,29 +1,25 @@
 # Docs: https://vale.sh/docs/topics/styles/
+# Hard errors: unambiguous AI clichés with no place in concise human copy.
 extends: existence
 message: "Drop AI cliché '%s'; state the concrete fact or outcome directly."
 level: error
 ignorecase: true
 tokens:
-  - cutting-edge
-  - delve
-  - delves
-  - delving
-  - game-changer
-  - game-changing
-  - holistic
-  - holistically
-  - in today's fast-paced
-  - it is important to note
-  - it's important to note
-  - it is worth noting
-  - it's worth noting
-  - navigate the complexities
+  - delv(?:e[sd]?|ing)
+  - embark(?:s|ed|ing)? on (?:a |this )?journey
+  - ever[- ]evolving landscape
+  - game[- ]chang(?:er|ers|ing)
+  - in the realm of
+  - in today['’]s fast[- ]paced
+  - (?:it is|it['’]s) important to note
+  - (?:it is|it['’]s) worth noting
+  - navigat(?:e[sd]?|ing) the complexit(?:y|ies)
   - paradigm shift
-  - seamless
-  - seamlessly
-  - synergistic
-  - synergy
-  - tapestry
-  - testament to
-  - unleash
-  - unlock the power
+  - tapestry of
+  - unleash(?:es|ed|ing)? the (?:full )?(?:power|potential)
+  - unlock(?:s|ed|ing)? the power
+  - à l['’]ère du numérique
+  - dans un monde en constante évolution
+  - force est de constater
+  - il convient de noter
+  - il est important de noter

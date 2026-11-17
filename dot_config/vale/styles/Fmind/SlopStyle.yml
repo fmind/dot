@@ -1,0 +1,26 @@
+# Docs: https://vale.sh/docs/topics/styles/
+# Non-blocking warnings: AI-tendency phrasing that can still be valid when concrete.
+extends: existence
+message: "Check if '%s' adds concrete meaning or can be replaced with plainer words."
+level: warning
+ignorecase: true
+tokens:
+  - beacon of
+  - bespoke
+  - cutting[- ]edge
+  - groundbreaking
+  - holistic(?:ally)?
+  - intricate
+  - leverag(?:e[sd]?|ing)
+  - meticulous(?:ly)?
+  - myriad
+  - pivotal
+  - plethora
+  - revolutioniz(?:e[sd]?|ing)
+  - seamless(?:ly)?
+  - supercharg(?:e[sd]?|ing)
+  - synerg(?:y|ies|istic)
+  - testament to
+  - transformative
+  - de manière holistique
+  - incontournable

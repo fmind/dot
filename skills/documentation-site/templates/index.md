@@ -72,8 +72,20 @@ $ <slug> --version
 ## How it works
 
 ```mermaid
+---
+config:
+  fontFamily: '"Google Sans", sans-serif'
+  layout: dagre
+  look: classic
+  theme: base
+  themeVariables:
+    primaryColor: "#ffffff"
+    primaryTextColor: "#202124"
+    primaryBorderColor: "#174ea6"
+    lineColor: "#174ea6"
+---
 flowchart LR
-  source[Markdown in docs/] --> build[zensical build --strict]
-  build --> site[Static site/]
-  site --> host[GitHub Pages]
+  source["Markdown in docs/"] --> build["zensical build --strict"]
+  build --> site["Static site/"]
+  site --> host["GitHub Pages"]
 ```

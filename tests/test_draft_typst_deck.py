@@ -774,3 +774,56 @@ def test_slides_drive_run_gws_parses_prefixed_json_and_rejects_garbage(
         )
         with pytest.raises(RuntimeError, match=r"expected (?:valid )?JSON"):
             mod.slides_drive.run_gws(["drive", "files", "get"], cwd=tmp_path)
+
+
+def test_typst_vale_blocks_errors_preserves_lines_and_skips_framework(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    vale_bin = native_binary("vale")
+    if vale_bin is None:
+        pytest.skip("Vale binary is required for build_typst_deck prose gate verification")
+
+    deck_dir = tmp_path / "deck"
+    deck_dir.mkdir()
+    (deck_dir / ".vale.ini").write_text(
+        f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
+        "MinAlertLevel = warning\nIgnoredScopes = code, tt\nSkippedScopes = script, style, pre, figure\n"
+        "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
+        encoding="utf-8",
+    )
+    # Framework files with attribution em dashes are skipped; comments are blanked without shifting lines.
+    (deck_dir / "fmind.typ").write_text('#let quote-attribution = "— Author"\n', encoding="utf-8")
+    deck = deck_dir / "deck.typ"
+    deck.write_text(
+        '#import "fmind.typ": *\n// comment — ignored\n#text[We delve into rollout — today.]\n',
+        encoding="utf-8",
+    )
+    assert mod.main(["check", str(deck), "--json"]) == 1
+    captured = capsys.readouterr()
+    issues = json.loads(captured.out)["issues"]
+    assert any(item.startswith("deck.typ:3: [Fmind.SlopWords]") for item in issues)
+    assert any(item.startswith("deck.typ:3: [Fmind.EmDash]") for item in issues)
+
+    deck.write_text("#text[We leverage seamless failover in order to stay online.]\n", encoding="utf-8")
+    real_run = mod.typst_check.subprocess.run
+    _install_fake_typst(mod, monkeypatch, slides=1)
+    fake_subprocess_run = mod.typst_check.subprocess.run
+    monkeypatch.setattr(
+        mod.typst_check.shutil,
+        "which",
+        lambda name: "/bin/typst" if name == "typst" else (str(vale_bin) if name == "vale" else None),
+    )
+    monkeypatch.setattr(
+        mod.typst_check.subprocess,
+        "run",
+        lambda cmd, **kw: real_run(cmd, **kw) if cmd and cmd[0] == str(vale_bin) else fake_subprocess_run(cmd, **kw),
+    )
+    assert mod.main(["check", str(deck), "--expected-slides", "1", "--json"]) == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert any("Fmind.SlopStyle" in item for item in payload["prose_warnings"])
+    assert any("Fmind.Wordiness" in item for item in payload["prose_warnings"])
+    assert "Warning: deck.typ:1:" in captured.err

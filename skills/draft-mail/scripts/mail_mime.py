@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import base64
 import html
+import json
 import mimetypes
 import re
+import shutil
+import subprocess
 from email.message import EmailMessage
 from email.policy import SMTP
 from email.utils import getaddresses, parseaddr
@@ -119,6 +122,10 @@ def validate_html_fragment(fragment: str) -> str:
         raise ValueError('Raw Markdown [text](url) link found in HTML body; use <a href="...">...</a> instead.')
     if re.search(r"(?m)^\s*`{3,}", text_only):
         raise ValueError("Raw Markdown code fence (```) found in HTML body; use <pre><code>...</code></pre> instead.")
+    if re.search(r"`[^`\n]+`", text_only):
+        raise ValueError(
+            "Raw Markdown `inline code` found in HTML body; write plain prose or use <code>...</code> strictly for copyable commands."
+        )
     return cleaned
 
 
@@ -401,3 +408,60 @@ def resolve_recipients(
         removed_lower | {addr.lower() for _, addr in _split_emails(to_recipients + cc_recipients)},
     )
     return to_recipients, cc_recipients, bcc_recipients
+
+
+def _resolve_vale_config(cwd: Path | None = None) -> Path | None:
+    """Return the nearest project .vale.ini or the global ~/.config/vale/.vale.ini if present."""
+    start = (cwd or Path.cwd()).resolve()
+    for parent in (start, *start.parents):
+        candidate = parent / ".vale.ini"
+        if candidate.is_file():
+            return candidate
+    global_cfg = Path.home() / ".config/vale/.vale.ini"
+    return global_cfg if global_cfg.is_file() else None
+
+
+def check_prose_with_vale(
+    text: str,
+    *,
+    ext: str = ".html",
+    label: str = "body.html",
+    cwd: Path | None = None,
+) -> tuple[list[str], list[str]]:
+    """Run Vale prose checks on text when Vale and a config file are available, returning (errors, warnings)."""
+    vale_bin = shutil.which("vale")
+    if not vale_bin:
+        return [], []
+    config = _resolve_vale_config(cwd)
+    if config is None:
+        return [], []
+    proc = subprocess.run(  # noqa: S603 - fixed Vale binary and resolved config path
+        [vale_bin, "--no-global", "--config", str(config), "--output=JSON", f"--ext={ext}"],
+        input=text,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    if proc.returncode not in {0, 1}:
+        detail = (proc.stderr or proc.stdout).strip()
+        raise RuntimeError(f"vale failed on {label}: {detail}")
+    raw = proc.stdout.strip()
+    if not raw:
+        return [], []
+    data = json.loads(raw)
+    errors: list[str] = []
+    warnings: list[str] = []
+    for findings in data.values():
+        for item in findings:
+            line = item.get("Line", 1)
+            check = item.get("Check", "Vale")
+            message = item.get("Message", "")
+            match = str(item.get("Match") or "").strip()
+            suffix = f" ({match})" if match and match not in message and len(match) <= 40 else ""
+            formatted = f"{label}:{line}: [{check}] {message}{suffix}"
+            if item.get("Severity") == "error":
+                errors.append(formatted)
+            else:
+                warnings.append(formatted)
+    return errors, warnings

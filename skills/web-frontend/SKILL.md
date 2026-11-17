@@ -1,18 +1,18 @@
 ---
 name: web-frontend
-description: "Design and build simple browser UIs with HTML, CSS, JavaScript, and Tailwind."
+description: "Design and build calm, high-craft browser UIs with HTML, CSS, JavaScript, and Tailwind."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/web-frontend
   created: "2026-09-03"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Web Frontend
 
-Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Default to `~/.agents/DESIGN.md` and [humanize](../humanize/SKILL.md) visual clarity unless the project or customer defines its own brand; preserve existing stacks and use Tailwind when selected. [python-web](../python-web/SKILL.md) ([litestar](../python-web/references/litestar/GUIDE.md), [django](../python-web/references/django/GUIDE.md)) owns backend apps and tests; [playwright](../playwright/SKILL.md) owns E2E automation.
+Build calm, detail-perfect browser UIs with native HTML, CSS, and JavaScript. Default to `~/.agents/DESIGN.md` and [humanize](../humanize/SKILL.md) visual clarity unless the project or customer defines its own brand; preserve existing stacks and use Tailwind when selected. [python-web](../python-web/SKILL.md) ([litestar](../python-web/references/litestar/GUIDE.md), [django](../python-web/references/django/GUIDE.md)) owns backend apps and tests; [playwright](../playwright/SKILL.md) owns E2E automation.
 
 ## Workflow
 
@@ -24,7 +24,7 @@ Build calm, Google-simple browser UIs with native HTML, CSS, and JavaScript. Def
    DISABLE_TELEMETRY=1 npx --yes modern-web-guidance@1.0.0 retrieve "<guide-id>[,<guide-id>]"
    ```
 1. **Compile Tailwind**: follow [standalone Tailwind](references/tailwind.md) when Tailwind is used (`tailwindcss` compiles CSS; reserve `npx` for guidance/token CLIs).
-1. **Verify live in Chrome & audit accessibility/CWV**: exercise the primary flow at desktop and `390x844` mobile viewports with [chrome-devtools](../chrome-devtools/SKILL.md) (including `lighthouse_audit`), confirming zero console/network errors, `>= 4.5:1` text contrast, keyboard flow, and zero layout shift; run `fmind-review-design` and `fmind-review-web` ([subagent](../subagent/SKILL.md)) on non-trivial surfaces, fix verified defects, and stop without open-ended polish loops.
+1. **Verify every state live in Chrome & audit accessibility/CWV**: capture and visually inspect screenshots across **empty, loading, error, and populated states** at both desktop (`1440x900`) and mobile (`390x844`) viewports with [chrome-devtools](../chrome-devtools/SKILL.md), run `lighthouse_audit` (a11y/SEO/best practices) plus `performance_start_trace`/`performance_stop_trace` (CWV & CLS), confirm zero console/network errors, `>= 4.5:1` text contrast, and full keyboard/focus flow, and run `fmind-review-design` + `fmind-review-web` ([subagent](../subagent/SKILL.md))—fixing every verified layout, state, or usability defect before delivery.
 
 ## Gotchas
 

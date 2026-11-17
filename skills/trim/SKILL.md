@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/trim
   created: "2026-10-04"
-  updated: "2026-11-15"
+  updated: "2026-11-17"
 ---
 
 # Trim
@@ -24,8 +24,8 @@ Handle `/trim <path>` or verbosity complaints by cutting words, lines, and setti
    - **Filler**: intros, hedges, recaps, "note that", narration, history, and generic tool tutorials.
    - **Dead entries**: paths/options proven absent with `rg` or `fd`.
    - **Wordy phrasing**: collapse lists to clauses and drop redundant examples.
-1. **Preserve**: evidence-backed facts, numbers/dates, exact commands/flags, non-obvious gotchas with reasons, security/authority boundaries, links, required frontmatter/anchors/index markers, top-of-config docs URL comments, non-default rationale comments, and author voice.
-1. **Prove equivalence**: diff recaptured effective config (must match), walk the survival list, and run formatters, link checks, and affected tests.
+1. **Preserve**: evidence-backed facts, numbers/dates, exact commands/flags, verification gates and edge-case checklists, critical-thinking and visual-inspection rules, concrete quality examples, non-obvious gotchas with reasons, security/authority boundaries, links, required frontmatter/anchors/index markers, top-of-config docs URL comments, non-default rationale comments, and author voice—never trim quality guardrails into shortcut-licensing stubs.
+1. **Prove equivalence**: diff recaptured effective config (must match), walk the survival list line-by-line (plus `fmind-review-skill` / `fmind-review-docs` on substantive trims), and run formatters, link checks, and affected tests.
 1. **Report**: before/after lines, words, and `ceil(chars/4)` tokens (`%`), cut categories, and ambiguous candidates held back for approval.
 
 ## Gotchas

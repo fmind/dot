@@ -342,3 +342,85 @@ def raise_on_typst_warnings(
         raise RuntimeError(msg)
     if other_warnings:
         raise RuntimeError("Typst emitted unexpected warnings: " + "; ".join(other_warnings))
+
+
+_TYPST_PROSE_FILTER = '.Name in ["Fmind.EmDash", "Fmind.SlopWords", "Fmind.SlopStyle", "Fmind.Wordiness"]'
+_TYPST_SKIP_PREFIXES = ("//", "#import ", "#import(", "#let ", "#set ", "#show ")
+_FRAMEWORK_TYP_FILES = frozenset({"fmind.typ", "fmind-slides.typ"})
+
+
+def _resolve_vale_config(cwd: Path | None = None) -> Path | None:
+    """Return the nearest project .vale.ini or the global ~/.config/vale/.vale.ini if present."""
+    start = (cwd or Path.cwd()).resolve()
+    for parent in (start, *start.parents):
+        candidate = parent / ".vale.ini"
+        if candidate.is_file():
+            return candidate
+    global_cfg = Path.home() / ".config/vale/.vale.ini"
+    return global_cfg if global_cfg.is_file() else None
+
+
+def _strip_typst_preamble_and_comments(source: str) -> str:
+    """Blank Typst preamble directives and line comments while keeping 1-based line numbers intact."""
+    kept: list[str] = []
+    for line in source.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(_TYPST_SKIP_PREFIXES):
+            kept.append("")
+        else:
+            kept.append(line)
+    return "\n".join(kept) + ("\n" if source.endswith("\n") else "")
+
+
+def check_typst_prose_with_vale(typ_files: list[Path], *, base_dir: Path) -> tuple[list[str], list[str]]:
+    """Run Vale anti-slop and em-dash checks across user .typ files, returning (errors, warnings)."""
+    vale_bin = shutil.which("vale")
+    if not vale_bin:
+        return [], []
+    config = _resolve_vale_config(base_dir)
+    if config is None:
+        return [], []
+    errors: list[str] = []
+    warnings: list[str] = []
+    for path in typ_files:
+        if path.name in _FRAMEWORK_TYP_FILES:
+            continue
+        prose = _strip_typst_preamble_and_comments(path.read_text(encoding="utf-8"))
+        if not prose.strip():
+            continue
+        proc = subprocess.run(  # noqa: S603 - fixed Vale binary and resolved config path
+            [
+                vale_bin,
+                "--no-global",
+                "--config",
+                str(config),
+                "--output=JSON",
+                "--ext=.txt",
+                f"--filter={_TYPST_PROSE_FILTER}",
+            ],
+            input=prose,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        if proc.returncode not in {0, 1}:
+            detail = (proc.stderr or proc.stdout).strip()
+            raise RuntimeError(f"vale failed on {path.name}: {detail}")
+        raw = proc.stdout.strip()
+        if not raw:
+            continue
+        label = path.relative_to(base_dir).as_posix() if path.is_relative_to(base_dir) else path.name
+        for findings in json.loads(raw).values():
+            for item in findings:
+                line = item.get("Line", 1)
+                check = item.get("Check", "Vale")
+                message = item.get("Message", "")
+                match = str(item.get("Match") or "").strip()
+                suffix = f" ({match})" if match and match not in message and len(match) <= 40 else ""
+                formatted = f"{label}:{line}: [{check}] {message}{suffix}"
+                if item.get("Severity") == "error":
+                    errors.append(formatted)
+                else:
+                    warnings.append(formatted)
+    return errors, warnings

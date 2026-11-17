@@ -29,6 +29,7 @@ _run_gws = slides_drive.run_gws
 _run_typst = typst_check.run_typst
 _typst_font_args = typst_check.typst_font_args
 build_pptx = pptx_builder.build_pptx
+check_typst_prose_with_vale = typst_check.check_typst_prose_with_vale
 collect_source_files = typst_check.collect_source_files
 collect_typ_files = typst_check.collect_typ_files
 discover_font_paths = typst_check.discover_font_paths
@@ -86,10 +87,14 @@ def run_render(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError(f"Output path must differ from Typst source files: {args.output or out_path}")
 
     issues = scan_typst_escaping_issues(source_path.read_text(encoding="utf-8"), label=source_path.name)
+    prose_errors, prose_warnings = check_typst_prose_with_vale([source_path], base_dir=root_dir)
+    issues.extend(prose_errors)
     if issues:
         if args.json_output:
             sys.stdout.write(json.dumps({"ok": False, "issues": issues}, indent=2) + "\n")
         raise ValueError("; ".join(issues))
+    for warning in prose_warnings:
+        sys.stderr.write(f"Warning: {warning}\n")
 
     fonts = discover_font_paths(source_path, args.font_path)
     font_args = _typst_font_args(fonts)
@@ -115,6 +120,8 @@ def run_render(args: argparse.Namespace) -> dict[str, Any]:
         "font_paths": [str(p) for p in fonts],
         "warnings": warnings,
     }
+    if prose_warnings:
+        payload["prose_warnings"] = prose_warnings
     _emit(payload, json_output=args.json_output)
     _raise_on_typst_warnings(syntax_warnings, font_warnings, other_warnings, strict_fonts=strict_fonts)
     return payload
@@ -137,13 +144,18 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 
     deck_dir = deck_path.parent
     issues: list[str] = []
-    for typ_file in collect_typ_files(deck_dir):
+    typ_files = collect_typ_files(deck_dir)
+    for typ_file in typ_files:
         rel_label = typ_file.relative_to(deck_dir).as_posix()
         issues.extend(scan_typst_escaping_issues(typ_file.read_text(encoding="utf-8"), label=rel_label))
+    prose_errors, prose_warnings = check_typst_prose_with_vale(typ_files, base_dir=deck_dir)
+    issues.extend(prose_errors)
     if issues:
         if args.json_output:
             sys.stdout.write(json.dumps({"ok": False, "issues": issues}, indent=2) + "\n")
         raise ValueError("; ".join(issues))
+    for warning in prose_warnings:
+        sys.stderr.write(f"Warning: {warning}\n")
 
     fonts = discover_font_paths(deck_path, args.font_path)
     font_args = _typst_font_args(fonts)
@@ -274,6 +286,8 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
     if args.max_words is not None:
         payload["max_words"] = args.max_words
         payload["word_violations"] = word_violations
+    if prose_warnings:
+        payload["prose_warnings"] = prose_warnings
     _emit(payload, json_output=args.json_output)
 
     _raise_on_typst_warnings(syntax_warnings, font_warnings, other_warnings, strict_fonts=strict_fonts)

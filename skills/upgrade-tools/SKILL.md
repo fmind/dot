@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/upgrade-tools
   created: "2026-07-05"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Upgrade Tools
@@ -24,7 +24,7 @@ Upgrade a single repository's tools and dependencies to latest stable releases i
    - **Python**: `pyproject.toml` and `uv.lock` per [playbook.md](references/playbook.md).
    - **Infra & images**: OpenTofu providers and OCI base/fixture digests.
    - **CI & formatters**: GitHub Actions SHAs and `dprint` plugins.
-1. **Verify the final candidate**: pass the full gate and runtime smoke checks (`lefthook run pre-commit --all-files` only in an isolated snapshot if the source tree is dirty).
+1. **Verify the final candidate thoroughly**: pass `mise run all` (including `build`), `uv audit --preview-features audit-command --locked` on Python repos, `jactionlint --online=strict --strict-exit` when Actions SHAs change, and live CLI/entrypoint smoke checks (`--version`, `--help`, and one representative command; run `lefthook run pre-commit --all-files` only in an isolated snapshot if the source tree is dirty).
 1. **Commit per ecosystem on request**: `chore(deps): upgrade <ecosystem> to latest` with its lockfile (split `mise run upgrade` commits by lockfile) per [commit messages](../git-delivery/SKILL.md#commit-messages).
 1. **Report and preview cleanup**: list old → new versions, held exceptions, gate results, and dry-run prune previews ([playbook.md](references/playbook.md)); deleting installs requires separate authority.
 

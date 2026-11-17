@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/chrome-devtools
   created: "2026-09-03"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Chrome DevTools
@@ -33,9 +33,9 @@ Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, scree
 
 ## Workflow
 
-1. **Select target and snapshot**: pick the page ID and take a fresh snapshot before using element UIDs (navigation/rerenders invalidate them).
-1. **Console and network**: list bounded console logs and failed requests first, fetching only needed request IDs/bodies.
-1. **Performance and Lighthouse**: pass `filePath` to `performance_start_trace` / `performance_stop_trace` instead of dumping raw traces; `lighthouse_audit` checks a11y, SEO, and best practices (reloads unless `mode="snapshot"`; excludes performance).
+1. **Select target, resize viewports, and capture visual states**: pick the page ID, take a fresh accessibility snapshot before using element UIDs (navigation/rerenders invalidate them), and use `resize_page` + `take_screenshot` across desktop (`1440x900`) and mobile (`390x844`) viewports to visually inspect empty, loading, error, and populated states.
+1. **Console and network**: list bounded console logs and failed requests, verifying zero unhandled JS exceptions, CORS/CSP failures, or broken asset requests.
+1. **Performance and Lighthouse**: pass `filePath` to `performance_start_trace` / `performance_stop_trace` to measure LCP, INP, and CLS without dumping raw JSON; pair with `lighthouse_audit` for a11y, SEO, and best practices (reloads unless `mode="snapshot"`; excludes performance).
 1. **Memory**: `take_heapsnapshot` is enabled by default; `compare_heapsnapshots` and deeper analysis require `--memoryDebugging` on MCP.
 1. **Clean up**: close task-owned pages after verification.
 

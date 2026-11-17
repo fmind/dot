@@ -27,6 +27,7 @@ from mail_mime import (  # noqa: E402
     build_quote_blocks,
     build_raw_mime_message,
     build_signature_blocks,
+    check_prose_with_vale,
     decode_b64url_bytes,
     resolve_recipients,
 )
@@ -342,6 +343,16 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         body_html = _validate_inputs(args)
+        prose_errors, prose_warnings = check_prose_with_vale(
+            body_html,
+            ext=".html",
+            label="stdin" if args.input == "-" else Path(args.input).name,
+            cwd=None if args.input == "-" else Path(args.input).resolve().parent,
+        )
+        if prose_errors:
+            raise ValueError("Prose lint failed: " + "; ".join(prose_errors))
+        for warning in prose_warnings:
+            sys.stderr.write(f"draft_email warning: {warning}\n")
         # gws loads a `.env` from its working directory upward and rejects --upload paths outside that
         # directory, so every gws call of this run uses one private temporary directory: the reads, the
         # upload, and the read-back resolve the same account, and the message stays out of the caller's checkout.
@@ -379,6 +390,8 @@ def main(argv: list[str] | None = None) -> int:
                     **built["summary"],
                     "rawLength": len(built["draft"]["message"]["raw"]),
                 }
+                if prose_warnings:
+                    out["proseWarnings"] = prose_warnings
                 sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
                 return 0
 
@@ -393,6 +406,8 @@ def main(argv: list[str] | None = None) -> int:
             "mimeType": payload_obj.get("mimeType"),
             "partMimeTypes": [p.get("mimeType") for p in (payload_obj.get("parts") or []) if isinstance(p, dict)],
         }
+        if prose_warnings:
+            out["proseWarnings"] = prose_warnings
         sys.stdout.write(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
         return 0
     except UnicodeDecodeError:

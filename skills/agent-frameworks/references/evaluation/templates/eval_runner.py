@@ -81,12 +81,13 @@ async def evaluate_cases[R: (str, TrialResult)](
     checker: Callable[[EvalCase, R], bool],
     *,
     judge: Callable[[EvalCase, R], Awaitable[bool]] | None = None,
-    k: int = 1,
+    k: int | None = None,
     concurrency: int = 4,
     trial_timeout_s: float | None = 30.0,
 ) -> dict[str, object]:
     """Run paired async trials with bounded concurrency and summarize pass@k and pass^k."""
-    if k < 1:
+    target_k = min((case.trials for case in cases), default=1) if k is None else k
+    if target_k < 1:
         raise ValueError("require k >= 1")
     if concurrency < 1:
         raise ValueError("require concurrency >= 1")
@@ -97,8 +98,8 @@ async def evaluate_cases[R: (str, TrialResult)](
         if case.case_id in seen_ids:
             raise ValueError(f"duplicate case_id: {case.case_id}")
         seen_ids.add(case.case_id)
-        if case.trials < k:
-            raise ValueError(f"case {case.case_id} has trials={case.trials} < k={k}")
+        if case.trials < target_k:
+            raise ValueError(f"case {case.case_id} has trials={case.trials} < k={target_k}")
     runner_sem = asyncio.Semaphore(concurrency)
     judge_sem = asyncio.Semaphore(concurrency)
 
@@ -146,8 +147,8 @@ async def evaluate_cases[R: (str, TrialResult)](
         case_runs = [item for item in outcomes if item.case_id == case.case_id]
         passed_count = sum(1 for item in case_runs if item.passed)
         total = len(case_runs)
-        at_k = pass_at_k(total, passed_count, k)
-        pow_k = pass_power_k(total, passed_count, k)
+        at_k = pass_at_k(total, passed_count, target_k)
+        pow_k = pass_power_k(total, passed_count, target_k)
         pass_at_scores.append(at_k)
         pass_power_scores.append(pow_k)
         per_case.append(
@@ -164,7 +165,7 @@ async def evaluate_cases[R: (str, TrialResult)](
             }
         )
     return {
-        "k": k,
+        "k": target_k,
         "cases": len(per_case),
         "total_errors": sum(1 for item in outcomes if item.error is not None),
         "total_forbidden_attempts": sum(item.forbidden_attempts for item in outcomes),
@@ -193,7 +194,12 @@ def _load_cases(dataset_path: Path, *, trials: int) -> list[EvalCase]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("dataset", type=Path, help="Path to JSON dataset list of cases")
-    parser.add_argument("--k", type=int, default=1, help="Target k for pass@k and pass^k metrics")
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=None,
+        help="Target k for pass@k and pass^k metrics (defaults to min case trials)",
+    )
     parser.add_argument("--trials", type=int, default=3, help="Default trial count per case")
     parser.add_argument("--concurrency", type=int, default=4, help="Max concurrent runner and judge calls")
     parser.add_argument("--timeout", type=float, default=30.0, help="Per-trial timeout in seconds")

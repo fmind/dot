@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
@@ -873,3 +874,35 @@ def test_upload_fails_closed_on_duplicate_drive_targets_and_api_errors(
     monkeypatch.setattr(mod, "run_gws", fake_dup_folders)
     with pytest.raises(RuntimeError, match="Multiple non-trashed Drive folders named 'assets'"):
         mod.upload_to_drive(compiled, [asset], gws_dir=gws_dir, drive_folder="parent_1")
+
+
+def test_cli_vale_blocks_errors_and_surfaces_advisory_warnings(
+    mod: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    if shutil.which("vale") is None:
+        pytest.skip("Vale binary is required for compile_markdown_doc prose gate verification")
+
+    (tmp_path / ".vale.ini").write_text(
+        f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
+        "MinAlertLevel = warning\nIgnoredScopes = code, tt\nSkippedScopes = script, style, pre, figure\n"
+        "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
+        encoding="utf-8",
+    )
+
+    bad_md = tmp_path / "slop.src.md"
+    bad_md.write_text("# Update\n\nWe delve into updates — ready now.\n", encoding="utf-8")
+    assert mod.main([str(bad_md), "--check-only", "--json"]) == 1
+    err = json.loads(capsys.readouterr().err)["error"]
+    assert "Fmind.SlopWords" in err
+    assert "Fmind.EmDash" in err
+
+    warn_md = tmp_path / "warn.src.md"
+    warn_md.write_text("# Update\n\nWe leverage seamless failover in order to stay online.\n", encoding="utf-8")
+    assert mod.main([str(warn_md), "--check-only", "--json"]) == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert any("Fmind.SlopStyle" in item for item in payload["proseWarnings"])
+    assert any("Fmind.Wordiness" in item for item in payload["proseWarnings"])
+    assert "Fmind.SlopStyle" in captured.err

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-stack
   created: "2026-06-23"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Python Stack
@@ -16,7 +16,7 @@ Maintain a lean, strictly typed Python foundation built on proven, well-maintain
 
 ## Workflow
 
-Read only the matching guide and its required resources. Dataframe code defaults to [Polars](../python-mlops/references/polars.md); [argparse](references/argparse/GUIDE.md#defaults-for-new-clis) owns CLI contracts in any language. Requests to diagnose, debug, or profile authorize read-only observation and isolated reproduction — modify product code only when asked for a fix.
+Load the matching guide(s) for every active concern (e.g., domain guide + [pydantic](references/pydantic.md) + [python-testing](references/python-testing/GUIDE.md)), and audit non-trivial Python, CLI, or test changes with `fmind-review-python`, `fmind-review-cli`, and `fmind-review-test` ([subagent](../subagent/SKILL.md)). Dataframe code defaults to [Polars](../python-mlops/references/polars.md); [argparse](references/argparse/GUIDE.md#defaults-for-new-clis) owns CLI contracts in any language. Requests to diagnose, debug, or profile authorize read-only observation and isolated reproduction — modify product code only when asked for a fix.
 
 ## Task guides
 

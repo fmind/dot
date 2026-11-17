@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/acli
   created: "2026-09-02"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Atlassian CLI
@@ -32,7 +32,7 @@ Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, s
    ```
 
 1. **Expand selectively**: fetch `description` or `comment` only when needed. Treat results hitting `--limit` as partial: check `--count`, then tighten JQL or pass `--paginate` before claiming completeness.
-1. **Write cleanly with authority**: apply [humanize](../humanize/SKILL.md) (short signals, zero prose backticks, native [ADF panels & tables](../humanize/references/primitives.md#channel-primitives)) and check outbound text with `betterleaks stdin --redact` before posting. Reuse user authority for the target scope (ask when missing), prefer `--generate-json` / `--from-json` and `--description-file` / `--body-file` (or `--edit-last` on comment updates):
+1. **Write cleanly with authority**: apply [humanize](../humanize/SKILL.md) (reader-calibrated inline code, native [ADF panels & tables](../humanize/references/primitives.md#channel-primitives)) and check outbound text with `betterleaks stdin --redact` before posting. Reuse user authority for the target scope (ask when missing), use `--generate-json` / `--from-json` when sending rich ADF payloads (`--description-file` / `--body-file` send plain text; `--edit-last` updates the latest comment):
 
    ```bash
    acli jira workitem create --project TEAM --type Task --summary "<summary>" --description-file description.txt --json
@@ -40,7 +40,7 @@ Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, s
    acli jira workitem comment create --key TEAM-123 --body-file comment.txt
    ```
 
-1. **Verify by reading back**: run `view --json` after every write and check the updated fields.
+1. **Verify by reading back**: run `view --fields summary,status,description,comment --json` (omitting `comment` from `--fields` hides posted comments) after every write and check the updated fields.
 
 ## Gotchas
 

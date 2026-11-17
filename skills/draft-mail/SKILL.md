@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-mail
   created: "2026-10-04"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Draft Mail
@@ -22,16 +22,17 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
 
 ## Workflow
 
-1. **Resolve context**: verify `gws auth status`. For replies, locate the message and read the thread with bounded queries to extract asks, deadlines, mentioned attachments, and recipients:
+1. **Resolve context**: verify `gws auth status`. For replies, locate the message and read the **entire thread** (`threads.get` alongside `+read`) so every prior question, stakeholder constraint, deadline, and attachment reference across messages is accounted for:
 
    ```bash
    gws gmail users messages list --params '{"userId":"me","q":"from:alice@example.com newer_than:30d","maxResults":5}' --format json
    gws gmail +read --id MESSAGE_ID --headers --format json
+   gws gmail users threads get --params '{"userId":"me","id":"THREAD_ID","format":"full"}' --format json
    ```
 
 1. **Match language and register**: use the thread's or recipient's last language (ask if unknown). Check up to three sent messages (`q: "to:<address> in:sent"`) to match greeting, sign-off, and register; in French, preserve tu or vous (default vous for clients and first contact) and punctuation spacing ("Bonjour Alice,", space before ? and !).
 1. **Author a clean HTML fragment**: apply [humanize](../humanize/SKILL.md) ([email outline](../humanize/references/outlines.md#email-or-chat-message), [length budgets](../humanize/SKILL.md#default-length-budgets), and [Gmail primitives](../humanize/references/primitives.md#channel-primitives)). Default to natural prose—answer or ask first, **zero prose backticks**, short `<p>` blocks, `<strong>` on 1–2 key phrases or dates, at most one short `<ul>`/`<ol>` list, inline `<a href="...">` links, weekday + timezone dates, and one next step. Reserve tinted `border-left` callout blocks, `<mark>` highlights, `<hr>` rules, and tables strictly for multi-stakeholder executive briefs, formal decision/incident notices, or explicit requests—omit them on routine replies, scheduling, and administrative mail. Never write raw Markdown or invent commitments, prices, or availability—surface open decisions in the handoff, not inside the draft.
-1. **Preview, create, and verify** from `$SCRATCH/body.html` (`SCRATCH`: host scratchpad, else `SCRATCH="$(mktemp -d)"`) via [`scripts/draft_email.py`](scripts/draft_email.py) (`--dry-run` first, then live):
+1. **Preview, create, and verify** from `$SCRATCH/body.html` (`SCRATCH`: host scratchpad, else `SCRATCH="$(mktemp -d)"`) via [`scripts/draft_email.py`](scripts/draft_email.py) (runs Vale to block em dashes and AI clichés and surface prose warnings; `--dry-run` first, then live):
 
    ```bash
    # Reply (optional: --reply-all / --remove bob@example.com / --cc carol@example.com / -a report.pdf)
@@ -45,7 +46,7 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
      "$SCRATCH/body.html" --to alice@example.com --subject 'Subject'
    ```
 
-1. **Hand off**: report `draftId`, `threadId`, subject (with accents), recipients, `mimeType`, `hasSignature`, `hasQuote`, language, and open questions without re-pasting the full body unless asked. Delete `$SCRATCH/body.html`.
+1. **Verify completeness & hand off**: confirm every question in the thread is answered, every attachment mentioned in prose is passed via `-a` (and vice versa), and high-stakes client or executive drafts pass `fmind-review-human` / `fmind-review-factcheck` ([subagent](../subagent/SKILL.md)). Report `draftId`, `threadId`, subject (with accents), recipients, `mimeType`, `hasSignature`, `hasQuote`, language, and open questions without re-pasting the full body unless asked. Delete `$SCRATCH/body.html`.
 
 ## Gotchas
 

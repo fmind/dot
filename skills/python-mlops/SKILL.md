@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-mlops
   created: "2026-09-16"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Python MLOps
 
-Build ML workflows from exploration to evaluated delivery, grounded in the [reviewed MLOps repositories](references/sources.md). Read only the matching guide (`marimo` for notebooks, keeping existing libraries/formats); confirm permitted compute, tracking stores, and registry targets before running jobs or promotions.
+Build ML workflows from exploration to evaluated delivery, grounded in the [reviewed MLOps repositories](references/sources.md). Load the matching guide(s) for every active stage (`marimo` for notebooks, keeping existing libraries/formats), confirm permitted compute, tracking stores, and registry targets before running jobs or promotions, and audit pipelines with `fmind-review-mlops` and `fmind-review-data` (plus `fmind-review-figures` on plots; [subagent](../subagent/SKILL.md)).
 
 ## Task guides
 

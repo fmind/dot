@@ -6,6 +6,7 @@ import base64
 import importlib.util
 import json
 import re
+import shutil
 from email import message_from_bytes
 from email.message import EmailMessage
 from email.policy import default as default_policy
@@ -187,6 +188,7 @@ def test_unwrap_outer_dir_ltr_preserves_multi_block_siblings(mod: ModuleType) ->
         ("<p>Bonjour **Alice**,</p>", "Raw Markdown **bold**"),
         ("<p>See [PR #42](https://example.com/pr/42) for details.</p>", "Raw Markdown [text](url)"),
         ("<p>Snippet:</p>\n```python\npass\n```", "Raw Markdown code fence"),
+        ("<p>Checked `loader.py` in staging.</p>", "Raw Markdown `inline code`"),
     ],
 )
 def test_validate_html_fragment_rejects_plain_text_and_raw_markdown(
@@ -471,7 +473,7 @@ def test_cli_rejects_malformed_gmail_identifiers_before_calling_gws(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     gws_calls: list[list[str]] = []
-    monkeypatch.setattr(mod.shutil, "which", lambda _name: "/usr/bin/gws")
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/usr/bin/gws" if name == "gws" else None)
     monkeypatch.setattr(
         mod.subprocess,
         "run",
@@ -512,7 +514,7 @@ def test_cli_fails_on_gws_error_payload_or_missing_updated_draft_id(
     html = tmp_path / "ok.html"
     html.write_text("<p>Hi</p>", encoding="utf-8")
 
-    monkeypatch.setattr(mod.shutil, "which", lambda _name: "/usr/bin/gws")
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/usr/bin/gws" if name == "gws" else None)
 
     def _dispatch_settings(cmd: list[str]) -> str | None:
         if cmd[1:6] == ["gmail", "users", "settings", "sendAs", "list"]:
@@ -604,7 +606,7 @@ def test_cli_gws_stdout_banner_and_malformed_or_truncated_json(
 ) -> None:
     html = tmp_path / "ok.html"
     html.write_text("<p>Hi</p>", encoding="utf-8")
-    monkeypatch.setattr(mod.shutil, "which", lambda _name: "/usr/bin/gws")
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/usr/bin/gws" if name == "gws" else None)
     created_payload = json.dumps({"id": "draft_1"})
     active_payload = [f"[INFO] created{chr(10)}{created_payload}{chr(10)}"]
 
@@ -632,3 +634,40 @@ def test_cli_gws_stdout_banner_and_malformed_or_truncated_json(
         active_payload[0] = bad_stdout
         assert mod.main([str(html), "--to", "alice@example.com", "--subject", "Hi"]) == 1
         assert "expected" in capsys.readouterr().err
+
+
+def test_cli_vale_blocks_errors_and_surfaces_advisory_warnings(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    if shutil.which("vale") is None:
+        pytest.skip("Vale binary is required for draft_email prose gate verification")
+
+    # Point global config fallback to the repository's Vale config.
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".vale.ini").write_text(
+        f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
+        "MinAlertLevel = warning\nIgnoredScopes = code, tt\nSkippedScopes = script, style, pre, figure\n"
+        "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n[*.html]\nFmind.ProseBackticks = NO\n",
+        encoding="utf-8",
+    )
+
+    slop_html = tmp_path / "slop.html"
+    slop_html.write_text("<p>We delve into updates &mdash; ready now.</p>", encoding="utf-8")
+    monkeypatch.setattr(mod, "_run_gws", lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("gws called")))
+    assert mod.main([str(slop_html), "--to", "alice@example.com", "--subject", "Update", "--dry-run"]) == 1
+    err = capsys.readouterr().err
+    assert "Fmind.SlopWords" in err
+    assert "Fmind.EmDash" in err
+
+    warn_html = tmp_path / "warn.html"
+    warn_html.write_text("<p>We leverage seamless failover in order to stay online.</p>", encoding="utf-8")
+    monkeypatch.setattr(mod, "resolve_send_as", lambda *_a, **_kw: SAMPLE_SEND_AS)
+    assert mod.main([str(warn_html), "--to", "alice@example.com", "--subject", "Update", "--dry-run"]) == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert any("Fmind.SlopStyle" in item for item in payload["proseWarnings"])
+    assert any("Fmind.Wordiness" in item for item in payload["proseWarnings"])
+    assert "draft_email warning:" in captured.err

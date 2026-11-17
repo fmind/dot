@@ -66,10 +66,68 @@ count_code_spans := func(s) {
   return spans
 }
 
+strip_html_comments := func(s, in_comment) {
+  n := len(s)
+  i := 0
+  out := ""
+  for i < n {
+    if in_comment {
+      if i+3 <= n && s[i:i+3] == "-->" {
+        in_comment = false
+        i += 3
+      } else {
+        i += 1
+      }
+      continue
+    }
+    if s[i:i+1] == "`" {
+      start := i
+      open_len := 0
+      for i < n && s[i:i+1] == "`" {
+        open_len += 1
+        i += 1
+      }
+      j := i
+      closed := false
+      for j < n {
+        if s[j:j+1] != "`" {
+          j += 1
+          continue
+        }
+        close_len := 0
+        for j < n && s[j:j+1] == "`" {
+          close_len += 1
+          j += 1
+        }
+        if close_len == open_len {
+          out += s[start:j]
+          i = j
+          closed = true
+          break
+        }
+      }
+      if !closed {
+        out += s[start:n]
+        break
+      }
+      continue
+    }
+    if i+4 <= n && s[i:i+4] == "<!--" {
+      in_comment = true
+      i += 4
+      continue
+    }
+    out += s[i:i+1]
+    i += 1
+  }
+  return {text: out, in_comment: in_comment}
+}
+
 matches := []
 lines := text.split(scope, "\n")
 in_frontmatter := false
 in_fence := false
+in_comment := false
 fence_char := ""
 fence_len := 0
 offset := 0
@@ -99,13 +157,19 @@ for idx, line in lines {
       fence_char = ""
       fence_len = 0
     }
-  } else if run.n >= 3 && (run.ch == "~" || !text.contains(run.rest, "`")) {
+  } else if !in_comment && run.n >= 3 && (run.ch == "~" || !text.contains(run.rest, "`")) {
     in_fence = true
     fence_char = run.ch
     fence_len = run.n
-  } else if !text.has_prefix(trimmed, "|") && !text.has_prefix(trimmed, "#") {
-    if count_code_spans(unquoted) >= 3 {
-      matches = append(matches, {begin: offset, end: offset + len(line)})
+  } else {
+    stripped := strip_html_comments(unquoted, in_comment)
+    in_comment = stripped.in_comment
+    cleaned := stripped.text
+    clean_trim := text.trim_space(cleaned)
+    if clean_trim != "" && !text.has_prefix(clean_trim, "|") && !text.has_prefix(clean_trim, "#") {
+      if count_code_spans(cleaned) >= 3 {
+        matches = append(matches, {begin: offset, end: offset + len(line)})
+      }
     }
   }
   offset += len(line) + 1

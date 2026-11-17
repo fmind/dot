@@ -13,5 +13,6 @@ daa01d8 = "daa01d8"
 
 [default.extend-words]
 certifi = "certifi"
+convient = "convient"
 cros = "cros"
 deprecat = "deprecat"

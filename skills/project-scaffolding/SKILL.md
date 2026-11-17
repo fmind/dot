@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/project-scaffolding
   created: "2026-09-02"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Project Scaffolding
 
-Create the smallest useful repository or maintain its reusable template. Default to Copier for new templates; keep existing Cookiecutter/Cruft projects on their current workflow. Read only the matching guide and its required resources.
+Create a lean, complete, fully verified repository or maintain its reusable template. Default to Copier for new templates; keep existing Cookiecutter/Cruft projects on their current workflow. Load the matching guide(s) (`bootstrap` + `project-license` for new repos; `copier` for templates) and run `mise run all` on generated projects before reporting done.
 
 ## Task guides
 

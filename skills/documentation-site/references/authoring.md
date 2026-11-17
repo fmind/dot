@@ -20,7 +20,7 @@ Keep 4-space indentation inside admonition, tab, and annotation bodies ([primiti
 
 ## Content practices
 
-- **Verify snippets and links**: use `console` fences with checked output, `--8<--` tested snippets, and `lychee --offline --no-progress docs/` (`check:links`) for local link validation.
+- **Verify snippets and links**: use `console` fences with checked output, `--8<--` tested snippets, `zensical build --clean --strict` for internal `.md` targets/anchors, and `lychee --no-progress --include-fragments=full docs/` for external URLs and fragments.
 - **No untrusted build execution**: test examples in separate bounded tasks; enable `markdown-exec` only on trusted repos.
 - **API docs via Zensical**: use `mkdocstrings` + `api-autonav` ([configuration](configuration.md#native-plugins)), never `pdoc`.
 - **Curate `llms.txt` when noisy**: narrow `sections` (and `markdown_description`) if archives bloat it, noting unlisted pages lose Copy as Markdown.

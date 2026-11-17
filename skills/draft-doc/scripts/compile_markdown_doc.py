@@ -341,13 +341,84 @@ def _collect_exported_assets(assets_dir: Path, source: Path, figures: list[dict[
     return list(dict.fromkeys(paths))
 
 
+def _resolve_vale_config(cwd: Path | None = None) -> Path | None:
+    """Return the nearest project .vale.ini or the global ~/.config/vale/.vale.ini if present."""
+    start = (cwd or Path.cwd()).resolve()
+    for parent in (start, *start.parents):
+        candidate = parent / ".vale.ini"
+        if candidate.is_file():
+            return candidate
+    global_cfg = Path.home() / ".config/vale/.vale.ini"
+    return global_cfg if global_cfg.is_file() else None
+
+
+def check_prose_with_vale(
+    text: str,
+    *,
+    ext: str = ".md",
+    label: str = "document.md",
+    cwd: Path | None = None,
+) -> tuple[list[str], list[str]]:
+    """Run Vale prose checks on text when Vale and a config file are available, returning (errors, warnings)."""
+    vale_bin = shutil.which("vale")
+    if not vale_bin:
+        return [], []
+    config = _resolve_vale_config(cwd)
+    if config is None:
+        return [], []
+    proc = subprocess.run(  # noqa: S603 - fixed Vale binary and resolved config path
+        [vale_bin, "--no-global", "--config", str(config), "--output=JSON", f"--ext={ext}"],
+        input=text,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    if proc.returncode not in {0, 1}:
+        detail = (proc.stderr or proc.stdout).strip()
+        raise RuntimeError(f"vale failed on {label}: {detail}")
+    raw = proc.stdout.strip()
+    if not raw:
+        return [], []
+    data = json.loads(raw)
+    errors: list[str] = []
+    warnings: list[str] = []
+    for findings in data.values():
+        for item in findings:
+            line = item.get("Line", 1)
+            check = item.get("Check", "Vale")
+            message = item.get("Message", "")
+            match = str(item.get("Match") or "").strip()
+            suffix = f" ({match})" if match and match not in message and len(match) <= 40 else ""
+            formatted = f"{label}:{line}: [{check}] {message}{suffix}"
+            if item.get("Severity") == "error":
+                errors.append(formatted)
+            else:
+                warnings.append(formatted)
+    return errors, warnings
+
+
 def _compile_markdown_cli(args: argparse.Namespace, source: Path) -> dict[str, Any]:
     """Run check-only validation or full Markdown compilation and optional Drive upload."""
     text = source.read_text(encoding="utf-8")
     if args.check_only:
         if problems := check_markdown_dialect(text):
             raise ValueError("; ".join(problems))
-        return {"status": "ok", "source": str(source), "figures": []}
+        prose_errors, prose_warnings = check_prose_with_vale(text, ext=".md", label=source.name, cwd=source.parent)
+        if prose_errors:
+            raise ValueError("; ".join(prose_errors))
+        for warning in prose_warnings:
+            sys.stderr.write((json.dumps({"warning": warning}) if args.json_output else f"Warning: {warning}") + "\n")
+        payload: dict[str, Any] = {"status": "ok", "source": str(source), "figures": []}
+        if prose_warnings:
+            payload["proseWarnings"] = prose_warnings
+        return payload
+
+    prose_errors, prose_warnings = check_prose_with_vale(text, ext=".md", label=source.name, cwd=source.parent)
+    if prose_errors:
+        raise ValueError("; ".join(prose_errors))
+    for warning in prose_warnings:
+        sys.stderr.write((json.dumps({"warning": warning}) if args.json_output else f"Warning: {warning}") + "\n")
 
     out_path = args.output or source.with_name(
         source.name.removesuffix(".src.md") + ".md" if source.name.endswith(".src.md") else f"{source.stem}.gdoc.md"
@@ -386,7 +457,7 @@ def _compile_markdown_cli(args: argparse.Namespace, source: Path) -> dict[str, A
                 sys.stderr.write(
                     (json.dumps({"warning": warning}) if args.json_output else f"Warning: {warning}") + "\n"
                 )
-    return {
+    result: dict[str, Any] = {
         "status": "ok",
         "source": str(source),
         "output": str(out_path),
@@ -396,6 +467,9 @@ def _compile_markdown_cli(args: argparse.Namespace, source: Path) -> dict[str, A
         "assets": exported_assets,
         "drive": drive_info,
     }
+    if prose_warnings:
+        result["proseWarnings"] = prose_warnings
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:

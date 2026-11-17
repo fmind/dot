@@ -15,7 +15,7 @@ Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `u
 
 ## Conventions
 
-- Done requires clean `mise run format`, `check`, `test`, and `build` locally, plus tests for changed behavior.
+- Done requires clean `mise run format`, `check`, `test`, and `build` locally (plus opted-in `build:docs`, `test:integration`, and `test:e2e`), normal/boundary/failure tests for changed behavior, synced docs, and clean-context reviewer `supagents` checks on non-trivial changes.
 - Declare only used dependencies (`deptry` enforces), use modern Python annotations (`list[str]`, `X | Y`, `Annotated`), and add repo-specific boundaries here without repeating `~/.agents/AGENTS.md`.
 
 ## Layout

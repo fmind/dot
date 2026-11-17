@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-protocols
   created: "2026-09-16"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Agent Protocols
@@ -16,7 +16,7 @@ Implement the protocol required by the peers: A2A exchanges agent tasks, MCP exp
 
 ## Workflow
 
-1. **Read only the matching guide** below; [mcp-setup](../agent-harnesses/references/mcp-setup.md) owns registering existing MCP servers in coding hosts.
+1. **Load the matching protocol guide(s)** below and audit non-trivial schemas/servers with `fmind-review-agents`, `fmind-review-api`, and `fmind-review-security` ([subagent](../subagent/SKILL.md)); [mcp-setup](../agent-harnesses/references/mcp-setup.md) owns registering existing MCP servers in coding hosts.
 1. **Vet vendor skills**: install only project-scoped selections from each guide's official-skill section per [vendor policy](../agent-project/references/vendor-skills.md) (protocol capability descriptors named `skill` are not Agent Skills).
 
 ## Task guides

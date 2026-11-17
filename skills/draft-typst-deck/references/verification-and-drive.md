@@ -2,10 +2,10 @@
 
 ## 1. Compile, Font, Word-Cap, & Visual Gate
 
-1. Always pass `--expected-slides <N>` (plus `--max-words 30` for Fmind-theme decks and `--pptx` when building `.pptx` / Google Slides) to [build_typst_deck.py](../scripts/build_typst_deck.py) `check`.
+1. Always pass `--expected-slides <N>` (plus `--max-words 30` on standard slides, or up to `--max-words 45` when data-dense comparative charts require explicit units/baselines/sample sizes, and `--pptx` when building `.pptx` / Google Slides) to [build_typst_deck.py](../scripts/build_typst_deck.py) `check`.
 1. Standalone cards via `render` and deck figures (`--render-figures`) run the same strict warning checks (`unknown font family`, empty bold `*...*` warnings) and fail closed unless `--allow-font-warnings` is explicitly set. Theme fonts (`Google Sans`, `Google Sans Code`) are auto-discovered from `assets/fonts/`, `~/.local/share/fonts`, or `~/Library/Fonts`.
-1. Inspect every rendered PNG frame before sharing: confirm open whitespace, unclipped chart labels, one focal visual, zero prose backticks, and scannable hierarchy.
-1. Audit chart accuracy: equal comparison criteria, stated sample sizes on bars and headlines, conservative rounded ranges, and zero secrets or internal identifiers.
+1. Visually read every rendered PNG frame before sharing (for native Google Slides / `editable_deck.py`, export PDF via Drive `files.export` or inspect slide thumbnails): confirm open whitespace, unclipped chart labels, one focal visual, zero prose backticks, and scannable hierarchy.
+1. Audit chart and narrative rigor (`fmind-review-deck`, `fmind-review-figures`, `fmind-review-factcheck`): equal comparison criteria, stated sample sizes and units on bars and headlines, honest baselines, complete speaker notes, and zero secrets or internal identifiers.
 
 ## 2. Google Slides Compatibility & Alternatives
 

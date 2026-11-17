@@ -99,6 +99,7 @@ depends = [
   "check:tasks",
   "check:tofu",
   "check:typos",
+  "check:vale",
 ]
 
 [tasks."check:network"]
@@ -213,6 +214,10 @@ run = "tofu fmt -check -recursive skills/infra-as-code/templates"
 [tasks."check:typos"]
 description = "Check spelling across documentation, skills, and sources (typos)"
 run = "typos --config .typos.toml"
+
+[tasks."check:vale"]
+description = "Check external documentation and templates for AI slop and prose style (vale)"
+run = "vale --no-global --config .vale.ini --output=line README.md skills/humanize/templates/ skills/repository-docs/templates/README.md skills/infra-as-code/templates/README.md skills/documentation-site/templates/ skills/python-stack/references/foundation/templates/docs-index.md"
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"

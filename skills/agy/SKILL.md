@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agy
   created: "2026-09-09"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Agy
 
-Operate Antigravity via its CLI or Python SDK; read only the matching guide and its resources.
+Operate Antigravity via its CLI or Python SDK; load every matching guide and linked resource needed to complete and verify the workflow.
 
 ## Task guides
 

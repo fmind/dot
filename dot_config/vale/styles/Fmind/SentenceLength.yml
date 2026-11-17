@@ -1,0 +1,7 @@
+# Docs: https://vale.sh/docs/topics/styles/
+extends: occurrence
+message: "Split long sentence (> 40 words) for easier scanning."
+level: warning
+scope: sentence
+max: 40
+token: \b\w+\b

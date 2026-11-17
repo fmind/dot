@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/diagrams-as-code
   created: "2026-09-16"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Diagrams as Code
 
-Choose the simplest picture that explains the system, or none when prose, a list, or a table is more direct. Apply customer/employer palette, fonts, and logo when the work belongs to one (ask if missing; never mix brands), preserve existing project identities, or use `~/.agents/DESIGN.md` ([fmind/theme](https://github.com/fmind/theme/blob/main/DESIGN.md)) and pinned `~/.agents/themes/` renderer files (`mise run upgrade` in `fmind/dot` advances them—edit upstream `fmind/theme`, never local copies). Cut decorative nodes, gradients, and generic AI imagery.
+Design clear, self-explanatory diagrams and figures whenever architecture boundaries, request/data flows, state lifecycles, or quantitative comparisons benefit from visual intuition (use a clean table or list only when no spatial or sequential relationship exists). Apply customer/employer palette, fonts, and logo when the work belongs to one (ask if missing; never mix brands), preserve existing project identities, or use `~/.agents/DESIGN.md` ([fmind/theme](https://github.com/fmind/theme/blob/main/DESIGN.md)) and pinned `~/.agents/themes/` renderer files (`mise run upgrade` in `fmind/dot` advances them—edit upstream `fmind/theme`, never local copies). Cut decorative chrome, gradients, and generic AI imagery.
 
 | Need                                                                                | Format                                   | Why                                                                 |
 | ----------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------- |
@@ -25,7 +25,7 @@ Choose the simplest picture that explains the system, or none when prose, a list
 
 ## Workflow
 
-Read only the matching guide and its required resources, inspect every rendered frame or image for legibility, clipping, fonts, and contrast, and keep editable sources beside exports.
+Load the matching format guide (plus [variants](references/variants/GUIDE.md) when visual direction is open), keep editable sources beside exports, visually read every rendered PNG/SVG frame to verify alignment, unclipped `>= 12px` labels, font loading, `>= 4.5:1` contrast, and dark/light surface legibility, and audit non-trivial figures with `fmind-review-figures` / `fmind-review-design` ([subagent](../subagent/SKILL.md)).
 
 ## Task guides
 

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/terms-review
   created: "2026-09-15"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Terms Review
@@ -19,7 +19,7 @@ Assess whether an intended use of a product, service, or artifact fits its gover
 1. **Define context & criteria**: record product, exact version/artifact, plan, entities, jurisdictions, scale, data flows, and checkable policy/regulatory requirements (ignore badges and marketing).
 1. **Collect & order primary texts**: inspect signed agreements and incorporated docs (ToS, EULA/license, DPA, subprocessors, release model/dataset licenses) with URL/ID and effective date; resolve consumer/API/enterprise precedence and mark unavailable texts `Unresolved` instead of reconstructing from memory.
 1. **Audit clauses**: cover commercial/API/scraping/benchmark/export rights; code/weights/dataset/output licenses and copyleft compatibility (read raw license text); and confidentiality, AI training/opt-out, retention, residency, and DPA/BAA obligations alongside technical verification.
-1. **Deliver the report**: state dated verdict (`Supported`, `Conditional`, `Not supported`, or `Unresolved`), context/assumptions, evidence matrix (requirement | document & clause | finding | status | action), ranked blockers, counsel/vendor questions, re-review triggers, and dated sources.
+1. **Audit adversarially & deliver the report**: run `fmind-review-compliance` and `fmind-review-factcheck` ([subagent](../subagent/SKILL.md)) on non-trivial reviews. State dated verdict (`Supported`, `Conditional`, `Not supported`, or `Unresolved`), context/assumptions, clause evidence (as a structured table in standalone report artifacts/docs or scannable bullets in chat replies: requirement, document & clause, finding, status, action), ranked blockers, counsel/vendor questions, re-review triggers, and a closing `Sources` section naming each primary text, what it grounds, and its effective date.
 
 ## Boundaries
 

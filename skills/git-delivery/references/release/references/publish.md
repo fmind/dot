@@ -38,17 +38,20 @@ Prefer the repository's native release task when defined; use this fallback only
    git push --atomic origin main "refs/tags/$tag"
    ```
 
-1. **Wait for exact-commit CI**: for CLI-owned releases, require every workflow/matrix job on `release_sha` to complete green before publishing ([verify.md](verify.md)):
+1. **Wait for exact-commit CI**: for CLI-owned releases, watch active runs (`gh run watch <id> --exit-status`) and require every workflow/matrix job on `release_sha` to complete green before publishing ([verify.md](verify.md)):
 
    ```bash
-   gh run list --commit "$release_sha" --limit 100 --json workflowName,headSha,status,conclusion,url
+   gh run list --commit "$release_sha" --limit 100 --json databaseId,workflowName,headSha,status,conclusion,url
    ```
 
-1. **Publish via the single owner**: if CI owns releases, wait for it and run [verify.md](verify.md). For CLI-owned releases, stage a draft first because immutable releases freeze tags and assets upon publication:
+1. **Publish via the single owner**: if CI owns releases, wait for it and run [verify.md](verify.md). For CLI-owned releases, stage a draft first because immutable releases freeze tags and assets upon publication, curate human-facing notes per [humanize](../../../../humanize/SKILL.md) (highlights + upgrade impact over raw commit noise), and gate with `vale` + `betterleaks stdin --redact`:
 
    ```bash
    release_tmp=$(mktemp -d)
    git-cliff --latest --strip all > "$release_tmp/release-notes.md"
+   # Curate $release_tmp/release-notes.md per humanize (outcome highlights + upgrade notes), then gate:
+   vale --no-global --config ~/.config/vale/.vale.ini --output=JSON "$release_tmp/release-notes.md"
+   betterleaks stdin --redact < "$release_tmp/release-notes.md" >/dev/null
    gh release create "$tag" --verify-tag --draft --title "$tag" --notes-file "$release_tmp/release-notes.md"
    ```
 

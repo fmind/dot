@@ -7,12 +7,12 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python-web
   created: "2026-09-16"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Python Web Applications
 
-Keep an existing project's framework. Default to Litestar for new APIs/services, Django for integrated ORM/admin/auth, or `python-ui` (Gradio/NiceGUI) for Python UIs. Browser UIs follow [web-frontend](../web-frontend/SKILL.md) and live Chrome verification ([chrome-devtools](../chrome-devtools/SKILL.md)). Read only the matching guide and its required resources.
+Keep an existing project's framework. Default to Litestar for new APIs/services, Django for integrated ORM/admin/auth, or `python-ui` (Gradio/NiceGUI) for Python UIs. Browser UIs follow [web-frontend](../web-frontend/SKILL.md) and live Chrome verification across desktop/mobile viewports and empty/loading/error/populated states ([chrome-devtools](../chrome-devtools/SKILL.md)). Load the matching framework, [security-and-auth](references/security-and-auth.md), and [database-and-jobs](references/database-and-jobs.md) guides as needed, and audit non-trivial changes with `fmind-review-api`, `fmind-review-web`, `fmind-review-design`, and `fmind-review-security` ([subagent](../subagent/SKILL.md)).
 
 ## Task guides
 

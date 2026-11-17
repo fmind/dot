@@ -1,6 +1,6 @@
 # Charts, Diagrams, Branded Images, and Typst Escaping
 
-Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without `@preview/...` packages or a headless browser. Keep each slide to **one focal visual** and each deck to three comparative charts or fewer.
+Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without `@preview/...` packages or a headless browser. Keep each slide to **one focal visual** with explicit units, baselines, and sample sizes (`n=...`), adding as many dedicated evidence slides as the narrative requires rather than crowding two charts onto one slide.
 
 ## Reusable Slide & Brand Card Helpers ([fmind-slides.typ](../templates/fmind-slides.typ))
 

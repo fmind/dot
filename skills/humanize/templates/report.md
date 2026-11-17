@@ -2,8 +2,8 @@
   Humanized Markdown template for GitHub and Zensical briefs.
   Replace {placeholders}, keep plain prose (zero backticks except copyable commands or paths), and delete unused sections.
   Dialect notes:
-  - Google Docs (.md): replace [!IMPORTANT] with **Decision needed by DATE:** and compile Typst figures via draft-doc.
-  - Zensical docs: replace [!IMPORTANT] with `!!! important "Decision needed"` (body indented 4 spaces below header), and use ==highlight== around the core metric.
+  - Google Docs (.md): strip HTML comments and details blocks, replace [!IMPORTANT] with **Decision needed by DATE:**, and compile figures via draft-doc.
+  - Zensical docs: replace [!IMPORTANT] with !!! important "Decision needed" and details with ??? info "Methodology and assumptions" (bodies indented 4 spaces), and use ==highlight== around the core metric.
 -->
 
 # {Clear title naming the subject}
@@ -33,6 +33,23 @@
 | {Alternative}            | {Range vs base}  | {Higher effort}   | 🟡 Viable      |
 | Do nothing               | {Baseline cost}  | {Growing risk}    | 🔴 Risky       |
 
+```mermaid
+---
+config:
+  fontFamily: '"Google Sans", sans-serif'
+  layout: dagre
+  look: classic
+  theme: base
+  themeVariables:
+    primaryColor: "#ffffff"
+    primaryTextColor: "#202124"
+    primaryBorderColor: "#174ea6"
+    lineColor: "#174ea6"
+---
+flowchart LR
+  CurrentState["{Current state}"] --> ProposedChange["{Proposed change}"] --> MeasuredOutcome["{Measured outcome}"]
+```
+
 ---
 
 ## Risks & next steps
@@ -42,15 +59,15 @@
 - [ ] **{First action}**: {Owner}, by {Date}.
 - [ ] **{Follow-up action}**: {Owner}, by {Date}.
 
+---
+
+## Sources
+
+- [{Primary source title}]({https://primary.source/page}) ({date or version}): grounds {the baseline metric or architectural constraint}.
+
 <details>
-<summary>Supporting visual, method, and sources</summary>
+<summary>Methodology and assumptions</summary>
 
-```mermaid
-flowchart LR
-  A["{Current state}"] --> B["{Proposed change}"] --> C["{Measured outcome}"]
-```
-
-- **Method**: {Formula, inputs, and uncertainty range.}
-- **Sources**: [{Primary source}]({https://primary.source/page}), checked {date}.
+- **Method**: {Formula, sample size, and sensitivity range.}
 
 </details>

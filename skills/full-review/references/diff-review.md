@@ -11,7 +11,7 @@ Review a diff, patch, branch, PR, or self-review in [full-review](../SKILL.md) `
 1. **Test the tests**: check whether tests fail for the claimed defect class; when cheap, verify with a one-line mutation in a scratch copy/worktree ([mutation tests](../../python-stack/references/python-testing/GUIDE.md#mutation-tests)—surviving mutations are findings).
 1. **Classify scope**: tag each changed dependency, config, public API, artifact, and suspect hunk as **keep**, **split**, or **justify** (never revert or restage hunks automatically).
 1. **Audit sensitive paths**: route authz, upload, deserialization, subprocess, credential, and agent-tool diffs through [code-review](../../code-security/references/code-review/GUIDE.md).
-1. **Verify proportionately**: skip builds/tests unless needed, reuse passing checks on unchanged inputs, run full gates only for cross-cutting risk or qualification, and isolate write-formatters on dirty trees ([dirty-tree rule](../../mise/SKILL.md#gotchas)).
+1. **Verify thoroughly**: run affected builds, unit/integration tests, static checks, and visual/browser renders (reusing passing checks only when inputs are truly unchanged; run full `mise run all` on cross-cutting changes or qualification), fan out matching read-only `fmind-review-*` specialists ([subagent](../../subagent/SKILL.md)), and isolate write-formatters on dirty trees ([dirty-tree rule](../../mise/SKILL.md#gotchas)).
 
 ## Sources
 

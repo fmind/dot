@@ -32,10 +32,10 @@ Default technical-doc diagram format: one portable source renders in GitHub Mark
 1. **Validate and render** with project-pinned `mmdc` (`mise use --pin npm:@mermaid-js/mermaid-cli`; not installed globally):
 
    ```bash
-   mmdc -i diagram.mmd -o diagram.svg -b transparent
+   mmdc -i diagram.mmd -o diagram.svg -b white --configFile ~/.agents/themes/mermaid/fmind.json
    ```
 
-1. **Inspect the render**: check clipping, crossings, contrast, spelling, label density, and mobile/slide legibility.
+1. **Inspect the render visually**: rasterize or view the rendered diagram to check clipping, edge crossings, contrast on both light and dark host pages (opaque `#ffffff` canvas prevents dark ink from disappearing in dark mode), spelling, label density, and mobile/slide legibility.
 1. **Ship source first**: add SVG/PNG exports only when the target lacks Mermaid rendering, and include `accTitle`/`accDescr` or surrounding prose stating the conclusion.
 
 ## Gotchas
@@ -51,4 +51,4 @@ Default technical-doc diagram format: one portable source renders in GitHub Mark
 
 - [Syntax reference](https://mermaid.js.org/intro/syntax-reference.html) · [Theming](https://mermaid.js.org/config/theming) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)
 - Releases: [Mermaid](https://github.com/mermaid-js/mermaid/releases) · [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli/releases)
-- Companion guides: [typst](typst.md) (KPI cards and figures), [svg](svg/GUIDE.md) (user-doc illustrations), [d2](d2.md) (bespoke compositions).
+- Companion guides: [typst](typst.md) (composed user-doc illustrations and KPI cards), [svg](svg/GUIDE.md) (logos and geometric marks), [d2](d2.md) (routed architecture graphs).

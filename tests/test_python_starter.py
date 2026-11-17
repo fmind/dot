@@ -392,6 +392,8 @@ def test_pep723_script_starter_lock_audit_and_typecheck(tmp_path: Path) -> None:
             "    assert mixed['total_errors'] == 1, mixed",
             "    assert mixed['total_forbidden_attempts'] == 1, mixed",
             "    assert mixed['results'][0]['passed'] == 1, mixed",
+            "    mixed_default_k = await mod.evaluate_cases(cases, mixed_runner, lambda _c, r: r.output == 'ok', concurrency=2)",
+            "    assert mixed_default_k['k'] == 3 and mixed_default_k['mean_pass_at_k'] == 1.0 and mixed_default_k['mean_pass_power_k'] == 0.0, mixed_default_k",
             "asyncio.run(run_checks())",
         ]
     )

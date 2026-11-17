@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/playwright
   created: "2026-09-02"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Playwright
@@ -16,9 +16,9 @@ Browser automation and E2E testing ([python-testing](../python-stack/references/
 
 ## Workflow
 
-1. **Check HTTP first**: inspect status, headers, and bodies with [xh](../xh/SKILL.md); open a browser only for rendering, interaction, session state, or accessibility, targeting roles/labels and asserting state after each step.
+1. **Match tool to surface**: use [xh](../xh/SKILL.md) for pure HTTP/JSON diagnostics; whenever UI rendering, visual layout, responsive viewports, interactive state transitions (empty, loading, error, populated), or accessibility matter, verify in a real browser targeting semantic roles/labels and asserting state after every action.
 1. **Pin Python packages**: `uv add --dev playwright pytest-playwright` (`uv.lock`), then `uv run playwright install chromium`. Report missing OS libraries instead of running privileged `install-deps`.
-1. **Record and capture**: `uv run playwright codegen --target python-pytest <url>`, `uv run playwright screenshot <url> <file>` (`--viewport-size=390,844`, `--full-page`), and `uv run playwright pdf <url> <file>`. Outside projects that lock Playwright, run `uvx --from playwright==<version> playwright` (installing `chromium` first) instead of polluting `pyproject.toml`.
+1. **Record and capture**: `uv run playwright codegen --target python-pytest <url>`, `uv run playwright screenshot --viewport-size=1440,900 --full-page <url> <desktop.png>`, `uv run playwright screenshot --viewport-size=390,844 --full-page <url> <mobile.png>` (always read the captured PNGs visually to inspect layout, wrapping, and contrast), and `uv run playwright pdf <url> <file>`. Outside projects that lock Playwright, run `uvx --from playwright==<version> playwright` (installing `chromium` first) instead of polluting `pyproject.toml`.
 1. **Wire opt-in `test:e2e` and run**: keep default `test` filtering `-m "not integration and not e2e"`. Add `[tasks."test:e2e"]` running `uv run --locked pytest -q -m e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure --timeout=120`, and serve the ASGI app on an ephemeral `127.0.0.1:0` loopback socket inside a `tests/e2e/conftest.py` thread/uvicorn-free Granian fixture. Inspect traces via `uv run playwright trace open <trace.zip>`, `trace --help` subcommands, and `trace close` (`show-trace` opens the GUI). For live CLI debugging, run one test with `--playwright-debug=cli -s`, attach via `uv run playwright cli attach <session>`, then stop and remove `.playwright-cli/`.
 
 ## Gotchas

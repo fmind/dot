@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/pup
   created: "2026-11-13"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Datadog (`pup`)
@@ -18,13 +18,13 @@ Use `pup` with OAuth2 PKCE (`pup auth login --read-only --site <site> [--org <na
 
 ```bash
 pup auth status --site datadoghq.eu
-pup --read-only --no-envelope logs search --query "status:error service:api" --from 1h --to now --limit 50
-pup --read-only --jq '.data' metrics query --query "avg:system.cpu.user{*}" --from 1h --to now
-pup --read-only monitors list --limit 25
+DD_SITE=datadoghq.eu pup --read-only --no-envelope logs search --query "status:error service:api" --from 1h --to now --limit 50
+DD_SITE=datadoghq.eu pup --read-only --jq '.data' metrics query --query "avg:system.cpu.user{*}" --from 1h --to now
+DD_SITE=datadoghq.eu pup --read-only monitors list --limit 25
 ```
 
-- Pass `--read-only` on investigative/triage runs to block writes client-side; wrap `--no-envelope` (`PUP_NO_ENVELOPE=1`) and `--jq '<expr>'` to unwrap `{status, data, metadata}`.
-- Redirected pipes keep JSON (`-o json`); `--verbose` logs rate-limit headers to stderr. Pin `DD_SITE`/`--site` and `--org <name>` explicitly.
+- Pass `--read-only` on investigative/triage runs to block writes client-side; wrap `--no-envelope` (`PUP_NO_ENVELOPE=1`) and `--jq '<expr>'` to unwrap `{status, data, metadata}` (keep the envelope or narrow `--from`/`--to` when results hit `--limit`, since `--no-envelope` strips pagination `metadata`).
+- Redirected pipes keep JSON (`-o json`); `--verbose` logs rate-limit headers to stderr. `--site` is accepted only on `pup auth` subcommands—pin `DD_SITE=<site>` and `--org <name>` explicitly on query commands.
 
 ## Guardrails
 

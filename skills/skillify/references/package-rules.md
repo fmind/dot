@@ -5,8 +5,8 @@ Keep discovery compact and load procedures on demand. `check:skills` checks sche
 ## Categories and scope
 
 - **Connector** (`metadata.kind: connector`): reusable CLI or API boundary (`bf`, `cf`, `fmind`, `gcloud`, `gh`, `gws`, `pup`); owns auth, bounded queries, output format, and guardrails so task skills link instead of duplicating.
-- **Task** (`metadata.kind: task`): cross-project workflow (`code-security`, `humanize`, `repository-docs`, `draft-typst-deck`); self-contained unless distinct modes or long schemas warrant `references/`.
-- **Collection** (`metadata.kind: collection`): cohesive domain (`python-stack`, `agent-frameworks`, `diagrams-as-code`, `project-scaffolding`) whose `SKILL.md` routes to guides and shared prerequisites.
+- **Task** (`metadata.kind: task`): cross-project workflow (`full-review`, `humanize`, `repository-docs`, `draft-typst-deck`); self-contained unless distinct modes or long schemas warrant `references/`.
+- **Collection** (`metadata.kind: collection`): cohesive domain (`python-stack`, `agent-frameworks`, `code-security`, `diagrams-as-code`, `project-scaffolding`) whose `SKILL.md` routes to guides and shared prerequisites.
 - **Scope (`skills/` vs `.agents/skills/`)**: promote globally only for recurring triggers, non-trivial deltas beyond public docs, and room under [structure and budgets](#structure-budgets-and-authoring); default to repo-local first.
 
 ## Naming and ownership
@@ -27,7 +27,7 @@ Keep discovery compact and load procedures on demand. `check:skills` checks sche
 
 - **Single root `SKILL.md`**: never nest `SKILL.md` in subdirectories; keep dormant skills outside discovery roots. agy reads only `name` and `description` at startup, so do not rely on `allowed-tools` or `disable-model-invocation` for permissions.
 - **Size and budgets**: target ~200–500 tokens for collection routers and <1,200 tokens for procedures. `check:skills` enforces **< 1,500 estimated tokens** on every non-template skill Markdown file and a 500-line ceiling; offload long schemas/flags to `references/`, `templates/`, or `assets/`, keeping global and local startup budgets well under **5,000 tokens** ([context budgets](../../dot-cli/references/context.md)).
-- **Authoring deltas**: encode only non-obvious flags, version quirks, security boundaries, executable validation scripts, and Fmind defaults—drop stdlib trivia and raw vendor dumps ([vendor-skills](../../agent-project/references/vendor-skills.md)). Drop prose backticks in human copy and keep copy-pasteable commands quiet (`--json`, `--quiet`).
+- **Authoring deltas**: encode only non-obvious flags, version quirks, security boundaries, executable validation scripts, and Fmind defaults—drop stdlib trivia and raw vendor dumps ([vendor-skills](../../agent-project/references/vendor-skills.md)). Never write shortcut-licensing slogans; scope YAGNI strictly to unrequested features while requiring full state coverage and rendered verification on agreed work. Calibrate monospace per [humanize](../../humanize/SKILL.md) and keep copy-pasteable commands quiet (`--json`, `--quiet`).
 
 ## Promotion and portability
 

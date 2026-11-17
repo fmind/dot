@@ -34,7 +34,7 @@ Inspect quality gates, triage code and dependency findings, and run local diff s
 
    Single `--file <path>` defaults to fast `STANDARD` depth; `--depth DEEP` enables cross-file taint and dataflow analysis. `sonar analyze secrets <paths>` and `sonar analyze dependency-risks` complement—never replace—[betterleaks](betterleaks.md), `uv audit`, and [trivy](trivy/GUIDE.md).
 
-1. **Verify fixes**: re-run `sonar analyze --file <path> --format json` locally and confirm server quality-gate status after CI analysis completes.
+1. **Verify fixes**: re-run `sonar analyze --file <path> --depth DEEP --format json` locally (including cross-file taint/dataflow) and confirm server quality-gate status after CI analysis completes.
 
 ## Hard Boundaries
 

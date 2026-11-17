@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # DuckDB, SQLite, and PostgreSQL
@@ -23,6 +23,8 @@ sqlite3 -init /dev/null -batch -bail -readonly app.sqlite '.schema'
 sqlite3 -init /dev/null -batch -bail -noheader -list -readonly app.sqlite 'PRAGMA integrity_check'
 ```
 
+Always pass `duckdb -no-init -light-mode -batch -bail` and `sqlite3 -init /dev/null -batch -bail` (skipping DuckDB 2.0's 5s OSC 11 terminal probe when `-no-init` bypasses `~/.duckdbrc`). Pass explicit `-json`, `-csv`, `-markdown`, or `-no-agent` when parsing output (`PRAGMA integrity_check` must literally print `ok`).
+
 ## PostgreSQL (`pgcli`)
 
 Use `pgcli` non-interactively with explicit bounds and credentials outside `argv`:
@@ -34,11 +36,10 @@ pgcli --less-chatty -w --row-limit 0 --timeout 10 --single-connection -t -D anal
 - Pass `--less-chatty -w --row-limit 0 --timeout 10` to suppress banners/prompts cleanly (`-t` for unframed rows; `--single-connection` on pooled PgBouncer/Cloud SQL endpoints); `psycopg[binary]` is bundled via mise (`vi = True` recommended in `~/.config/pgcli/config`).
 - Authenticate via `.pgpass`, `PGPASSFILE`, `PGSERVICE`, or alias (`-D`), never inline DSN passwords (`postgresql://user:pass@...`), never pass `--log-file` on sensitive queries, and require explicit user approval before `-y` (`--yes`) or writes.
 
-Always pass `duckdb -no-init -light-mode -batch -bail` and `sqlite3 -init /dev/null -batch -bail` (skipping DuckDB 2.0's 5s OSC 11 terminal probe when `-no-init` bypasses `~/.duckdbrc`). Pass explicit `-json`, `-csv`, `-markdown`, or `-no-agent` when parsing output (`PRAGMA integrity_check` must literally print `ok`).
-
 ## Workflow
 
 1. **Inspect, bound, and isolate**: start with `DESCRIBE` / `SUMMARIZE` (pin CSV types cleanly), guard scans with `SET max_execution_time=<ms>`, report `LIMIT` previews as partial, persist derived datasets as Parquet (commit `.sql`, never `.duckdb`; open existing DBs `-readonly`), and match output flags to consumers.
+1. **Reconcile grain and nulls**: verify key uniqueness, pre/post-join row counts (catching silent `1:N` fan-out), `NULL`-safe predicates (`IS NOT DISTINCT FROM`), and `NaN` vs `NULL` aggregates before reporting numbers; lint/audit non-trivial SQL and dbt models via [sql-quality-and-dbt](references/sql-quality-and-dbt.md) and `fmind-review-sql` / `fmind-review-data` ([subagent](../subagent/SKILL.md)).
 
 ## Gotchas
 

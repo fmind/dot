@@ -1,0 +1,22 @@
+# Docs: https://vale.sh/docs/topics/styles/
+# Non-blocking warnings: bloated phrases with shorter, direct alternatives.
+extends: existence
+message: "Tighten wordy phrase '%s' into a shorter alternative."
+level: warning
+ignorecase: true
+tokens:
+  - a large number of
+  - at this point in time
+  - due to the fact that
+  - for the purpose of
+  - has the ability to
+  - in close proximity to
+  - in order to
+  - in the event that
+  - (?:utilizes?|utilized|utilizing)
+  - with regard to
+  - with respect to
+  - afin de pouvoir
+  - à l['’]heure actuelle
+  - au niveau de
+  - dans le but de

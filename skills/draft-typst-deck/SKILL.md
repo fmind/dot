@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-typst-deck
   created: "2026-11-13"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Draft Typst Slide Deck
@@ -19,16 +19,16 @@ Build crisp **16:9 (`960pt x 540pt`) Typst slide decks** and **standalone brande
 Apply [humanize](../humanize/SKILL.md) ([outlines](../humanize/references/outlines.md), [primitives](../humanize/references/primitives.md)) on every deck:
 
 1. **Typst PDF / Retina PPTX -> Private Google Slides (default)**: adapt [fmind.typ](templates/fmind.typ) + [fmind-slides.typ](templates/fmind-slides.typ) + [deck.typ](templates/deck.typ), add `#speaker-note("...")`, compile with `check --pptx`, and publish via `upload --google-slides --source-dir .`. Drive converts the `.pptx` privately (Retina images + editable speaker notes) without public URLs.
-1. **Editable-shape Google Slides**: when stakeholders must edit text boxes directly in Slides, adapt [editable_deck.py](templates/editable_deck.py) (`Google Sans` native shapes + 2x Typst PNG cards via `uv run --script`), or patch an existing template via `gws slides presentations batchUpdate` (`replaceAllText`), and upload with `--google-slides --source-dir .`.
+1. **Editable-shape Google Slides**: when stakeholders must edit text boxes directly in Slides, adapt [editable_deck.py](templates/editable_deck.py) (`Google Sans` native shapes + 2x Typst PNG cards via `uv run --script`), or patch an existing template via `gws slides presentations batchUpdate` (`replaceAllText`), inspect rendered slide thumbnails/PDF visually before sharing, and upload with `--google-slides --source-dir .`.
 1. **Standalone branded PNG/SVG card**: adapt [figure-card.typ](templates/figure-card.typ) (`#show: brand-card.with(width: 640pt)`) or compile `figures/*.typ` with `render` (or `check --render-figures`) for Docs ([draft-doc](../draft-doc/SKILL.md)), reports, email, or web.
 
-## Slide Restraint Rules (Zero Slide Dumps)
+## Slide Craft & Cognitive Load Rules
 
-- **One idea, one focal centerpiece**: pair an action-led headline with **one** visual (`kpi-card` strip, `bar-panel`, `split-cards`, or `step-card` flow). Never stack two heavy visuals on one slide.
-- **Max 30 visible words, zero prose backticks**: use `#hl[...]` or `#pill(...)` instead of code styling on non-code words, enforce `--max-words 30` in `check`, and move caveats and formulas to `#speaker-note("...")`.
+- **One idea, one focal centerpiece**: pair an assertion-led headline (stating the conclusion, never a bare topic label) with **one** visual (`kpi-card` strip, `bar-panel`, `split-cards`, or `step-card` flow). Never stack two heavy visuals on one slide.
+- **Crisp density (~30 words target, zero cryptic fragments or prose backticks)**: use `#hl[...]` or `#pill(...)` instead of code spans on prose words, pass `--max-words 30` in `check` for standard slides (raising to `--max-words 45` when comparative charts/cards need explicit units, baselines, and `n=...` sample sizes rather than clipped shorthand), and put full narrative context and formulas in `#speaker-note("...")`.
 - **Readable minimums & escaping**: titles 26 pt, cards 15–16 pt, chart labels 12+ pt; follow [charts-and-diagrams.md](references/charts-and-diagrams.md#typst-escaping-rules) (`$`, `~`, `*` differ between `"..."` and `[...]`).
 
-## Workflow (`check`, `render`, inspect, `upload`)
+## Workflow (`check`, `render`, inspect, review, `upload`)
 
 Run [build_typst_deck.py](scripts/build_typst_deck.py) (backed by [typst_check.py](scripts/typst_check.py), [pptx_builder.py](scripts/pptx_builder.py), and [slides_drive.py](scripts/slides_drive.py)) with isolated stdlib Python (`python3 -I`):
 
@@ -45,9 +45,9 @@ Run [build_typst_deck.py](scripts/build_typst_deck.py) (backed by [typst_check.p
    python3 -I ~/.agents/skills/draft-typst-deck/scripts/build_typst_deck.py render figure-card.typ --json
    ```
 
-   Fails closed on bad Typst escapes, empty `*bold*` stars, missing fonts, word-limit overruns, or slide overflow.
+   Fails closed on bad Typst escapes, empty `*bold*` stars, Vale em-dash or AI-cliché errors, missing fonts, word-limit overruns, or slide overflow (and prints non-blocking Vale style/wordiness warnings).
 
-1. **Inspect every PNG** (`_preview/<stem>-*.png` or card output) for spacing, contrast, and calm per [verification-and-drive.md](references/verification-and-drive.md).
+1. **Inspect every PNG & review adversarially**: read every `_preview/<stem>-*.png` frame (or rendered card) visually for spacing, unclipped labels, contrast, and calm per [verification-and-drive.md](references/verification-and-drive.md), then fan out `fmind-review-deck` (plus `fmind-review-figures`, `fmind-review-design`, and `fmind-review-factcheck` when charts or external claims appear; see [subagent](../subagent/SKILL.md)).
 
 1. **Dry-run and publish to Drive / Google Slides (after explicit approval)**:
 
