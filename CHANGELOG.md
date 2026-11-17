@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.3.0] - 2026-11-17
+
+### 🚀 Features
+
+- _(agents)_ Harden persona rigor, skills, and 33 reviewer roles
+
 ## [17.2.2] - 2026-11-16
 
 ### 🐛 Bug Fixes
