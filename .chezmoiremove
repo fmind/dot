@@ -1,7 +1,8 @@
 # Retired targets: delete each entry once every machine has applied the release that retired it.
 .config/fish/functions/with-secret.fish
 .pi/agent/extensions/dot-notify.ts
-{{- range list "fmind-review-ai" "fmind-review-interface" "fmind-review-ops" }}
+{{- range list "fmind-review-ai" "fmind-review-arch" "fmind-review-interface" "fmind-review-ops" }}
+{{ printf ".agents/supagents/%s.md" . }}
 {{ printf ".gemini/config/agents/%s.md" . }}
 {{ printf ".claude/agents/%s.md" . }}
 {{ printf ".copilot/agents/%s.agent.md" . }}
