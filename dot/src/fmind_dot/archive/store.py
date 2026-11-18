@@ -8,7 +8,7 @@ import json
 import os
 import re
 import stat
-from collections.abc import Generator
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -19,8 +19,8 @@ from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 4
 READABLE_SCHEMA_VERSIONS = (SESSION_SCHEMA_VERSION,)
-SESSION_PARSER_VERSION = "16"
-READABLE_PARSER_VERSIONS = tuple(str(v) for v in range(7, 17))
+SESSION_PARSER_VERSION = "17"
+READABLE_PARSER_VERSIONS = tuple(str(v) for v in range(7, 18))
 SESSION_STORE_VERSION = "v3"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -72,7 +72,7 @@ def _non_empty_str(raw: object) -> str:
     return raw
 
 
-def _opt_str(value: dict[str, Any], key: str) -> str:
+def _opt_str(value: Mapping[str, Any], key: str) -> str:
     if key not in value:
         return ""
     if type(raw := value[key]) is not str:
@@ -80,7 +80,7 @@ def _opt_str(value: dict[str, Any], key: str) -> str:
     return raw
 
 
-def _non_neg_int(value: dict[str, Any], key: str, *, required: bool = False) -> int:
+def _non_neg_int(value: Mapping[str, Any], key: str, *, required: bool = False) -> int:
     if key not in value:
         if required:
             raise ValueError("invalid session manifest")
@@ -137,8 +137,8 @@ class SessionManifest:
         }
 
     @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> SessionManifest:
-        if not isinstance(value, dict):
+    def from_dict(cls, value: Mapping[str, Any]) -> SessionManifest:
+        if not isinstance(value, Mapping):
             raise ValueError("invalid session manifest")
         sv, pv, upv = value.get("schema_version"), value.get("parser_version"), value.get("usage_parser_version")
         if (
@@ -218,7 +218,7 @@ def fingerprint_json(value: object) -> str:
     return fingerprint_bytes(_json_bytes(value, sort_keys=True))
 
 
-def propagate_models(logs: list[SessionLog]) -> None:
+def propagate_models(logs: Sequence[SessionLog]) -> None:
     """Fill records without a model from the nearest earlier, then later, model."""
     for ordered in (logs, reversed(logs)):
         active = ""
@@ -254,7 +254,7 @@ def parse_utc_instant(value: object) -> datetime | None:
         return None
 
 
-def usage_window(usage: dict[str, Any] | None) -> tuple[str, str]:
+def usage_window(usage: Mapping[str, Any] | None) -> tuple[str, str]:
     """Return earliest and latest usage instants, or empty strings when any are unknown."""
     if usage is None:
         return "", ""
@@ -346,19 +346,20 @@ def _write_bundle(root: Path, agent: str, name: str, manifest: SessionManifest, 
 def ingest_session(
     agent: str,
     session_id: str,
-    logs: list[SessionLog],
+    logs: Sequence[SessionLog],
     source: SessionSource | None = None,
     *,
-    usage: dict[str, Any] | None = None,
+    usage: Mapping[str, Any] | None = None,
 ) -> SessionIngestionResult:
     """Keep the latest copy of a session without replacing it with a shorter transcript or losing usage."""
     source, path = source or SessionSource(), session_bundle_path(agent, session_id)
+    usage_dict = dict(usage) if isinstance(usage, Mapping) else None
     for number, log in enumerate(logs, start=1):
         if log.agent != agent or log.sid != session_id:
             raise ValueError(f"session record {number} does not match its session")
     propagate_models(logs)
     raw_logs = b"".join(_json_bytes(log.to_dict()) + b"\n" for log in logs)
-    usage_cwd = raw_cwd if isinstance(usage, dict) and isinstance(raw_cwd := usage.get("cwd"), str) else ""
+    usage_cwd = raw_cwd if usage_dict is not None and isinstance(raw_cwd := usage_dict.get("cwd"), str) else ""
     manifest = SessionManifest(
         agent=agent,
         session_id=session_id,
@@ -373,7 +374,7 @@ def ingest_session(
         high_water_mark=max((log.ts for log in logs), default=""),
         cwd=next((log.cwd for log in logs if log.cwd), usage_cwd),
         source_signature=source.signature,
-        usage=usage,
+        usage=usage_dict,
         sidechain=source.sidechain,
         parent_session_id=source.parent_session_id,
     )
@@ -393,7 +394,7 @@ def ingest_session(
                 stored.parser_version == manifest.parser_version
                 and stored.source_fingerprint == manifest.source_fingerprint
             )
-            retain_usage = stored.usage is not None and _loses_measurement(stored.usage, usage)
+            retain_usage = stored.usage is not None and _loses_measurement(stored.usage, usage_dict)
             if retain_usage:
                 manifest.usage = stored.usage
                 manifest.usage_parser_version = stored.usage_parser_version or stored.parser_version

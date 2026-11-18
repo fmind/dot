@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -27,9 +29,9 @@ def test_run_completion_check_install_pruning_and_failure(tmp_path: Path, monkey
     cache_dir = tmp_path / ".cache/fish"
     comp_dir.mkdir(parents=True)
     cache_dir.mkdir(parents=True)
-    (comp_dir / "stale.fish").write_text("# stale")
-    (comp_dir / "custom.fish").write_text("# keep")
-    (cache_dir / "old-init.fish").write_text("# stale init")
+    (comp_dir / "stale.fish").write_text("# stale", encoding="utf-8")
+    (comp_dir / "custom.fish").write_text("# keep", encoding="utf-8")
+    (cache_dir / "old-init.fish").write_text("# stale init", encoding="utf-8")
 
     runner = ScriptedRunner(
         {"uv", "fish", "atuin"},
@@ -59,10 +61,10 @@ def test_completion_packages_env_mise_shims_and_cli_main(
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     mise_bin = tmp_path / "mise"
-    mise_bin.write_text("#!/bin/sh\n")
+    mise_bin.write_text("#!/bin/sh\n", encoding="utf-8")
     lsd_dir = tmp_path / "pkgs/lsd"
     (lsd_dir / "completions").mkdir(parents=True)
-    (lsd_dir / "completions/lsd.fish").write_text("complete -c lsd\n")
+    (lsd_dir / "completions/lsd.fish").write_text("complete -c lsd\n", encoding="utf-8")
     hyperfine_dir = tmp_path / "pkgs/hyperfine"
     hyperfine_dir.mkdir(parents=True)
     cliff_dir = tmp_path / "pkgs/git-cliff"
@@ -152,7 +154,7 @@ def test_secrets_tools_docker_install_and_headroom(tmp_path: Path, monkeypatch: 
     monkeypatch.setattr(system_module, "DOCTOR_SECRETS", ("~/.ssh/id_ed25519_signing", "~/.private.env"))
     (tmp_path / ".ssh").mkdir()
     key = tmp_path / ".ssh/id_ed25519_signing"
-    key.write_text("k")
+    key.write_text("k", encoding="utf-8")
     key.chmod(0o644)
     (tmp_path / ".private.fish").symlink_to(tmp_path / "outside")
 
@@ -170,7 +172,7 @@ def test_secrets_tools_docker_install_and_headroom(tmp_path: Path, monkeypatch: 
 
     src = tmp_path / "src/dot"
     (src / "src/fmind_dot").mkdir(parents=True)
-    (src / "pyproject.toml").write_text('[project]\nversion = "0.0.0"\n')
+    (src / "pyproject.toml").write_text('[project]\nversion = "0.0.0"\n', encoding="utf-8")
     monkeypatch.setattr(system_module, "PACKAGE_DIRECTORY", tmp_path / "site-packages/fmind_dot")
     monkeypatch.setattr(system_module, "__version__", "1.0.0")
     st = make_state(ScriptedRunner({"git", "broken", "timed", "docker", "chezmoi"}, run=fake_run))
@@ -187,11 +189,11 @@ def test_secrets_tools_docker_install_and_headroom(tmp_path: Path, monkeypatch: 
     assert sec["docker"][0]["status"] == "warn"
     assert sec["install"][0]["condition"] == "stale"
 
-    (src / "pyproject.toml").write_text('[project]\nversion = "1.0.0"\n')
+    (src / "pyproject.toml").write_text('[project]\nversion = "1.0.0"\n', encoding="utf-8")
     assert system_module._install_results(st)[0].status == "pass"  # noqa: SLF001
 
     mem = tmp_path / "meminfo"
-    mem.write_text("MemTotal: 1000 kB\nMemAvailable: 8388608 kB\n")
+    mem.write_text("MemTotal: 1000 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
     assert available_memory_bytes(mem) == 8388608 * 1024
     hr = headroom_results([tmp_path, tmp_path / "missing"], memory=512 * 1024**2)
     assert {r.name: r.status for r in hr}["memory"] == "fail"
@@ -203,8 +205,8 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr(system_module, "DOCTOR_SECRETS", ())
     shared = tmp_path / ".agents/skills"
     (shared / "s").mkdir(parents=True)
-    (shared / "s/SKILL.md").write_text("---\nname: s\ndescription: s\nlicense: MIT\n---\n")
-    (tmp_path / ".agents/AGENTS.md").write_text("# P\n")
+    (shared / "s/SKILL.md").write_text("---\nname: s\ndescription: s\nlicense: MIT\n---\n", encoding="utf-8")
+    (tmp_path / ".agents/AGENTS.md").write_text("# P\n", encoding="utf-8")
     for p, sk in system_module._AGENT_HOSTS.values():  # noqa: SLF001
         pp = system_module.expand_path(p)
         pp.parent.mkdir(parents=True, exist_ok=True)
@@ -216,9 +218,9 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
     for rev_dir, rev_glob in system_module._AGENT_REVIEWERS.values():  # noqa: SLF001
         rd = system_module.expand_path(rev_dir)
         rd.mkdir(parents=True, exist_ok=True)
-        (rd / rev_glob.replace("*", "code")).write_text("---\nname: fmind-review-code\n---\n")
+        (rd / rev_glob.replace("*", "code")).write_text("---\nname: fmind-review-code\n---\n", encoding="utf-8")
     root = tmp_path / ".agents/sessions" / SESSION_STORE_VERSION
-    for agent in ("agy", "claude", "pi"):
+    for agent in ("agy", "claude", "copilot", "opencode", "pi"):
         (root / agent).mkdir(parents=True)
         (root / agent / SYNC_STATE_NAME).write_text(
             json.dumps(
@@ -229,7 +231,8 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
                     "retained": 0,
                     "parser_version": SESSION_PARSER_VERSION,
                 }
-            )
+            ),
+            encoding="utf-8",
         )
 
     def auth_run(cmd: list[str], *_a: object) -> CommandResult:
@@ -242,7 +245,7 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
                                 {
                                     "active": True,
                                     "state": "success",
-                                    "scopes": "repo, workflow",
+                                    "scopes": ", ".join(auth_module.GITHUB_SCOPES),
                                     "tokenSource": "/x/hosts.yml",
                                 }
                             ]
@@ -283,7 +286,7 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
     assert missing_rev["opencode"]["status"] == "fail"
     assert missing_rev["opencode"]["condition"] == "broken"
     assert "reviewers" in missing_rev["opencode"]["details"]
-    sample_rev.write_text("---\nname: fmind-review-code\n---\n")
+    sample_rev.write_text("---\nname: fmind-review-code\n---\n", encoding="utf-8")
 
     assert {r["name"]: r["status"] for r in sec["auth"]} == {
         "gh": "warn",
@@ -292,11 +295,20 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
         "gws": "skip",
     }
 
-    res = CliRunner().invoke(app, ["doctor", "--headroom", "--json"])
-    assert res.exit_code in {0, 1}
-    assert json.loads(res.stdout)["scope"] == "headroom"
-    txt = CliRunner().invoke(app, ["doctor", "--headroom"])
-    assert "headroom:" in txt.stdout
+    monkeypatch.setattr(shutil, "disk_usage", lambda _p: SimpleNamespace(free=200 * 1024**3))
+    monkeypatch.setattr(system_module, "available_memory_bytes", lambda: 8 * 1024**3)
+    res_pass = CliRunner().invoke(app, ["doctor", "--headroom", "--json"])
+    assert res_pass.exit_code == 0
+    assert json.loads(res_pass.stdout)["scope"] == "headroom"
+    txt_pass = CliRunner().invoke(app, ["doctor", "--headroom"])
+    assert txt_pass.exit_code == 0
+    assert "PASS · headroom:" in txt_pass.stdout
+
+    monkeypatch.setattr(shutil, "disk_usage", lambda _p: SimpleNamespace(free=1 * 1024**3))
+    monkeypatch.setattr(system_module, "available_memory_bytes", lambda: 0)
+    res_fail = CliRunner().invoke(app, ["doctor", "--headroom"])
+    assert res_fail.exit_code == 1
+    assert "FAIL · headroom:" in res_fail.stdout
     bad = CliRunner().invoke(app, ["doctor", "--headroom", "--fix"])
     assert bad.exit_code == 2
 
@@ -315,9 +327,23 @@ def test_probe_json_github_and_gcp_and_colab_login_flows(tmp_path: Path, monkeyp
     )
 
     st_dry = make_state(ScriptedRunner({"gh"}))
-    auth_module.login_github(st_dry, dry_run=True, grants=["read:org"])
-    assert "--web" in buf(st_dry.stdout)
+    auth_module.login_github(st_dry, dry_run=True, grants=["write:ssh_signing_key"])
+    assert "--web --clipboard" in buf(st_dry.stdout)
     assert "--remove-scopes" not in buf(st_dry.stdout)
+    with pytest.raises(UsageError, match="forbidden by security policy"):
+        auth_module.login_github(make_state(ScriptedRunner({"gh"})), dry_run=True, grants=["admin:enterprise"])
+    entry_forb = {
+        "active": True,
+        "state": "success",
+        "scopes": ", ".join([*auth_module.GITHUB_SCOPES, "admin:enterprise"]),
+    }
+    assert auth_module.github_ready(st_dry, entry_forb, reconcile=False) is False
+    entry_disc = {
+        "active": True,
+        "state": "success",
+        "scopes": ", ".join(s for s in [*auth_module.GITHUB_SCOPES, "write:discussion"] if s != "read:discussion"),
+    }
+    assert auth_module.github_ready(st_dry, entry_disc, reconcile=True) is True
 
     monkeypatch.setenv("GH_TOKEN", "tok")
     with pytest.raises(DotError, match="environment token"):
@@ -333,7 +359,29 @@ def test_probe_json_github_and_gcp_and_colab_login_flows(tmp_path: Path, monkeyp
     monkeypatch.setattr(gh_runner, "interactive", lambda args, **_k: (gh_calls.append(" ".join(args)), 0)[1])
     st_gh = make_state(gh_runner)
     auth_module.login_github(st_gh)
-    assert len(gh_calls) == 2
+    assert len(gh_calls) == 1
+    assert "--web --clipboard" in gh_calls[0]
+
+    dirty_calls: list[str] = []
+    entry_dirty = {"active": True, "state": "success", "scopes": ", ".join([*auth_module.GITHUB_SCOPES, "delete_repo"])}
+    dirty_runner = ScriptedRunner(
+        {"gh"},
+        run=lambda *_a: CommandResult(
+            json.dumps(
+                {
+                    "hosts": {
+                        "github.com": [] if not dirty_calls else [entry_dirty] if len(dirty_calls) == 1 else [entry_ok]
+                    }
+                }
+            ),
+            "",
+            0,
+        ),
+    )
+    monkeypatch.setattr(dirty_runner, "interactive", lambda args, **_k: (dirty_calls.append(" ".join(args)), 0)[1])
+    auth_module.login_github(make_state(dirty_runner))
+    assert len(dirty_calls) == 2
+    assert "--remove-scopes" in dirty_calls[1]
 
     st_gcp_dry = make_state()
     auth_module.login_gcp(st_gcp_dry, dry_run=True)
@@ -371,7 +419,7 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
     monkeypatch.delenv("GWS_PROJECT", raising=False)
     gws_dir = tmp_path / ".config/gws"
     gws_dir.mkdir(parents=True)
-    (gws_dir / "token_cache.json").write_text("{}")
+    (gws_dir / "token_cache.json").write_text("{}", encoding="utf-8")
 
     cfg = Config(auth=AuthConfig(login=["gcp", "workspace", "colab"]))
     cfg.auth.workspace.project = "my-proj-1"
@@ -393,7 +441,7 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
             json.dumps(
                 {
                     "token_valid": True,
-                    "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/chat.spaces.create"],
+                    "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/youtube.readonly"],
                 }
             ),
             "",
@@ -402,13 +450,31 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
     ]
     runner = ScriptedRunner({"gcloud", "gws", "colab"}, responses={("gws", "auth", "status"): status_seq})
     st = make_state(runner, cfg)
-    auth_module.login_workspace(st, grants=["chat.spaces.create"])
+    auth_module.login_workspace(st, grants=["youtube.readonly"])
     assert not (gws_dir / "token_cache.json").exists()
     assert "One-off Workspace scopes" in buf(st.stderr)
     enable_calls = [c for c in runner.calls if c[:3] == ["gcloud", "services", "enable"]]
-    assert len(enable_calls) >= 2
-    assert all(1 <= len(c[3:-3]) <= 20 for c in enable_calls)
+    assert len(enable_calls) == 1
     assert [api for c in enable_calls for api in c[3:-3]] == list(WORKSPACE_APIS)
+
+    many_apis = tuple(f"svc{i}.googleapis.com" for i in range(25))
+    monkeypatch.setattr(auth_module, "WORKSPACE_APIS", many_apis)
+    batch_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(
+                    json.dumps({"client_config_exists": True, "project_id": "my-proj-1", "enabled_apis": []}), "", 0
+                )
+            ]
+        },
+    )
+    auth_module.setup_workspace(make_state(batch_runner, cfg), "my-proj-1")
+    batch_enables = [c[3:-3] for c in batch_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
+    assert len(batch_enables) == 2
+    assert all(1 <= len(batch) <= 20 for batch in batch_enables)
+    assert [api for batch in batch_enables for api in batch] == list(many_apis)
+    monkeypatch.setattr(auth_module, "WORKSPACE_APIS", WORKSPACE_APIS)
 
     partial_runner = ScriptedRunner(
         {"gcloud", "gws"},
@@ -432,6 +498,53 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
     partial_enables = [c[3:-3] for c in partial_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
     assert all(len(batch) <= 20 for batch in partial_enables)
     assert [api for batch in partial_enables for api in batch] == list(WORKSPACE_APIS[15:])
+
+    force_runner = ScriptedRunner(
+        {"gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(
+                    json.dumps(
+                        {
+                            "client_config_exists": True,
+                            "project_id": "my-proj-1",
+                            "enabled_apis": [],
+                            "token_valid": True,
+                        }
+                    ),
+                    "",
+                    0,
+                ),
+                CommandResult(json.dumps({"token_valid": True, "scopes": list(cfg.auth.workspace.scopes)}), "", 0),
+            ]
+        },
+    )
+    auth_module.login_workspace(make_state(force_runner, cfg), force=True, project="my-proj-1")
+    assert not any(c[:3] == ["gcloud", "services", "enable"] for c in force_runner.calls)
+
+    forb_runner = ScriptedRunner(
+        {"gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(
+                    json.dumps(
+                        {
+                            "token_valid": True,
+                            "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/cloud-platform"],
+                        }
+                    ),
+                    "",
+                    0,
+                )
+            ]
+        },
+    )
+    assert auth_module.workspace_ready(make_state(forb_runner, cfg)) is False
+    for bad_grant in ("cloud-platform", "https://mail.google.com", "HTTPS://MAIL.GOOGLE.COM/"):
+        with pytest.raises(UsageError, match="forbidden by security policy"):
+            auth_module.login_workspace(make_state(forb_runner, cfg), dry_run=True, grants=[bad_grant])
+    with pytest.raises(UsageError, match="--setup requires a project ID"):
+        auth_module.login_workspace(make_state(forb_runner), dry_run=True, setup=True)
 
     denied_err = "ERROR: (gcloud.services.enable) Permission denied to enable service [admin.googleapis.com] reason: AUTH_PERMISSION_DENIED"
     perm_runner = ScriptedRunner(
@@ -518,5 +631,6 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
         ["login", "--force", "gcp"],
         ["login", "gcp", "--check", "--force"],
         ["login", "github", "--check", "--grant", "repo"],
+        ["login", "workspace", "--check", "--setup"],
     ):
         assert CliRunner().invoke(app, argv).exit_code == 2

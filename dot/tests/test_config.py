@@ -55,14 +55,31 @@ def test_xdg_dir_and_env_path_and_config_file_path(
 def test_load_config_overlay_and_strict_validation(tmp_path: Path) -> None:
     path = tmp_path / "dot.yaml"
     path.write_text(
-        "pull:\n  directories: [~/code]\ntrust:\n  github_owners: [acme]\nauth:\n  workspace:\n    project: my-proj-1\n",
+        "pull:\n  directories: [~/code]\ntrust:\n  github_owners: [acme]\n"
+        "privacy:\n  allowed_tokens: [CustomToken]\n"
+        "auth:\n  workspace:\n    project: my-proj-1\n    extra_scopes: [youtube.readonly]\n",
         encoding="utf-8",
     )
     config = load_config(path)
     assert config.pull.directories == ["~/code"]
     assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
+    assert config.privacy.allowed_tokens == ["CustomToken"]
     assert config.auth.workspace.project == "my-proj-1"
+    assert "https://www.googleapis.com/auth/youtube.readonly" in config.auth.workspace.scopes
     assert config.trust is not Config().trust
+
+    for forbidden in (
+        "cloud-platform",
+        "CLOUD-PLATFORM/",
+        "https://mail.google.com/",
+        "https://mail.google.com",
+        "HTTPS://Mail.Google.Com/",
+        "HTTPS://WWW.GOOGLEAPIS.COM/auth/cloud-platform/",
+        "gmail.settings.sharing",
+    ):
+        path.write_text(f"auth:\n  workspace:\n    extra_scopes: ['{forbidden}']\n", encoding="utf-8")
+        with pytest.raises(ConfigValidationError, match="forbidden high-risk scope"):
+            load_config(path)
 
     excess = ", ".join(f"scope_{i}" for i in range(60))
     path.write_text(f"auth:\n  workspace:\n    extra_scopes: [{excess}]\n", encoding="utf-8")

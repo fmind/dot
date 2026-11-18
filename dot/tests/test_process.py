@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import os
+import re
 import subprocess
 import sys
 import time
@@ -14,6 +16,7 @@ import pytest
 from fmind_dot import process as process_module
 from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import Runner, diagnostic_line, run_parallel
+from tests.fakes import TerminalIO
 
 
 @pytest.mark.parametrize("mode", ["captured", "pull-worker", "status-worker", "doctor-worker", "interactive"])
@@ -164,8 +167,36 @@ def test_signal_during_child_launch_stops_child(
         ("load /usr/lib/x86_64-linux-gnu/libpython3.14.so", "load /usr/lib/x86_64-linux-gnu/libpython3.14.so"),
         ("", ""),
     ],
+    ids=[
+        "ghp",
+        "openai-proj",
+        "google-aiza",
+        "google-ya29",
+        "google-refresh",
+        "aws-akia",
+        "jwt",
+        "hf-token",
+        "high-entropy-sig",
+        "abs-path",
+        "tilde-path",
+        "tmp-ghp-path",
+        "https-url-token",
+        "slash-token",
+        "paren-tmp-token",
+        "tmp-json-file",
+        "macos-uuid-tmpdir",
+        "uv-sha256-cache",
+        "linux-soname-path",
+        "empty",
+    ],
 )
-def test_diagnostic_line_redacts_tokens_and_preserves_paths(text: str, expected: str) -> None:
+def test_diagnostic_line_redacts_tokens_and_preserves_paths(
+    text: str, expected: str, request: pytest.FixtureRequest
+) -> None:
+    param_id = request.node.name.partition("[")[2].removesuffix("]")
+    assert param_id
+    # Keep synthetic credentials out of pytest nodeids (.pytest_cache/v/cache/nodeids -> betterleaks).
+    assert diagnostic_line(param_id) == param_id
     assert diagnostic_line(text) == expected
 
 
@@ -191,6 +222,34 @@ def test_interactive_env_stdin_eof_and_sigint_behavior(tmp_path: Path, monkeypat
     with pytest.raises(KeyboardInterrupt):
         Runner().interactive([sys.executable, "-c", "import os,signal; signal.signal(2, 0); os.kill(os.getpid(), 2)"])
     assert signals == []
+
+    opened_calls: list[list[str]] = []
+    with monkeypatch.context() as mp:
+        mp.setattr(process_module.sys, "platform", "linux")
+        mp.setattr(process_module.shutil, "which", lambda _name: "/usr/bin/xdg-open")
+        mp.setattr(process_module.subprocess, "Popen", lambda cmd, **_kw: opened_calls.append(cmd))
+        process_module._open_browser("http://example.com")  # noqa: SLF001
+        process_module._open_browser("file:///tmp/evil.html")  # noqa: SLF001
+        process_module._open_browser("https://accounts.google.com/o/oauth2/auth")  # noqa: SLF001
+    assert opened_calls == [["/usr/bin/xdg-open", "https://accounts.google.com/o/oauth2/auth"]]
+
+    opened_urls: list[str] = []
+    monkeypatch.setattr(process_module, "_open_browser", opened_urls.append)
+    url_re = re.compile(r"https://accounts\.google\.com/o/oauth2/\S+")
+    script = (
+        "import sys; "
+        "sys.stderr.write('Open:\\n  https://accounts.google.com/o/oauth2/auth?x=1\\n"
+        "  https://accounts.google.com/o/oauth2/auth?x=2\\n')"
+    )
+    tty_err = TerminalIO()
+    assert Runner().interactive([sys.executable, "-c", script], stderr=tty_err, open_url=url_re) == 0
+    assert opened_urls == ["https://accounts.google.com/o/oauth2/auth?x=1"]
+    assert "oauth2/auth?x=2" in tty_err.getvalue()
+
+    det_err = io.StringIO()
+    assert Runner().interactive([sys.executable, "-c", script], stderr=det_err, open_url=url_re) == 0
+    assert len(opened_urls) == 1
+    assert "oauth2/auth?x=1" in det_err.getvalue()
 
 
 def test_run_parallel_inline_workers_errors_and_cancel(monkeypatch: pytest.MonkeyPatch) -> None:

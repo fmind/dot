@@ -113,8 +113,9 @@ class ScriptedRunner(Runner):
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        open_url: Any = None,
     ) -> int:
-        del cwd, stdin, stdout, stderr
+        del cwd, stdin, stdout, stderr, open_url
         self.calls.append(list(args))
         self.interactive_envs.append(env)
         return 0

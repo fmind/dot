@@ -184,6 +184,24 @@ def test_skills_contract_budgets_and_duplicate_names(tmp_path: Path, scope: str,
     path.write_text("Short.\n")
     assert checker.repository_findings(root) == []
 
+    sub_root = root / ("dot_agents/supagents" if scope == "global" else ".agents/supagents")
+    sub_root.mkdir(parents=True, exist_ok=True)
+    sub_file = sub_root / "fixture-review.md"
+    sub_file.write_text("---\nname: fixture-review\ndescription: " + "r" * 8_000 + "\n---\n# Rubric\n")
+    sub_findings = checker.repository_findings(root)
+    assert any(f"{scope} subagent discovery contains" in f for f in sub_findings)
+    sub_file.write_text("---\nname: fixture-review\ndescription: Review fixtures.\n---\n# Rubric\n")
+    assert checker.repository_findings(root) == []
+
+    other_sub = root / (".agents/supagents" if scope == "global" else "dot_agents/supagents") / "fixture-review.md"
+    other_sub.parent.mkdir(parents=True, exist_ok=True)
+    other_sub.write_text(sub_file.read_text())
+    sub_dup = checker.repository_findings(root)
+    assert any(
+        f.startswith("agent context: duplicate subagent name 'fixture-review' in ") and "Rename" in f for f in sub_dup
+    )
+    other_sub.unlink()
+
     nested = root / ".agents/skills/fixture-helper/extra/fixture/SKILL.md"
     nested.parent.mkdir(parents=True)
     nested.write_text((root / "skills/fixture/SKILL.md").read_text())
@@ -196,7 +214,11 @@ def test_skills_guide_contracts_and_promotion(tmp_path: Path) -> None:
     skill = root / "skills/fixture/SKILL.md"
     guide = skill.parent / "references/guide.md"
     guide.write_text("---\nname: guide\ndescription: Diagnose a fixture failure.\n---\n# Guide\n")
-    skill.write_text(skill.read_text() + "\n" + checker._guide_index(skill.parent, root) + "\n")
+    expected_index = (
+        "<!-- guides:start -->\n\n- [guide](references/guide.md): Diagnose a fixture failure.\n\n<!-- guides:end -->"
+    )
+    assert checker._guide_index(skill.parent, root) == expected_index
+    skill.write_text(skill.read_text() + "\n" + expected_index + "\n")
     assert checker.repository_findings(root) == []
     guide.write_text(guide.read_text().replace("Diagnose a fixture failure.", "Recover after failure."))
     assert any("stale guide index" in f for f in checker.repository_findings(root))
@@ -210,7 +232,10 @@ def test_skills_guide_contracts_and_promotion(tmp_path: Path) -> None:
     cg.write_text("---\nname: child\ndescription: Recover.\n---\n# Child\n[input](templates/input.txt)\n")
     (cg.parent / "templates").mkdir()
     (cg.parent / "templates/input.txt").write_text("in\n")
-    (parent / "SKILL.md").write_text((parent / "SKILL.md").read_text() + "\n" + checker._guide_index(parent, root2))
+    (parent / "SKILL.md").write_text(
+        (parent / "SKILL.md").read_text()
+        + "\n<!-- guides:start -->\n\n- [child](references/child/GUIDE.md): Recover.\n\n<!-- guides:end -->\n"
+    )
     assert checker.repository_findings(root2) == []
 
 
@@ -221,7 +246,10 @@ def test_skills_contract_rejects_guide_repeating_parent(tmp_path: Path, guide_na
     (skill.parent / f"references/{guide_name}.md").write_text(
         f"---\nname: {guide_name}\ndescription: Repeat parent.\n---\n# G\n"
     )
-    skill.write_text(skill.read_text() + "\n" + checker._guide_index(skill.parent, root) + "\n")
+    skill.write_text(
+        skill.read_text()
+        + f"\n<!-- guides:start -->\n\n- [{guide_name}](references/{guide_name}.md): Repeat parent.\n\n<!-- guides:end -->\n"
+    )
     assert any("must not repeat its parent skill" in f for f in checker.repository_findings(root))
 
 

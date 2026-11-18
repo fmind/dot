@@ -3,6 +3,7 @@
 import argparse
 import itertools
 import os
+import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -15,12 +16,6 @@ from fmind_dot.auth_probes import (
 )
 from fmind_dot.auth_probes import (
     GITHUB_HOST as GITHUB_HOST,
-)
-from fmind_dot.auth_probes import (
-    GOOGLE_ALIASES as _GOOGLE_ALIASES,
-)
-from fmind_dot.auth_probes import (
-    GOOGLE_PREFIX as _GOOGLE_PREFIX,
 )
 from fmind_dot.auth_probes import (
     PROBE_TIMEOUT_SECONDS as PROBE_TIMEOUT_SECONDS,
@@ -59,9 +54,6 @@ from fmind_dot.auth_probes import (
     github_token_plaintext as github_token_plaintext,
 )
 from fmind_dot.auth_probes import (
-    norm_google as _norm_google,
-)
-from fmind_dot.auth_probes import (
     one_off_scopes as one_off_scopes,
 )
 from fmind_dot.auth_probes import (
@@ -81,13 +73,16 @@ from fmind_dot.auth_probes import (
 )
 from fmind_dot.command import Parser
 from fmind_dot.config import (
+    GITHUB_FORBIDDEN_SCOPES,
     GITHUB_REMOVE_SCOPES,
     GITHUB_SCOPES,
     PROJECT_RE,
     WORKSPACE_APIS,
+    WORKSPACE_FORBIDDEN_SCOPES,
     WORKSPACE_SCOPE_LIMIT,
     LoginProvider,
     env_path,
+    expand_google_scope,
 )
 from fmind_dot.errors import DotError, UsageError
 from fmind_dot.process import run_parallel
@@ -95,6 +90,13 @@ from fmind_dot.state import State, require_tools
 
 _LOGIN_EPILOG = "Exit 0 when ready. With --check, exit 1 when a login is needed or the state is unknown."
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace", "colab")
+_GOOGLE_OAUTH_URL_RE = re.compile(r"https://accounts\.google\.com/o/oauth2/\S+")
+
+
+def _has_env_workspace_client() -> bool:
+    return bool(
+        os.environ.get("GOOGLE_WORKSPACE_CLI_CLIENT_ID") and os.environ.get("GOOGLE_WORKSPACE_CLI_CLIENT_SECRET")
+    )
 
 
 def _workspace_client(state: State, project: str) -> tuple[bool, set[str] | None]:
@@ -175,19 +177,28 @@ def _resolve_workspace_project(state: State, project: str | None) -> str | None:
 
 
 def login_workspace(
-    state: State, *, force: bool = False, dry_run: bool = False, grants: Sequence[str] = (), project: str | None = None
+    state: State,
+    *,
+    force: bool = False,
+    dry_run: bool = False,
+    grants: Sequence[str] = (),
+    project: str | None = None,
+    setup: bool = False,
 ) -> None:
     configured = state.config.auth.workspace.scopes
     extra = one_off_scopes(
         grants,
         configured,
-        expand=lambda n: n if "://" in n or n == "openid" else _GOOGLE_ALIASES.get(n, f"{_GOOGLE_PREFIX}{n}"),
+        expand=expand_google_scope,
+        forbidden=WORKSPACE_FORBIDDEN_SCOPES,
     )
     if len(configured) + len(extra) > WORKSPACE_SCOPE_LIMIT:
         raise DotError(
             f"Workspace login would request {len(configured) + len(extra)} scopes, exceeding the {WORKSPACE_SCOPE_LIMIT}-scope limit"
         )
     selected = _resolve_workspace_project(state, project)
+    if setup and not selected:
+        raise UsageError("--setup requires a project ID through --project, GWS_PROJECT, or auth.workspace.project")
     args = ["gws", "auth", "login", "--scopes", ",".join([*configured, *extra])]
     if dry_run:
         if selected:
@@ -198,20 +209,18 @@ def login_workspace(
         ("GOOGLE_WORKSPACE_CLI_TOKEN", "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE"),
         "external Workspace credentials override stored OAuth; unset GOOGLE_WORKSPACE_CLI_TOKEN or GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE before using dot login workspace",
     )
-    if not force and (not selected or _workspace_client(state, selected)[0]):
-        granted = workspace_granted(state)
-        if granted is not None and _norm_google([*configured, *extra]) <= granted:
-            print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
-            return
-    if selected:
-        setup_workspace(state, selected)
-    else:
-        print("Skipping Workspace setup: set --project, GWS_PROJECT, or auth.workspace.project.", file=state.stderr)
-    granted = None if force else workspace_granted(state)
-    if granted is not None and _norm_google([*configured, *extra]) <= granted:
+    client_ready = bool(selected) and _workspace_client(state, selected)[0]
+    if not force and not setup and (not selected or client_ready) and workspace_ready(state, extra):
         print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
         return
-    _execute(state, args)
+    if selected and (setup or not client_ready):
+        setup_workspace(state, selected)
+    elif not selected and not _has_env_workspace_client():
+        print("Skipping Workspace setup: set --project, GWS_PROJECT, or auth.workspace.project.", file=state.stderr)
+    if not force and workspace_ready(state, extra):
+        print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
+        return
+    _execute(state, args, open_url=_GOOGLE_OAUTH_URL_RE)
     config_dir = env_path("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", Path.home() / ".config" / "gws", expand_vars=False)
     for name in ("token_cache.json", "sa_token_cache.json"):
         (config_dir / name).unlink(missing_ok=True)
@@ -233,10 +242,11 @@ def login_github(
     reconcile: bool | None = None,
 ) -> None:
     reconcile_scopes = not grants if reconcile is None else reconcile
-    extra = [] if reconcile_scopes else one_off_scopes(grants, GITHUB_SCOPES)
+    extra = [] if reconcile_scopes else one_off_scopes(grants, GITHUB_SCOPES, forbidden=GITHUB_FORBIDDEN_SCOPES)
     args = ["gh", "auth", "login", "--hostname", GITHUB_HOST, "--scopes", ",".join([*GITHUB_SCOPES, *extra])]
-    remove = ["--remove-scopes", ",".join(GITHUB_REMOVE_SCOPES)] if reconcile_scopes else []
-    refresh, web = ["gh", "auth", "refresh", *args[3:], *remove], [*args, "--web"]
+    remove_list = GITHUB_REMOVE_SCOPES if reconcile_scopes else tuple(sorted(GITHUB_FORBIDDEN_SCOPES))
+    remove = ["--remove-scopes", ",".join(remove_list)]
+    refresh, web = ["gh", "auth", "refresh", *args[3:], "--clipboard", *remove], [*args, "--web", "--clipboard"]
     if dry_run:
         _dry_run(state, *(web, refresh) if reconcile_scopes else (web,))
         return
@@ -250,9 +260,10 @@ def login_github(
     )
     if entry is None:
         _execute(state, web)
-    if entry is not None or reconcile_scopes:
+        entry = github_status(state)
+    if not github_ready(state, entry, reconcile=reconcile_scopes, grants=extra):
         _execute(state, refresh)
-    entry = github_status(state)
+        entry = github_status(state)
     if not github_ready(state, entry, reconcile=reconcile_scopes, grants=extra):
         msg = "GitHub authentication did not satisfy the requested scope policy; inspect gh auth status and retry"
         raise DotError(msg)
@@ -345,7 +356,14 @@ def _run_provider(state: State, provider: LoginProvider, **kw: Any) -> None:
     if provider == "github":
         login_github(state, force=force, dry_run=dry_run, grants=kw.get("grants", ()), reconcile=kw.get("reconcile"))
     elif provider == "workspace":
-        login_workspace(state, force=force, dry_run=dry_run, grants=kw.get("grants", ()), project=kw.get("project"))
+        login_workspace(
+            state,
+            force=force,
+            dry_run=dry_run,
+            grants=kw.get("grants", ()),
+            project=kw.get("project"),
+            setup=bool(kw.get("setup", False)),
+        )
     elif provider == "gcp":
         login_gcp(state, force=force, dry_run=dry_run)
     else:
@@ -362,7 +380,7 @@ def login_machine(state: State, *, force: bool, dry_run: bool, check: bool) -> N
         tools = {
             "github": ["gh"],
             "gcp": ["gcloud"],
-            "workspace": ["gws", "gcloud"] if project else ["gws"],
+            "workspace": ["gws"],
             "colab": ["gcloud", "colab"],
         }
         require_tools(state, [[tool] for p in providers for tool in tools[p]])
@@ -388,13 +406,20 @@ def _login_provider(state: State, args: argparse.Namespace) -> None:
     if args.all_force or args.all_dry_run or args.all_check:
         raise UsageError("place options after the provider, as in dot login gcp --check")
     grants = getattr(args, "grant", [])
+    setup = getattr(args, "setup", False)
     if args.check:
-        if grants:
-            raise UsageError("--check cannot be combined with --grant")
+        if grants or setup:
+            raise UsageError("--check cannot be combined with --grant or --setup")
         check_logins(state, [provider], f"dot login {provider}", force=args.force, dry_run=args.dry_run, reconcile=True)
         return
     _run_provider(
-        state, provider, force=args.force, dry_run=args.dry_run, grants=grants, project=getattr(args, "project", None)
+        state,
+        provider,
+        force=args.force,
+        dry_run=args.dry_run,
+        grants=grants,
+        project=getattr(args, "project", None),
+        setup=setup,
     )
 
 
@@ -416,7 +441,7 @@ def register_login(commands: Parser) -> None:
         "colab": "Ensure ADC grants the Colab scopes and verify session access",
         "gcp": "Ensure Google Cloud and ADC both have usable credentials",
         "github": "Ensure GitHub OAuth authentication and requested scopes",
-        "workspace": "Setup APIs/OAuth when a project is configured and authenticate Workspace",
+        "workspace": "Authenticate Workspace OAuth and configure project APIs/OAuth when needed",
     }
     for provider, summary in summaries.items():
         ep = grant_epilogs.get(provider)
@@ -429,3 +454,5 @@ def register_login(commands: Parser) -> None:
         if provider == "workspace":
             h = "Google Cloud project ID for API/OAuth setup [env: GWS_PROJECT]"
             cmd.add_argument("-p", "--project", default=None, metavar="ID", help=h)
+            s = "Enable Workspace APIs and reconcile OAuth client configuration on the target project"
+            cmd.add_argument("-s", "--setup", action="store_true", help=s)

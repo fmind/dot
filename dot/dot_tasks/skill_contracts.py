@@ -308,9 +308,18 @@ def _repository_check(root: Path) -> tuple[list[str], int]:
             if not b["passed"]:
                 head = f"{scope} AGENTS.md + skill discovery contains {b['estimated_tokens']} estimated tokens"
                 findings.append(f"{head}; must be below {cb.CONTEXT_TOKEN_LIMIT}; {_BUDGET_HINT}")
+        for scope, b in context["subagent_budgets"].items():
+            if not b["passed"]:
+                head = f"{scope} subagent discovery contains {b['estimated_tokens']} estimated tokens"
+                findings.append(f"{head}; must be below {cb.SUBAGENT_TOKEN_LIMIT}; {_BUDGET_HINT}")
         for item in context["duplicates"]:
             paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
             findings.append(f"agent context: duplicate skill name {item['name']!r} in {paths}; {cb.DUPLICATE_GUIDANCE}")
+        for item in context["duplicate_subagents"]:
+            paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
+            findings.append(
+                f"agent context: duplicate subagent name {item['name']!r} in {paths}; {cb.DUPLICATE_SUBAGENT_GUIDANCE}"
+            )
     except DotError as error:
         findings.append(f"agent context: {error}")
     return sorted(set(findings)), len(discovered)

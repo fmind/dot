@@ -118,6 +118,18 @@ def test_parse_flexible_time_and_api_equivalent() -> None:
     )
     assert api_equivalent(c_rec, p) == pytest.approx(3.0 + 1.875 + 3.0)
     assert api_equivalent(
+        _rec("opencode", model="openrouter/anthropic/claude-sonnet-4-5", input_tokens=1_000_000, output_tokens=0), p
+    ) == pytest.approx(3.0)
+    assert (
+        api_equivalent(
+            _rec("opencode", model="openrouter/qwen/qwen3-coder", input_tokens=1_000_000, output_tokens=0), p
+        )
+        is None
+    )
+    assert api_equivalent(
+        _rec("copilot", model="gpt-5", input_tokens=1_000_000, cached_tokens=1_000_000, output_tokens=0), p
+    ) == pytest.approx(1.25 + 0.125)
+    assert api_equivalent(
         _rec("grok", model="grok-code-build", input_tokens=1_000_000, cached_tokens=500_000, output_tokens=0), p
     ) == pytest.approx(1.25)
     assert api_equivalent(_rec("codex", model="gpt-5", input_tokens=10, cached_tokens=20, output_tokens=0), p) is None

@@ -7,6 +7,7 @@ import functools
 import math
 import os
 import re
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +27,21 @@ LOGIN_PROVIDERS: tuple[LoginProvider, ...] = ("colab", "gcp", "github", "workspa
 # Google's consent page hangs after Allow when one request holds more than 50 scopes (bisected 2026-10-26).
 WORKSPACE_SCOPE_LIMIT = 50
 _GWS_AUTH = "https://www.googleapis.com/auth/"
+_GOOGLE_ALIASES = {"email": f"{_GWS_AUTH}userinfo.email", "profile": f"{_GWS_AUTH}userinfo.profile"}
+
+
+def expand_google_scope(scope: str) -> str:
+    """Expand a bare Google OAuth scope suffix or alias to its canonical identifier."""
+    if scope == "openid":
+        return scope
+    if "://" in scope:
+        parts = urllib.parse.urlsplit(scope)
+        scheme, netloc, path = parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/")
+        if scheme in {"http", "https"} and netloc == "mail.google.com" and not path:
+            return "https://mail.google.com/"
+        return urllib.parse.urlunsplit((scheme, netloc, path, parts.query, parts.fragment))
+    suffix = scope.rstrip("/")
+    return _GOOGLE_ALIASES.get(suffix.lower(), f"{_GWS_AUTH}{suffix}")
 
 
 class ConfigValidationError(ValueError):
@@ -50,7 +66,9 @@ def policy() -> dict[str, Any]:
 _policy = policy()
 GITHUB_SCOPES: tuple[str, ...] = tuple(_policy["github"]["scopes"])
 GITHUB_REMOVE_SCOPES: tuple[str, ...] = tuple(_policy["github"]["remove_scopes"])
+GITHUB_FORBIDDEN_SCOPES: frozenset[str] = frozenset(_policy["github"]["forbidden_scopes"])
 WORKSPACE_SCOPES: tuple[str, ...] = ("openid", *(f"{_GWS_AUTH}{s}" for s in _policy["workspace"]["scope_suffixes"]))
+WORKSPACE_FORBIDDEN_SCOPES: frozenset[str] = frozenset(_policy["workspace"]["forbidden_scopes"])
 WORKSPACE_APIS: tuple[str, ...] = tuple(f"{n}.googleapis.com" for n in _policy["workspace"]["api_names"])
 GCP_ADC_SCOPES: tuple[str, ...] = ("openid", *(f"{_GWS_AUTH}{s}" for s in _policy["gcp"]["adc_scope_suffixes"]))
 
@@ -232,6 +250,11 @@ class WorkspaceConfig:
     extra_scopes: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        if {expand_google_scope(s).lower() for s in self.extra_scopes} & WORKSPACE_FORBIDDEN_SCOPES:
+            raise ConfigValidationError(
+                ("auth", "workspace", "extra_scopes"),
+                "contains a forbidden high-risk scope (https://mail.google.com/, gmail.settings.sharing, or cloud-platform)",
+            )
         if len(self.scopes) > WORKSPACE_SCOPE_LIMIT:
             raise ConfigValidationError(
                 ("auth", "workspace", "extra_scopes"),
@@ -255,7 +278,7 @@ class WorkspaceConfig:
 
     @property
     def scopes(self) -> list[str]:
-        return list(dict.fromkeys([*WORKSPACE_SCOPES, *self.extra_scopes]))
+        return list(dict.fromkeys([*WORKSPACE_SCOPES, *(expand_google_scope(s) for s in self.extra_scopes)]))
 
 
 @dataclass

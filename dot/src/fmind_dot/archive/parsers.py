@@ -3,19 +3,37 @@
 from __future__ import annotations
 
 import json
-import math
 import re
-import sqlite3
 import stat
-from collections.abc import Callable, Iterable, Mapping
-from contextlib import closing
-from dataclasses import dataclass
+from collections.abc import Callable
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
+from fmind_dot.archive.common import (
+    AgentAdapter,
+    ParsedSession,
+    SessionCandidate,
+    SessionParser,
+    apply_counters,
+    apply_samples,
+    build_sample,
+    connect_read_only,
+    finalize_usage,
+    latest_ts,
+    mapping,
+    resolve_cwd,
+    text_blocks,
+    token_int,
+)
+from fmind_dot.archive.sqlite_parsers import (
+    enumerate_copilot,
+    enumerate_opencode,
+    parse_copilot_session,
+    parse_opencode_session,
+)
 from fmind_dot.archive.store import (
     SessionLog,
     fingerprint_bytes,
@@ -26,6 +44,26 @@ from fmind_dot.archive.store import (
     propagate_models,
 )
 from fmind_dot.archive.usage import UsageRecord, check_cost
+
+__all__ = [
+    "AGENT_ADAPTERS",
+    "AGY_SUMMARIES_NAME",
+    "AGY_TRANSCRIPT_NAMES",
+    "AgentAdapter",
+    "ParsedSession",
+    "SessionCandidate",
+    "SessionParser",
+    "agy_workspaces",
+    "claude_parent_session_id",
+    "claude_session_id",
+    "parse_agy_session",
+    "parse_claude_session",
+    "parse_copilot_session",
+    "parse_opencode_session",
+    "parse_pi_session",
+    "pi_session_id",
+    "resolve_cwd",
+]
 
 AGY_TRANSCRIPT_NAMES = ("transcript_full.jsonl", "transcript.jsonl")
 AGY_SUMMARIES_NAME = "conversation_summaries.db"
@@ -56,41 +94,6 @@ _PI_FIELDS = {
 _MAX_COUNTERS = ("input_tokens", "output_tokens", "cached_tokens", "cache_write_tokens", "cache_write_1h_tokens")
 
 
-@dataclass
-class ParsedSession:
-    logs: list[SessionLog]
-    fingerprint: str
-    source_type: str
-    malformed: int = 0
-    skipped: int = 0
-    usage: UsageRecord | None = None
-    usage_error: Exception | None = None
-    sidechain: bool = False
-    parent_session_id: str = ""
-
-
-SessionParser = Callable[[Path, str, str], ParsedSession]
-SessionCandidate = tuple[str, str, Path]
-
-
-@dataclass(frozen=True)
-class AgentAdapter:
-    name: str
-    label: str
-    parser: SessionParser
-    enumerate: Callable[[Path], list[SessionCandidate]]
-    external_cwd: bool = False
-
-
-def resolve_cwd(value: str) -> str:
-    if not value:
-        return ""
-    try:
-        return str(Path(value).expanduser().resolve(strict=False))
-    except RuntimeError:
-        raise ValueError("cannot expand a home directory in the project path") from None
-
-
 def _load_jsonl(path: Path) -> tuple[list[dict[str, Any]], str, int, int, str]:
     content = path.read_bytes()
     rows: list[dict[str, Any]] = []
@@ -116,83 +119,6 @@ def _load_jsonl(path: Path) -> tuple[list[dict[str, Any]], str, int, int, str]:
     return rows, fingerprint_bytes(content), len(content), malformed, mtime
 
 
-def _token_int(value: object, field: str) -> int | None:
-    if value is None:
-        return None
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, int | float)
-        or value < 0
-        or (isinstance(value, float) and (not math.isfinite(value) or not value.is_integer()))
-    ):
-        raise ValueError(f"usage record field {field!r} must be a non-negative integer")
-    return int(value)
-
-
-def _mapping(value: object, field: str) -> dict[str, Any]:
-    if value is None:
-        return {}
-    if not isinstance(value, dict):
-        raise ValueError(f"usage record field {field!r} must be an object")
-    return value
-
-
-def _apply_counters(
-    record: UsageRecord, counters: Mapping[str, object], fields: Mapping[str, str], *, accumulate: bool = False
-) -> None:
-    for source, target in fields.items():
-        if (count := _token_int(counters.get(source), target)) is not None:
-            setattr(record, target, getattr(record, target) + count if accumulate else count)
-            if target in {"input_tokens", "output_tokens", "total_tokens"} or (
-                count > 0 and target in {"cached_tokens", "cache_write_tokens"}
-            ):
-                record.measurement_kind = "provider-reported"
-
-
-def _build_sample(
-    harness: str, session_id: str, counters: Mapping[str, object], fields: Mapping[str, str], mtime: str, **init: Any
-) -> tuple[UsageRecord, bool]:
-    sample = UsageRecord(harness=harness, session_id=session_id, **init)
-    _apply_counters(sample, counters, fields)
-    has_ts = bool(sample.timestamp)
-    sample.finalize(fallback_timestamp=mtime)
-    return sample, has_ts
-
-
-def _latest_ts(values: Iterable[str]) -> str:
-    dated = [(instant, v) for v in values if (instant := parse_utc_instant(v)) is not None]
-    return max(dated, key=lambda item: item[0])[1] if dated else ""
-
-
-def _finalize_usage(
-    record: UsageRecord, error: Exception | None, logs: list[SessionLog], mtime: str
-) -> tuple[UsageRecord | None, Exception | None]:
-    if error is not None:
-        return None, error
-    try:
-        return record.finalize(fallback_timestamp=_latest_ts(log.ts for log in logs) or mtime), None
-    except ValueError as usage_error:
-        return None, usage_error
-
-
-def _apply_samples(usage: UsageRecord, samples: list[UsageRecord], *, timed: bool) -> None:
-    usage.measurement_kind = "provider-reported"
-    usage.set_samples(samples, timed=timed)
-    usage.timestamp = _latest_ts(s.timestamp for s in samples) if timed else ""
-
-
-def _text_blocks(content: object) -> str:
-    if isinstance(content, str):
-        return content
-    if not isinstance(content, list):
-        return ""
-    return "\n".join(
-        p["text"]
-        for p in content
-        if isinstance(p, dict) and p.get("type") == "text" and isinstance(p.get("text"), str) and p["text"]
-    )
-
-
 def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSession:
     rows, fingerprint, source_bytes, malformed, mtime = _load_jsonl(path)
     logs: list[SessionLog] = []
@@ -212,7 +138,7 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
         has_counters = any(f in raw for f in _AGY_FIELDS)
         if usage_error is None and has_counters:
             try:
-                sample, has_ts = _build_sample("agy", session_id, raw, _AGY_FIELDS, mtime, timestamp=ts, **kw)
+                sample, has_ts = build_sample("agy", session_id, raw, _AGY_FIELDS, mtime, timestamp=ts, **kw)
                 timed = timed and has_ts
                 sample.turn_count, prompts = prompts, 0
                 samples.append(sample)
@@ -237,11 +163,11 @@ def parse_agy_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessi
             logs.append(SessionLog(ts, "agy", session_id, role, content, usage.cwd))
     if samples and not unmeasured and all(s.measurement_kind for s in samples):
         samples[-1].turn_count += prompts
-        _apply_samples(usage, samples, timed=timed)
+        apply_samples(usage, samples, timed=timed)
     else:
         usage.input_tokens, usage.output_tokens = (in_b + 3) // 4, (out_b + 3) // 4
-        usage.timestamp = _latest_ts(timestamps)
-    parsed_usage, usage_error = _finalize_usage(usage, usage_error, logs, mtime)
+        usage.timestamp = latest_ts(timestamps)
+    parsed_usage, usage_error = finalize_usage(usage, usage_error, logs, mtime)
     if usage.cwd:
         fingerprint = fingerprint_json({"transcript": fingerprint, "cwd": usage.cwd})
     skipped = len(rows) - len(logs)
@@ -294,16 +220,16 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
                 elif cost is not None:
                     usage.cost_usd, usage.cost_known = cost, True
             elif kind == "assistant":
-                msg = _mapping(message, "message")
+                msg = mapping(message, "message")
                 target.turn_count = 1
                 if isinstance(model := msg.get("model"), str) and model:
                     target.observe_model(model)
                 if model == "<synthetic>":
                     target.measurement_kind = "provider-reported"
-                raw_u = _mapping(msg.get("usage"), "usage")
-                _apply_counters(target, raw_u, _CLAUDE_FIELDS, accumulate=True)
-                raw_cw = _mapping(raw_u.get("cache_creation"), "cache_creation")
-                if c1h := _token_int(raw_cw.get("ephemeral_1h_input_tokens"), "cache_write_1h_tokens"):
+                raw_u = mapping(msg.get("usage"), "usage")
+                apply_counters(target, raw_u, _CLAUDE_FIELDS, accumulate=True)
+                raw_cw = mapping(raw_u.get("cache_creation"), "cache_creation")
+                if c1h := token_int(raw_cw.get("ephemeral_1h_input_tokens"), "cache_write_1h_tokens"):
                     target.cache_write_1h_tokens += c1h
                 ident = msg.get("id")
                 key = (str(raw.get("requestId", "")), ident) if isinstance(ident, str) and ident else ("row", str(idx))
@@ -321,7 +247,7 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
         if kind not in {"user", "assistant"} or not isinstance(message, dict):
             continue
         raw_content = message.get("content")
-        content = _text_blocks(raw_content) if kind == "user" or isinstance(raw_content, list) else ""
+        content = text_blocks(raw_content) if kind == "user" or isinstance(raw_content, list) else ""
         if content.strip():
             model = message.get("model") if isinstance(message.get("model"), str) else ""
             try:
@@ -340,12 +266,12 @@ def parse_claude_session(path: Path, session_id: str, cwd: str = "") -> ParsedSe
             usage_error = error
     measured = bool(messages) and all(sample.measurement_kind for sample in messages.values())
     if measured:
-        _apply_samples(usage, list(messages.values()), timed=timed)
+        apply_samples(usage, list(messages.values()), timed=timed)
         usage.cwd = usage.cwd or next((sample.cwd for sample in messages.values() if sample.cwd), "")
     parsed_usage, usage_error = (
         (None, usage_error)
         if not measured and not usage.cost_known
-        else _finalize_usage(usage, usage_error, logs, mtime)
+        else finalize_usage(usage, usage_error, logs, mtime)
     )
     return ParsedSession(
         logs,
@@ -390,11 +316,11 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
             try:
                 if forked and (forked_at is None or instant is None):
                     raise ValueError("forked Pi session usage requires valid header and entry timestamps")
-                raw_u = _mapping(measured.get("usage"), "usage")
+                raw_u = mapping(measured.get("usage"), "usage")
                 model = m if isinstance(m := measured.get("model"), str) else ""
                 kw = {"model": model, "timestamp": ts, "turn_count": int(role == "assistant")}
-                sample, has_ts = _build_sample("pi", session_id, raw_u, _PI_FIELDS, mtime, **kw)
-                sample_cost = check_cost(_mapping(raw_u.get("cost"), "cost").get("total"))
+                sample, has_ts = build_sample("pi", session_id, raw_u, _PI_FIELDS, mtime, **kw)
+                sample_cost = check_cost(mapping(raw_u.get("cost"), "cost").get("total"))
                 timed = timed and has_ts
             except ValueError as error:
                 usage_error = error
@@ -407,17 +333,17 @@ def parse_pi_session(path: Path, session_id: str, cwd: str = "") -> ParsedSessio
         if (
             isinstance(message, dict)
             and role in {"user", "assistant"}
-            and (content := _text_blocks(message.get("content"))).strip()
+            and (content := text_blocks(message.get("content"))).strip()
         ):
             model = message.get("model") if isinstance(message.get("model"), str) else ""
             logs.append(SessionLog(ts, "pi", session_id, str(role), content, session_cwd, model))
     propagate_models(logs)
     usage = UsageRecord(harness="pi", agent="pi", session_id=session_id, cwd=session_cwd, source_bytes=source_bytes)
     if samples and all(s.measurement_kind for s in samples):
-        _apply_samples(usage, samples, timed=timed)
+        apply_samples(usage, samples, timed=timed)
         if all_costs:
             usage.cost_usd, usage.cost_known = cost, True
-        parsed_usage, usage_error = _finalize_usage(usage, usage_error, logs, mtime)
+        parsed_usage, usage_error = finalize_usage(usage, usage_error, logs, mtime)
     else:
         parsed_usage = None
     return ParsedSession(logs, fingerprint, "pi-jsonl", malformed, len(rows) - len(logs), parsed_usage, usage_error)
@@ -427,9 +353,7 @@ def agy_workspaces(root: Path) -> dict[str, str]:
     path = root.parent / AGY_SUMMARIES_NAME
     if not path.exists():
         return {}
-    conn = sqlite3.connect(f"file:{quote(str(path))}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    with closing(conn):
+    with connect_read_only(path) as conn:
         rows = conn.execute(
             "SELECT conversation_id, workspace_uris FROM conversation_summaries LIMIT ?", (_AGY_SUMMARIES_LIMIT + 1,)
         ).fetchall()
@@ -491,5 +415,7 @@ def _enumerate_agy(root: Path) -> list[SessionCandidate]:
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "agy": AgentAdapter("agy", "agy", parse_agy_session, _enumerate_agy, external_cwd=True),
     "claude": AgentAdapter("claude", "Claude", parse_claude_session, lambda r: _enumerate_jsonl(r, claude_session_id)),
+    "copilot": AgentAdapter("copilot", "Copilot", parse_copilot_session, enumerate_copilot, database=True),
+    "opencode": AgentAdapter("opencode", "OpenCode", parse_opencode_session, enumerate_opencode, database=True),
     "pi": AgentAdapter("pi", "Pi", parse_pi_session, lambda r: _enumerate_jsonl(r, pi_session_id)),
 }

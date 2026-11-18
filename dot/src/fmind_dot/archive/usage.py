@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime, timedelta
-from typing import IO, Any
+from typing import IO, Any, TypedDict
 
 from fmind_dot.archive.store import (
     SessionManifest,
@@ -25,9 +25,9 @@ USAGE_SCHEMA_VERSION = "dot.agent.usage/v3"
 USAGE_EXTRACTOR_VERSION = "2"
 # Providers whose reported input is the whole prompt, with cache buckets as subsets.
 CACHE_INCLUSIVE_INPUT_HARNESSES = frozenset({"codex", "grok"})
-_PRICED_HARNESSES = frozenset({"codex", "claude", "copilot", "grok", "pi"})
+_PRICED_HARNESSES = frozenset({"codex", "claude", "copilot", "grok", "opencode", "pi"})
 _VENDOR_PREFIXES = ("anthropic/", "google/", "openai/", "x-ai/")
-RETIRED_AGENTS = ("codex", "copilot", "grok", "opencode")
+RETIRED_AGENTS = ("codex", "grok")
 _KINDS = {"", "provider-reported", "estimated", "context-only"}
 _STRS = ("timestamp", "harness", "agent", "session_id", "model", "cwd", "parent_session_id")
 _TOKENS = (
@@ -67,10 +67,32 @@ def _check_int(value: object, name: str) -> int:
     return value
 
 
-def _check_counts(obj: Any, *, extra: tuple[str, ...] = ()) -> None:
+class UsageSample(TypedDict):
+    timestamp: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cached_tokens: int
+    cache_write_tokens: int
+    cache_write_1h_tokens: int
+    reasoning_tokens: int
+    total_tokens: int
+    turn_count: int
+
+
+type UsageInput = UsageRecord | UsageSample | Mapping[str, object]
+
+
+def _val(obj: UsageInput, key: str, default: object = 0) -> object:
+    return obj.get(key, default) if isinstance(obj, Mapping) else getattr(obj, key, default)
+
+
+def _check_counts(obj: UsageInput, *, extra: tuple[str, ...] = ()) -> None:
     for name in (*_INTS, *extra):
         _check_int(_val(obj, name, 0), name)
-    if _val(obj, "cache_write_1h_tokens", 0) > _val(obj, "cache_write_tokens", 0):
+    if _check_int(_val(obj, "cache_write_1h_tokens", 0), "cache_write_1h_tokens") > _check_int(
+        _val(obj, "cache_write_tokens", 0), "cache_write_tokens"
+    ):
         raise ValueError("usage record field 'cache_write_1h_tokens' must not exceed 'cache_write_tokens'")
 
 
@@ -113,7 +135,7 @@ class UsageRecord:
     source_bytes: int = 0
     sidechain: bool = False
     parent_session_id: str = ""
-    samples: list[dict[str, Any]] = field(default_factory=list)
+    samples: list[UsageSample] = field(default_factory=list)
 
     def _validate(self, *, complete: bool = True) -> None:
         if self.schema_version != USAGE_SCHEMA_VERSION or self.extractor_version != USAGE_EXTRACTOR_VERSION:
@@ -154,14 +176,28 @@ class UsageRecord:
         if self.samples and any(sum(s.get(n, 0) for s in self.samples) != getattr(self, n) for n in _INTS):
             raise ValueError("usage samples do not reconcile with session totals")
 
-    def set_samples(self, samples: list[UsageRecord], *, timed: bool = True) -> None:
+    def set_samples(self, samples: Sequence[UsageRecord], *, timed: bool = True) -> None:
         for name in _INTS:
             setattr(self, name, sum(getattr(s, name) for s in samples))
         self.model = ""
         for sample in samples:
             self.observe_model(sample.model)
         self.samples = (
-            [{"timestamp": s.timestamp, "model": s.model, **{n: getattr(s, n) for n in _INTS}} for s in samples]
+            [
+                UsageSample(
+                    timestamp=s.timestamp,
+                    model=s.model,
+                    input_tokens=s.input_tokens,
+                    output_tokens=s.output_tokens,
+                    cached_tokens=s.cached_tokens,
+                    cache_write_tokens=s.cache_write_tokens,
+                    cache_write_1h_tokens=s.cache_write_1h_tokens,
+                    reasoning_tokens=s.reasoning_tokens,
+                    total_tokens=s.total_tokens,
+                    turn_count=s.turn_count,
+                )
+                for s in samples
+            ]
             if timed
             else []
         )
@@ -188,7 +224,7 @@ class UsageRecord:
         return out | {"cost_usd": self.cost_usd if known else None, "cost_known": known}
 
     @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> UsageRecord:
+    def from_dict(cls, value: Mapping[str, Any]) -> UsageRecord:
         if "cost_known" not in value:
             raise ValueError("missing cost_known in usage record")
         if missing := sorted(_REQUIRED - value.keys()):
@@ -204,7 +240,10 @@ class UsageRecord:
 def _lookup_rate(model: str, harness: str, pricing: PricingConfig) -> ModelPrice | None:
     if rate := pricing.models.get(model):
         return rate
-    bare = next((model.removeprefix(p) for p in _VENDOR_PREFIXES if model.startswith(p)), model)
+    routed = model.removeprefix("openrouter/")
+    if routed != model and (rate := pricing.models.get(routed)):
+        return rate
+    bare = next((routed.removeprefix(p) for p in _VENDOR_PREFIXES if routed.startswith(p)), routed)
     if bare != model and (rate := pricing.models.get(bare)):
         return rate
     if harness == "grok" and bare.endswith("-build") and (rate := pricing.models.get(bare[:-6])):
@@ -214,20 +253,21 @@ def _lookup_rate(model: str, harness: str, pricing: PricingConfig) -> ModelPrice
     )
 
 
-def _val(obj: Any, key: str, default: Any = 0) -> Any:
-    return obj.get(key, default) if isinstance(obj, Mapping) else getattr(obj, key, default)
+def _int_field(obj: UsageInput, key: str) -> int:
+    raw = _val(obj, key, 0)
+    return raw if type(raw) is int else 0
 
 
 def api_equivalent(
-    record: Any, pricing: PricingConfig, *, harness: str = "", measurement_kind: str = ""
+    record: UsageInput, pricing: PricingConfig, *, harness: str = "", measurement_kind: str = ""
 ) -> float | None:
     """Apply exact model rates to known accounting conventions only."""
-    if (measurement_kind or _val(record, "measurement_kind", "")) != "provider-reported":
+    if (measurement_kind or str(_val(record, "measurement_kind", ""))) != "provider-reported":
         return None
-    agent = harness or _val(record, "harness", "")
+    agent = harness or str(_val(record, "harness", ""))
     if agent not in _PRICED_HARNESSES:
         return None
-    inp, out, cached, write, write_1h, _, _total = (int(_val(record, k)) for k in _TOKENS)
+    inp, out, cached, write, write_1h, _, _total = (_int_field(record, k) for k in _TOKENS)
     if not (inp or out or cached or write):
         # Absent/unreported breakdowns stay unpriced; Claude local <synthetic> turns are known zero.
         return 0.0 if _val(record, "model", "") == "<synthetic>" else None
@@ -388,7 +428,7 @@ def aggregate_usage(
                 row.api_equivalent_usd += eq
                 row.priced_measurements += 1
             for name in _TOKENS:
-                setattr(row, name, getattr(row, name) + int(_val(sample, name, 0)))
+                setattr(row, name, getattr(row, name) + _int_field(sample, name))
             selected.add(key)
         cost_groups.setdefault(session, set()).update(selected)
         for key in selected:
@@ -409,7 +449,7 @@ def _ratio_cost(amount: float, numerator: int, denominator: int) -> str:
 
 
 def write_usage_stats(
-    output: IO[str], rows: list[UsageStats], *, by_model: bool, pricing: PricingConfig | None = None
+    output: IO[str], rows: Sequence[UsageStats], *, by_model: bool, pricing: PricingConfig | None = None
 ) -> None:
     if not rows:
         output.write("No usage records found. Run 'dot stats' to archive existing sessions.\n")

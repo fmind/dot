@@ -4,15 +4,19 @@ github:
     - notifications
     - project
     - read:audit_log
+    - read:discussion
+    - read:enterprise
     - read:gpg_key
     - read:org
     - read:packages
     - read:public_key
     - read:ssh_signing_key
+    - read:user
     - repo
-    - user
+    - user:email
     - workflow
   remove_scopes:
+    - admin:enterprise
     - admin:gpg_key
     - admin:org
     - admin:org_hook
@@ -21,11 +25,17 @@ github:
     - codespace
     - delete:packages
     - delete_repo
+    - manage_billing:enterprise
+    - manage_runners:enterprise
     - write:gpg_key
     - write:org
     - write:packages
     - write:public_key
     - write:ssh_signing_key
+  forbidden_scopes:
+    - admin:enterprise
+    - manage_billing:enterprise
+    - manage_runners:enterprise
   implied:
     repo:
       - repo:status
@@ -73,33 +83,27 @@ github:
       - read:project
     write:packages:
       - read:packages
+    write:discussion:
+      - read:discussion
+    admin:enterprise:
+      - manage_runners:enterprise
+      - manage_billing:enterprise
+      - read:enterprise
 
 workspace:
   scope_suffixes:
     - userinfo.email
     - userinfo.profile
-    - admin.directory.customer.readonly
-    - admin.directory.device.chromeos.readonly
-    - admin.directory.device.mobile.readonly
-    - admin.directory.domain.readonly
-    - admin.directory.group.readonly
-    - admin.directory.orgunit.readonly
-    - admin.directory.rolemanagement.readonly
-    - admin.directory.user.readonly
-    - admin.reports.audit.readonly
-    - admin.reports.usage.readonly
-    - analytics.edit
-    - analytics.manage.users
-    - analytics.manage.users.readonly
-    - analytics.readonly
-    - business.manage
     - calendar
+    - chat.customemojis
     - chat.memberships
+    - chat.memberships.app
     - chat.messages
     - chat.messages.reactions
     - chat.spaces
-    - chrome.management.policy.readonly
-    - chrome.management.reports.readonly
+    - chat.spaces.create
+    - chat.users.readstate
+    - chat.users.spacesettings
     - cloudsupport
     - contacts
     - contacts.other.readonly
@@ -112,47 +116,38 @@ workspace:
     - gmail.modify
     - gmail.settings.basic
     - meetings.conference.media.readonly
+    - meetings.space.created
     - meetings.space.readonly
-    - postmaster.traffic.readonly
+    - meetings.space.settings
     - presentations
+    - pubsub
+    - script.deployments
+    - script.processes
     - script.projects
     - spreadsheets
     - tasks
-    - webmasters
-    - youtube.readonly
-    - yt-analytics.readonly
+  forbidden_scopes:
+    - https://mail.google.com/
+    - https://www.googleapis.com/auth/cloud-platform
+    - https://www.googleapis.com/auth/gmail.settings.sharing
   api_names:
-    - admin
-    - analyticsadmin
-    - analyticsdata
-    - businessprofileperformance
     - calendar-json
     - chat
-    - chromemanagement
-    - chromepolicy
     - cloudsupport
     - docs
     - drive
     - driveactivity
-    - firebase
-    - firebaseappcheck
-    - firebasehosting
-    - firebaserules
     - forms
     - gmail
-    - gmailpostmastertools
+    - keep
     - meet
-    - mybusinessaccountmanagement
-    - mybusinessbusinessinformation
-    - pagespeedonline
     - people
+    - pubsub
     - script
-    - searchconsole
     - sheets
     - slides
     - tasks
-    - youtube
-    - youtubeanalytics
+    - workspaceevents
 
 gcp:
   adc_scope_suffixes:
@@ -219,12 +214,15 @@ completions:
     - cosign
     - databricks
     - dot
+    - genie
     - lefthook
     - mise
     - trivy
   packages:
     fastfetch: github:fastfetch-cli/fastfetch
     git-cliff: git-cliff
+    hurl: hurl
+    hurlfmt: hurl
     hyperfine: hyperfine
     lsd: lsd
     ya: yazi
@@ -288,6 +286,10 @@ completions:
       lazygit:
         - lazygit
         - completion
+        - fish
+      opencode:
+        - opencode
+        - --completions
         - fish
       tree-sitter:
         - tree-sitter

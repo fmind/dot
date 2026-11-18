@@ -20,7 +20,7 @@ from fmind_dot.reporting import write_json, write_report_line
 from fmind_dot.state import State
 
 STATS_SCHEMA = "dot.stats/v5"
-_AGENTS = (*AGENT_ADAPTERS, *RETIRED_AGENTS)
+_AGENTS = tuple(sorted((*AGENT_ADAPTERS, *RETIRED_AGENTS)))
 _WHEN = "duration (7d, 24h), UTC date, or timestamp"
 
 

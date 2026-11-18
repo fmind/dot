@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -15,6 +16,8 @@ from fmind_dot.archive.parsers import (
     claude_session_id,
     parse_agy_session,
     parse_claude_session,
+    parse_copilot_session,
+    parse_opencode_session,
     parse_pi_session,
     pi_session_id,
     resolve_cwd,
@@ -200,7 +203,11 @@ def test_parse_pi_session_forks_tool_results_and_cost(tmp_path: Path) -> None:
             {
                 "type": "message",
                 "timestamp": "2026-11-15T01:00:00Z",
-                "message": {"role": "user", "content": "pre-fork"},
+                "message": {
+                    "role": "assistant",
+                    "content": "pre-fork",
+                    "usage": {"input": 999, "output": 888, "cost": {"total": 9.99}},
+                },
             },
             {
                 "type": "message",
@@ -254,8 +261,18 @@ def test_agent_adapters_enumeration_and_agy_workspaces(tmp_path: Path, monkeypat
         conn.execute("CREATE TABLE conversation_summaries(conversation_id TEXT, workspace_uris TEXT)")
         conn.execute(
             "INSERT INTO conversation_summaries VALUES ('agy-1', ?)",
-            (json.dumps(["https://x", (tmp_path / "proj").as_uri()]),),
+            (
+                json.dumps(
+                    [
+                        "https://x",
+                        "file://evil.example/repo",
+                        "file:///tmp/bad%00path",
+                        (tmp_path / "proj").as_uri(),
+                    ]
+                ),
+            ),
         )
+        conn.execute("INSERT INTO conversation_summaries VALUES ('agy-bad-json', '{bad')")
     assert agy_workspaces(brain) == {"agy-1": str(tmp_path / "proj")}
     assert AGENT_ADAPTERS["agy"].enumerate(brain)[0][1] == str(tmp_path / "proj")
 
@@ -267,3 +284,263 @@ def test_agent_adapters_enumeration_and_agy_workspaces(tmp_path: Path, monkeypat
     _w_jsonl(cl / "proj/s1.jsonl", [{"type": "user"}])
     _w_jsonl(cl / "proj/memory.jsonl", [{"type": "user"}])
     assert [sid for sid, _, _ in AGENT_ADAPTERS["claude"].enumerate(cl)] == ["s1"]
+
+
+def test_parse_copilot_session_token_details_samples_and_legacy_fallback(tmp_path: Path) -> None:
+    db = tmp_path / "session-store.db"
+    proj = tmp_path / "proj"
+    with closing(sqlite3.connect(db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, cwd TEXT, created_at TEXT);"
+            "CREATE TABLE turns (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, turn_index INTEGER, "
+            "user_message TEXT, assistant_response TEXT, timestamp TEXT);"
+            "CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, "
+            "turn_index INTEGER, model TEXT NOT NULL, input_tokens INTEGER, output_tokens INTEGER, "
+            "cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER, "
+            "token_details_json TEXT, created_at TEXT);"
+        )
+        conn.execute("INSERT INTO sessions VALUES ('cop-1', ?, '2026-11-17T14:00:00Z')", (str(proj),))
+        conn.execute(
+            "INSERT INTO turns (session_id, turn_index, user_message, assistant_response, timestamp) VALUES "
+            "('cop-1', 0, 'check status', 'all green', '2026-11-17T14:03:00Z')"
+        )
+        details = json.dumps(
+            [
+                {"tokenType": "input", "tokenCount": 3},
+                {"tokenType": "cache_read", "tokenCount": 38148},
+                {"tokenType": "cache_write", "tokenCount": 123},
+                {"tokenType": "output", "tokenCount": 417},
+            ]
+        )
+        conn.execute(
+            "INSERT INTO assistant_usage_events (session_id, turn_index, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_write_tokens, reasoning_tokens, token_details_json, created_at) "
+            "VALUES ('cop-1', 0, 'gpt-6.1-terra', 38274, 417, 38148, 123, 309, ?, '2026-11-17T14:03:02.808Z')",
+            (details,),
+        )
+        # Second event without token_details_json exercises OpenAI prompt-inclusive subtraction fallback.
+        conn.execute(
+            "INSERT INTO assistant_usage_events (session_id, turn_index, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_write_tokens, reasoning_tokens, token_details_json, created_at) "
+            "VALUES ('cop-1', 0, 'gpt-6-luna', 100, 20, 80, 10, 5, NULL, '2026-11-17T14:03:10.000Z')"
+        )
+        conn.execute("INSERT INTO sessions VALUES ('cop-bad', ?, '2026-11-17T14:00:00Z')", (str(proj),))
+        conn.execute(
+            "INSERT INTO assistant_usage_events (session_id, turn_index, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_write_tokens, reasoning_tokens, token_details_json, created_at) "
+            "VALUES ('cop-bad', 0, 'gpt-6-luna', 10, 5, 0, 0, 0, '{bad', '2026-11-17T14:04:00Z')"
+        )
+
+    db.with_name("session-store.db-wal").write_bytes(b"wal-bytes")
+    assert [sid for sid, _, _ in AGENT_ADAPTERS["copilot"].enumerate(db)] == ["cop-1", "cop-bad"]
+
+    parsed = parse_copilot_session(db, "cop-1")
+    assert [ln.role for ln in parsed.logs] == ["user", "assistant"]
+    assert parsed.logs[0].model == "gpt-6-luna"
+    assert parsed.usage is not None
+    assert parsed.usage.model == "mixed"
+    assert parsed.usage.input_tokens == 13
+    assert parsed.usage.cached_tokens == 38228
+    assert parsed.usage.cache_write_tokens == 133
+    assert parsed.usage.output_tokens == 437
+    assert parsed.usage.total_tokens == 13 + 38228 + 133 + 437
+    assert len(parsed.usage.samples) == 2
+    assert 0 < parsed.usage.source_bytes < db.stat().st_size
+
+    assert parse_copilot_session(db, "cop-bad").usage_error is not None
+    with pytest.raises(ValueError, match="disappeared"):
+        parse_copilot_session(db, "cop-missing")
+    with pytest.raises(ValueError, match="invalid copilot session id"):
+        parse_copilot_session(db, "../bad")
+
+    with closing(sqlite3.connect(db)) as conn, conn:
+        conn.execute("INSERT INTO sessions VALUES ('cop-no-inp', ?, '2026-11-17T14:00:00Z')", (str(proj),))
+        conn.execute(
+            "INSERT INTO assistant_usage_events (session_id, turn_index, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_write_tokens, reasoning_tokens, token_details_json, created_at) "
+            "VALUES ('cop-no-inp', 0, 'claude-sonnet-4-5', 100, 10, 80, 0, 0, ?, '2026-11-17T14:05:00Z')",
+            (json.dumps([{"tokenType": "cache_read", "tokenCount": 80}]),),
+        )
+    assert parse_copilot_session(db, "cop-no-inp").usage_error is not None
+
+
+def test_parse_opencode_v2_and_v1_sessions_forks_and_sidechains(tmp_path: Path) -> None:
+    db = tmp_path / "opencode.db"
+    proj = tmp_path / "proj"
+    with closing(sqlite3.connect(db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE session_v2 (id TEXT PRIMARY KEY, parent_id TEXT, fork_session_id TEXT, directory TEXT, time_created INTEGER);"
+            "CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER, time_created INTEGER, data TEXT);"
+            "CREATE TABLE session_part (message_id TEXT, session_id TEXT, ordinal INTEGER, type TEXT, time_created INTEGER, data TEXT);"
+        )
+        conn.execute(
+            "INSERT INTO session_v2 VALUES ('oc-fork', NULL, 'oc-orig', ?, 2000)",
+            (str(proj),),
+        )
+        # Pre-fork copied message (time_created < 2000) must be excluded.
+        conn.execute(
+            "INSERT INTO session_message VALUES ('m0', 'oc-fork', 'assistant', 1, 1000, ?)",
+            (
+                json.dumps(
+                    {
+                        "model": {"providerID": "openrouter", "id": "anthropic/claude-sonnet-4-5"},
+                        "tokens": {"input": 999, "output": 999, "reasoning": 0, "cache": {"read": 0, "write": 0}},
+                        "cost": 9.99,
+                    }
+                ),
+            ),
+        )
+        conn.execute("INSERT INTO session_message VALUES ('m1', 'oc-fork', 'user', 2, 2100, '{}')")
+        conn.execute(
+            "INSERT INTO session_part VALUES ('m1', 'oc-fork', 0, 'text', 2100, ?)",
+            (json.dumps({"text": "audit repo"}),),
+        )
+        conn.execute(
+            "INSERT INTO session_part VALUES ('m1', 'oc-fork', 1, 'text', 2101, ?)",
+            (json.dumps({"text": "hidden", "synthetic": True}),),
+        )
+        conn.execute(
+            "INSERT INTO session_message VALUES ('m2', 'oc-fork', 'assistant', 3, 2200, ?)",
+            (
+                json.dumps(
+                    {
+                        "model": {"providerID": "openrouter", "id": "anthropic/claude-sonnet-4-5"},
+                        "tokens": {"input": 100, "output": 40, "reasoning": 10, "cache": {"read": 50, "write": 20}},
+                        "cost": 0.05,
+                        "time": {"completed": 2500},
+                    }
+                ),
+            ),
+        )
+        conn.execute(
+            "INSERT INTO session_part VALUES ('m2', 'oc-fork', 0, 'text', 2200, ?)",
+            (json.dumps({"text": "done"}),),
+        )
+        # Subagent child session
+        conn.execute("INSERT INTO session_v2 VALUES ('oc-sub', 'oc-fork', NULL, ?, 2300)", (str(proj),))
+        conn.execute(
+            "INSERT INTO session_message VALUES ('ms1', 'oc-sub', 'assistant', 1, 2400, ?)",
+            (
+                json.dumps(
+                    {
+                        "summary": True,
+                        "model": {"providerID": "anthropic", "id": "claude-sonnet-4-5"},
+                        "tokens": {"input": 10, "output": 5, "reasoning": 0, "cache": {"read": 0, "write": 0}},
+                        "cost": 0.01,
+                    }
+                ),
+            ),
+        )
+
+    assert [sid for sid, _, _ in AGENT_ADAPTERS["opencode"].enumerate(db)] == ["oc-fork", "oc-sub"]
+    parent_res = parse_opencode_session(db, "oc-fork")
+    assert [ln.content for ln in parent_res.logs] == ["audit repo", "done"]
+    assert parent_res.sidechain is False
+    assert parent_res.usage is not None
+    assert parent_res.usage.model == "openrouter/anthropic/claude-sonnet-4-5"
+    assert parent_res.usage.input_tokens == 100
+    assert parent_res.usage.output_tokens == 50
+    assert parent_res.usage.reasoning_tokens == 10
+    assert parent_res.usage.cached_tokens == 50
+    assert parent_res.usage.cache_write_tokens == 20
+    assert parent_res.usage.total_tokens == 220
+    assert parent_res.usage.cost_usd == pytest.approx(0.05)
+
+    sub_res = parse_opencode_session(db, "oc-sub")
+    assert sub_res.sidechain is True
+    assert sub_res.parent_session_id == "oc-fork"
+    assert sub_res.logs == []
+    assert sub_res.usage is not None
+    assert sub_res.usage.total_tokens == 15
+
+    # Legacy 1.x fallback
+    v1_db = tmp_path / "opencode_v1.db"
+    with closing(sqlite3.connect(v1_db)) as conn, conn:
+        conn.executescript(
+            """
+            CREATE TABLE session (id TEXT PRIMARY KEY, directory TEXT);
+            CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER, data TEXT);
+            CREATE TABLE part (id TEXT PRIMARY KEY, session_id TEXT, message_id TEXT, time_created INTEGER, data TEXT);
+            """
+        )
+        conn.execute("INSERT INTO session VALUES ('v1-1', ?)", (str(proj),))
+        conn.execute(
+            "INSERT INTO message VALUES ('m1', 'v1-1', 1000, ?)",
+            (
+                json.dumps(
+                    {
+                        "role": "assistant",
+                        "modelID": "claude-sonnet-4-5",
+                        "tokens": {"input": 10, "output": 5, "reasoning": 2},
+                        "cost": 0.01,
+                    }
+                ),
+            ),
+        )
+        conn.execute(
+            "INSERT INTO part VALUES ('p1', 'v1-1', 'm1', 1000, ?)",
+            (json.dumps({"type": "text", "text": "v1 reply"}),),
+        )
+    v1_res = parse_opencode_session(v1_db, "v1-1")
+    assert [ln.content for ln in v1_res.logs] == ["v1 reply"]
+    assert v1_res.usage is not None
+    assert v1_res.usage.output_tokens == 7
+    assert 0 < v1_res.usage.source_bytes < v1_db.stat().st_size
+
+    # Partial assistant usage (one measured + one unmeasured assistant turn) drops session usage; blob time_created stays hashable.
+    with closing(sqlite3.connect(v1_db)) as conn, conn:
+        conn.execute("INSERT INTO message VALUES ('m2', 'v1-1', ?, ?)", (b"bad-ts", json.dumps({"role": "assistant"})))
+    mixed_res = parse_opencode_session(v1_db, "v1-1")
+    assert mixed_res.usage is None
+    assert mixed_res.fingerprint != v1_res.fingerprint
+
+
+def test_sqlite_parsers_empty_wal_mtime_invariance_and_missing_fork_time(tmp_path: Path) -> None:
+    empty_db = tmp_path / "empty.db"
+    with closing(sqlite3.connect(empty_db)) as conn, conn:
+        conn.execute("CREATE TABLE placeholder(id TEXT)")
+    assert AGENT_ADAPTERS["copilot"].enumerate(empty_db) == []
+    assert AGENT_ADAPTERS["opencode"].enumerate(empty_db) == []
+
+    # Untimed Copilot session fingerprint stays invariant when shared DB mtime changes (real WAL writes).
+    cop_db = tmp_path / "copilot_wal.db"
+    proj = tmp_path / "proj"
+    with closing(sqlite3.connect(cop_db)) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, cwd TEXT, created_at TEXT);"
+            "CREATE TABLE turns (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, turn_index INTEGER, "
+            "user_message TEXT, assistant_response TEXT, timestamp TEXT);"
+            "CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, "
+            "turn_index INTEGER, model TEXT NOT NULL, input_tokens INTEGER, output_tokens INTEGER, "
+            "cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER);"
+        )
+        conn.execute("INSERT INTO sessions VALUES ('cop-nt', ?, NULL)", (str(proj),))
+        conn.execute(
+            "INSERT INTO turns (session_id, turn_index, user_message, assistant_response) VALUES ('cop-nt', 0, 'q', 'a')"
+        )
+        conn.execute(
+            "INSERT INTO assistant_usage_events (session_id, turn_index, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_write_tokens, reasoning_tokens) VALUES ('cop-nt', 0, 'gpt-6-luna', 10, 5, 0, 0, 0)"
+        )
+        conn.commit()
+    os.utime(cop_db, (1_700_000_000, 1_700_000_000))
+    first = parse_copilot_session(cop_db, "cop-nt")
+    os.utime(cop_db, (1_700_000_999, 1_700_000_999))
+    second = parse_copilot_session(cop_db, "cop-nt")
+    assert first.fingerprint == second.fingerprint
+    assert first.usage is not None
+    assert second.usage is not None
+    assert first.usage.timestamp != second.usage.timestamp
+
+    # Missing time_created column in forked OpenCode fails closed instead of accepting epoch 0.
+    oc_db = tmp_path / "opencode_noforkts.db"
+    with closing(sqlite3.connect(oc_db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE session_v2 (id TEXT PRIMARY KEY, directory TEXT, fork_session_id TEXT);"
+            "CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER, time_created INTEGER, data TEXT);"
+            "CREATE TABLE session_part (id TEXT PRIMARY KEY, session_id TEXT, message_id TEXT, type TEXT, ordinal INTEGER, time_created INTEGER, data TEXT);"
+        )
+        conn.execute("INSERT INTO session_v2 VALUES ('oc-f', ?, 'orig')", (str(proj),))
+    with pytest.raises(ValueError, match="requires valid time_created"):
+        parse_opencode_session(oc_db, "oc-f")

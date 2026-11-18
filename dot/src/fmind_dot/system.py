@@ -23,6 +23,7 @@ from fmind_dot.auth import (
     PROBE_TIMEOUT_SECONDS,
     adc_ready,
     gcloud_ready,
+    github_ready,
     github_status,
     github_token_plaintext,
     workspace_ready,
@@ -141,8 +142,10 @@ def _tool_results(state: State) -> list[CheckResult]:
 def _auth_results(state: State) -> list[CheckResult]:
     def github() -> CheckResult | bool:
         entry = github_status(state)
+        if not github_ready(state, entry, reconcile=False):
+            return False
         if not github_token_plaintext(entry):
-            return entry is not None
+            return True
         msg = "authenticated; token in plaintext hosts.yml: unlock the system keyring, then run gh auth logout and dot login github"
         return CheckResult("gh", "warn", msg, condition="insecure")
 
@@ -266,7 +269,11 @@ def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
         return None
     try:
         return next(
-            (int(ln.split()[1]) * 1024 for ln in meminfo.read_text().splitlines() if ln.startswith("MemAvailable:")),
+            (
+                int(ln.split()[1]) * 1024
+                for ln in meminfo.read_text(encoding="utf-8").splitlines()
+                if ln.startswith("MemAvailable:")
+            ),
             None,
         )
     except OSError, ValueError, IndexError:

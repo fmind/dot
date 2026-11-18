@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from pathlib import PurePath
 from typing import Any
 
 from fmind_dot.config import (
     GCP_ADC_SCOPES,
+    GITHUB_FORBIDDEN_SCOPES,
     GITHUB_REMOVE_SCOPES,
     GITHUB_SCOPES,
     SCOPE_RE,
+    WORKSPACE_FORBIDDEN_SCOPES,
+    expand_google_scope,
     policy,
 )
 from fmind_dot.errors import DotError, UsageError
@@ -26,8 +30,6 @@ GITHUB_STATUS = ["gh", "auth", "status", "--active", "--hostname", GITHUB_HOST, 
 WORKSPACE_STATUS = ["gws", "auth", "status"]
 COLAB_SESSIONS = ["colab", "--auth=adc", "sessions"]
 PROBE_TIMEOUT_SECONDS = 45.0
-GOOGLE_PREFIX = "https://www.googleapis.com/auth/"
-GOOGLE_ALIASES = {"email": f"{GOOGLE_PREFIX}userinfo.email", "profile": f"{GOOGLE_PREFIX}userinfo.profile"}
 _COLAB_MARKERS = (
     "no valid default credentials found",
     "defaultcredentialserror",
@@ -42,11 +44,14 @@ def adc_cmd(verb: str) -> list[str]:
     return ["gcloud", "auth", "application-default", verb, f"--scopes={','.join(GCP_ADC_SCOPES)}"]
 
 
-def execute(state: State, args: Sequence[str]) -> None:
+def execute(state: State, args: Sequence[str], *, open_url: re.Pattern[str] | None = None) -> None:
     """Run an interactive auth command and invalidate cached readiness probes."""
     require_tools(state, [list(args)])
     try:
-        if (code := state.runner.interactive(args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr)) != 0:
+        code = state.runner.interactive(
+            args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, open_url=open_url
+        )
+        if code != 0:
             raise DotError(f"command failed ({code}): {args[0]}")
     finally:
         state.clear_probes()
@@ -102,22 +107,29 @@ def workspace_token_valid(status: object) -> bool | None:
 
 
 def one_off_scopes(
-    grants: Sequence[str], configured: Sequence[str], *, expand: Callable[[str], str] | None = None
+    grants: Sequence[str],
+    configured: Sequence[str],
+    *,
+    expand: Callable[[str], str] | None = None,
+    forbidden: Collection[str] = (),
 ) -> list[str]:
     """Validate and deduplicate one-off `--grant` scopes against configured defaults."""
+    forbidden_lower = {f.lower() for f in forbidden}
     scopes: list[str] = []
     for grant in grants:
         scope = expand(grant) if expand else grant
         if not SCOPE_RE.fullmatch(scope):
             raise UsageError(f"--grant: invalid scope {grant!r}")
+        if scope.lower() in forbidden_lower:
+            raise UsageError(f"--grant: scope {grant!r} is forbidden by security policy")
         if scope not in configured and scope not in scopes:
             scopes.append(scope)
     return scopes
 
 
 def norm_google(scopes: Iterable[str]) -> set[str]:
-    """Normalize Google OAuth short alias names to full URLs."""
-    return {GOOGLE_ALIASES.get(s, s) for s in scopes}
+    """Normalize Google OAuth short alias names and URLs to canonical identifiers."""
+    return {expand_google_scope(s) for s in scopes}
 
 
 def workspace_granted(state: State) -> set[str] | None:
@@ -132,9 +144,13 @@ def workspace_granted(state: State) -> set[str] | None:
 
 
 def workspace_ready(state: State, grants: Sequence[str] = ()) -> bool:
-    """Return True when Workspace auth holds all configured plus requested scopes."""
+    """Return True when Workspace auth holds all configured plus requested scopes and no forbidden scopes."""
     granted = workspace_granted(state)
-    return granted is not None and norm_google([*state.config.auth.workspace.scopes, *grants]) <= granted
+    return (
+        granted is not None
+        and not ({s.lower() for s in granted} & WORKSPACE_FORBIDDEN_SCOPES)
+        and norm_google([*state.config.auth.workspace.scopes, *grants]) <= granted
+    )
 
 
 def github_entry(status: object) -> dict[str, Any] | None:
@@ -174,7 +190,11 @@ def github_ready(state: State, entry: dict[str, Any] | None, *, reconcile: bool,
     implied = {k: set(v) for k, v in policy()["github"]["implied"].items()}
     scopes = {s.strip() for s in raw.split(",")}
     granted = scopes | set().union(*(implied.get(s, set()) for s in scopes))
-    return {*GITHUB_SCOPES, *grants} <= granted and (not reconcile or not set(GITHUB_REMOVE_SCOPES) & scopes)
+    return (
+        {*GITHUB_SCOPES, *grants} <= granted
+        and not (GITHUB_FORBIDDEN_SCOPES & granted)
+        and (not reconcile or not set(GITHUB_REMOVE_SCOPES) & scopes)
+    )
 
 
 def github_token_plaintext(entry: dict[str, Any] | None) -> bool:

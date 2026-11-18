@@ -17,8 +17,15 @@ runner = CliRunner()
 
 def skill(root: Path, name: str, *, description: str = "Run a fixture.") -> Path:
     path = root / "skills" / name / "SKILL.md"
-    path.parent.mkdir(parents=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"---\nname: {name}\ndescription: {description}\n---\n# Private instructions\n")
+    return path
+
+
+def subagent(root: Path, name: str, *, description: str = "Review a fixture.") -> Path:
+    path = root / "supagents" / f"{name}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\nname: {name}\ndescription: {description}\n---\n# Private rubric\n")
     return path
 
 
@@ -33,7 +40,7 @@ def test_cli_reports_scopes_and_excludes_on_demand_content(tmp_path: Path) -> No
     result = runner.invoke(app, ["context", "--project", str(project), "--json", "--check"])
     assert result.exit_code == 0, result.output
     report = json.loads(result.stdout)
-    assert report["schema"] == "dot.context/v5"
+    assert report["schema"] == "dot.context/v6"
     assert report["totals"]["global"]["agents_estimated_tokens"] == 4
     assert report["totals"]["local"]["agents_estimated_tokens"] == 2
     assert report["totals"]["combined"]["skills"] == 2
@@ -322,3 +329,182 @@ def test_recursive_directory_link_fails_with_recovery_guidance(tmp_path: Path) -
     (path.parent / "cycle").symlink_to(path.parent, target_is_directory=True)
     with pytest.raises(DotError, match=r"cyclic skill directory.*remove the recursive link"):
         context_report(tmp_path, global_root=tmp_path)
+
+
+def test_subagent_discovery_partials_source_mode_and_on_demand_body(tmp_path: Path) -> None:
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
+    skill(global_root, "global-skill")
+    global_sub = subagent(global_root, "fmind-review-code", description="Audit root-cause logic.")
+    local_sub = subagent(project / ".agents", "proj-review-domain", description="Audit domain invariants.")
+    # Underscore partials (like _reviewer.md) and _partials/ directories are excluded from discovery.
+    (global_root / "supagents/_reviewer.md").write_text("---\nAGY:\n  subagent: true\n---\n# Partial\n")
+    (global_root / "supagents/_partials").mkdir()
+    (global_root / "supagents/_partials/helper.md").write_text("no frontmatter partial\n")
+
+    res = runner.invoke(app, ["context", "--project", str(project), "--details"])
+    assert res.exit_code == 0, res.output
+    assert "Subagent index: names and descriptions (1 global, 1 local subagents)." in res.stdout
+    assert "On-demand subagent files · estimated tokens, excluded from budget" in res.stdout
+    assert "Global subagents  ~/.agents/supagents" in res.stdout
+    assert "Private rubric" not in res.stdout
+
+    before = context_report(project, global_root=global_root)
+    assert before["totals"]["global"]["subagents"] == 1
+    assert before["totals"]["local"]["subagents"] == 1
+    assert before["totals"]["combined"]["subagents"] == 2
+    assert before["subagent_budgets"]["global"]["passed"] is True
+    assert (
+        before["totals"]["global"]["startup_estimated_tokens"] > before["totals"]["global"]["context_estimated_tokens"]
+    )
+
+    # Growing the on-demand subagent body never inflates discovery or startup budgets.
+    local_sub.write_text(local_sub.read_text() + "extra rubric line\n" * 300)
+    after = context_report(project, global_root=global_root)
+    assert (
+        after["totals"]["local"]["subagent_index_estimated_tokens"]
+        == (before["totals"]["local"]["subagent_index_estimated_tokens"])
+    )
+    assert (
+        after["totals"]["local"]["on_demand_subagent_file_estimated_tokens"]
+        > (before["totals"]["local"]["on_demand_subagent_file_estimated_tokens"])
+    )
+
+    # --source reads dot_agents/supagents and project .agents/supagents.
+    source = tmp_path / "dot-source"
+    skill(source, "global-skill")
+    (source / "dot_agents/supagents").mkdir(parents=True)
+    (source / "dot_agents/AGENTS.md").write_text("# Global\n")
+    (source / "dot_agents/supagents/fmind-review-code.md").write_text(global_sub.read_text())
+    src_report = context_report(project, source=source)
+    assert src_report["totals"]["global"]["subagents"] == 1
+    assert src_report["totals"]["local"]["subagents"] == 1
+    assert src_report["roots"]["global"]["subagents"].endswith("dot_agents/supagents")
+
+
+@pytest.mark.parametrize("scope", ["global", "local"])
+@pytest.mark.parametrize(("tokens", "passed"), [(1_999, True), (2_000, False), (2_001, False)])
+def test_subagent_budget_enforces_strict_per_scope_limit(tmp_path: Path, scope: str, tokens: int, passed: bool) -> None:
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
+    project.mkdir()
+    skill(global_root, "global-fixture")
+    # Seed 3,500 AGENTS.md tokens so combined startup exceeds 5,000 while both decoupled caps still pass at 1,999.
+    ((global_root if scope == "global" else project) / "AGENTS.md").write_text("a" * 14_000)
+    target_root = global_root if scope == "global" else project / ".agents"
+    role = subagent(target_root, "review-role", description="x")
+    base = context_report(project, global_root=global_root)["totals"][scope]["subagent_index_characters"]
+    role.write_text(f"---\nname: review-role\ndescription: {'x' * (tokens * 4 - base + 1)}\n---\n# Rubric\n")
+
+    arguments = ["context", "--project", str(project)]
+    plain = runner.invoke(app, arguments)
+    assert plain.exit_code == 0
+    assert ("OVER BUDGET" not in plain.stdout) == passed
+    checked = runner.invoke(app, [*arguments, "--check"])
+    assert checked.exit_code == (0 if passed else 1)
+    assert (len(checked.stdout.splitlines()) == 1) == passed
+    as_json = runner.invoke(app, [*arguments, "--check", "--json"])
+    assert as_json.exit_code == (0 if passed else 1)
+    assert ("subagent budget exceeded" in as_json.stderr) != passed
+    report = json.loads(as_json.stdout)
+    assert report["passed"] == passed
+    assert report["totals"][scope]["startup_estimated_tokens"] > 5_000
+    assert report["budgets"][scope]["passed"] is True
+    assert report["subagent_budgets"][scope] == {
+        "limit_exclusive": 2_000,
+        "estimated_tokens": tokens,
+        "remaining": 1_999 - tokens,
+        "passed": passed,
+    }
+
+
+def test_subagent_duplicates_symlinks_and_fail_closed_validation(tmp_path: Path) -> None:
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
+    g_sub = subagent(global_root, "shared-review")
+    (project / ".agents").mkdir(parents=True)
+    # Symlinked supagents directory points to the same physical file, so it is not a duplicate.
+    (project / ".agents/supagents").symlink_to(global_root / "supagents", target_is_directory=True)
+    assert runner.invoke(app, ["context", "--project", str(project), "--check"]).exit_code == 0
+    (project / ".agents/supagents").unlink()
+
+    # Distinct copies sharing a subagent name fail --check in both text and JSON modes.
+    l_sub = subagent(project / ".agents", "shared-review")
+    checked = runner.invoke(app, ["context", "--project", str(project), "--check"])
+    assert checked.exit_code == 1
+    assert "Duplicate subagent names · FAIL" in checked.stdout
+    assert (
+        "    ~/.agents/supagents/shared-review.md\n    ~/project/.agents/supagents/shared-review.md\n" in checked.stdout
+    )
+    as_json = runner.invoke(app, ["context", "--project", str(project), "--check", "--json"])
+    assert as_json.exit_code == 1
+    parsed = json.loads(as_json.stdout)
+    assert parsed["duplicate_subagents"] == [{"name": "shared-review", "paths": [str(g_sub), str(l_sub)]}]
+    assert "Duplicate subagent names: shared-review." in as_json.stderr
+    l_sub.unlink()
+
+    # Fail closed on mismatched stem, missing description, broken _retired symlink, cycle, and non-dir root.
+    g_sub.write_text("---\nname: wrong-name\ndescription: Valid.\n---\n")
+    with pytest.raises(DotError, match="invalid subagent name"):
+        context_report(project, global_root=global_root)
+    g_sub.write_text("---\nname: shared-review\ndescription: '   '\n---\n")
+    with pytest.raises(DotError, match="missing subagent description"):
+        context_report(project, global_root=global_root)
+    g_sub.write_text("---\nname: shared-review\ndescription: Valid.\n---\n")
+
+    dangling_partial = global_root / "supagents/_retired.md"
+    dangling_partial.symlink_to(tmp_path / "missing.md")
+    with pytest.raises(DotError, match="broken subagent link"):
+        context_report(project, global_root=global_root)
+    dangling_partial.unlink()
+
+    cycle = global_root / "supagents/loop"
+    cycle.symlink_to(global_root / "supagents", target_is_directory=True)
+    with pytest.raises(DotError, match="cyclic subagent directory"):
+        context_report(project, global_root=global_root)
+    cycle.unlink()
+
+    bad_root = project / ".agents/supagents"
+    bad_root.rmdir()
+    bad_root.write_text("not a directory\n")
+    with pytest.raises(DotError, match="invalid subagent directory"):
+        context_report(project, global_root=global_root)
+
+
+def test_narrow_terminal_large_deficits_help_and_unresolvable_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("COLUMNS", "52")
+    global_root, project = tmp_path / ".agents", tmp_path / ("deep-project-" + "segment-" * 8)
+    project.mkdir()
+    subagent(global_root, "shared-review", description="r" * 10_000)
+    (global_root / "AGENTS.md").write_text("g" * 60_000)
+    subagent(project / ".agents", "shared-review", description="local copy")
+
+    checked = runner.invoke(app, ["context", "--project", str(project), "--check"])
+    assert checked.exit_code == 1
+    table_block = checked.stdout.split("\n\nSkill index:", 1)[0].splitlines()
+    table_lines = [line for line in table_block if line.startswith(("Global ", "Local ", "Combined "))]
+    assert len(table_lines) == 3
+    assert table_lines[0].endswith(" OVER BUDGET")
+    assert "-10,001" in table_lines[0]
+    # Long duplicate paths keep all 4 leading spaces even when COLUMNS is narrower than the path.
+    assert any(line.startswith("    ~/deep-project-") for line in checked.stdout.splitlines())
+
+    as_json = runner.invoke(app, ["context", "--project", str(project), "--check", "--json"])
+    assert as_json.exit_code == 1
+    assert "Global context budget exceeded:" in as_json.stderr
+    assert "Global subagent budget exceeded:" in as_json.stderr
+
+    help_res = runner.invoke(app, ["context", "--help"])
+    assert help_res.exit_code == 0
+    assert "Examples: dot context --check" in help_res.stdout
+    assert "[default: .]" in help_res.stdout
+    assert "5,000" in help_res.stdout
+    assert "2,000" in help_res.stdout
+
+    def bad_expand(self: Path) -> Path:
+        if str(self).startswith("~"):
+            raise RuntimeError("home directory unknown")
+        return self
+
+    monkeypatch.setattr(Path, "expanduser", bad_expand)
+    with pytest.raises(DotError, match=r"invalid path ~/\.agents"):
+        context_report(project)

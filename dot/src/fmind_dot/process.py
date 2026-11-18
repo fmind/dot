@@ -116,6 +116,22 @@ def _deferred_interrupts() -> Generator[None]:
         signal.signal(signal.SIGINT, prev)
 
 
+def _open_browser(url: str) -> None:
+    if not url.startswith("https://"):
+        return
+    opener = "/usr/bin/open" if sys.platform == "darwin" else shutil.which("xdg-open")
+    if not opener or (sys.platform == "darwin" and not Path(opener).exists()):
+        return
+    with suppress(OSError):
+        subprocess.Popen(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+            [opener, url],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+
 class Runner:
     """Run external tools with timeout and process-group cleanup."""
 
@@ -197,17 +213,20 @@ class Runner:
         stdout: IO[str] | None = None,
         stderr: IO[str] | None = None,
         env: Mapping[str, str] | None = None,
+        open_url: re.Pattern[str] | None = None,
     ) -> int:
         if not args:
             raise DotError("cannot run an empty command")
         detached = True
         for stream, default in ((stdin, sys.stdin), (stdout, sys.stdout), (stderr, sys.stderr)):
             with suppress(AttributeError, OSError, ValueError):
-                if os.isatty((stream if stream is not None else default).fileno()):
+                if (stream if stream is not None else default).isatty():
                     detached = False
                     break
-        for stream in (stdout or sys.stdout, stderr or sys.stderr):
-            stream.flush()
+        err_target = stderr if stderr is not None else sys.stderr
+        for stream in (stdout if stdout is not None else sys.stdout, err_target):
+            with suppress(AttributeError, OSError, ValueError):
+                stream.flush()
         with nullcontext() if detached else _deferred_interrupts():
             process: subprocess.Popen[str] | None = None
             try:
@@ -218,11 +237,20 @@ class Runner:
                         env={**os.environ, **env} if env else None,
                         stdin=stdin,
                         stdout=stdout,
-                        stderr=stderr,
+                        stderr=subprocess.PIPE if open_url is not None else stderr,
                         text=True,
                         errors="replace",
                         process_group=0 if detached else None,
                     )
+                if open_url is not None and process.stderr is not None:
+                    opened = False
+                    with process.stderr:
+                        for line in process.stderr:
+                            err_target.write(line)
+                            err_target.flush()
+                            if not opened and not detached and (match := open_url.search(line)):
+                                opened = True
+                                _open_browser(match.group(0))
                 code = process.wait()
             except BaseException:
                 if process is not None:
