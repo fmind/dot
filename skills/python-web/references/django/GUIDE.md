@@ -12,7 +12,7 @@ Choose Django when integrated ORM, migrations, forms, templates, auth, and admin
 1. **Inspect the contract**: check installed Django version, settings, URLs, apps, migrations, database, and deploy target before editing; read [bootstrap](references/bootstrap.md) for new apps.
 1. **Build styles deliberately**: keep existing asset pipelines; for standalone Tailwind follow [tailwind](../../../web-frontend/references/tailwind.md) and compile CSS before `collectstatic` (no CDN).
 1. **Keep Django plain and sync**: thin views and functions; add signals, custom middleware, managers, service layers, or async views only with measured need.
-1. **Serve with Granian**: run `granian --interface wsgi --host 0.0.0.0 --port "${PORT:-8080}" config.wsgi:application` (never gunicorn). Granian defaults to `127.0.0.1:8000` and ignores Cloud Run's `PORT` unless passed or set via `GRANIAN_HOST`/`GRANIAN_PORT`; it drains in-flight requests on `SIGTERM` (verified on Granian 2.8.7 + Django 6).
+1. **Serve with Granian**: run `granian --interface wsgi --host 0.0.0.0 --port "${PORT:-8080}" config.wsgi:application` (never gunicorn). Granian defaults to `127.0.0.1:8000` and ignores Cloud Run's `PORT` unless passed or set via `GRANIAN_HOST`/`GRANIAN_PORT`; it drains in-flight requests on `SIGTERM` (verified on `granian[reload,uvloop]>=2.8.8` + Django 6).
 1. **Verify**:
 
 ```bash

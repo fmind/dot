@@ -23,8 +23,8 @@ class FeatureSchema(pa.DataFrameModel):
 
 def prepare_features(frame: pl.LazyFrame) -> pl.DataFrame:
     """Apply stateless row transforms, materialize once, and validate Pandera constraints."""
-    collected = frame.with_columns((pl.col("x1") * 2.0).alias("x1")).collect()
-    return FeatureSchema.validate(collected.select("x1", "x2"))
+    collected = frame.with_columns((pl.col("x1") * 2.0).alias("x1")).select("x1", "x2").collect()
+    return FeatureSchema.validate(collected)
 
 
 def build_pipeline(*, alpha: float = 1.0) -> Pipeline:
@@ -35,14 +35,15 @@ def build_pipeline(*, alpha: float = 1.0) -> Pipeline:
 def train_and_evaluate(frame: pl.LazyFrame, config: JobConfig) -> tuple[Pipeline, dict[str, float]]:
     """Split train/holdout reproducibly, fit the pipeline on train only, and score the holdout split."""
     collected = frame.collect()
-    features = prepare_features(collected.lazy())
-    target = collected.get_column(config.target_column)
-    x_train, x_test, y_train, y_test = train_test_split(
-        features,
-        target,
+    raw_train, raw_test = train_test_split(
+        collected,
         test_size=config.test_fraction,
         random_state=config.seed,
     )
+    x_train = prepare_features(raw_train.lazy())
+    y_train = raw_train.get_column(config.target_column)
+    x_test = prepare_features(raw_test.lazy())
+    y_test = raw_test.get_column(config.target_column)
     pipeline = build_pipeline(alpha=config.alpha)
     pipeline.fit(x_train, y_train)
     predictions = pipeline.predict(x_test)

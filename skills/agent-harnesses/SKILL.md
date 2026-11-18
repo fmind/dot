@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Agent Harnesses
@@ -37,3 +37,9 @@ Operate the selected coding-agent host without mixing another host's settings, p
 
 - **Edit managed keys in `fmind/dot`**: `modify_*` chezmoi templates in `~/.local/share/chezmoi` merge Claude, Copilot, OpenCode, and Pi settings—direct edits to managed keys (including via `/config`) revert on `chezmoi apply --force`, while unmanaged keys survive. Edit source, preview with `mise run diff` (skips encrypted targets), and apply.
 - **Vet vendor skills and packages**: Pi packages/extensions run in-process; install requested packages only via [vendor-skill policy](../agent-project/references/vendor-skills.md) under one package manager.
+
+## Documentation
+
+- [Claude Code](https://code.claude.com/docs/en/overview) · [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli) · [OpenCode](https://opencode.ai/v2/docs/) · [Pi](https://pi.dev/docs/latest/) · [MCP](https://modelcontextprotocol.io/docs/getting-started/intro)
+- Releases: [copilot-cli](https://github.com/github/copilot-cli/releases) · [opencode](https://github.com/anomalyco/opencode/releases) · [pi](https://github.com/earendil-works/pi/releases)
+- Companions: [agy](../agy/SKILL.md), [agent-project](../agent-project/SKILL.md), [dot-cli](../dot-cli/SKILL.md).

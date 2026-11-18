@@ -28,3 +28,9 @@ Implement the protocol required by the peers: A2A exchanges agent tasks, MCP exp
 - [mcp](references/mcp/GUIDE.md): MCP tool and context clients/servers, transports, schemas, and protocol tests.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [MCP specification](https://modelcontextprotocol.io/specification/latest) · [A2A protocol](https://a2a-protocol.org/latest/) · [ACP architecture](https://agentclientprotocol.com/get-started/architecture)
+- Releases: [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk/releases) · [a2a-python](https://github.com/a2aproject/a2a-python/releases) · [ACP Python SDK](https://github.com/agentclientprotocol/python-sdk/releases)
+- Companions: [agent-frameworks](../agent-frameworks/SKILL.md), [agent-harnesses](../agent-harnesses/SKILL.md), [python-stack](../python-stack/SKILL.md), [code-security](../code-security/SKILL.md).

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/scheduled-jobs
   created: "2026-09-09"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Scheduled Jobs
@@ -20,11 +20,6 @@ Schedule bounded commands via native user schedulers and verify triggered runs (
 1. **Version definitions in the owning repo**: invoke an absolute executable path with locked dependencies and a single-writer lock; enable only after the user approves the schedule and recurring effects.
 1. **Prove a real timer-triggered run** and its application outcome (manual runs or enabled units alone are partial proof).
 
-## Owner conventions
-
-- **`fmind/dot` user units (Linux only)**: store in `dot_config/systemd/user/`, enable via `timers.target.wants` symlinks, and register unit hashes in `run_onchange_after_systemd-user-reload.sh.tmpl` (`systemctl --user daemon-reload` on apply; ignored outside Linux).
-- **Never restart the `agy` daemon during apply**: it may host the active Remote Control session, so the reload hook only prints the restart command.
-
 ## Gotchas
 
 - **Stay in user space**: never use `sudo`, system units, or `loginctl enable-linger` unasked; note if requested availability exceeds logged-in sessions.
@@ -32,4 +27,5 @@ Schedule bounded commands via native user schedulers and verify triggered runs (
 
 ## Documentation
 
-- [systemd timers](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html) · [Apple scheduled jobs](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html)
+- [systemd timers](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html) · [systemd services](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html) · [Apple LaunchAgents](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) · [Apple scheduled jobs](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html)
+- Companions: [python-script](../python-stack/references/python-script/GUIDE.md), [mise](../mise/SKILL.md), [dot-cli](../dot-cli/SKILL.md).

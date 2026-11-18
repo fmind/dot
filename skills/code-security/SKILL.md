@@ -31,3 +31,8 @@ Load the matching guide(s) for every active security surface (e.g., [threat-mode
 - [trivy](references/trivy/GUIDE.md): Scan dependencies, IaC, images, and licenses; generate SBOMs.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [Betterleaks](https://github.com/betterleaks/betterleaks) · [Trivy](https://trivy.dev/) · [PyRIT](https://microsoft.github.io/PyRIT/latest/) · [OWASP Cheat Sheets](https://cheatsheetseries.owasp.org/) · [OWASP Agentic Top 10](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) · [MITRE ATLAS](https://atlas.mitre.org/)
+- Companions: [full-review](../full-review/SKILL.md), [github-actions](../github-actions/SKILL.md), [docker](../docker/SKILL.md), [cloud-run](../cloud-run/SKILL.md), [terms-review](../terms-review/SKILL.md).

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-project
   created: "2026-06-23"
-  updated: "2026-11-16"
+  updated: "2026-11-18"
 ---
 
 # Set Up Agents on a Project
@@ -37,4 +37,5 @@ Author shared project instructions and skills once, adding host bridges only whe
 
 ## Documentation
 
-- [AGENTS.md standard](https://agents.md) · [Agent Skills specification](https://agentskills.io/specification)
+- [AGENTS.md standard](https://agents.md) · [Agent Skills specification](https://agentskills.io/specification) · [vercel-labs/skills](https://github.com/vercel-labs/skills) · [fmind/agent-supagents](https://github.com/fmind/agent-supagents)
+- Companions: [agent-harnesses](../agent-harnesses/SKILL.md), [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [subagent](../subagent/SKILL.md).

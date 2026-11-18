@@ -13,8 +13,9 @@ Default for new Python dataframe code; [duckdb](../../duckdb/SKILL.md) owns SQL 
 1. **Enforce schemas at the edge**: pass `schema` / `schema_overrides`, cast explicitly, and validate with `pandera.polars` (`uv add 'pandera[polars]>=0.36.0'`, using `pandera.typing.polars.Series` for strict `ty` checking). Prefer `bin_intervals` / `bin_quantiles` (left-closed unless `right_closed=True`) over deprecated `cut` / `qcut`.
 1. **Pass frames zero-copy**: scikit-learn accepts Polars (`set_output(transform="polars")` preserves Polars outputs); DuckDB queries in-scope frames directly (`duckdb.sql("select ... from df").pl()`, needs `pyarrow`). Call `to_pandas()` only when required.
 1. **Test deterministically**: assert small literal frames via `polars.testing.assert_frame_equal`. Polars 2.0's default streaming engine does not preserve row order on `group_by`, joins, or `unpivot` — sort explicitly or set `maintain_order` (`maintain_order="left"` on joins).
+1. **Stream cloud artifacts via `obstore`**: use `obstore>=0.12.1` for ADC-authenticated, zero-copy Arrow and Parquet I/O across GCS, S3, and Cloudflare R2 instead of `fsspec`, reserving `google-cloud-storage>=3.17.1` for bucket IAM, lifecycle rules, and signed URLs.
 
 ## Documentation
 
-- [Polars user guide](https://docs.pola.rs/user-guide/) · [lazy API](https://docs.pola.rs/user-guide/lazy/) · [Pandera Polars](https://pandera.readthedocs.io/en/stable/polars.html)
+- [Polars user guide](https://docs.pola.rs/user-guide/) · [lazy API](https://docs.pola.rs/user-guide/lazy/) · [Pandera Polars](https://pandera.readthedocs.io/en/stable/polars.html) · [obstore](https://developmentseed.org/obstore/latest/) · [Cloud Storage Python](https://cloud.google.com/python/docs/reference/storage/latest)
 - Releases: [Polars](https://github.com/pola-rs/polars/releases) · [2.0.0 notes](https://github.com/pola-rs/polars/releases/tag/py-2.0.0) · [Polars 2 upgrade](https://docs.pola.rs/releases/upgrade/2/)

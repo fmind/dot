@@ -17,37 +17,7 @@ Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`
    gh api "repos/$repository/automated-security-fixes" --jq .enabled   # expect true
    ```
 
-1. **Map advisory-backed ecosystems** (`directory` for one manifest root, `directories` for multiple):
-
-   | Manifest                     | `package-ecosystem` |
-   | ---------------------------- | ------------------- |
-   | `.github/workflows/*.yml`    | `github-actions`    |
-   | `pyproject.toml` + `uv.lock` | `uv`                |
-   | `package.json` + lockfile    | `npm`               |
-   | `go.mod`                     | `gomod`             |
-
-1. **Write `.github/dependabot.yml`**: start from [dependabot.yml](../templates/dependabot.yml); `open-pull-requests-limit: 0` disables version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping:
-
-   ```yaml
-   # Docs: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
-   # Security updates only: `open-pull-requests-limit: 0` disables version updates, while
-   # Dependabot still opens one grouped fix PR per ecosystem when an alert has a patched
-   # release. `schedule` is required by the schema; it only paces the disabled version updates.
-   version: 2
-   updates:
-     - package-ecosystem: github-actions
-       directory: /
-       schedule:
-         interval: weekly
-       open-pull-requests-limit: 0
-       commit-message:
-         prefix: "fix(deps)"
-       groups:
-         actions-security:
-           applies-to: security-updates
-           patterns: ["*"]
-     # Add one entry per advisory-backed ecosystem (e.g., uv with group python-security; set directory per manifest).
-   ```
+1. **Write `.github/dependabot.yml`**: copy [dependabot.yml](../templates/dependabot.yml) and add one entry per advisory-backed manifest root (`github-actions` for `.github/workflows`, `uv`, `npm`, `gomod`; use `directory` for one root or `directories` for multiple). Keeping `open-pull-requests-limit: 0` disables noisy version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping (`schedule` is schema-required only).
 
 1. **Validate**: run [jactionlint](jactionlint.md) (`--profile pedantic` flags `open-pull-requests-limit: 0` as `dependabot-missing-actions-update`, so set `dependabot-missing-actions-update: off` in `.github/jactionlint.yaml`); GitHub re-validates on push under Insights → Dependency graph → Dependabot.
 1. **Verify security PRs locally before merge** (never enable auto-merge):

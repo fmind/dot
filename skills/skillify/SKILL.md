@@ -49,4 +49,4 @@ Keep personal defaults in global `AGENTS.md` and repo invariants in project `AGE
 
 ## Documentation
 
-- [Agent Skills specification](https://agentskills.io/specification) · [Evaluation and load metrics](references/evaluation.md) · Companions: [trim](../trim/SKILL.md), [humanize](../humanize/SKILL.md).
+- [Agent Skills specification](https://agentskills.io/specification) · [gh skill](https://cli.github.com/manual/gh_skill) · [Evaluation and load metrics](references/evaluation.md) · Companions: [trim](../trim/SKILL.md), [humanize](../humanize/SKILL.md).

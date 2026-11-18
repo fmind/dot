@@ -1,18 +1,18 @@
 ---
 name: gcloud
-description: "Operate Google Cloud and Firebase CLIs; search Google developer docs and google/skills."
+description: "Operate Google Cloud, BigQuery (bq), and Firebase CLIs; search Google developer docs and google/skills."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Google Cloud CLI
 
-Operate Google Cloud accounts, projects, IAM, APIs, billing, and logs with `gcloud` and `firebase`.
+Operate Google Cloud accounts, projects, IAM, APIs, billing, and logs with `gcloud` and project-pinned `firebase` (`firebase-tools` in project `mise.toml`, or `npx --yes firebase-tools@<version>`).
 
 ## Defaults
 

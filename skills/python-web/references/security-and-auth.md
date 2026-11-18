@@ -1,15 +1,17 @@
 ---
 name: security-and-auth
-description: "Implement OIDC/JWT validation, webhook HMAC checks, Litestar CSRF/session cookies, and HTTP security headers."
+description: "Implement OIDC/OAuth2 login, JWT validation, Argon2id hashing, webhook HMAC checks, CSRF cookies, and security headers."
 ---
 
 # Web Security, Auth, & Boundaries
 
 Fail-closed defaults for Python HTTP services and browser apps ([code-review](../../code-security/references/code-review/GUIDE.md) owns threat modeling and audit checks).
 
-## OIDC / JWT Bearer Verification
+## OIDC, OAuth2 Login, & Password Hashing
 
 - **Verify explicit claims with `PyJWT[crypto]`**: validate signature, `exp` (with bounded `leeway`), `iss`, and expected `aud` against a pinned explicit list `algorithms=["RS256", "ES256"]` — never pass untrusted token headers as `algorithms` and never accept `alg="none"`.
+- **OAuth2 / OIDC Relying Party & JWE**: use `authlib>=1.9.8` paired with `joserfc>=1.8.0` for authorization-code + PKCE browser logins, provider discovery, and encrypted JWE tokens, keeping PKCE verifiers and state nonces in server-validated session state.
+- **Local password & secret hashing**: hash user passwords with Argon2id via `pwdlib[argon2]>=0.4.2` (`PasswordHash.recommended()`, calling `verify_and_update` to upgrade stale parameters transparently; never use unmaintained `passlib` or raw SHA digests).
 - **Cloud Run & Cloud Tasks OIDC**: prefer IAM service-to-service invoker auth (`roles/run.invoker`) or validate Google OIDC tokens via `google-auth` (`google.oauth2.id_token.verify_oauth2_token`) checking `issuer == "https://accounts.google.com"`, `email_verified`, expected service account email, and exact service audience URL.
 - **Bound JWKS fetches**: cache provider JWKS with TLS verification and short TTL (`PyJWKClient(..., cache_keys=True, lifespan=300)`), failing `401` on network/key errors.
 
@@ -36,4 +38,4 @@ Fail-closed defaults for Python HTTP services and browser apps ([code-review](..
 
 ## Documentation
 
-- [Litestar Security & CSRF](https://docs.litestar.dev/latest/usage/security/) · [OWASP Cheat Sheets](https://cheatsheetseries.owasp.org/) · [PyJWT docs](https://pyjwt.readthedocs.io/en/stable/)
+- [Litestar Security & CSRF](https://docs.litestar.dev/latest/usage/security/) · [OWASP Cheat Sheets](https://cheatsheetseries.owasp.org/) · [PyJWT docs](https://pyjwt.readthedocs.io/en/stable/) · [Authlib](https://docs.authlib.org/en/latest/) · [joserfc](https://jose.authlib.org/en/) · [pwdlib](https://frankie567.github.io/pwdlib/)

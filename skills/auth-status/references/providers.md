@@ -4,20 +4,20 @@ Read-only status checks (check both exit code and parsed fields) and env-var ove
 
 ## Secondary connector probes
 
-| Provider     | Probe                                                                          | Recovery                                                 |
-| ------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| Firebase     | `firebase projects:list --non-interactive --json \| jq '.status'`              | `firebase login` or `dot login gcp` (ADC fallback)       |
-| Colab        | `colab --auth adc sessions` (no VM allocated; check stderr)                    | `dot login colab`                                        |
-| Hugging Face | `hf auth whoami`                                                               | `hf auth login`                                          |
-| Kaggle       | `kaggle competitions list --page-size 1 >/dev/null`                            | `kaggle auth login`                                      |
-| AWS SSO      | `aws sts get-caller-identity --profile <profile> --no-cli-pager`               | `aws sso login --profile <profile>`                      |
-| Databricks   | `databricks auth profiles`                                                     | `databricks auth login --host <url> --profile <profile>` |
-| Atlassian    | `acli auth status` / `acli jira auth status`                                   | `acli auth login`                                        |
-| Cloudflare   | `cf -q auth whoami`                                                            | `cf auth login --use-keyring`                            |
-| Datadog      | `pup auth status`                                                              | `pup auth login --read-only --site <site>`               |
-| SonarQube    | `sonar auth status`                                                            | `sonar auth login`                                       |
-| Vault        | `vault status -format=json; vault token lookup -format=json \| jq '.policies'` | `vault login -no-print`                                  |
-| Bitwarden    | `bw --nointeraction status \| jq '{status, userEmail}'` (`unlock --check`)     | `bw login` / `bw unlock`                                 |
+| Provider     | Probe                                                                                                                                                       | Recovery                                                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Firebase     | `firebase projects:list --non-interactive --json \| jq '.status'`                                                                                           | `firebase login` or `dot login gcp` (ADC fallback)       |
+| Colab        | `colab --auth adc sessions` (no VM allocated; check stderr)                                                                                                 | `dot login colab`                                        |
+| Hugging Face | `hf auth whoami`                                                                                                                                            | `hf auth login`                                          |
+| Kaggle       | `kaggle competitions list --page-size 1 >/dev/null`                                                                                                         | `kaggle auth login`                                      |
+| AWS SSO      | `aws sts get-caller-identity --profile <profile> --no-cli-pager`                                                                                            | `aws sso login --profile <profile>`                      |
+| Databricks   | `databricks auth profiles`                                                                                                                                  | `databricks auth login --host <url> --profile <profile>` |
+| Atlassian    | `acli auth status` / `acli jira auth status`                                                                                                                | `acli auth login`                                        |
+| Cloudflare   | `cf -q auth whoami`                                                                                                                                         | `cf auth login --use-keyring`                            |
+| Datadog      | `pup auth status --site <site>`                                                                                                                             | `pup auth login --read-only --site <site>`               |
+| SonarQube    | `sonar auth status`                                                                                                                                         | `sonar auth login`                                       |
+| Vault        | `vault status -format=json; vault token lookup -format=json \| jq '{policies: .data.policies, expire_time: .data.expire_time, renewable: .data.renewable}'` | `vault login -no-print`                                  |
+| Bitwarden    | `bw --nointeraction status \| jq '{status, userEmail}'` (`unlock --check`)                                                                                  | `bw login` / `bw unlock`                                 |
 
 Notes: `vault status` exits `2` when sealed (distinct from error exit `1`); `bw --nointeraction unlock --check` exits `0` only when the session key is unlocked.
 

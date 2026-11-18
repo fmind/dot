@@ -5,7 +5,7 @@ description: "Turn session corrections and decisions into minimal edits to check
 
 # Lesson Learned
 
-Route durable session lessons to one canonical owner without rule bloat. Trigger on `(Lesson Learned)` proposals after an implementation, approved decision, correction, or repeated instruction. [Skillify](../SKILL.md) owns skill/guide authoring, [trim](../../trim/SKILL.md) owns shortening, and [AGENTS.md guidance](../../repository-docs/references/agents.md) owns layer boundaries.
+Route durable session lessons to one canonical owner without rule bloat. Trigger on `(Lesson Learned)` proposals after corrections, repeated instructions, non-obvious traps, or durable approved decisions (never routine implementations). [Skillify](../SKILL.md) owns skill/guide authoring, [trim](../../trim/SKILL.md) owns shortening, and [AGENTS.md guidance](../../repository-docs/references/agents.md) owns layer boundaries.
 
 ## Workflow
 

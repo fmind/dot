@@ -50,4 +50,8 @@ Edit `.gdoc` files in place without losing comments, suggestions, tabs, or histo
 
 ## Verification
 
-Re-fetch `documents.get` + `docs_text.py` (linting extracted prose via `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON --ext=.txt` after `documents.batchUpdate` edits), and for layout-critical reports export PDF privately (`jq -n --arg id "$FILE_ID" '{fileId: $id, mimeType: "application/pdf"}'` -> `gws drive files export --params ... --output preview.pdf` in `"$SCRATCH"`).
+Re-fetch `documents.get` + `docs_text.py` (linting extracted prose with `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON --ext=.txt` after `batchUpdate`), and export layout-critical PDFs privately in `"$SCRATCH"` (`jq -n --arg id "$FILE_ID" '{fileId: $id, mimeType: "application/pdf"}'` -> `gws drive files export --params ... --output preview.pdf`).
+
+## Documentation
+
+- [Docs `documents.batchUpdate`](https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/batchUpdate) · [Drive upload guide](https://developers.google.com/workspace/drive/api/guides/manage-uploads)

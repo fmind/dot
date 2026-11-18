@@ -50,7 +50,8 @@ Prefer the repository's native release task when defined; use this fallback only
    release_tmp=$(mktemp -d)
    git-cliff --latest --strip all > "$release_tmp/release-notes.md"
    # Curate $release_tmp/release-notes.md per humanize (outcome highlights + upgrade notes), then gate:
-   vale --no-global --config ~/.config/vale/.vale.ini --output=JSON "$release_tmp/release-notes.md"
+   vale_cfg=(); [ -f .vale.ini ] || vale_cfg=(--config ~/.config/vale/.vale.ini)
+   vale --no-global "${vale_cfg[@]}" --output=JSON "$release_tmp/release-notes.md"
    betterleaks stdin --redact < "$release_tmp/release-notes.md" >/dev/null
    gh release create "$tag" --verify-tag --draft --title "$tag" --notes-file "$release_tmp/release-notes.md"
    ```

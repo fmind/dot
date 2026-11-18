@@ -1,16 +1,16 @@
 # Authoring Zero-Hallucination Reviewer Supagents
 
-Static reviewer `supagents` execute with clean context (`excludeDefaultComponents: true`, `omitClaudeMd: true`) and **no progressive disclosure**: unlike skills (`SKILL.md` -> `references/`), the entire compiled body loads on turn 1 across every host. Every design rule below follows from that constraint.
+Static reviewer `supagents` execute with clean context (`excludeDefaultComponents: true`, `omitClaudeMd: true`) and **no progressive disclosure**: unlike skills (`SKILL.md` -> `references/`), the full compiled body loads on turn 1 across every host. Every design rule below follows from that constraint.
 
 ## Core Design Laws
 
-1. **One Discipline = One Supagent (Zero Progressive Disclosure)**: If a reviewer must explain two distinct disciplines or artifact surfaces (e.g., `mlops` vs `agents`, `cli` vs `api`, `sre` vs `cicd`, `human` prose vs `design` layout, `terraform` HCL vs `arch` cloud design), split them into two single-responsibility supagents and let the coordinator fan out only matching roles.
-1. **Self-Contained Operational Rules (Zero Standard Name-Dropping)**: Never write `"Distills <Book / Standard / Rules #1–#4>"` in prompt prose. Naming external books without stating the exact check invites parametric hallucination and dogmatic nitpicking. Translate external standards at authoring time into explicit operational checks (`Invariant + Why -> Observable Defect Conditions -> Required Evidence`), and forbid enforcing unwritten external rules.
+1. **One Discipline = One Supagent (Zero Progressive Disclosure)**: If a reviewer must cover two distinct disciplines or artifact surfaces (e.g., `mlops` vs `agents`, `cli` vs `api`, `sre` vs `cicd`, `human` prose vs `design` layout, `terraform` HCL vs `architecture` cloud design), split them into single-responsibility supagents so the coordinator fans out only matching roles.
+1. **Self-Contained Operational Rules (Zero Standard Name-Dropping)**: Never write `"Distills <Book / Standard / Rules #1–#4>"` in prompt prose—naming external books without stating the check invites parametric hallucination. Translate standards at authoring time into explicit checks (`Invariant + Why -> Observable Defect Conditions -> Required Evidence`), and forbid unwritten external rules.
 1. **Three-Tier Independence (`dot/` vs Global Reviewers vs Customer Overrides)**:
    - _Workstation (`dot/`, `AGENTS.md`, `skills/`)_: owns personal preferences and builder tools (`uv`, `ruff`, `dprint`, `Zensical`, `Cloud Run`).
-   - _Global `fmind-review-*` (`dot_agents/supagents/`)_: encodes **tool-independent, stack-independent domain best practices** plus universal security, YAGNI, root-cause rigor, and anti-slop craft. Never hardcode personal dotfiles (`~/.agents/DESIGN.md`) or single-vendor tool mandates inside global rubrics.
-   - _Project / Customer Overrides_: local `AGENTS.md`, `DESIGN.md`, and `SECURITY.md` override style/stack/architectural defaults (never read-only/security boundaries or `Output Contract`), and repo-local `<org>-review-*` supagents take precedence over global `fmind-review-*` roles when present.
-1. **Autonomous Read + Sanitized Web, Zero Step Caps**: Grant unrestricted file read/glob/grep/LSP and sanitized `https://` primary-source web lookup with **no turn/step limits** and **no brittle path denylists** in `_reviewer.md`, while blocking `Write`, `Edit`, `Shell`, `Task`/`Agent`, and `MCP`. Enforce secret value redaction in `evidence:` and SSRF/privacy query rules in `Output Contract`.
+   - _Global `fmind-review-*` (`dot_agents/supagents/`)_: encodes **tool- and stack-independent domain best practices** plus universal security, YAGNI, root-cause rigor, and anti-slop craft. Never hardcode personal dotfiles (`~/.agents/DESIGN.md`) or single-vendor tool mandates inside global rubrics.
+   - _Project / Customer Overrides_: local `AGENTS.md`, `DESIGN.md`, and `SECURITY.md` override style/stack/architectural defaults (never read-only/security bounds or `Output Contract`), and repo `<org>-review-*` supagents override global `fmind-review-*` roles.
+1. **Non-Mutating Audit Freedom, Zero Edit Tools**: Grant unrestricted file read/glob/grep/LSP, non-mutating diagnostic shell + headless Chrome/Playwright (`hyperfine`/profilers, linters/tests/scanners, `xh` headers, and viewport/a11y/console/Lighthouse renders written strictly to `mktemp` `/tmp` paths), and sanitized `https://` primary-source web lookup with **no turn/step limits** or brittle path denylists in `_reviewer.md`. Hard-block file-write/edit tools (`Write`, `Edit`, `NotebookEdit`, `write_to_file`, `replace_file_content`, `edit`), subagent recursion (`Agent`, `Task`, `invoke_subagent`, `subagent`), git mutations, and non-browser write MCPs; enforce `evidence:` secret redaction and SSRF/privacy query rules in `Output Contract`.
 
 ## Parallel Grounded Research Workflow (Authoring Time)
 
@@ -30,9 +30,9 @@ Keep child sources free of frontmatter overrides (`extends: _reviewer`, `name`, 
    - **Observable Defect Conditions**: concrete anti-patterns, edge cases, and quantitative thresholds to inspect across files.
    - **Required Evidence**: exact `path:line`, symbol, metric, or render check needed before flagging.
 1. **`## Do Not Flag` (`2`–`4` bullets)**: Formatter/linter trivia caught by deterministic gates, out-of-scope scale/surface cases, and explicit handoffs to sibling `*-review-*` roles.
-1. **`**Calibration**:` (`1`–`2` lines)**: Concrete domain thresholds separating `P0` (catastrophic/exploit/corruption) from `P1` (reachable contract/correctness/craft blocker) and `P2` (material maintainability/perf gap).
-1. **`## Sources` (`4`–`8` bullets)**: `- [<Primary Title>](https://...) (<version or YYYY-MM-DD>) — grounds Rubric #<N> (<topic>).`
+1. **`**Calibration**:` (`1` unwrapped line)**: Concrete domain thresholds separating `P0` (catastrophic/exploit/corruption) from `P1` (reachable contract/correctness/craft blocker) and `P2` (material maintainability/perf gap).
+1. **`## Sources` (`4`–`8` bullets)**: `- [<Primary Title>](https://...) (<version or YYYY-MM-DD>) — grounds Rubric #<N> (<topic>).`, collectively covering every `Rubric #1`–`#<N>`.
 
 ## Pre-Delivery Meta-Audit
 
-Compile (`supagents build --strict --project && supagents check --strict --project`, or `mise run format:supagents && mise run check:supagents` in `fmind/dot`), run `lychee` on `## Sources`, audit the new definition with `fmind-review-supagent`, and run seeded-defect + clean-control probes per [calibration](calibration.md).
+Compile (`supagents build --strict --project && supagents check --strict --project`, or the `fmind/dot` build and contract-test steps in [SKILL.md](../SKILL.md#gotchas)), run `lychee` on `## Sources`, audit with `fmind-review-supagent`, and run seeded-defect + clean-control probes per [calibration](calibration.md).

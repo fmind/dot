@@ -18,7 +18,7 @@ Personal dotfiles for **AI-driven, CLI-first development** on Linux and macOS. [
 
 - **Terminal:** Ghostty, Zellij, and Fish with Starship, Atuin, zoxide, fzf, yazi, and lazygit, tuned for keyboard speed and ultrawide layouts.
 - **Editor:** Neovim (LazyVim), unified across tools with [fmind/theme](https://github.com/fmind/theme).
-- **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving (`agy`, Claude, Pi) and usage stats.
+- **Agents:** Antigravity (primary), Claude Code, Copilot, OpenCode, and Pi share one persona and [skill catalog](skills/), with local session archiving and usage stats across all five.
 - **Development:** Python 3.14 with uv, Ruff, ty, and pytest plus cloud/service CLIs; projects pin their own stack tools.
 - **Automation:** `dot` checks workstation health, manages multi-repo workspaces, handles provider logins and workspace trust, and enforces agent context budgets; `with-secret` scopes per-command keys.
 
@@ -98,7 +98,7 @@ Machine-local overrides live in unmanaged `~/.config/dot.yaml` and merge over [b
 
 ### Usage reports
 
-`dot stats` incrementally syncs local transcripts (`--no-sync` skips refresh) and reports tokens, estimated API value, and recorded provider spend (including archived Codex, Copilot, Grok, and OpenCode history); see [agent usage](skills/dot-cli/references/agent-usage.md).
+`dot stats` incrementally syncs local transcripts (`--no-sync` skips refresh) and reports tokens, estimated API value, and recorded provider spend (including archived Codex and Grok history); see [agent usage](skills/dot-cli/references/agent-usage.md).
 
 ## Repository tasks
 
@@ -127,7 +127,7 @@ Contributor guides: [AGENTS.md](AGENTS.md) and [releases & qualification](.agent
 
 Antigravity, Claude Code, Copilot, OpenCode, and Pi share [`dot_agents/AGENTS.md`](dot_agents/AGENTS.md) and [`skills/`](skills/). Launching `agy` from Fish or Zellij (`Alt a`) prepends mise shims on `PATH` so commands resolve each project's tool pins.
 
-For clean-context quality gates, 33 single-discipline `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover end-to-end completeness/software, cloud/platform/security, data/ML/AI, docs/writing/compliance, and figures/decks/UI/web/pitch across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents) while keeping content producers dynamic via built-in subagents and skills; see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
+For clean-context quality gates, 34 single-discipline `fmind-review-*` specialist subagents ([`dot_agents/supagents/`](dot_agents/supagents/)) cover end-to-end completeness/software, cloud/platform/security, data/ML/AI, docs/writing/compliance, and figures/decks/UI/web/pitch/estimates across Antigravity, Claude Code, Copilot, and OpenCode via [supagents](https://github.com/fmind/agent-supagents) while keeping content producers dynamic via built-in subagents and skills; see [subagent](skills/subagent/SKILL.md) and [cross-harness agents](skills/agent-project/references/cross-harness-agents.md).
 
 ## Agent skills
 
@@ -152,7 +152,7 @@ dot login gcp             # Google Cloud and ADC
 dot login colab           # ADC with Colab scopes + session check
 ```
 
-GitHub pushes over SSH even for HTTPS clones (register keys in [GitHub settings](https://github.com/settings/keys)). `dot login` reconciles `auth.login` providers (`[github, gcp, workspace]` by default; `colab` opt-in), OAuth scopes, and Workspace APIs; see [authentication](skills/dot-cli/references/authentication.md).
+GitHub pushes over SSH even for HTTPS clones (register keys in [GitHub settings](https://github.com/settings/keys)), while HTTPS fetches reuse `gh` credentials automatically. `dot login` reconciles `auth.login` providers (`[github, gcp, workspace]` by default; `colab` opt-in) and OAuth scopes (`dot login workspace --setup` reconciles GCP Workspace APIs and OAuth client config); see [authentication](skills/dot-cli/references/authentication.md).
 
 Harnesses manage their own logins (mise locks all except self-updating Antigravity):
 

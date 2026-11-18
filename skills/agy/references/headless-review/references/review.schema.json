@@ -2,6 +2,7 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "verdict": { "type": "string", "enum": ["PASS", "REVISE", "BLOCK"] },
     "summary": { "type": "string" },
     "findings": {
       "type": "array",
@@ -9,17 +10,20 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "severity": { "type": "string", "enum": ["high", "medium", "low"] },
-          "file": { "type": "string" },
-          "line": { "type": "integer", "minimum": 1 },
+          "severity": { "type": "string", "enum": ["P0", "P1", "P2"] },
+          "id": { "type": "string" },
+          "rule": { "type": "string" },
+          "loc": { "type": "string" },
+          "conf": { "type": "string", "enum": ["high", "med"] },
           "issue": { "type": "string" },
-          "evidence": { "type": "string" }
+          "evidence": { "type": "string" },
+          "fix": { "type": "string" }
         },
-        "required": ["severity", "file", "line", "issue", "evidence"]
+        "required": ["severity", "id", "rule", "loc", "conf", "issue", "evidence", "fix"]
       }
     },
-    "checks": { "type": "array", "items": { "type": "string" } },
-    "gaps": { "type": "array", "items": { "type": "string" } }
+    "deletions": { "type": "array", "items": { "type": "string" } },
+    "unverified": { "type": "array", "items": { "type": "string" } }
   },
-  "required": ["summary", "findings", "checks", "gaps"]
+  "required": ["verdict", "summary", "findings", "deletions", "unverified"]
 }

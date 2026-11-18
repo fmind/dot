@@ -23,3 +23,8 @@ Create a lean, complete, fully verified repository or maintain its reusable temp
 - [project-license](references/project-license/GUIDE.md): Choose, write, and declare a repository LICENSE (MIT, CC-BY-4.0, or proprietary) by namespace and content.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [Copier](https://copier.readthedocs.io/en/stable/) · [SPDX License List](https://spdx.org/licenses/) · [PEP 639 license expressions](https://packaging.python.org/en/latest/specifications/license-expression/) · [Copier releases](https://github.com/copier-org/copier/releases)
+- Companions: [python-stack](../python-stack/SKILL.md), [agent-project](../agent-project/SKILL.md), [repository-docs](../repository-docs/SKILL.md), [github-actions](../github-actions/SKILL.md).

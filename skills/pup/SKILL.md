@@ -35,4 +35,5 @@ DD_SITE=datadoghq.eu pup --read-only monitors list --limit 25
 
 ## Documentation
 
-- [Datadog CLI (`pup`)](https://github.com/DataDog/pup)
+- [Datadog CLI (`pup`)](https://github.com/DataDog/pup) · [Datadog API](https://docs.datadoghq.com/api/latest/) · [pup releases](https://github.com/DataDog/pup/releases)
+- Companions: [auth-status](../auth-status/SKILL.md), [observability](../python-stack/references/observability.md).

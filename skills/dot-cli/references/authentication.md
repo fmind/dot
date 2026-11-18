@@ -7,21 +7,21 @@ description: "Reconcile configured provider logins, OAuth scopes, one-off grants
 
 [README](https://github.com/fmind/dot#authentication--logins) lists commands and `dot login --help` owns flags; [auth-status](../../auth-status/SKILL.md) owns cross-provider probes, expiry, and scopes.
 
-- **Fixed reconciliation order**: `dot login` runs `auth.login` (default `[github, gcp, workspace]`) in order GitHub → GCP + ADC → Workspace setup + login → Colab, skipping ready steps and failing closed on unknown state without printing secrets.
-- **Concurrent preflight**: readiness probes run first in memory; `dot login --check` validates configured providers (and removed GitHub grants) without opening a browser.
-- **Precedence & config**: Workspace project resolves CLI arg → `GWS_PROJECT` → `auth.workspace.project` in `~/.config/dot.yaml` (`auth.workspace.extra_scopes` extends bundled Workspace scopes, maps merge). Changing config never updates issued tokens — re-run `dot login`.
+- **Fixed reconciliation order**: `dot login` runs `auth.login` (default `[github, gcp, workspace]`) in order GitHub → GCP + ADC → Workspace → Colab, skipping ready steps, opening OAuth flows in the browser (copying GitHub device codes to the clipboard), and failing closed on unknown state without printing secrets.
+- **Concurrent preflight**: readiness probes run first in memory; `dot login --check` validates configured providers (and forbidden GitHub/Workspace grants) without opening a browser.
+- **Precedence & config**: Workspace project resolves CLI arg → `GWS_PROJECT` → `auth.workspace.project` in `~/.config/dot.yaml` (`auth.workspace.extra_scopes` extends bundled Workspace scopes, maps merge). Routine logins skip GCP API mutation once the OAuth client is configured; pass `--setup` (`dot login workspace --setup`) to enable APIs or bootstrap a new project. Changing config never updates issued tokens: re-run `dot login`.
 - **Plaintext `hosts.yml` warning**: if `gh` fell back to insecure `hosts.yml`, unlock macOS Keychain or Linux Secret Service (collection `login` / `default`), then run `gh auth logout && dot login github`.
 
 ## Workspace scopes & one-off grants
 
-- **50-scope hard limit**: Google's consent screen hangs above 50 scopes (`dot login workspace` defaults to 46 and refuses >50). Because `gws` replaces its full grant on login, `auth.workspace.extra_scopes` adds to the 46 bundled scopes up to that ceiling.
+- **50-scope hard limit**: Google's consent screen hangs above 50 scopes (`dot login workspace` defaults to 35 universal collaboration, Apps Script, and Pub/Sub scopes and refuses >50). Because `gws` replaces its full grant on login, `auth.workspace.extra_scopes` adds to the 35 bundled scopes up to that ceiling (for example `analytics.readonly`, `webmasters.readonly`, `postmaster.traffic.readonly`, `youtube.readonly`, and `yt-analytics.readonly` on personal creator accounts for 40/50 slots).
 - **Temporary `--grant`**: request `--grant <scope>` only for a specific task and revert right after (`dot login workspace --force` or `dot login github`; `repo`, `read:org`, and `gist` are `gh`'s minimum).
-- **Safe one-offs**: GitHub key/package/repo/org write scopes; Workspace Admin Directory/Chrome/Chat/Vault/Analytics/Apps Script scopes.
-- **Never request**: GitHub `admin:enterprise`, `manage_runners:enterprise`, `manage_billing:enterprise`; Gmail `https://mail.google.com/` or `gmail.settings.sharing`; Workspace `cloud-platform` (owned by `gcloud` IAM), `apps.alerts`, `chat.app.*`, `chat.import`, `youtubepartner*`, Classroom, or Brand-Account YouTube scopes outside the OAuth org.
+- **Safe one-offs**: GitHub key/package/org write scopes (`write:ssh_signing_key`, `write:packages`, `write:org`); Workspace Admin Directory/Chrome/Vault/Analytics scopes.
+- **Never request**: GitHub `admin:enterprise`, `manage_runners:enterprise`, `manage_billing:enterprise`; Gmail `https://mail.google.com/` or `gmail.settings.sharing`; Workspace `cloud-platform` (owned by `gcloud` IAM), `apps.alerts`, `chat.app.*`, `chat.import`, `youtubepartner*`, Classroom, or Brand-Account YouTube scopes outside the OAuth org (`policy.yaml` blocks the enterprise-admin, full-mailbox, mail-forwarding, and `cloud-platform` scopes in config, `--grant`, and readiness checks).
 
 ## Colab ADC
 
-`dot login gcp` and `dot login colab` share bundled `gcp.adc_scope_suffixes` from [`policy.yaml`](../../../dot/src/fmind_dot/policy.yaml) (ADC overwrites its full grant on every login, so keep `gcloud` + `colaboratory` + read-only sensor scopes together):
+`dot login gcp` and `dot login colab` share bundled `gcp.adc_scope_suffixes` from [`policy.yaml`](https://github.com/fmind/dot/blob/main/dot/src/fmind_dot/policy.yaml) (ADC overwrites its full grant on every login, so keep `gcloud` + `colaboratory` + read-only sensor scopes together):
 
 ```bash
 dot login colab --check                  # probe ADC + Colab scopes safely (never run print-access-token)

@@ -11,8 +11,9 @@ Use native Gemini 4 multimodal understanding before adding chunking/vector infra
 
 - **Skip unnecessary chunking**: Gemini 4 accepts PDFs, audio, video, Office (`.docx`, `.pptx`, `.xlsx`), and OpenDocument files natively inside 1M-token windows; pair with durable implicit prefix caching (`>= 4,096` tokens) when querying fixed document sets repeatedly ([gcp-agent-platform](../../model-providers/references/gcp-agent-platform.md)).
 
-## Hybrid Retrieval (`pgvector>=0.8.0` + FTS + RRF)
+## Hybrid Retrieval (`pgvector>=0.8.0` + PyPI `pgvector>=0.5.1` + FTS + RRF)
 
+- **Bind typed vector codecs**: install PyPI `pgvector>=0.5.1` and map ORM columns with `pgvector.sqlalchemy.Vector(dim)` rather than raw string casts. Call `await register_vector(conn)` on pooled asyncpg connections (`await register_vector_async(conn)` on async psycopg pools, or sync `register_vector(conn)`).
 - **Push ACL filters inside both CTEs with iterative scan**: enforce `WHERE tenant_id = $1 AND ...` in both vector and lexical arms before RRF scoring and set `SET LOCAL hnsw.iterative_scan = strict_order;` inside the transaction (`pgvector>=0.8.0`, or partition/partial-index per tenant on `<0.8`) so selective tenant filters do not truncate recall at `hnsw.ef_search`:
   ```sql
   SET LOCAL hnsw.iterative_scan = strict_order;

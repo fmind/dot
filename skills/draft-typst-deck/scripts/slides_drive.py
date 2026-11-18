@@ -365,14 +365,26 @@ def upload_deck_artifact(
                     f"Integrity mismatch after upload: local ({local_md5}, {local_size} B) != remote ({remote_md5}, {remote_size} B)."
                 )
 
-        synced_sources = _sync_source_files(
-            source_files,
-            args.source_dir.resolve() if args.source_dir else artifact_path.parent,
-            artifact_path.stem,
-            valid_folder or next(iter(verified.get("parents") or []), None),
-            cwd=gws_dir,
-            run_gws_fn=run_gws_fn,
-        )
+        resolved_parent = valid_folder or next(iter(verified.get("parents") or []), None)
+        resolved_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", artifact_path.stem).strip("-.") or "deck"
+        warning: str | None = None
+        if source_files and not resolved_parent:
+            names = ", ".join(path.name for path in source_files)
+            warning = (
+                f"Skipped {len(source_files)} source upload(s) ({names}): Drive returned no parent folder for file "
+                f"{uploaded_id}, so assets/{resolved_slug}/ has no location; rerun with --drive-folder <FOLDER_ID> "
+                "to sync them."
+            )
+            synced_sources = []
+        else:
+            synced_sources = _sync_source_files(
+                source_files,
+                args.source_dir.resolve() if args.source_dir else artifact_path.parent,
+                resolved_slug,
+                resolved_parent,
+                cwd=gws_dir,
+                run_gws_fn=run_gws_fn,
+            )
 
     result: dict[str, Any] = {
         "ok": True,
@@ -391,6 +403,8 @@ def upload_deck_artifact(
         result["size"] = int(verified.get("size") or 0)
     if synced_sources:
         result["synced_sources"] = synced_sources
+    if warning:
+        result["warning"] = warning
     return result
 
 

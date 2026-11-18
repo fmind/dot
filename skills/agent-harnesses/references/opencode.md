@@ -28,7 +28,7 @@ Follow the shared [workflow](../SKILL.md#workflow); host specifics:
 
 ## Configuration
 
-`dot_config/private_opencode/modify_private_opencode.json` merges `~/.config/opencode/opencode.json` (project `opencode.json`/`.jsonc` overlays it); TUI state (`theme: "fmind"`, `attention: {notifications: false, sound: false}`) lives in `~/.config/opencode/cli.json` via `dot_config/private_opencode/modify_cli.json` (OpenCode 2.x reads only global `cli.json`—migrating `tui.json` once when `cli.json` is absent—ignores `lsp`, and dropped `compaction.prune`). Check the [config schema](https://opencode.ai/v2/docs/config/), edit chezmoi sources when updating managed keys, never paste resolved config, and note `opencode mcp add` writes project config unless `--global` ([mcp-setup](mcp-setup.md)).
+`dot_config/private_opencode/modify_private_opencode.json` merges `~/.config/opencode/opencode.json` (`update: "disable"`, `share: "disabled"`, project `opencode.json`/`.jsonc` overlays it); TUI state (`theme: "fmind"`, `animations: false`, `highlights: false`, `attention: {notifications: false, sound: false}`) lives in `~/.config/opencode/cli.json` via `dot_config/private_opencode/modify_cli.json` (OpenCode 2.x reads only global `cli.json`—migrating `tui.json` once when `cli.json` is absent—ignores `lsp`, dropped `compaction.prune`, and retires legacy 1.x `autoupdate` and `permission` so built-in `plan`/`explore` keep their read-only bounds). Check the [config schema](https://opencode.ai/v2/docs/config/), edit chezmoi sources when updating managed keys, never paste resolved config, and note `opencode mcp add` writes project config unless `--global` ([mcp-setup](mcp-setup.md)).
 
 ## Gotchas
 

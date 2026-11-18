@@ -29,3 +29,9 @@ Load every matching guide needed to author, pin, and lint the workflow (e.g., pa
 - [lefthook](references/lefthook.md): Local Git hooks aligned with repository tasks.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [GitHub Actions](https://docs.github.com/en/actions) · [jactionlint](https://jactionlint.jdx.dev) · [Lefthook](https://lefthook.dev/configuration/) · [gh-aw](https://github.com/github/gh-aw)
+- Releases: [Actions changelog](https://github.blog/changelog/label/actions/) · [jactionlint](https://github.com/jdx/jactionlint/releases) · [Lefthook](https://github.com/evilmartians/lefthook/releases)
+- Companions: [mise](../mise/SKILL.md), [git-delivery](../git-delivery/SKILL.md), [code-security](../code-security/SKILL.md), [upgrade-tools](../upgrade-tools/SKILL.md).

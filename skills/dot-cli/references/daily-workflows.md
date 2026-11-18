@@ -14,7 +14,7 @@ dot doctor --json
 dot doctor --headroom
 ```
 
-`dot doctor` checks secret file modes (`~/.config/chezmoi/key.txt` and `~/.ssh/id_ed25519_signing`; `--fix` repairs permissions), Docker, disk headroom, core CLI tools, installation freshness, and agent harnesses (persona/skill links plus live `agy`/`claude`/`pi` sync state and archive readability under `dot.diagnostics/v1`); `--deep` also probes configured `auth.login` providers, and `--headroom` prints one-line disk/memory headroom. In `fmind/dot`, `mise run doctor` chains `dot doctor`, `chezmoi doctor`, and `mise doctor`.
+`dot doctor` checks secret file modes (`~/.config/chezmoi/key.txt` and `~/.ssh/id_ed25519_signing`; `--fix` repairs permissions), Docker, disk headroom, core CLI tools, installation freshness, and agent harnesses (persona/skill links plus live session sync state and archive readability across all five harnesses under `dot.diagnostics/v1`); `--deep` also probes configured `auth.login` providers, and `--headroom` prints one-line disk/memory headroom. In `fmind/dot`, `mise run doctor` chains `dot doctor`, `chezmoi doctor`, and `mise doctor`.
 
 ## Repositories
 
@@ -41,7 +41,7 @@ dot trust all ~/.local/share/chezmoi    # authorized: workspaces + dot checkout 
 dot stats --project . --by-model --by-project --json
 ```
 
-`dot stats` incrementally captures changed live sources (`agy`, `claude`, `pi`) before querying unless `--no-sync` is passed; retired `codex`, `copilot`, `grok`, and `opencode` archives stay queryable via `stats` ([JSON selectors](contracts.md#json-selectors), [archive rules](contracts.md#session-archive), [agent-usage](agent-usage.md)). All `--since`/`--until` filters are UTC (usage timestamps, never capture time).
+Incremental sync captures changed live sources across all five active harnesses before querying unless `--no-sync` is passed; retired Codex and Grok archives stay queryable via `dot stats` ([JSON selectors](contracts.md#json-selectors), [archive rules](contracts.md#session-archive), [agent-usage](agent-usage.md)). All `--since`/`--until` filters are UTC (usage timestamps, never capture time).
 
 ## Fish completions
 

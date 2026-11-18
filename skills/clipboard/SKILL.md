@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/clipboard
   created: "2026-10-03"
-  updated: "2026-11-11"
+  updated: "2026-11-17"
 ---
 
 # Clipboard
@@ -35,4 +35,5 @@ metadata:
 
 ## Documentation
 
-- [xclip](https://github.com/astrand/xclip) · [wl-clipboard](https://github.com/bugaevc/wl-clipboard).
+- [xclip](https://github.com/astrand/xclip) · [wl-clipboard](https://github.com/bugaevc/wl-clipboard) · Releases: [xclip](https://github.com/astrand/xclip/releases), [wl-clipboard](https://github.com/bugaevc/wl-clipboard/releases)
+- Companions: [task-prompts](../task-prompts/SKILL.md), [draft-mail](../draft-mail/SKILL.md).

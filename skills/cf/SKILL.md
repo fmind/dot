@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cf
   created: "2026-11-13"
-  updated: "2026-11-15"
+  updated: "2026-11-17"
 ---
 
 # Cloudflare (`cf`)
@@ -36,4 +36,5 @@ cf -q schema workers secrets update
 
 ## Documentation
 
-- [Cloudflare CLI (`cf`)](https://github.com/cloudflare/cf) · [Cloudflare API](https://developers.cloudflare.com/api/)
+- [Cloudflare CLI (`cf`)](https://github.com/cloudflare/cf) · [Cloudflare API](https://developers.cloudflare.com/api/) · [Workers docs](https://developers.cloudflare.com/workers/) · [cf releases](https://github.com/cloudflare/cf/releases)
+- Companions: [auth-status](../auth-status/SKILL.md), [xh](../xh/SKILL.md), [infra-as-code](../infra-as-code/SKILL.md).

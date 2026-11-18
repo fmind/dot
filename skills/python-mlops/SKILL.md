@@ -28,3 +28,8 @@ Build ML workflows from exploration to evaluated delivery, grounded in the [revi
 - [training](references/training.md): Validate Polars or pandas data with Pandera, prevent leakage, and train, tune, and evaluate scikit-learn pipelines.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [Polars](https://docs.pola.rs/) · [obstore](https://developmentseed.org/obstore/latest/) · [Pandera](https://pandera.readthedocs.io/en/stable/) · [scikit-learn](https://scikit-learn.org/stable/) · [LightGBM](https://lightgbm.readthedocs.io/en/stable/) · [Optuna](https://optuna.readthedocs.io/en/stable/) · [Altair](https://altair-viz.github.io/) · [Matplotlib](https://matplotlib.org/stable/) · [MLflow](https://mlflow.org/docs/latest/) · [marimo](https://docs.marimo.io/) · [vLLM](https://docs.vllm.ai/en/latest/)
+- Companions: [python-stack](../python-stack/SKILL.md), [duckdb](../duckdb/SKILL.md), [colab](../colab/SKILL.md), [databricks](../databricks/SKILL.md), [hf](../hf/SKILL.md).

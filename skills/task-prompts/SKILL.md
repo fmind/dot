@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/task-prompts
   created: "2026-09-05"
-  updated: "2026-11-14"
+  updated: "2026-11-17"
 ---
 
 # Task and Continuation Prompts
@@ -33,8 +33,9 @@ Write self-contained prompts for an agent without this conversation. [agent-fram
 
 - **Authority travels with the task**: separate approved actions from proposals; writing a prompt grants no new permission.
 - **Cite, never paste**: keep failures and proof gaps; reference `path:line` instead of copying code or `AGENTS.md`.
-- **Keep `.agents/prompts/` untracked**: global Git ignore covers it (`git check-ignore -v .agents/prompts/x.md`); add no repo ignore rule, and commit prompts only on request.
+- **Keep `.agents/prompts/` untracked**: verify `git check-ignore -q .agents/prompts/x.md` (covered by global Git ignore; on external hosts where it exits `1`, append `.agents/prompts/` to `.git/info/exclude`, never tracked `.gitignore`), and commit prompts only on request.
 
 ## Documentation
 
+- [Antigravity conversations](https://antigravity.google/docs/cli/conversations/) · [Claude Code sessions](https://code.claude.com/docs/en/sessions) · [AGENTS.md](https://agents.md)
 - Companions: [clipboard](../clipboard/SKILL.md), [git-worktree](../git-delivery/references/git-worktree/GUIDE.md).

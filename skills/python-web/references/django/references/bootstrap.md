@@ -15,7 +15,7 @@
 ```bash
 uv init --app --no-package --vcs none --python <supported-python-major.minor> --description "<description>" <slug>
 cd <slug>
-UV_MALWARE_CHECK=1 uv add --preview-features malware-check "Django~=<stable-major.minor>.0" granian
+UV_MALWARE_CHECK=1 uv add --preview-features malware-check "Django~=<stable-major.minor>.0" "granian[reload,uvloop]>=2.8.8"
 UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev deptry pytest pytest-cov pytest-django pytest-socket pytest-timeout django-stubs ruff "ty>=<latest>,<0.1" validate-pyproject
 uv run django-admin startproject config .
 uv run python manage.py startapp <domain>

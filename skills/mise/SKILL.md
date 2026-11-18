@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-11-16"
+  updated: "2026-11-17"
 ---
 
 # Mise
@@ -40,5 +40,5 @@ One project `mise.toml` owns tool pins and task commands; hooks and CI only choo
 
 ## Documentation
 
-- [upgrade-tools](../upgrade-tools/SKILL.md) · [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html) · [releases](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
-- Companions: [lefthook](../github-actions/references/lefthook.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md).
+- [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html) · [dprint](https://dprint.dev/) · [mise releases](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
+- Companions: [upgrade-tools](../upgrade-tools/SKILL.md), [lefthook](../github-actions/references/lefthook.md), [github-actions](../github-actions/references/ci-cd/GUIDE.md).

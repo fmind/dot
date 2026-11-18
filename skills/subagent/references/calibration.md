@@ -11,7 +11,7 @@ Create synthetic fixtures inside a clean `/var/tmp` sandbox directory (never cus
 
 ## Headless Production-Contract Probe
 
-Run headless from the sandbox without overriding the supagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the sandbox:
+Run headless from the sandbox without overriding the supagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the sandbox (for visual/browser roles capturing `/tmp` renders under `allowNonWorkspaceAccess: false`, allocate `render_dir="$(cd "$(mktemp -d /tmp/agy-render.XXXXXX)" && pwd -P)"`, pass `--add-dir "$render_dir"`, direct `-p` to write temporary renders inside `"$render_dir"`, and remove `"$render_dir"` on exit):
 
 ```bash
 sandbox=$(mktemp -d /var/tmp/subagent-cal.XXXXXX)
@@ -21,12 +21,12 @@ good_out=$(mktemp /var/tmp/subagent-good.XXXXXX)
 # or un-applied roles, also copy the compiled agent into $sandbox/.agents/agents/):
 
 (cd "$sandbox" && agy --agent fmind-review-code --print-timeout 5m --output-format json \
-  --settings '{"allowNonWorkspaceAccess":false}' \
+  --sandbox --settings '{"allowNonWorkspaceAccess":false}' \
   -p "Review bad.py read-only using your Output Contract.") > "$bad_out" &&
   jq -er '.status == "SUCCESS" and (.finished_reason // null) == null and (.response | test("VERDICT: (BLOCK|REVISE)")) and (.response | test("rule: "))' "$bad_out" >/dev/null
 
 (cd "$sandbox" && agy --agent fmind-review-code --print-timeout 5m --output-format json \
-  --settings '{"allowNonWorkspaceAccess":false}' \
+  --sandbox --settings '{"allowNonWorkspaceAccess":false}' \
   -p "Review good.py read-only using your Output Contract.") > "$good_out" &&
   jq -er '.status == "SUCCESS" and (.finished_reason // null) == null and (.response | test("VERDICT: PASS")) and (.response | test("FINDINGS: none"))' "$good_out" >/dev/null
 ```

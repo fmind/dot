@@ -1,5 +1,5 @@
 # Docs: https://copier.readthedocs.io/en/stable/configuring/
-_min_copier_version: "9.19.0"
+_min_copier_version: "9.19.1"
 _subdirectory: template
 _envops:
   undefined: jinja2.StrictUndefined

@@ -1,11 +1,11 @@
 ---
 name: argparse
-description: "Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Typer CLIs."
+description: "Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Cyclopts CLIs."
 ---
 
 # CLI Contracts & Python CLIs
 
-Define a stable human + machine CLI contract in any language, and build Python CLIs with `argparse` (starter templates below) or [Typer](#typer-clis) when typed command trees and rich help fit better ([foundation](../foundation/GUIDE.md) owns packaging; existing CLIs keep their framework).
+Define a stable human + machine CLI contract in any language, and build Python CLIs with `argparse` (starter templates below) or [Cyclopts](#cyclopts-clis) when typed command trees outgrow stdlib boilerplate ([foundation](../foundation/GUIDE.md) owns packaging; existing CLIs keep their framework).
 
 ## Defaults for new CLIs
 
@@ -33,13 +33,14 @@ Existing public contracts govern shape, streams, exit codes, and formats; side-e
 - **Flags, env defaults, & colors**: pass `"-n", "--limit"` with `metavar` (`--since WHEN`), and build parsers inside `main()` reading `os.environ.get("APP_CONFIG") or None` (named in `help`). Python `3.14+` colors TTY help/errors (`NO_COLOR`, `FORCE_COLOR`, `PYTHON_COLORS`) — set `NO_COLOR=1` and strip forcing vars in tests.
 - **Formatting, TUIs, & startup**: use `RawDescriptionHelpFormatter` for multi-paragraph help; add `argcomplete` or `rich`/`textual` (markup/highlighting/emoji disabled on untrusted text) only for interactive human UIs, never agent CLIs. Profile startup via `uv run python -X importtime -c 'import <package>'` and lazy-import heavy SDKs inside handlers (or module-level `__lazy_modules__ = [...]` on `3.15+`).
 
-## Typer CLIs
+## Cyclopts CLIs
 
-When building or maintaining a Typer CLI:
+When multi-command trees, native Python 3.12+ union/literal/Pydantic annotations, or docstring parameter help outgrow stdlib `argparse`:
 
-- **Bundled skill & minor pin**: read `typer/.agents/skills/typer/SKILL.md` from `.venv/` (`0.25.1+`) and pin `typer>=0.N,<0.N+1` (`0.x` minors break APIs; `typer-slim`/`typer-cli` are deprecated, and Click is vendored since `0.26.0` — use `typer.testing.CliRunner`).
-- **Group callback & plain help**: add `@app.callback()` so single-command apps keep subcommand shape and `no_args_is_help=True` works; set `rich_markup_mode=None` when plain piped help is required (`GITHUB_ACTIONS`/`FORCE_COLOR`/`PY_COLORS` override `NO_COLOR` on Rich panels).
+- **Typed dispatch & clean streams**: add `cyclopts>=5.5.2` (`app = App(help_format="plaintext")` on agent-facing CLIs) so union types, `Literal`, dataclasses, and Pydantic v2 models parse directly without Click parameter adapters or mandatory Rich tracebacks.
+- **Test in-process**: invoke `app(["subcmd", "--flag"], result_action="return_value")` with captured streams, verifying exit code `2` on validation errors and pure JSON on stdout when `--json` is set.
+- **Existing Typer repos**: keep Typer in place when already adopted, pinning `typer>=0.N,<0.N+1`, adding `@app.callback()`, and setting `rich_markup_mode=None` plus `pretty_exceptions_enable=False` so Rich panels never corrupt piped or `NO_COLOR` streams.
 
 ## Documentation
 
-- [argparse](https://docs.python.org/3/library/argparse.html) · [Command Line Interface Guidelines](https://clig.dev) · [NO_COLOR](https://no-color.org/) · [Typer releases](https://typer.tiangolo.com/release-notes/)
+- [argparse](https://docs.python.org/3/library/argparse.html) · [Cyclopts](https://cyclopts.readthedocs.io/en/stable/) · [Cyclopts releases](https://github.com/BrianPugh/cyclopts/releases) · [Command Line Interface Guidelines](https://clig.dev) · [NO_COLOR](https://no-color.org/) · [Typer releases](https://typer.tiangolo.com/release-notes/)

@@ -37,3 +37,8 @@ Deliver only authorized changes while preserving the index, branch state, and en
 - [resolve-conflicts](references/resolve-conflicts.md): Resolve Git merge or rebase conflicts by both sides' intent; verify the result.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [Git reference](https://git-scm.com/docs) · [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) · [git-cliff](https://git-cliff.org/docs/) · [Git LFS](https://git-lfs.com/) · [git-cliff releases](https://github.com/orhun/git-cliff/releases)
+- Companions: [gh](../gh/SKILL.md), [github-actions](../github-actions/SKILL.md), [full-review](../full-review/SKILL.md).

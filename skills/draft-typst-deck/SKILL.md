@@ -1,6 +1,6 @@
 ---
 name: draft-typst-deck
-description: "Create 16:9 Typst slides, branded visual cards, PDF decks, and private Google Slides via gws."
+description: "Create 16:9 Typst slide decks, PDF/PPTX exports, deck figure cards, and private Google Slides via gws."
 license: MIT
 metadata:
   kind: task
@@ -12,15 +12,15 @@ metadata:
 
 # Draft Typst Slide Deck
 
-Build crisp **16:9 (`960pt x 540pt`) Typst slide decks** and **standalone branded visual cards** with editable `.typ` sources, compiled PDF/PNG/PPTX outputs, speaker notes, and optional Google Drive / Google Slides publishing via [gws](../gws/SKILL.md). Default to the Fmind Theme (`~/.agents/DESIGN.md`: `#FFFFFF` canvas, `#174EA6` accent, `Google Sans`), or substitute a client's brand tokens and fonts (never mix brands).
+Build crisp **16:9 (`960pt x 540pt`) Typst slide decks** (plus companion `figures/*.typ` cards) with editable `.typ` sources, compiled PDF/PNG/PPTX outputs, speaker notes, and optional Google Drive / Google Slides publishing via [gws](../gws/SKILL.md) (use [diagrams-as-code](../diagrams-as-code/references/typst.md) for standalone doc/README/web illustrations). Default to the Fmind Theme (`~/.agents/DESIGN.md`: `#FFFFFF` canvas, `#174EA6` accent, `Google Sans`), or substitute a client's brand tokens and fonts (never mix brands).
 
-## Format Choice (Typst Deck vs Editable Slides vs Visual Card)
+## Format Choice (Typst Deck vs Editable Slides vs Deck Card)
 
 Apply [humanize](../humanize/SKILL.md) ([outlines](../humanize/references/outlines.md), [primitives](../humanize/references/primitives.md)) on every deck:
 
 1. **Typst PDF / Retina PPTX -> Private Google Slides (default)**: adapt [fmind.typ](templates/fmind.typ) + [fmind-slides.typ](templates/fmind-slides.typ) + [deck.typ](templates/deck.typ), add `#speaker-note("...")`, compile with `check --pptx`, and publish via `upload --google-slides --source-dir .`. Drive converts the `.pptx` privately (Retina images + editable speaker notes) without public URLs.
 1. **Editable-shape Google Slides**: when stakeholders must edit text boxes directly in Slides, adapt [editable_deck.py](templates/editable_deck.py) (`Google Sans` native shapes + 2x Typst PNG cards via `uv run --script`), or patch an existing template via `gws slides presentations batchUpdate` (`replaceAllText`), inspect rendered slide thumbnails/PDF visually before sharing, and upload with `--google-slides --source-dir .`.
-1. **Standalone branded PNG/SVG card**: adapt [figure-card.typ](templates/figure-card.typ) (`#show: brand-card.with(width: 640pt)`) or compile `figures/*.typ` with `render` (or `check --render-figures`) for Docs ([draft-doc](../draft-doc/SKILL.md)), reports, email, or web.
+1. **Companion PNG/SVG card**: adapt [figure-card.typ](templates/figure-card.typ) (`#show: brand-card.with(width: 640pt)`) or compile `figures/*.typ` with `render` (or `check --render-figures`) when exporting shared deck visuals to [draft-doc](../draft-doc/SKILL.md), reports, or mail.
 
 ## Slide Craft & Cognitive Load Rules
 
@@ -57,3 +57,8 @@ Run [build_typst_deck.py](scripts/build_typst_deck.py) (backed by [typst_check.p
    ```
 
    Rerun without `--dry-run` (or pass `--file-id "<ID>"` to update in place); `--source-dir .` syncs `.typ` and root `.py` sources into Drive `assets/<slug>/`. Verify remote integrity before finishing.
+
+## Documentation
+
+- [Typst docs](https://typst.app/docs/) · [python-pptx](https://python-pptx.readthedocs.io/en/latest/) · [Google Slides API](https://developers.google.com/workspace/slides/api/guides/presentations) · [fmind/theme](https://github.com/fmind/theme) · [Typst releases](https://github.com/typst/typst/releases)
+- Companions: [diagrams-as-code](../diagrams-as-code/SKILL.md), [humanize](../humanize/SKILL.md), [gws](../gws/SKILL.md), [draft-doc](../draft-doc/SKILL.md).

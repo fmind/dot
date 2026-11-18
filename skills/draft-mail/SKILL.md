@@ -31,7 +31,7 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
    ```
 
 1. **Match language and register**: use the thread's or recipient's last language (ask if unknown). Check up to three sent messages (`q: "to:<address> in:sent"`) to match greeting, sign-off, and register; in French, preserve tu or vous (default vous for clients and first contact) and punctuation spacing ("Bonjour Alice,", space before ? and !).
-1. **Author a clean HTML fragment**: apply [humanize](../humanize/SKILL.md) ([email outline](../humanize/references/outlines.md#email-or-chat-message), [length budgets](../humanize/SKILL.md#default-length-budgets), and [Gmail primitives](../humanize/references/primitives.md#channel-primitives)). Default to natural prose—answer or ask first, **zero prose backticks**, short `<p>` blocks, `<strong>` on 1–2 key phrases or dates, at most one short `<ul>`/`<ol>` list, inline `<a href="...">` links, weekday + timezone dates, and one next step. Reserve tinted `border-left` callout blocks, `<mark>` highlights, `<hr>` rules, and tables strictly for multi-stakeholder executive briefs, formal decision/incident notices, or explicit requests—omit them on routine replies, scheduling, and administrative mail. Never write raw Markdown or invent commitments, prices, or availability—surface open decisions in the handoff, not inside the draft.
+1. **Author a clean HTML fragment**: apply [humanize](../humanize/SKILL.md) ([email outline](../humanize/references/outlines.md#email-or-chat-message), [length budgets](../humanize/SKILL.md#default-length-budgets), [Gmail primitives](../humanize/references/primitives.md#channel-primitives)). Default to natural prose—answer or ask first, **zero prose backticks**, short `<p>` blocks, `<strong>` on 1–2 key phrases/dates, at most one short list, inline `<a href="...">` links, weekday + timezone dates, and one next step (omitting callout boxes, `<mark>`, `<hr>`, and tables on routine mail). Never write raw Markdown or invent commitments, prices, or availability—surface open decisions in the handoff, not inside the draft.
 1. **Preview, create, and verify** from `$SCRATCH/body.html` (`SCRATCH`: host scratchpad, else `SCRATCH="$(mktemp -d)"`) via [`scripts/draft_email.py`](scripts/draft_email.py) (runs Vale to block em dashes and AI clichés and surface prose warnings; `--dry-run` first, then live):
 
    ```bash
@@ -46,7 +46,7 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
      "$SCRATCH/body.html" --to alice@example.com --subject 'Subject'
    ```
 
-1. **Verify completeness & hand off**: confirm every question in the thread is answered, every attachment mentioned in prose is passed via `-a` (and vice versa), and high-stakes client or executive drafts pass `fmind-review-human` / `fmind-review-factcheck` ([subagent](../subagent/SKILL.md)). Report `draftId`, `threadId`, subject (with accents), recipients, `mimeType`, `hasSignature`, `hasQuote`, language, and open questions without re-pasting the full body unless asked. Delete `$SCRATCH/body.html`.
+1. **Verify completeness & hand off**: confirm every question in the thread is answered, every attachment mentioned in prose is passed via `-a` (and vice versa), `draft_email.py` verified multipart HTML + signature + quote, and high-stakes client/executive drafts pass `fmind-review-human` / `fmind-review-factcheck` ([subagent](../subagent/SKILL.md)). Report the subject (with accents), recipients, language, and open questions without dumping raw internal IDs/MIME fields or re-pasting the full body unless asked. Delete `$SCRATCH/body.html`.
 
 ## Gotchas
 
@@ -57,5 +57,5 @@ Create rich HTML Gmail drafts for the user to review and send in Gmail. **Never 
 
 ## Documentation
 
-- [Gmail drafts guide](https://developers.google.com/workspace/gmail/api/guides/drafts) · [Workspace CLI](https://github.com/googleworkspace/cli)
+- [Gmail drafts guide](https://developers.google.com/workspace/gmail/api/guides/drafts) · [Workspace CLI](https://github.com/googleworkspace/cli) · [Workspace CLI releases](https://github.com/googleworkspace/cli/releases) · [RFC 5322](https://www.rfc-editor.org/info/rfc5322/)
 - Companions: [gws](../gws/SKILL.md) (Gmail mechanics and other services), [clipboard](../clipboard/SKILL.md) (copy text for another mail client).

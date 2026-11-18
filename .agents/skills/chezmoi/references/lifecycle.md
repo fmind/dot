@@ -6,7 +6,7 @@ Operational details for hooks, modifiers, externals, systemd units, Neovim, and 
 
 - **Repeatable modifiers**: test existing-target and second-pass behavior in `tests/` — Bash/profile modifiers (`managed-block.tmpl`) in `test_shell_modifiers.py` and JSON/TOML modifiers (`config-merge.tmpl`) in `test_harness_config.py`.
 - **`run_*` scripts**: plain hooks execute every apply; `once_` and `onchange_` rerun only when template/content hashes change.
-- **Linux user timers (`dot_config/systemd/user/`)**: `run_onchange_after_systemd-user-reload.sh.tmpl` tracks sha256 hashes of `antigravity-cli-daemon.service.d/path.conf` and `antigravity-cli-daemon-update.{service,timer}`, runs `systemctl --user daemon-reload`, and starts the update timer while printing a manual restart hint for `antigravity-cli-daemon.service` (never auto-restarts it because Remote Control sessions may run inside).
+- **Linux user timers (`dot_config/systemd/user/`)**: enable timers via `timers.target.wants` symlinks; `run_onchange_after_systemd-user-reload.sh.tmpl` tracks sha256 hashes of `antigravity-cli-daemon.service.d/path.conf` and `antigravity-cli-daemon-update.{service,timer}`, runs `systemctl --user daemon-reload`, and starts the update timer while printing a manual restart hint for `antigravity-cli-daemon.service` (never auto-restarts it because Remote Control sessions may run inside).
 
 ## Managed workstation targets
 

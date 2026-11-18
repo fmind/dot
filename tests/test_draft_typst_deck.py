@@ -525,6 +525,30 @@ def test_upload_cli_converts_pptx_to_google_slides_and_syncs_sources(
     assert out["slide_count"] == 1
     assert out["synced_sources"] == [{"name": "deck.typ", "file_id": "src_deck.typ", "operation": "created"}]
 
+    # Updating --file-id without Drive `parents` returns a structured warning instead of failing post-mutation.
+    monkeypatch.setattr(
+        mod,
+        "_run_gws",
+        lambda args, **_kw: (
+            {"id": "slides_123"}
+            if args[:3] == ["drive", "files", "update"]
+            else {"id": "slides_123", "mimeType": mod.GOOGLE_SLIDES_MIME, "trashed": False}
+            if args[:3] == ["drive", "files", "get"]
+            else {"presentationId": "slides_123", "slides": [{"objectId": "p1"}]}
+        ),
+    )
+    assert (
+        mod.main(
+            ["upload", str(pptx), "--file-id", "slides_123", "--google-slides", "--source-dir", str(src_dir), "--json"]
+        )
+        == 0
+    )
+    captured = capsys.readouterr()
+    warn_out = json.loads(captured.out)
+    assert "Drive returned no parent folder" in warn_out["warning"]
+    assert "Warning: Skipped 1 source upload(s)" in captured.err
+    assert "synced_sources" not in warn_out
+
     # Trashed or slide-count-mismatched Slides read-back fails closed.
     monkeypatch.setattr(
         mod,

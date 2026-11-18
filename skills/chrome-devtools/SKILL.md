@@ -1,6 +1,6 @@
 ---
 name: chrome-devtools
-description: "Debug Chrome with DevTools MCP or its CLI: console, network, performance, accessibility."
+description: "Debug Chrome with DevTools MCP or CLI: viewport screenshots, console, network, CWV/Lighthouse, accessibility, memory."
 license: MIT
 metadata:
   kind: connector

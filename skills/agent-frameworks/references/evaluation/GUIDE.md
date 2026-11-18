@@ -5,7 +5,7 @@ description: "Evaluate prompt, model, retrieval, and agent changes with graded m
 
 # Agent Evaluation
 
-Test whether a stochastic candidate improves observable outcomes under comparable conditions. [Agent frameworks](../../SKILL.md#system-prompts) owns prompt layering; [python-testing](../../../python-stack/references/python-testing/GUIDE.md) owns deterministic proof. Reuse the project or provider's evaluation workflow.
+Test whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../system-prompts.md) owns prompt layering; [python-testing](../../../python-stack/references/python-testing/GUIDE.md) owns deterministic proof. Reuse the project or provider's evaluation workflow.
 
 ## Workflow
 

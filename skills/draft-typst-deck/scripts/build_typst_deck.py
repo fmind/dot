@@ -305,6 +305,8 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 def run_upload(args: argparse.Namespace) -> dict[str, Any]:
     """Validate .pdf or .pptx bytes, stage in a private tempdir, upload via gws, and verify read-back."""
     result = upload_deck_artifact(args, run_gws_fn=_run_gws)
+    if warning := result.get("warning"):
+        sys.stderr.write(f"Warning: {warning}\n")
     _emit(result, json_output=args.json_output)
     return result
 

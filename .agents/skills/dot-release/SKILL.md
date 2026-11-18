@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-11-15"
+  updated: "2026-11-17"
 ---
 
 # Dot Release
@@ -39,5 +39,5 @@ Qualify `fmind/dot` and ship releases through `mise run release`. Run **Qualific
 
 ## Documentation
 
-- Releases: [fmind/dot](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
+- [git-cliff](https://git-cliff.org/docs/) · [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) · [fmind/dot releases](https://github.com/fmind/dot/releases) · [changelog](https://github.com/fmind/dot/blob/main/CHANGELOG.md)
 - Companions: [dot-development](../dot-development/SKILL.md), [commit messages](../../../skills/git-delivery/SKILL.md#commit-messages).

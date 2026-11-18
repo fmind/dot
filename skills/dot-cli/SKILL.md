@@ -1,13 +1,13 @@
 ---
 name: dot-cli
-description: "Operate dot: context, doctor, login, pull, stats, status, and trust."
+description: "Operate dot and with-secret: context, doctor/headroom, logins, pull, token stats, status, trust."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-11-15"
+  updated: "2026-11-18"
 ---
 
 # Dot CLI
@@ -26,7 +26,7 @@ Use `dot` for bounded repository checks, workstation diagnostics, provider login
 
 - [agent-usage](references/agent-usage.md): Report agent token usage, costs, and API equivalents from session archives or DuckDB.
 - [authentication](references/authentication.md): Reconcile configured provider logins, OAuth scopes, one-off grants, and scoped secrets.
-- [context](references/context.md): Measure discovery and instruction budgets in source or installed skill catalogs.
+- [context](references/context.md): Measure instruction, skill, and subagent discovery budgets in source or installed catalogs.
 - [contracts](references/contracts.md): Resolve configuration, JSON output, exit codes, and session archive compatibility.
 - [daily-workflows](references/daily-workflows.md): Run workstation doctor, repo status/pull, folder trust, session stats, and completions.
 - [disk-space](references/disk-space.md): Audit disk headroom, cache growth, and shared tool versions before large builds or downloads.

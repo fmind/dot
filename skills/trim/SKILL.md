@@ -1,6 +1,6 @@
 ---
 name: trim
-description: "Shorten docs, prompts, skills, or configs without losing meaning or behavior."
+description: "Shorten verbose docs, prompts, skills, or configs to cut tokens without losing meaning or behavior."
 license: MIT
 metadata:
   kind: task
@@ -12,7 +12,7 @@ metadata:
 
 # Trim
 
-Handle `/trim <path>` or verbosity complaints by cutting words, lines, and settings that carry nothing while keeping every fact, behavior, and the author's voice. For rewriting external communication for signal and visual hierarchy, use [humanize](../humanize/SKILL.md); for code dead-code/abstractions, use [full-review](../full-review/SKILL.md) (trim code only with behavior tests).
+Cut words, lines, and settings that carry nothing while keeping every fact, behavior, and the author's voice. For rewriting external communication for signal and visual hierarchy, use [humanize](../humanize/SKILL.md); for code dead-code/abstractions, use [full-review](../full-review/SKILL.md) (trim code only with behavior tests).
 
 ## Workflow
 
@@ -35,4 +35,5 @@ Handle `/trim <path>` or verbosity complaints by cutting words, lines, and setti
 
 ## Documentation
 
-- Companions: [humanize](../humanize/SKILL.md), [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/SKILL.md#system-prompts).
+- [yq](https://mikefarah.gitbook.io/yq) · [Vale](https://docs.vale.sh/) · [Agent Skills specification](https://agentskills.io/specification)
+- Companions: [humanize](../humanize/SKILL.md), [repository-docs](../repository-docs/SKILL.md), [skillify](../skillify/SKILL.md), [system-prompts](../agent-frameworks/references/system-prompts.md).

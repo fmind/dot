@@ -29,3 +29,7 @@ Typst compiles to PDF, Retina PNG, SVG, and queryable metadata rather than nativ
    - **PDF / binary `.pptx`**: verifies remote `md5Checksum` + byte `size`.
    - **`--google-slides`**: verifies Drive `mimeType == application/vnd.google-apps.presentation`, `trashed == false`, and `gws slides presentations get` slide count matching local `.pptx`.
 1. Check ACLs with `gws drive permissions list` and get explicit approval before widening sharing.
+
+## Documentation
+
+- [Google Slides API](https://developers.google.com/workspace/slides/api/guides/presentations) · [Drive upload guide](https://developers.google.com/workspace/drive/api/guides/manage-uploads)

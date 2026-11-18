@@ -9,12 +9,12 @@ Default for new reusable templates; keep existing `.cruft.json` checkouts on leg
 
 ## Workflow
 
-1. **Review before running**: inspect `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions at an immutable commit. Keep `--trust` off unless executable features are reviewed and authorized. Require Copier `>=9.19.0` (earlier versions have untrusted-execution/prefix [advisories](https://github.com/copier-org/copier/security/advisories)).
-1. **Author `copier.yml`**: start from [copier.yml](../templates/copier.yml) with `_min_copier_version: "9.19.0"`, `_subdirectory: template` (so Copier never copies template-repo `.github/`, `tests/`, or lockfiles into generated projects), typed validators, `.jinja` suffixes, `_envops: {undefined: jinja2.StrictUndefined}`, and `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` for provenance. Never store secrets in answers or examples.
+1. **Review before running**: inspect `copier.yml`, rendered paths, tasks, migrations, and Jinja extensions at an immutable commit. Keep `--trust` off unless executable features are reviewed and authorized. Require Copier `>=9.19.1` (`uvx --from 'copier>=9.19.1' copier ...`, or project-pinned in `mise.toml`; earlier versions have untrusted-execution/prefix [advisories](https://github.com/copier-org/copier/security/advisories)).
+1. **Author `copier.yml`**: start from [copier.yml](../templates/copier.yml) with `_min_copier_version: "9.19.1"`, `_subdirectory: template` (so Copier never copies template-repo `.github/`, `tests/`, or lockfiles into generated projects), typed validators, `.jinja` suffixes, `_envops: {undefined: jinja2.StrictUndefined}`, and `{{ _copier_conf.answers_file }}.jinja` rendering `{{ _copier_answers | to_nice_yaml }}` for provenance. Never store secrets in answers or examples.
 1. **Generate into a fresh disposable directory**:
 
    ```bash
-   copier copy --defaults --vcs-ref <reviewed-commit> --data slug=demo-app --data holder=Example --data description=Demo . ./generated
+   uvx --from 'copier>=9.19.1' copier copy --defaults --vcs-ref <reviewed-commit> --data slug=demo-app --data holder=Example --data description=Demo . ./generated
    ```
 
 1. **Verify output**: check paths, contents, modes, and provenance across default, non-default, and invalid answers, then run the generated project's gate.

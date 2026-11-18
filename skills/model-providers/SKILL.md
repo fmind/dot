@@ -1,6 +1,6 @@
 ---
 name: model-providers
-description: "Choose models and configure access via GCP Agent Platform, Gemini API, or OpenRouter."
+description: "Choose models and configure access via GCP Agent Platform, Gemini, Anthropic/Claude, OpenAI, OpenRouter, or LangExtract."
 license: MIT
 metadata:
   kind: collection
@@ -25,9 +25,9 @@ Configure provider auth, endpoints, and model selection. Default new integration
 
 Steer current models via instructions, thinking/effort levels, and native structured output:
 
-- **Omit sampling parameters and prefill**: Gemini 3.6+ and Gemini 4 ignore `temperature`/`top_p`/`top_k` (deprecation headers now; future HTTP 400) and reject prefilled trailing `model` turns with 400; Claude returns 400 on assistant prefill and sampling parameters (all models from Anthropic API `2026-10-21`).
-- **Never force Claude tool calls**: Claude Opus 5.5, Sonnet 5.5, and Fable 5.1+ return 400 on `tool_choice` `any` or `tool`—use `auto` with `strict: true` tools, or structured output for JSON.
-- **Keep prefixes byte-stable and append-only**: static system text + tools first, dynamic context (date, retrieval, memory) in later turns; mutating prior turns breaks caching and invalidates thinking blocks on Claude Opus 5.5, Sonnet 5.5, and Fable 5.1+ (HTTP 400 on accounts created since 2026-08-31).
+- **Omit sampling parameters and prefill**: Gemini 3.6+ / 4 and Claude (`2026-10-21+`) reject prefilled assistant turns with HTTP 400 and deprecate or reject `temperature`/`top_p`/`top_k`.
+- **Never force Claude tool calls**: Claude 5.x returns 400 on `tool_choice` `any` or `tool`—use `auto` with `strict: true` tools, or structured output ([anthropic-sdk](references/anthropic-sdk.md)).
+- **Keep prefixes byte-stable and append-only**: static system text + tools first, dynamic context in later turns; mutating prior turns breaks caching and invalidates Claude 5.x thinking blocks (HTTP 400).
 
 ## Task guides
 
@@ -41,3 +41,9 @@ Steer current models via instructions, thinking/effort levels, and native struct
 - [openrouter](references/openrouter.md): OpenRouter model routing, API key authentication, and OpenAI-compatible requests.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [GCP Agent Platform models](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models) · [Google Gen AI SDK](https://googleapis.github.io/python-genai/) · [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-python) · [OpenAI SDK](https://github.com/openai/openai-python) · [OpenRouter](https://openrouter.ai/docs/quickstart) · [LangExtract](https://github.com/google/langextract)
+- Releases: [Agent Platform release notes](https://docs.cloud.google.com/gemini-enterprise-agent-platform/release-notes) · [python-genai](https://github.com/googleapis/python-genai/releases)
+- Companions: [agent-frameworks](../agent-frameworks/SKILL.md), [gcloud](../gcloud/SKILL.md), [dot-cli](../dot-cli/SKILL.md).

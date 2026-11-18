@@ -1,6 +1,6 @@
 ---
 name: agy
-description: "Operate Antigravity's agy CLI, Remote Control, settings, and Python SDK."
+description: "Operate Antigravity's agy CLI, headless reviews, Remote Control, statusline, settings, and SDK."
 license: MIT
 metadata:
   kind: connector
@@ -25,3 +25,8 @@ Operate Antigravity via its CLI or Python SDK; load every matching guide and lin
 - [statusline](references/statusline.md): Change or diagnose the managed agy status line and terminal title renderer.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [CLI reference](https://antigravity.google/docs/cli/reference/) · [Python SDK](https://antigravity.google/docs/sdk/overview/) · [Remote Control](https://antigravity.google/docs/remote-control/) · [Changelog](https://antigravity.google/docs/changelog)
+- Companions: [agent-harnesses](../agent-harnesses/SKILL.md), [task-prompts](../task-prompts/SKILL.md), [subagent](../subagent/SKILL.md), [dot-cli](../dot-cli/SKILL.md).

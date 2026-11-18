@@ -37,3 +37,7 @@ Typst treats **content blocks (`[...]`)**, **string literals (`"..."`)**, and **
 | Content block   | `[Cost: \~5 \$]` | Escape markup specials `\$`, `\*`, `\~`; single `*b*` | `[Cap: *\$200*]`       |
 
 `build_typst_deck.py check` and `render` fail automatically on bad escapes and empty `*bold*` star warnings.
+
+## Documentation
+
+- [Typst visualize](https://typst.app/docs/reference/visualize/) · [Typst layout](https://typst.app/docs/reference/layout/) · [fmind/theme DESIGN.md](https://github.com/fmind/theme/blob/main/DESIGN.md)

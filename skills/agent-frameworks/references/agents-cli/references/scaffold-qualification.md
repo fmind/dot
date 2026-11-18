@@ -1,6 +1,6 @@
 # Full scaffold qualification
 
-The full ADK scaffold is a new-project default, not deployment or content-logging approval. Preserve user choices and existing project architecture.
+The full ADK scaffold is an opt-in enterprise template (Agent Runtime, Gateway, Terraform, BigQuery analytics), not a default for simple Cloud Run services or approval for deployment/content logging. Preserve user choices and existing project architecture.
 
 ## Rehearse before adopting changed flags
 

@@ -12,7 +12,7 @@ metadata:
 
 # Documentation Sites
 
-Use Zensical by default for project docs, courses, and blogs; keep an existing generator only when the project requires it or the user asks. [repository-docs](../repository-docs/SKILL.md) owns README and AGENTS consistency; [humanize](../humanize/SKILL.md) owns clear, scannable prose and Zensical visual blocks (`==mark==`, `!!!`/`???` admonitions, `===` tabs, grid cards — never GitHub `> [!IMPORTANT]`).
+Use Zensical by default for project docs, courses, and blogs; keep an existing generator only when the project requires it or the user asks. [repository-docs](../repository-docs/SKILL.md) owns README and AGENTS consistency; [humanize](../humanize/SKILL.md) and [authoring](references/authoring.md) own scannable prose and Zensical visual blocks.
 
 ## Workflow
 

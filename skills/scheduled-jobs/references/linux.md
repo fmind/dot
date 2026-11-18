@@ -1,6 +1,6 @@
 # Linux User Timers
 
-Verify directives against installed `systemctl --version` and `man systemd.{timer,service}`. Use `systemctl --user` without `sudo` or silent lingering, keeping paired `<name>.service` and `<name>.timer` in the repo (`dot_config/systemd/user/` -> `~/.config/systemd/user/`):
+Verify directives against installed `systemctl --version` and `man systemd.{timer,service}`. Use `systemctl --user` without `sudo` or silent lingering, keeping paired `<name>.service` and `<name>.timer` in the repo (installed under `~/.config/systemd/user/`):
 
 ```ini
 # https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html

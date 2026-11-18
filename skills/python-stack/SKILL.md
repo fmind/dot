@@ -23,7 +23,7 @@ Load the matching guide(s) for every active concern (e.g., domain guide + [pydan
 <!-- guides:start -->
 
 - [api-client](references/api-client/GUIDE.md): Build typed Python HTTPX API clients with bounded pagination and retries.
-- [argparse](references/argparse/GUIDE.md): Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Typer CLIs.
+- [argparse](references/argparse/GUIDE.md): Design CLI contracts (commands, flags, streams, exit codes, JSON) and build Python argparse or Cyclopts CLIs.
 - [foundation](references/foundation/GUIDE.md): Python package layout, PyPI distribution metadata, dependency choices, uv/Ruff/ty tooling, and project scaffolding.
 - [observability](references/observability.md): Instrument Python services and agents: structlog logs, OpenTelemetry traces and metrics.
 - [performance](references/performance.md): Profile Python CPU and memory, and benchmark commands and HTTP load with hyperfine, oha, or Locust.
@@ -33,3 +33,8 @@ Load the matching guide(s) for every active concern (e.g., domain guide + [pydan
 - [python-testing](references/python-testing/GUIDE.md): Write Python tests with pytest, fixtures, property and mutation tests.
 
 <!-- guides:end -->
+
+## Documentation
+
+- [Python 3](https://docs.python.org/3/) · [uv](https://docs.astral.sh/uv/) · [Ruff](https://docs.astral.sh/ruff/) · [ty](https://docs.astral.sh/ty/) · [Pydantic](https://pydantic.dev/docs/validation/latest/get-started/) · [pytest](https://docs.pytest.org/en/stable/) · [Cyclopts](https://cyclopts.readthedocs.io/en/stable/) · [HTTPX2](https://pydantic.dev/docs/httpx2/get-started/) · [stamina](https://stamina.hynek.me/) · [structlog](https://www.structlog.org/en/stable/) · [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/)
+- Companions: [python-web](../python-web/SKILL.md), [python-mlops](../python-mlops/SKILL.md), [agent-frameworks](../agent-frameworks/SKILL.md), [mise](../mise/SKILL.md), [project-scaffolding](../project-scaffolding/SKILL.md).
