@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.4.0] - 2026-11-18
+
+### 🚀 Features
+
+- _(dot)_ Harden sqlite archive sync, doctor headroom, and oauth flows
+- _(agents)_ Split architecture and estimate reviewers and harden permissions
+
+### 📚 Documentation
+
+- _(skills)_ Refine skill contracts, references, and repository docs
+
+### 🧹 Miscellaneous
+
+- _(git)_ Add new machine signing key and retire old macbook key
+- _(tools)_ Update mise lockfiles, harness configs, and shell env
+
 ## [17.3.0] - 2026-11-17
 
 ### 🚀 Features
