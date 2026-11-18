@@ -3,5 +3,5 @@
        OpenCode 2.x reads only the global cli.json, which the client also writes; it migrates
        tui.json once, only while cli.json is absent. OpenCode reports session attention to
        Zellij via OSC 7501; desktop notifications and sounds stay off. */ -}}
-{{- $managedConfig := dict "$schema" "https://opencode.ai/v2/cli.json" "theme" (dict "name" "fmind") "attention" (dict "notifications" false "sound" false) -}}
+{{- $managedConfig := dict "$schema" "https://opencode.ai/v2/cli.json" "animations" false "attention" (dict "notifications" false "sound" false) "highlights" false "theme" (dict "name" "fmind") -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managedConfig "format" "jsonc") -}}

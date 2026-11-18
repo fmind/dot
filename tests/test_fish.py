@@ -52,6 +52,7 @@ def test_fish_aliases_load_without_errors() -> None:
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=False,
     )
@@ -73,8 +74,10 @@ def test_fish_paths_keep_homebrew_ahead_of_usr_local(tmp_path: Path) -> None:
         [fish, "--command", "source dot_config/fish/conf.d/paths.fish; string join \\n -- $PATH"],
         cwd=root,
         env={**os.environ, "PATH": f"{usr_local}:/usr/bin:/bin:{homebrew}", "XDG_CONFIG_HOME": str(tmp_path)},
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=False,
     )
@@ -130,6 +133,7 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=30,
         check=False,
     )
@@ -156,6 +160,7 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=True,
     )
@@ -166,14 +171,14 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=True,
     )
     before = dict(entry.split("=", 1) for entry in baseline.stdout.split("\0") if "=" in entry)
     after = dict(entry.split("=", 1) for entry in sourced.stdout.split("\0") if "=" in entry)
     exported = {key: value for key, value in after.items() if before.get(key) != value and key not in SHELL_ONLY_ENV}
-    assert exported
-    assert {key: mise_env.get(key) for key in exported} == exported
+    assert exported == mise_env
 
 
 def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path: Path) -> None:
@@ -186,6 +191,7 @@ def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path:
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=True,
     )
@@ -199,6 +205,7 @@ def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path:
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=True,
     )
@@ -242,6 +249,7 @@ def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path:
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
         check=True,
     )
@@ -268,7 +276,7 @@ def test_shell_secret_exports_are_retired() -> None:
     # Any `set` that exports (-x, -gx, -g -x, --export) a token-like name is a regression.
     export = re.compile(r"\bset\s+(?:-{1,2}\w+\s+)*?(?:-\w*x\w*|--export)\s+(?:-{1,2}\w+\s+)*\w*(TOKEN|API_KEY)")
     for script in (root / "dot_config/fish").rglob("*.fish*"):
-        assert not export.search(script.read_text()), script
+        assert not export.search(script.read_text(encoding="utf-8")), script
 
 
 def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path) -> None:
@@ -308,6 +316,7 @@ def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path)
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=15,
             check=False,
         )
@@ -329,6 +338,7 @@ def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path)
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=15,
         check=False,
     )

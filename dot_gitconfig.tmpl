@@ -12,6 +12,7 @@
     co = checkout
     cp = cherry-pick
     d = diff
+    dft = -c diff.external=difft diff
     dt = difftool --dir-diff
     f = fetch
     l = log --oneline --graph --all
@@ -38,6 +39,14 @@
     # merge/rebase --continue keeps git's prepared message instead of hanging on nvim.
     editor = "f() { if [ -t 0 ] && [ -t 1 ]; then exec nvim \"$@\"; fi; }; f"
     pager = delta --paging=never
+
+[credential "https://gist.github.com"]
+    helper =
+    helper = {{ printf "!%s auth git-credential" (joinPath .chezmoi.homeDir ".local/share/mise/shims/gh" | shellQuote) | quote }}
+
+[credential "https://github.com"]
+    helper =
+    helper = {{ printf "!%s auth git-credential" (joinPath .chezmoi.homeDir ".local/share/mise/shims/gh" | shellQuote) | quote }}
 
 [delta]
     features = side-by-side

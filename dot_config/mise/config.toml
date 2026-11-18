@@ -46,6 +46,8 @@ COPILOT_ALLOW_ALL = "1"
 COPILOT_AUTO_UPDATE = "false"
 # Copilot-owned GitHub and Entra authentication telemetry; no settings key covers it.
 COPILOT_TELEMETRY_DISABLED = "true"
+# Keep gws off the macOS Keychain (avoiding per-binary partition prompts and split keyring backends across tools).
+GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND = "file"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Skip hf's PyPI/extension update checks, /api/agent-harnesses fetch, and hf-cli skill hint.
 HF_HUB_DISABLE_UPDATE_CHECK = "1"
@@ -78,7 +80,7 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 # OpenCode 2.x ships through npm (the mise registry moved here from aqua). mise skips its postinstall, which links
 # the locked platform binary that fits this CPU into bin/; run it offline so it never fetches an unlocked package.
 "npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' }
-# Beta-only upstream (npm latest is 1.0.0-beta.N): a deliberate exception to latest-stable until 1.0.0.
+# Pre-release upstream (1.0.0-beta.N / 1.0.0-rc.N): a deliberate exception to latest-stable until 1.0.0.
 "npm:cf" = "latest"
 "npm:skills" = "latest"
 # Bind pypi tools to the global Python minor so project python pins neither re-hash them nor hit missing 3.15 wheels.
@@ -109,6 +111,7 @@ copilot = "latest"
 cosign = "latest" # Keyless Sigstore OCI signing/verification outside projects; projects pin their own
 databricks-cli = "latest"
 delta = "latest"
+difftastic = "latest" # AST-aware structural diffs via git dft across repositories
 docker-cli = { version = "latest", os = ["macos"] }
 docker-compose = { version = "latest", os = ["macos"] }
 doggo = "latest"
@@ -122,6 +125,7 @@ gcloud = "latest"
 gh = "latest"
 git-cliff = "latest"
 git-lfs = "latest"
+hurl = "latest" # Declarative HTTP smoke assertions outside projects; projects pin their own
 hyperfine = "latest"
 imagemagick = "latest" # snacks.nvim non-PNG image previews in Neovim
 jactionlint = "latest"
@@ -161,6 +165,15 @@ yazi = "latest"
 yq = "latest"
 zellij = "latest"
 zoxide = "latest"
+
+[tools."github:databricks/genie-code-cli"]
+# Upstream ships .sha256 sidecars and Windows archives; select target tarballs explicitly.
+version = "latest" # Databricks Genie Code CLI (genie)
+
+[tools."github:databricks/genie-code-cli".platforms]
+linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl.tar.gz" }
+linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl.tar.gz" }
+macos-arm64 = { asset_pattern = "*aarch64-apple-darwin.tar.gz" }
 
 [tools."github:googleworkspace/cli"]
 # Upstream ships glibc and musl assets side by side; select musl explicitly for portability.

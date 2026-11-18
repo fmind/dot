@@ -1,15 +1,17 @@
 # chezmoi:modify-template
 {{- /* Docs: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
        Host model/UI choices survive apply; mise owns updates. askUser lets autopilot pause on
-       unclear requirements; connectors, remoteExport, remoteSessions, and storeTokenPlaintext stay
-       off for session/credential isolation; worktreeBaseRef pins clean worktrees to HEAD. */ -}}
+       unclear requirements; connectors, memory, remote org custom agents, IDE auto-connect,
+       remoteExport, remoteSessions, and storeTokenPlaintext stay off for session/credential
+       isolation; planEffortLevel seeds high reasoning in plan mode; worktreeBaseRef pins HEAD. */ -}}
 {{- $defaults := fromJson `
 {
   "banner": "never",
   "contextTier": "long_context",
   "effortLevel": "high",
   "keepAlive": "busy",
-  "model": "auto"
+  "model": "auto",
+  "planEffortLevel": "high"
 }
 ` -}}
 {{- $managedConfig := fromJson `
@@ -18,10 +20,17 @@
   "autoUpdate": false,
   "connectors": false,
   "continueOnAutoMode": true,
+  "customAgents": {
+    "defaultLocalOnly": true
+  },
   "defaultMode": "autopilot",
   "defaultPermissionMode": "allow-all",
   "editorMode": "vim",
+  "ide": {
+    "autoConnect": false
+  },
   "includeCoAuthoredBy": false,
+  "memory": false,
   "notifications": false,
   "remoteExport": false,
   "remoteSessions": false,

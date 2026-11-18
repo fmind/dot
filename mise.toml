@@ -201,6 +201,7 @@ run = [
 
 [tasks."check:supagents"]
 description = "Validate cross-harness subagent sources and generated configurations"
+wait_for = ["format:supagents"]
 run = "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
 
 [tasks."check:tasks"]

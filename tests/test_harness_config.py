@@ -150,6 +150,10 @@ class HarnessConfigTests(unittest.TestCase):
             "advisorModel": "opus",
             "teammateDefaultModel": "sonnet",
             "autoDreamEnabled": True,
+            "autoInstallIdeExtension": True,
+            "disableDeepLinkRegistration": "default",
+            "fastModePerSessionOptIn": False,
+            "spinnerTipsEnabled": True,
             "skillListingMaxDescChars": 3000,
             "env": {
                 "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
@@ -174,6 +178,10 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["syncClaudeAiSkills"] is False
         assert data["syncClaudeAiPlugins"] is False
         assert data["disableClaudeAiConnectors"] is True
+        assert data["autoInstallIdeExtension"] is False
+        assert data["disableDeepLinkRegistration"] == "disable"
+        assert data["fastModePerSessionOptIn"] is True
+        assert data["spinnerTipsEnabled"] is False
         assert data["model"] == "host-model[1m]"
         assert data["effortLevel"] == "xhigh"
         assert data["remoteControlAtStartup"] is False
@@ -183,6 +191,10 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
         assert fresh["model"] == "fable"
         assert fresh["remoteControlAtStartup"] is True
+        assert fresh["autoInstallIdeExtension"] is False
+        assert fresh["disableDeepLinkRegistration"] == "disable"
+        assert fresh["fastModePerSessionOptIn"] is True
+        assert fresh["spinnerTipsEnabled"] is False
         # Opus 5.5 ignores the top-level effortLevel, so effort is seeded per model.
         assert "effortLevel" not in fresh
         assert fresh["modelSettings"]["claude-opus-5-5"] == {"effortLevel": "high"}
@@ -199,22 +211,29 @@ class HarnessConfigTests(unittest.TestCase):
         template = "dot_config/private_opencode/modify_private_opencode.json"
         original = {
             "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
+            "autoupdate": True,
             "compaction": {"reserved": 300000, "protect": ["skill"]},
             "experimental": {"batch_tool": True, "continue_loop_on_deny": True, "mcp_timeout": 120000},
             "model": "google-vertex/gemini-3.8-flash",
+            "permission": "allow",
+            "permissions": [{"action": "shell", "resource": "git push *", "effect": "ask"}],
             "provider": {
                 "google-vertex": {"options": {"timeout": 90000}},
                 "openrouter": {"options": {"timeout": 60000}},
             },
+            "update": "notify",
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         assert data["model"] == "google-vertex/gemini-3.8-flash"
         assert data["small_model"] == "openrouter/google/gemini-4-hydrogen"
         assert data["share"] == "disabled"
-        assert data["autoupdate"] is False
+        assert "autoupdate" not in data
+        assert data["update"] == "disable"
         assert data["provider"]["openrouter"]["options"] == {"timeout": 60000}
-        assert data["permission"] == "allow"
+        # Legacy 1.x `permission: "allow"` overrode built-in plan/explore denies in 2.x; retire it while keeping 2.x `permissions`.
+        assert "permission" not in data
+        assert data["permissions"] == original["permissions"]
         assert data["agent"] == original["agent"]
         # 2.x dropped compaction.prune; replacing compaction retires it from deployed files.
         assert data["compaction"] == {"auto": True}
@@ -226,8 +245,18 @@ class HarnessConfigTests(unittest.TestCase):
         assert "policies" not in data
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
-        assert fresh["model"] == "openrouter/google/gemini-4-hydrogen"
-        assert fresh["small_model"] == "openrouter/google/gemini-4-hydrogen"
+        assert fresh == {
+            "$schema": "https://opencode.ai/config.json",
+            "compaction": {"auto": True},
+            "formatter": True,
+            "model": "openrouter/google/gemini-4-hydrogen",
+            "share": "disabled",
+            "small_model": "openrouter/google/gemini-4-hydrogen",
+            "update": "disable",
+        }
+        legacy_map = json.loads(self.render(template, json.dumps({"permission": {"*": "allow", "bash": "ask"}})))
+        assert "permission" not in legacy_map
+        assert "permissions" not in legacy_map
 
     def test_opencode_keeps_credentials_out_of_rendered_config(self):
         data = json.loads(
@@ -242,15 +271,31 @@ class HarnessConfigTests(unittest.TestCase):
 
     def test_opencode_cli_merge_preserves_client_preferences(self):
         template = "dot_config/private_opencode/modify_cli.json"
-        original = {"keybinds": {"leader": "ctrl+a"}, "theme": {"mode": "dark"}, "scroll": {"speed": 2}}
+        original = {
+            "animations": True,
+            "highlights": True,
+            "keybinds": {"leader": "ctrl+a"},
+            "theme": {"mode": "dark"},
+            "scroll": {"speed": 2},
+        }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         assert data["$schema"] == "https://opencode.ai/v2/cli.json"
+        assert data["animations"] is False
+        assert data["highlights"] is False
         assert data["theme"] == {"name": "fmind", "mode": "dark"}
         assert data["attention"] == {"notifications": False, "sound": False}
         assert data["keybinds"] == original["keybinds"]
         assert data["scroll"] == original["scroll"]
         assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert fresh == {
+            "$schema": "https://opencode.ai/v2/cli.json",
+            "animations": False,
+            "attention": {"notifications": False, "sound": False},
+            "highlights": False,
+            "theme": {"name": "fmind"},
+        }
 
     def test_json_merge_preserves_mcp_and_unmanaged_hook_events(self):
         for template in [
@@ -273,7 +318,11 @@ class HarnessConfigTests(unittest.TestCase):
         original = {
             "model": "account-model",
             "effortLevel": "medium",
+            "planEffortLevel": "medium",
             "banner": "always",
+            "customAgents": {"defaultLocalOnly": False, "extra": "kept"},
+            "ide": {"autoConnect": True, "openDiffOnEdit": False},
+            "memory": True,
             "notifications": True,
             "askUser": False,
             "autoUpdate": True,
@@ -285,9 +334,13 @@ class HarnessConfigTests(unittest.TestCase):
         data = json.loads(rendered)
         assert data["model"] == original["model"]
         assert data["effortLevel"] == original["effortLevel"]
+        assert data["planEffortLevel"] == original["planEffortLevel"]
         assert data["banner"] == original["banner"]
         assert data["trusted_folders"] == []
         assert data["customOption"] is False
+        assert data["customAgents"] == {"defaultLocalOnly": True, "extra": "kept"}
+        assert data["ide"] == {"autoConnect": False, "openDiffOnEdit": False}
+        assert data["memory"] is False
         assert data["notifications"] is False
         assert data["askUser"] is True
         assert data["autoUpdate"] is False
@@ -297,6 +350,10 @@ class HarnessConfigTests(unittest.TestCase):
         fresh = json.loads(self.render(template, ""))
         assert fresh["model"] == "auto"
         assert fresh["effortLevel"] == "high"
+        assert fresh["planEffortLevel"] == "high"
+        assert fresh["customAgents"] == {"defaultLocalOnly": True}
+        assert fresh["ide"] == {"autoConnect": False}
+        assert fresh["memory"] is False
         # Base-16 terminal colors follow the Ghostty palette.
         assert fresh["theme"] == "default"
 
@@ -311,12 +368,16 @@ class HarnessConfigTests(unittest.TestCase):
             "runningLightSpeed": "slow",
             "colorScheme": "dark",
             "showFeedbackSurvey": True,
+            "showTips": True,
             "accountOption": False,
         }
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         for key, value in original.items():
-            assert data[key] == value
+            if key not in {"showFeedbackSurvey", "showTips"}:
+                assert data[key] == value
+        assert data["showFeedbackSurvey"] is False
+        assert data["showTips"] is False
         assert data["editorMode"] == "vim"
         # Off is agy's default and agy drops a false value on save, so managing it only drifts.
         assert "notifications" not in data
@@ -330,8 +391,10 @@ class HarnessConfigTests(unittest.TestCase):
         fresh = json.loads(self.render(template, ""))
         assert fresh["pickerGrouping"] == "grouped"
         assert fresh["queuedMessages"] == "send-immediately"
+        assert fresh["showFeedbackSurvey"] is False
+        assert fresh["showTips"] is False
         assert fresh["verbosity"] == "high"
-        for key in ("model", "runningLightSpeed", "colorScheme", "showFeedbackSurvey"):
+        for key in ("model", "runningLightSpeed", "colorScheme"):
             assert key not in fresh
         assert "trustedWorkspaces" not in fresh  # dot trust owns folder trust.
 
@@ -463,7 +526,9 @@ class HarnessConfigTests(unittest.TestCase):
         target.parent.mkdir(parents=True)
         original = """{
           // Host-owned provider timeout, in OpenCode's supported JSONC format.
+          "autoupdate": true,
           "model": "openrouter/google/gemini-4-hydrogen",
+          "permission": "allow",
           "provider": {"openrouter": {"options": {"timeout": 65432}}},
         }"""
         environment = {
@@ -477,21 +542,54 @@ class HarnessConfigTests(unittest.TestCase):
         }
         # OpenCode 2.x answers through a server; --standalone runs a private one that exits with
         # the command, so the test never touches the workstation's background service.
-        for content in (original, self.render("dot_config/private_opencode/modify_private_opencode.json", original)):
+        merged = self.render("dot_config/private_opencode/modify_private_opencode.json", original)
+        for label, content in (("original", original), ("merged", merged)):
             target.write_text(content)
             result = subprocess.run(
                 [opencode, "debug", "config", "--standalone"],
                 env=environment,
                 cwd=self.home,
+                stdin=subprocess.DEVNULL,
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=20,
                 check=True,
             )
             # 2.x lists config sources and normalizes 1.x keys (provider.options -> providers.settings).
             [config] = [source["info"] for source in json.loads(result.stdout) if source.get("path") == str(target)]
             assert config["providers"]["openrouter"]["settings"]["timeout"] == 65432
             assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-4-hydrogen"}
+            if label == "original":
+                assert config.get("permissions") == [{"action": "*", "resource": "*", "effect": "allow"}]
+            else:
+                assert "permissions" not in config
+                assert config.get("update") == "disable"
+                assert "autoupdate" not in config
+
+        agents_run = subprocess.run(
+            [opencode, "debug", "agents", "--standalone"],
+            env=environment,
+            cwd=self.home,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=True,
+        )
+        agents = {item.get("id") or item["name"]: item["permissions"] for item in json.loads(agents_run.stdout)}
+        for (agent_name, action), expected_effect in (
+            (("build", "edit"), "allow"),
+            (("build", "shell"), "allow"),
+            (("plan", "read"), "allow"),
+            (("plan", "edit"), "deny"),
+            (("explore", "read"), "allow"),
+            (("explore", "edit"), "deny"),
+            (("explore", "subagent"), "deny"),
+        ):
+            matching = [
+                r["effect"] for r in agents[agent_name] if r["action"] in ("*", action) and r["resource"] == "*"
+            ]
+            assert matching[-1] == expected_effect, f"{agent_name}.{action}: got {matching!r}"
 
     def test_trust_hook_passes_source_path_literally_during_apply(self):
         executable = self.home / ".local/bin/dot"

@@ -11,6 +11,8 @@
   "artifactReviewPolicy": "always-proceed",
   "editorMode": "vim",
   "queuedMessages": "send-immediately",
+  "showFeedbackSurvey": false,
+  "showTips": false,
   "toolPermission": "always-proceed",
   "verbosity": "high",
   "vimInsertFirst": true

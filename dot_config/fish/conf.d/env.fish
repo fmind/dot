@@ -17,10 +17,22 @@ set -gx LESSHISTFILE -
 set -gx MANPAGER less
 set -gx PAGER bat
 
+# Mirror dot_config/mise/config.toml [env] so non-mise Fish sessions keep identical tool guards.
+set -gx AGENTS_CLI_TELEMETRY 0
+set -gx AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED true
+set -gx CF_SEND_TELEMETRY 0
+set -gx CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS 1
 # "1" auto-approves tools only; "true" would also trust every directory and its hooks, bypassing per-folder Copilot trust (~/.copilot/config.json).
 set -gx COPILOT_ALLOW_ALL 1
+set -gx COPILOT_AUTO_UPDATE false
+set -gx COPILOT_TELEMETRY_DISABLED true
+set -gx GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND file
+set -gx HF_HUB_DISABLE_TELEMETRY 1
+set -gx HF_HUB_DISABLE_UPDATE_CHECK 1
 # ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively.
 set -gx OPENCODE_DISABLE_CLAUDE_CODE_SKILLS 1
+set -gx PI_SKIP_VERSION_CHECK 1
+set -gx PI_TELEMETRY 0
 if test -r "$HOME/.config/glamour/fmind.json"
     set -gx GLAMOUR_STYLE "$HOME/.config/glamour/fmind.json"
 end
@@ -36,5 +48,6 @@ else if command -q chromium
 else if test -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     set -gx PUPPETEER_EXECUTABLE_PATH "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 end
-set -gx RIPGREP_CONFIG_PATH $HOME/.config/ripgrep/config
-set -gx TRIVY_CONFIG $HOME/.config/trivy/trivy.yaml
+set -gx RIPGREP_CONFIG_PATH "$HOME/.config/ripgrep/config"
+set -gx SONARQUBE_CLI_KEYCHAIN_FILE "$HOME/.sonar/sonarqube-cli/tokens.json"
+set -gx TRIVY_CONFIG "$HOME/.config/trivy/trivy.yaml"
