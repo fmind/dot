@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [17.5.0] - 2026-11-19
+
+### 🚀 Features
+
+- _(agents)_ Enforce progressive disclosure and plain-English stakeholder defaults
+- _(zellij)_ Enable desktop turn notifications across Zellij and harnesses
+
 ## [17.4.0] - 2026-11-18
 
 ### 🚀 Features
