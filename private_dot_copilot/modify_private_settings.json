@@ -31,7 +31,7 @@
   },
   "includeCoAuthoredBy": false,
   "memory": false,
-  "notifications": false,
+  "notifications": true,
   "remoteExport": false,
   "remoteSessions": false,
   "respectGitignore": false,

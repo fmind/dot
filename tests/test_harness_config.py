@@ -284,7 +284,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["animations"] is False
         assert data["highlights"] is False
         assert data["theme"] == {"name": "fmind", "mode": "dark"}
-        assert data["attention"] == {"notifications": False, "sound": False}
+        assert data["attention"] == {"notifications": True, "sound": False}
         assert data["keybinds"] == original["keybinds"]
         assert data["scroll"] == original["scroll"]
         assert self.render(template, rendered) == rendered
@@ -292,7 +292,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh == {
             "$schema": "https://opencode.ai/v2/cli.json",
             "animations": False,
-            "attention": {"notifications": False, "sound": False},
+            "attention": {"notifications": True, "sound": False},
             "highlights": False,
             "theme": {"name": "fmind"},
         }
@@ -323,7 +323,7 @@ class HarnessConfigTests(unittest.TestCase):
             "customAgents": {"defaultLocalOnly": False, "extra": "kept"},
             "ide": {"autoConnect": True, "openDiffOnEdit": False},
             "memory": True,
-            "notifications": True,
+            "notifications": False,
             "askUser": False,
             "autoUpdate": True,
             "includeCoAuthoredBy": True,
@@ -341,7 +341,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["customAgents"] == {"defaultLocalOnly": True, "extra": "kept"}
         assert data["ide"] == {"autoConnect": False, "openDiffOnEdit": False}
         assert data["memory"] is False
-        assert data["notifications"] is False
+        assert data["notifications"] is True
         assert data["askUser"] is True
         assert data["autoUpdate"] is False
         assert data["includeCoAuthoredBy"] is False
@@ -379,8 +379,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["showFeedbackSurvey"] is False
         assert data["showTips"] is False
         assert data["editorMode"] == "vim"
-        # Off is agy's default and agy drops a false value on save, so managing it only drifts.
-        assert "notifications" not in data
+        assert data["notifications"] is True
         assert data["queuedMessages"] == "send-immediately"
         assert data["verbosity"] == "high"
         display = str(self.home / ".gemini/antigravity-cli/display.py")
@@ -633,12 +632,15 @@ class HarnessConfigTests(unittest.TestCase):
         assert "agent_settled" not in extension
         assert "node:child_process" not in extension
 
-    def test_zellij_config_uses_silent_attention_mode_and_validates_natively(self):
+    def test_zellij_config_uses_attention_mode_with_notifications_and_validates_natively(self):
         config_path = ROOT / "dot_config/zellij/config.kdl"
         content = config_path.read_text(encoding="utf-8")
-        assert 'host_notification_protocol "off"' in content
+        assert 'host_notification_protocol "auto"' in content
         assert 'startup_card "attention"' in content
         assert "track_commands true" in content
+        assert "needs_you true" in content
+        assert "failed true" in content
+        assert "done true" in content
         assert 'unbind "Alt o"' in content
         assert 'bind "Alt Shift i" { ToggleSessionCard; }' in content
         zellij = native_binary("zellij")

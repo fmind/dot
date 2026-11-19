@@ -1,8 +1,7 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/settings?tab=cli
        Host owns account/model choices after setup; `dot trust` owns trustedWorkspaces.
-       Native notifications stay unset (off by default; Zellij's attention inbox reads `agy`'s
-       OSC 7501 status directly without forwarding OS popups). */ -}}
+       Native notifications emit OSC 9 alerts forwarded by Zellij to Ghostty for OS popups. */ -}}
 {{- $defaults := dict "pickerGrouping" "grouped" -}}
 {{- $managedConfig := fromJson `
 {
@@ -10,6 +9,7 @@
   "allowNonWorkspaceAccess": true,
   "artifactReviewPolicy": "always-proceed",
   "editorMode": "vim",
+  "notifications": true,
   "queuedMessages": "send-immediately",
   "showFeedbackSurvey": false,
   "showTips": false,
