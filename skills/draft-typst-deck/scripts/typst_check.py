@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 import shutil
@@ -19,6 +20,9 @@ def _scan_typst_raw(source: str, i: int, line: int, label: str, issues: list[str
     tick_count = 1
     while i + tick_count < len(source) and source[i + tick_count] == "`":
         tick_count += 1
+    # In Typst, two consecutive backticks (` `` `) form an empty inline raw literal, not an opening fence.
+    if tick_count == 2:
+        return i + 2, line
     start_line = line
     i += tick_count
     fence = "`" * tick_count
@@ -66,21 +70,41 @@ def _scan_typst_string(source: str, i: int, line: int, label: str, issues: list[
     return i, line
 
 
-def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
-    """Flag backslash escapes ($, ~, *) inside Typst code string literals or inline raw spans."""
-    issues: list[str] = []
-    n = len(source)
-    i = 0
-    line = 1
-    modes: list[str] = ["markup"]
-
-    while i < n:
-        ch = source[i]
-        mode = modes[-1]
-        if ch == "\n":
+def _scan_typst_block_comment(source: str, i: int, line: int, prose: list[str]) -> tuple[int, int]:
+    depth, n = 1, len(source)
+    i += 2
+    while i < n and depth > 0:
+        if source[i] == "\n":
+            prose.append("\n")
             line += 1
             i += 1
-            if modes[-1] in {"stmt", "call"}:
+        elif source[i : i + 2] == "/*":
+            depth += 1
+            i += 2
+        elif source[i : i + 2] == "*/":
+            depth -= 1
+            i += 2
+        else:
+            i += 1
+    return i, line
+
+
+_OPEN_MODES = {"{": "brace", "(": "paren", "[": "content"}
+
+
+def _scan_typst(source: str, label: str = "<deck>") -> tuple[list[str], str]:
+    """Scan Typst source once, returning escaping issues and comment/raw-stripped prose preserving 1-based lines."""
+    issues: list[str] = []
+    prose: list[str] = []
+    n, i, line, modes = len(source), 0, 1, ["markup"]
+
+    while i < n:
+        ch, mode = source[i], modes[-1]
+        if ch == "\n":
+            prose.append("\n")
+            line += 1
+            i += 1
+            if mode in {"stmt", "call"}:
                 modes.pop()
             continue
 
@@ -90,114 +114,95 @@ def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
                 while j < n and source[j] in " \t":
                     j += 1
                 if j < n and source[j] == "[":
+                    prose.append(source[i:j])
                     i = j
                     continue
-                modes.pop()
-                continue
-            if ch == "(":
-                modes.append("paren")
+            elif ch in "([":
+                modes.append(_OPEN_MODES[ch])
+                prose.append(ch)
                 i += 1
                 continue
-            if ch == "[":
-                modes.append("content")
-                i += 1
-                continue
-            if ch == "." and i + 1 < n and (source[i + 1].isalpha() or source[i + 1] == "_"):
+            elif ch == "." and i + 1 < n and (source[i + 1].isalpha() or source[i + 1] == "_"):
+                start = i
                 i += 1
                 while i < n and (source[i].isalnum() or source[i] in "_-"):
                     i += 1
+                prose.append(source[start:i])
                 continue
             modes.pop()
             continue
 
-        if ch == "/" and i + 1 < n and source[i + 1] == "/":
+        if ch == "/" and i + 1 < n and source[i + 1] == "/" and (i == 0 or source[i - 1] != ":"):
             end = source.find("\n", i + 2)
             i = n if end == -1 else end
             continue
-
         if ch == "/" and i + 1 < n and source[i + 1] == "*":
-            depth = 1
-            i += 2
-            while i < n and depth > 0:
-                if source[i] == "\n":
-                    line += 1
-                elif source[i : i + 2] == "/*":
-                    depth += 1
-                    i += 2
-                    continue
-                elif source[i : i + 2] == "*/":
-                    depth -= 1
-                    i += 2
-                    continue
-                i += 1
+            i, line = _scan_typst_block_comment(source, i, line, prose)
             continue
-
         if ch == "`":
+            start_line = line
             i, line = _scan_typst_raw(source, i, line, label, issues)
+            prose.append("\n" * (line - start_line))
             continue
 
         if mode in {"markup", "content"}:
             if ch == "\\" and i + 1 < n:
-                if source[i + 1] == "\n":
-                    line += 1
+                line += source[i + 1] == "\n"
+                prose.append(source[i : i + 2])
                 i += 2
                 continue
-            if mode == "content":
-                if ch == "[":
-                    modes.append("content")
-                    i += 1
-                    continue
-                if ch == "]":
-                    modes.pop()
-                    i += 1
-                    continue
+            if mode == "content" and ch in "[]":
+                modes.append("content") if ch == "[" else modes.pop()
+                prose.append(ch)
+                i += 1
+                continue
             if ch == "#":
+                prose.append("#")
                 i += 1
                 if i >= n:
                     break
                 nxt = source[i]
-                if nxt == "{":
-                    modes.append("brace")
-                    i += 1
-                elif nxt == "(":
-                    modes.append("paren")
-                    i += 1
-                elif nxt == "[":
-                    modes.append("content")
+                if nxt in _OPEN_MODES:
+                    modes.append(_OPEN_MODES[nxt])
+                    prose.append(nxt)
                     i += 1
                 elif nxt == '"':
+                    start = i
                     i, line = _scan_typst_string(source, i, line, label, issues)
+                    prose.append(source[start:i])
                 elif nxt.isalpha() or nxt == "_":
                     start = i
                     while i < n and (source[i].isalnum() or source[i] in "_-"):
                         i += 1
                     ident = source[start:i]
+                    prose.append(ident)
                     modes.append("stmt" if ident in _TYPST_STMT_KEYWORDS else "call")
                 continue
+            prose.append(ch)
             i += 1
             continue
 
         if ch == '"':
+            start = i
             i, line = _scan_typst_string(source, i, line, label, issues)
+            prose.append(source[start:i])
             continue
         if mode == "stmt" and (closing := {"]": "content", ")": "paren", "}": "brace"}.get(ch)) and closing in modes:
             modes.pop()
             continue
-        if ch == "(":
-            modes.append("paren")
-        elif ch == ")" and mode == "paren":
+        if ch in _OPEN_MODES:
+            modes.append(_OPEN_MODES[ch])
+        elif (ch == ")" and mode == "paren") or (ch == "}" and mode == "brace") or (ch == ";" and mode == "stmt"):
             modes.pop()
-        elif ch == "{":
-            modes.append("brace")
-        elif ch == "}" and mode == "brace":
-            modes.pop()
-        elif ch == "[":
-            modes.append("content")
-        elif ch == ";" and mode == "stmt":
-            modes.pop()
+        prose.append(ch)
         i += 1
 
-    return issues
+    return issues, "".join(prose)
+
+
+def scan_typst_escaping_issues(source: str, label: str = "<deck>") -> list[str]:
+    """Flag backslash escapes ($, ~, *) inside Typst code string literals or inline raw spans."""
+    return _scan_typst(source, label=label)[0]
 
 
 def discover_font_paths(deck_path: Path, extra_paths: list[Path] | None = None) -> list[Path]:
@@ -239,10 +244,7 @@ def collect_source_files(deck_dir: Path) -> list[Path]:
 
 
 def typst_font_args(font_paths: list[Path]) -> list[str]:
-    args: list[str] = []
-    for path in font_paths:
-        args.extend(["--font-path", str(path)])
-    return args
+    return [arg for path in font_paths for arg in ("--font-path", str(path))]
 
 
 def _typst_command() -> tuple[list[str], int]:
@@ -345,43 +347,113 @@ def raise_on_typst_warnings(
 
 
 _TYPST_PROSE_FILTER = '.Name in ["Fmind.EmDash", "Fmind.SlopWords", "Fmind.SlopStyle", "Fmind.Wordiness"]'
-_TYPST_SKIP_PREFIXES = ("//", "#import ", "#import(", "#let ", "#set ", "#show ")
+_TYPST_SKIP_PREFIXES = ("#import ", "#import(", "#let ", "#set ", "#show ")
 _FRAMEWORK_TYP_FILES = frozenset({"fmind.typ", "fmind-slides.typ"})
 
 
+def _strip_ini_comment(value: str) -> str:
+    quote = ""
+    for idx, ch in enumerate(value):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in {'"', "'"}:
+            quote = ch
+        elif ch in {"#", ";"}:
+            return value[:idx].strip()
+    return value.strip()
+
+
+def _expand_brace_globs(pattern: str) -> list[str]:
+    if pattern.count("{") > 4:
+        return []
+    start = pattern.find("{")
+    if start == -1:
+        return [pattern]
+    end = pattern.find("}", start + 1)
+    if end == -1:
+        return [pattern]
+    prefix, suffix = pattern[:start], pattern[end + 1 :]
+    expanded: list[str] = []
+    for option in pattern[start + 1 : end].split(","):
+        expanded.extend(_expand_brace_globs(f"{prefix}{option}{suffix}"))
+    return expanded
+
+
+def _section_matches_txt(section: str) -> bool:
+    return section == "*" or any(fnmatch.fnmatchcase("deck.txt", pat) for pat in _expand_brace_globs(section))
+
+
+def _config_supports_fmind(config: Path) -> bool:
+    """Return True when a .vale.ini enables exact-case Fmind for .txt and resolves an existing Fmind style dir."""
+    try:
+        text = config.read_text(encoding="utf-8")
+        section: str | None = None
+        styles_path_raw: str | None = None
+        txt_enables_fmind = False
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped[0] in {"#", ";"}:
+                continue
+            if stripped.startswith("["):
+                header = _strip_ini_comment(stripped)
+                if header.endswith("]"):
+                    section = header[1:-1].strip()
+                continue
+            if "=" not in stripped:
+                continue
+            key, _, raw_val = stripped.partition("=")
+            key = key.strip().lower()
+            val = _strip_ini_comment(raw_val)
+            if section is None and key == "stylespath":
+                styles_path_raw = val.strip("\"'")
+            elif section is not None and key == "basedonstyles" and _section_matches_txt(section):
+                txt_enables_fmind = "Fmind" in [item.strip() for item in val.split(",")]
+        if not txt_enables_fmind or not styles_path_raw:
+            return False
+        styles_path = Path(styles_path_raw).expanduser()
+        if not styles_path.is_absolute():
+            styles_path = config.parent / styles_path
+        return (styles_path / "Fmind").is_dir()
+    except OSError, UnicodeError, ValueError, RuntimeError:
+        return False
+
+
 def _resolve_vale_config(cwd: Path | None = None) -> Path | None:
-    """Return the nearest project .vale.ini or the global ~/.config/vale/.vale.ini if present."""
+    """Return the nearest project .vale.ini supporting Fmind, else ~/.config/vale/.vale.ini if present."""
     start = (cwd or Path.cwd()).resolve()
     for parent in (start, *start.parents):
         candidate = parent / ".vale.ini"
-        if candidate.is_file():
+        if candidate.is_file() and _config_supports_fmind(candidate):
             return candidate
     global_cfg = Path.home() / ".config/vale/.vale.ini"
-    return global_cfg if global_cfg.is_file() else None
+    return global_cfg if global_cfg.is_file() and _config_supports_fmind(global_cfg) else None
 
 
 def _strip_typst_preamble_and_comments(source: str) -> str:
-    """Blank Typst preamble directives and line comments while keeping 1-based line numbers intact."""
-    kept: list[str] = []
-    for line in source.splitlines():
-        stripped = line.lstrip()
-        if stripped.startswith(_TYPST_SKIP_PREFIXES):
-            kept.append("")
-        else:
-            kept.append(line)
+    """Blank Typst comments, raw spans, and preamble directives while keeping 1-based line numbers intact."""
+    _, cleaned = _scan_typst(source)
+    kept = ["" if line.lstrip().startswith(_TYPST_SKIP_PREFIXES) else line for line in cleaned.splitlines()]
     return "\n".join(kept) + ("\n" if source.endswith("\n") else "")
 
 
 def check_typst_prose_with_vale(typ_files: list[Path], *, base_dir: Path) -> tuple[list[str], list[str]]:
     """Run Vale anti-slop and em-dash checks across user .typ files, returning (errors, warnings)."""
     vale_bin = shutil.which("vale")
-    if not vale_bin:
-        return [], []
-    config = _resolve_vale_config(base_dir)
-    if config is None:
+    config = _resolve_vale_config(base_dir) if vale_bin else None
+    if not vale_bin or config is None:
         return [], []
     errors: list[str] = []
     warnings: list[str] = []
+    base_cmd = [
+        vale_bin,
+        "--no-global",
+        "--config",
+        str(config),
+        "--output=JSON",
+        "--ext=.txt",
+        f"--filter={_TYPST_PROSE_FILTER}",
+    ]
     for path in typ_files:
         if path.name in _FRAMEWORK_TYP_FILES:
             continue
@@ -389,38 +461,17 @@ def check_typst_prose_with_vale(typ_files: list[Path], *, base_dir: Path) -> tup
         if not prose.strip():
             continue
         proc = subprocess.run(  # noqa: S603 - fixed Vale binary and resolved config path
-            [
-                vale_bin,
-                "--no-global",
-                "--config",
-                str(config),
-                "--output=JSON",
-                "--ext=.txt",
-                f"--filter={_TYPST_PROSE_FILTER}",
-            ],
-            input=prose,
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
+            base_cmd, input=prose, capture_output=True, text=True, timeout=20, check=False
         )
         if proc.returncode not in {0, 1}:
-            detail = (proc.stderr or proc.stdout).strip()
-            raise RuntimeError(f"vale failed on {path.name}: {detail}")
-        raw = proc.stdout.strip()
-        if not raw:
+            raise RuntimeError(f"vale failed on {path.name}: {(proc.stderr or proc.stdout).strip()}")
+        if not (raw := proc.stdout.strip()):
             continue
         label = path.relative_to(base_dir).as_posix() if path.is_relative_to(base_dir) else path.name
         for findings in json.loads(raw).values():
             for item in findings:
-                line = item.get("Line", 1)
-                check = item.get("Check", "Vale")
-                message = item.get("Message", "")
-                match = str(item.get("Match") or "").strip()
-                suffix = f" ({match})" if match and match not in message and len(match) <= 40 else ""
-                formatted = f"{label}:{line}: [{check}] {message}{suffix}"
-                if item.get("Severity") == "error":
-                    errors.append(formatted)
-                else:
-                    warnings.append(formatted)
+                msg, match = item.get("Message", ""), str(item.get("Match") or "").strip()
+                suffix = f" ({match})" if match and match not in msg and len(match) <= 40 else ""
+                formatted = f"{label}:{item.get('Line', 1)}: [{item.get('Check', 'Vale')}] {msg}{suffix}"
+                (errors if item.get("Severity") == "error" else warnings).append(formatted)
     return errors, warnings

@@ -818,18 +818,43 @@ def test_typst_vale_blocks_errors_preserves_lines_and_skips_framework(
         "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
         encoding="utf-8",
     )
-    # Framework files with attribution em dashes are skipped; comments are blanked without shifting lines.
+    # Framework files with attribution em dashes are skipped; comments and raw spans are blanked without shifting lines.
     (deck_dir / "fmind.typ").write_text('#let quote-attribution = "— Author"\n', encoding="utf-8")
     deck = deck_dir / "deck.typ"
     deck.write_text(
-        '#import "fmind.typ": *\n// comment — ignored\n#text[We delve into rollout — today.]\n',
+        '#import "fmind.typ": *\n'
+        "// comment — ignored\n"
+        "/* nested /* block — delve */ comment */\n"
+        "```python\n"
+        "# We delve — inside raw code\n"
+        "```\n"
+        "#text[We delve into rollout — today.]\n",
         encoding="utf-8",
     )
     assert mod.main(["check", str(deck), "--json"]) == 1
     captured = capsys.readouterr()
     issues = json.loads(captured.out)["issues"]
-    assert any(item.startswith("deck.typ:3: [Fmind.SlopWords]") for item in issues)
-    assert any(item.startswith("deck.typ:3: [Fmind.EmDash]") for item in issues)
+    assert any(item.startswith("deck.typ:7: [Fmind.SlopWords]") for item in issues)
+    assert any(item.startswith("deck.typ:7: [Fmind.EmDash]") for item in issues)
+    assert not any("deck.typ:3:" in item or "deck.typ:5:" in item for item in issues)
+
+    # A project .vale.ini lacking Fmind falls back to ~/.config/vale/.vale.ini instead of silently skipping checks.
+    foreign_dir = tmp_path / "customer-repo"
+    foreign_dir.mkdir()
+    (foreign_dir / ".vale.ini").write_text("StylesPath = styles\n[*.md]\nBasedOnStyles = Google\n", encoding="utf-8")
+    fake_home = tmp_path / "fake-home"
+    (fake_home / ".config/vale").mkdir(parents=True)
+    (fake_home / ".config/vale/.vale.ini").write_text(
+        f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
+        "MinAlertLevel = warning\n[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    foreign_deck = foreign_dir / "deck.typ"
+    foreign_deck.write_text("#text[We delve — customer deck.]\n", encoding="utf-8")
+    assert mod.main(["check", str(foreign_deck), "--json"]) == 1
+    foreign_issues = json.loads(capsys.readouterr().out)["issues"]
+    assert any(item.startswith("deck.typ:1: [Fmind.EmDash]") for item in foreign_issues)
 
     deck.write_text("#text[We leverage seamless failover in order to stay online.]\n", encoding="utf-8")
     real_run = mod.typst_check.subprocess.run
@@ -851,3 +876,61 @@ def test_typst_vale_blocks_errors_preserves_lines_and_skips_framework(
     assert any("Fmind.SlopStyle" in item for item in payload["prose_warnings"])
     assert any("Fmind.Wordiness" in item for item in payload["prose_warnings"])
     assert "Warning: deck.typ:1:" in captured.err
+
+
+def test_typst_scanner_and_vale_config_handle_markup_escapes_empty_raw_and_ini_sections(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Escaped backticks, empty raw literals (``), markup smart quotes, and multiline code strings stay accurate.
+    assert mod.scan_typst_escaping_issues('Empty `` raw.\n#let v = "Cost \\$10"\n', label="deck.typ") == [
+        (
+            "deck.typ:2: unexpected '\\$' inside string literal; "
+            "use unescaped '$' inside quotes (only escape inside [...] content blocks)."
+        )
+    ]
+    stripped = mod.typst_check._strip_typst_preamble_and_comments(  # noqa: SLF001
+        "Type \\` to quote.\n"
+        "Empty `` raw.\n"
+        'Say "run `delve — fast`" today.\n'
+        '27" display // delve — ignored\n'
+        '#let multi = "line1\nline2"\n'
+        "We delve — today.\n"
+    )
+    lines = stripped.splitlines()
+    assert lines[0] == "Type \\` to quote."
+    assert lines[1] == "Empty  raw."
+    assert "delve" not in lines[2]
+    assert "—" not in lines[2]
+    assert lines[3] == '27" display '
+    assert lines[6] == "We delve — today."
+
+    # Structural .vale.ini checks reject non-.txt sections, commented/wrong-case styles, and non-UTF-8 files,
+    # while accepting inline comments on StylesPath.
+    styles_dir = Path(__file__).resolve().parents[1] / "dot_config/vale/styles"
+    fake_home = tmp_path / "home"
+    (fake_home / ".config/vale").mkdir(parents=True)
+    global_cfg = fake_home / ".config/vale/.vale.ini"
+    global_cfg.write_text(
+        f"StylesPath = {styles_dir} # global styles\n[*.{{md,txt}}]\nBasedOnStyles = Fmind\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    assert mod.typst_check._config_supports_fmind(global_cfg) is True  # noqa: SLF001
+
+    for name, raw_bytes in (
+        ("md-only", f"StylesPath = {styles_dir}\n[*.md]\nBasedOnStyles = Fmind\n".encode()),
+        ("commented", f"StylesPath = {styles_dir}\n[*]\nBasedOnStyles = Vale # Fmind\n".encode()),
+        ("wrong-case", f"StylesPath = {styles_dir}\n[*]\nBasedOnStyles = fmind\n".encode()),
+        (
+            "overridden",
+            f"StylesPath = {styles_dir}\n[*]\nBasedOnStyles = Fmind\n[*.txt]\nBasedOnStyles = Vale\n".encode(),
+        ),
+        ("non-utf8", b"\xff\xfeStylesPath = styles\n"),
+    ):
+        proj = tmp_path / name
+        proj.mkdir()
+        (proj / ".vale.ini").write_bytes(raw_bytes)
+        assert mod.typst_check._config_supports_fmind(proj / ".vale.ini") is False  # noqa: SLF001
+        assert mod.typst_check._resolve_vale_config(proj) == global_cfg  # noqa: SLF001
