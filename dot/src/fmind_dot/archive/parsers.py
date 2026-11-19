@@ -28,10 +28,14 @@ from fmind_dot.archive.common import (
     text_blocks,
     token_int,
 )
-from fmind_dot.archive.sqlite_parsers import (
+from fmind_dot.archive.copilot_parser import (
     enumerate_copilot,
-    enumerate_opencode,
+    enumerate_copilot_stamped,
     parse_copilot_session,
+)
+from fmind_dot.archive.opencode_parser import (
+    enumerate_opencode,
+    enumerate_opencode_stamped,
     parse_opencode_session,
 )
 from fmind_dot.archive.store import (
@@ -415,7 +419,21 @@ def _enumerate_agy(root: Path) -> list[SessionCandidate]:
 AGENT_ADAPTERS: dict[str, AgentAdapter] = {
     "agy": AgentAdapter("agy", "agy", parse_agy_session, _enumerate_agy, external_cwd=True),
     "claude": AgentAdapter("claude", "Claude", parse_claude_session, lambda r: _enumerate_jsonl(r, claude_session_id)),
-    "copilot": AgentAdapter("copilot", "Copilot", parse_copilot_session, enumerate_copilot, database=True),
-    "opencode": AgentAdapter("opencode", "OpenCode", parse_opencode_session, enumerate_opencode, database=True),
+    "copilot": AgentAdapter(
+        "copilot",
+        "Copilot",
+        parse_copilot_session,
+        enumerate_copilot,
+        database=True,
+        enumerate_stamped=enumerate_copilot_stamped,
+    ),
+    "opencode": AgentAdapter(
+        "opencode",
+        "OpenCode",
+        parse_opencode_session,
+        enumerate_opencode,
+        database=True,
+        enumerate_stamped=enumerate_opencode_stamped,
+    ),
     "pi": AgentAdapter("pi", "Pi", parse_pi_session, lambda r: _enumerate_jsonl(r, pi_session_id)),
 }

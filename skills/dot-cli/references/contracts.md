@@ -23,6 +23,6 @@ Stdout carries requested data; stderr carries progress, prompts, and errors. Exi
 
 ## Session archive
 
-`~/.agents/sessions/v3/<agent>/<session_id>.jsonl` stores manifest (`schema_version` 4), usage, and transcript lines. Sync writes parser 17 atomically and reads released parsers 7–17 (keeping older captures and retired `codex` and `grok` archives queryable).
+`~/.agents/sessions/v3/<agent>/<session_id>.jsonl` stores manifest (`schema_version` 4), usage, and transcript lines. Sync writes parser 18 atomically and reads released parsers 7–18 (keeping older captures and retired `codex` and `grok` archives queryable).
 
 Sync never overwrites a bundle with fewer records or lost usage/known cost: those count as `retained` (`retained == retained_current_transcripts` proves zero transcript loss) and retry next sync; malformed sources count as `failed` without replacing archived data. Subagent transcripts carry `sidechain` and `parent_session_id`; Claude `isMeta` user turns set `"meta": true`. Older stores (`sessions/v2`) are ignored, unsupported bundles fail queries, and unexpandable `~user` paths exit `2`. See [session compatibility](https://github.com/fmind/dot/blob/main/.agents/skills/dot-development/references/session-compatibility.md) and [provider measurement](agent-usage.md#provider-measurement).

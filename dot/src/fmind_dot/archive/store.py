@@ -19,8 +19,8 @@ from fmind_dot.private_files import private_directory, write_private_file
 
 SESSION_SCHEMA_VERSION = 4
 READABLE_SCHEMA_VERSIONS = (SESSION_SCHEMA_VERSION,)
-SESSION_PARSER_VERSION = "17"
-READABLE_PARSER_VERSIONS = tuple(str(v) for v in range(7, 18))
+SESSION_PARSER_VERSION = "18"
+READABLE_PARSER_VERSIONS = tuple(str(v) for v in range(7, 19))
 SESSION_STORE_VERSION = "v3"
 BUNDLE_SUFFIX = ".jsonl"
 _COMPONENT = re.compile(r"^[A-Za-z0-9_-]+$")

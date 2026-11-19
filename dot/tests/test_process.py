@@ -226,20 +226,33 @@ def test_interactive_env_stdin_eof_and_sigint_behavior(tmp_path: Path, monkeypat
     opened_calls: list[list[str]] = []
     with monkeypatch.context() as mp:
         mp.setattr(process_module.sys, "platform", "linux")
+        mp.delenv("DISPLAY", raising=False)
+        mp.delenv("WAYLAND_DISPLAY", raising=False)
         mp.setattr(process_module.shutil, "which", lambda _name: "/usr/bin/xdg-open")
         mp.setattr(process_module.subprocess, "Popen", lambda cmd, **_kw: opened_calls.append(cmd))
-        process_module._open_browser("http://example.com")  # noqa: SLF001
-        process_module._open_browser("file:///tmp/evil.html")  # noqa: SLF001
+        process_module._open_browser("https://accounts.google.com/o/oauth2/auth")  # noqa: SLF001
+        assert opened_calls == []
+        mp.setenv("DISPLAY", ":0")
+        for bad_url in (
+            "http://example.com",
+            "file:///tmp/evil.html",
+            "https://",
+            "https://" + "u:" + "p@example.com/auth",
+            "https://accounts.google.com/o/oauth2/auth with space",
+            "https://accounts.google.com/o/oauth2/auth\n",
+            "https://accounts.google.com/o/oauth2/auth\x7f",
+        ):
+            process_module._open_browser(bad_url)  # noqa: SLF001
         process_module._open_browser("https://accounts.google.com/o/oauth2/auth")  # noqa: SLF001
     assert opened_calls == [["/usr/bin/xdg-open", "https://accounts.google.com/o/oauth2/auth"]]
 
     opened_urls: list[str] = []
     monkeypatch.setattr(process_module, "_open_browser", opened_urls.append)
-    url_re = re.compile(r"https://accounts\.google\.com/o/oauth2/\S+")
+    url_re = re.compile(r"https://accounts\.google\.com/o/oauth2/[^\s<>\"'`()\[\]{}\x00-\x1f]+")
     script = (
         "import sys; "
-        "sys.stderr.write('Open:\\n  https://accounts.google.com/o/oauth2/auth?x=1\\n"
-        "  https://accounts.google.com/o/oauth2/auth?x=2\\n')"
+        r"sys.stderr.write('Open:\n  (\x1b[34mhttps://accounts.google.com/o/oauth2/auth?x=1.\x1b[0m)\n"
+        r"  https://accounts.google.com/o/oauth2/auth?x=2\n')"
     )
     tty_err = TerminalIO()
     assert Runner().interactive([sys.executable, "-c", script], stderr=tty_err, open_url=url_re) == 0

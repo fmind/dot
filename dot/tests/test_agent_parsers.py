@@ -544,3 +544,135 @@ def test_sqlite_parsers_empty_wal_mtime_invariance_and_missing_fork_time(tmp_pat
         conn.execute("INSERT INTO session_v2 VALUES ('oc-f', ?, 'orig')", (str(proj),))
     with pytest.raises(ValueError, match="requires valid time_created"):
         parse_opencode_session(oc_db, "oc-f")
+
+    # Copilot Gemini/Grok cache-inclusive fallback subtracts cache tokens when token_details_json is absent,
+    # while Anthropic Claude models stay uncached-native.
+    fam_db = tmp_path / "copilot_families.db"
+    with closing(sqlite3.connect(fam_db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, cwd TEXT, created_at TEXT);"
+            "CREATE TABLE turns (id INTEGER PRIMARY KEY, session_id TEXT, turn_index INT, user_message TEXT, assistant_response TEXT, timestamp TEXT);"
+            "CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY, session_id TEXT, model TEXT, "
+            "input_tokens INT, output_tokens INT, cache_read_tokens INT, cache_write_tokens INT, reasoning_tokens INT, "
+            "token_details_json TEXT, created_at TEXT);"
+        )
+        for sid, model, raw_in, cache_r, cache_w in (
+            ("cop-gem", "gemini-2.5-pro", 100, 70, 10),
+            ("cop-grok", "x-ai/grok-4", 90, 50, 0),
+            ("cop-cl", "claude-sonnet-4-5", 20, 80, 10),
+            ("cop-bad-gem", "google/gemini-3-flash", 40, 50, 0),
+        ):
+            conn.execute("INSERT INTO sessions VALUES (?, ?, '2026-11-18T00:00:00Z')", (sid, str(proj)))
+            conn.execute(
+                "INSERT INTO assistant_usage_events (session_id, model, input_tokens, output_tokens, "
+                "cache_read_tokens, cache_write_tokens, reasoning_tokens, token_details_json, created_at) "
+                "VALUES (?, ?, ?, 15, ?, ?, 0, NULL, '2026-11-18T00:01:00Z')",
+                (sid, model, raw_in, cache_r, cache_w),
+            )
+    gem = parse_copilot_session(fam_db, "cop-gem")
+    grok = parse_copilot_session(fam_db, "cop-grok")
+    cl = parse_copilot_session(fam_db, "cop-cl")
+    bad_gem = parse_copilot_session(fam_db, "cop-bad-gem")
+    assert gem.usage is not None
+    assert gem.usage.input_tokens == 20
+    assert grok.usage is not None
+    assert grok.usage.input_tokens == 40
+    assert cl.usage is not None
+    assert cl.usage.input_tokens == 20
+    assert bad_gem.usage is None
+    assert bad_gem.usage_error is not None
+    assert "smaller than cached" in str(bad_gem.usage_error)
+
+
+def test_sqlite_session_stamps_handle_blobs_nan_collisions_and_schema_drift(tmp_path: Path) -> None:
+    proj = tmp_path / "proj"
+    # OpenCode: BLOB and non-finite REAL values stay hashable, and enumerate_stamped matches parse().session_stamp.
+    oc_db = tmp_path / "oc_stamp.db"
+    with closing(sqlite3.connect(oc_db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE session_v2 (id TEXT PRIMARY KEY, directory TEXT, time_created ANY);"
+            "CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INT, time_created ANY, data TEXT);"
+            "CREATE TABLE session_part (id TEXT PRIMARY KEY, session_id TEXT, message_id TEXT, type TEXT, ordinal INT, time_created ANY, data TEXT);"
+        )
+        conn.execute("INSERT INTO session_v2 VALUES ('oc-edge', ?, ?)", (str(proj), float("inf")))
+        conn.execute(
+            "INSERT INTO session_message VALUES ('m1', 'oc-edge', 'assistant', 1, ?, ?)",
+            (b"bad-ts", json.dumps({"role": "assistant"})),
+        )
+        conn.execute(
+            "INSERT INTO session_part VALUES ('p1', 'oc-edge', 'm1', 'text', 0, ?, ?)",
+            (float("inf"), json.dumps({"type": "text", "text": "aaaa"})),
+        )
+    oc_stamped = AGENT_ADAPTERS["opencode"].enumerate_stamped
+    assert oc_stamped is not None
+    [(sid, _, _, oc_stamp1)] = oc_stamped(oc_db)
+    assert sid == "oc-edge"
+    assert oc_stamp1 == parse_opencode_session(oc_db, "oc-edge").session_stamp
+    # Equal-length JSON content edit invalidates OpenCode stamp.
+    with closing(sqlite3.connect(oc_db)) as conn, conn:
+        conn.execute(
+            "UPDATE session_part SET data = ? WHERE id = 'p1'",
+            (json.dumps({"type": "text", "text": "bbbb"}),),
+        )
+    [(_, _, _, oc_stamp2)] = oc_stamped(oc_db)
+    assert oc_stamp2 != oc_stamp1
+    assert oc_stamp2 == parse_opencode_session(oc_db, "oc-edge").session_stamp
+
+    # Copilot: BLOB turn_index, NULL->0 token transitions, equal-length model/details edits, and turn_index edits.
+    cop_db = tmp_path / "cop_stamp.db"
+    with closing(sqlite3.connect(cop_db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, cwd TEXT, created_at TEXT);"
+            "CREATE TABLE turns (id INTEGER PRIMARY KEY, session_id TEXT, turn_index ANY, user_message TEXT, assistant_response TEXT, timestamp TEXT);"
+            "CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY, session_id TEXT, turn_index INT, model TEXT, "
+            "input_tokens INT, output_tokens INT, cache_read_tokens INT, cache_write_tokens INT, reasoning_tokens INT, "
+            "token_details_json TEXT, created_at TEXT);"
+        )
+        conn.execute("INSERT INTO sessions VALUES ('cop-edge', ?, '2026-11-18T00:00:00Z')", (str(proj),))
+        conn.execute("INSERT INTO turns VALUES (1, 'cop-edge', ?, 'hi', 'ok', '2026-11-18T00:00:00Z')", (b"blob-idx",))
+        conn.execute(
+            "INSERT INTO assistant_usage_events VALUES (1, 'cop-edge', 0, 'gpt-4o', NULL, NULL, 0, 0, 0, ?, '2026-11-18T00:01:00Z')",
+            (json.dumps([{"tokenType": "input", "tokenCount": 100}]),),
+        )
+    cop_stamped = AGENT_ADAPTERS["copilot"].enumerate_stamped
+    assert cop_stamped is not None
+    [(_, _, _, s_null)] = cop_stamped(cop_db)
+    assert s_null == parse_copilot_session(cop_db, "cop-edge").session_stamp
+    with closing(sqlite3.connect(cop_db)) as conn, conn:
+        conn.execute("UPDATE assistant_usage_events SET input_tokens = 0, output_tokens = 0 WHERE id = 1")
+    [(_, _, _, s_zero)] = cop_stamped(cop_db)
+    assert s_zero != s_null
+    assert s_zero == parse_copilot_session(cop_db, "cop-edge").session_stamp
+    with closing(sqlite3.connect(cop_db)) as conn, conn:
+        conn.execute("UPDATE assistant_usage_events SET model = 'gpt-5o' WHERE id = 1")
+    [(_, _, _, s_model)] = cop_stamped(cop_db)
+    assert s_model != s_zero
+    with closing(sqlite3.connect(cop_db)) as conn, conn:
+        conn.execute(
+            "UPDATE assistant_usage_events SET token_details_json = ? WHERE id = 1",
+            (json.dumps([{"tokenType": "input", "tokenCount": 900}]),),
+        )
+    [(_, _, _, s_details)] = cop_stamped(cop_db)
+    assert s_details != s_model
+    with closing(sqlite3.connect(cop_db)) as conn, conn:
+        conn.execute("UPDATE assistant_usage_events SET turn_index = 1 WHERE id = 1")
+    [(_, _, _, s_tidx)] = cop_stamped(cop_db)
+    assert s_tidx != s_details
+    assert s_tidx == parse_copilot_session(cop_db, "cop-edge").session_stamp
+
+    # Copilot usage schema drift falls back to empty stamps without aborting scan, preserving transcript parsing.
+    drift_db = tmp_path / "cop_drift.db"
+    with closing(sqlite3.connect(drift_db)) as conn, conn:
+        conn.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, cwd TEXT, created_at TEXT);"
+            "CREATE TABLE turns (id INTEGER PRIMARY KEY, session_id TEXT, turn_index INT, user_message TEXT, assistant_response TEXT, timestamp TEXT);"
+            "CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY, session_id TEXT, model TEXT, input_tokens INT);"
+        )
+        conn.execute("INSERT INTO sessions VALUES ('cop-d', ?, '2026-11-18T00:00:00Z')", (str(proj),))
+        conn.execute("INSERT INTO turns VALUES (1, 'cop-d', 0, 'q', 'a', '2026-11-18T00:00:00Z')")
+        conn.execute("INSERT INTO assistant_usage_events VALUES (1, 'cop-d', 'gpt-4o', 10)")
+    assert cop_stamped(drift_db) == [("cop-d", str(proj), drift_db, "")]
+    drift_parsed = parse_copilot_session(drift_db, "cop-d")
+    assert [ln.content for ln in drift_parsed.logs] == ["q", "a"]
+    assert drift_parsed.usage_error is not None
+    assert drift_parsed.session_stamp == ""

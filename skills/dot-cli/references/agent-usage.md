@@ -37,7 +37,7 @@ Partial groups report known subtotals and completeness counts without estimating
 - **Claude**: deduplicates blocks by request/message ID (peak counters), marks `hasUnknownModelCost` unknown, and prices 1h vs 5m cache writes separately.
 - **Pi**: samples assistant, cache-warming, summary, and nested-model entries (counting only assistant turns as requests); input excludes cache reads/writes, output includes reasoning, and `cost.total` is recorded.
 - **Antigravity**: reads response/compaction counters (input excludes cache reads → `cached_tokens`) or estimates ~4 bytes/token; `model` is `unknown` and unpriced.
-- **Copilot**: samples request rows from SQLite (resolving uncached input via token details or OpenAI prompt subtraction) and propagates turn models.
+- **Copilot**: samples request rows from SQLite (resolving uncached input via token details or cache-inclusive OpenAI/Gemini/Grok prompt subtraction) and propagates turn models.
 - **OpenCode**: samples 2.x and 1.x SQLite assistant steps, rolling reasoning into output, recording provider cost, and pricing listed models while skipping pre-fork history.
 - **Retired (Codex, Grok)**: archived bundles stay queryable via `dot stats` while incremental sync captures agy, Claude, Copilot, OpenCode, and Pi. Codex includes cache in input and reasoning in output; Grok uses turn ledgers or `context-only` fallbacks. See [session compatibility](https://github.com/fmind/dot/blob/main/.agents/skills/dot-development/references/session-compatibility.md).
 

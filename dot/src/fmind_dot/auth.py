@@ -90,7 +90,7 @@ from fmind_dot.state import State, require_tools
 
 _LOGIN_EPILOG = "Exit 0 when ready. With --check, exit 1 when a login is needed or the state is unknown."
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace", "colab")
-_GOOGLE_OAUTH_URL_RE = re.compile(r"https://accounts\.google\.com/o/oauth2/\S+")
+_GOOGLE_OAUTH_URL_RE = re.compile(r"https://accounts\.google\.com/o/oauth2/[^\s<>\"'`()\[\]{}\x00-\x1f\x7f]+")
 
 
 def _has_env_workspace_client() -> bool:
@@ -248,7 +248,7 @@ def login_github(
     remove = ["--remove-scopes", ",".join(remove_list)]
     refresh, web = ["gh", "auth", "refresh", *args[3:], "--clipboard", *remove], [*args, "--web", "--clipboard"]
     if dry_run:
-        _dry_run(state, *(web, refresh) if reconcile_scopes else (web,))
+        _dry_run(state, web, refresh)
         return
     entry = None if force else github_status(state)
     if not force and github_ready(state, entry, reconcile=reconcile_scopes, grants=extra):

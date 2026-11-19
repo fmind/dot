@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-11-17"
+  updated: "2026-11-19"
 ---
 
 # Develop Dot
@@ -31,7 +31,7 @@ Modules live in `dot/src/fmind_dot/` and tests in `dot/tests/` (`test_<module>.p
 - `auth.py`, `repository.py`, `trust.py`, `with_secret.py` → `test_system.py`, `test_repository.py`, `test_trust.py`, `test_with_secret.py`, `tests/test_fish.py`: synthetic provider probes only; never run live login as a test gate. `with_secret.py` (`~/.local/bin/with-secret`) injects per-process secrets without `argv` exposure and rejects personal `UV_PUBLISH_TOKEN` (PyPI uses Trusted Publishing).
 - `system.py` (`dot doctor`) → `test_system.py`: inspects workstation tools, all five agent hosts, and archive sync/status.
 - `agent.py` (`dot stats`), `context_budget.py` (`dot context`) → `test_agent_workflows.py`, `test_context_budget.py`, `test_usage.py`.
-- `archive/`: `common.py`, `parsers.py`, and `sqlite_parsers.py` → `test_agent_parsers.py`, `store.py` → `test_session_store.py`, `sync.py` → `test_agent_workflows.py`, `usage.py` → `test_usage.py`.
+- `archive/`: `common.py`, `parsers.py`, `copilot_parser.py`, and `opencode_parser.py` → `test_agent_parsers.py`, `store.py` → `test_session_store.py`, `sync.py` → `test_agent_workflows.py`, `usage.py` → `test_usage.py`.
 - `dot/dot_tasks/` & root `tests/`: `completions.py`, `mise_locks.py`, `mise_refresh.py`, `release.py`, `skill_contracts.py`, `theme_pin.py` → `tests/test_bootstrap.py`, `dot/tests/{test_mise_locks,test_mise_refresh,test_release,test_contracts,test_theme_fonts}.py`; Fish completions run via `mise run completions` (`policy.yaml` `completions`, bundled mise `<tool>.fish`, or default `<tool> completion fish`, keeping `MANAGED_COMPLETIONS` (`"agy.fish"`) untouched) while chezmoi/Fish/starter/skill contracts live in root `tests/`.
 
 ## Documentation

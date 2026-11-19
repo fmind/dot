@@ -17,6 +17,7 @@ from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
+from urllib.parse import urlsplit
 
 from fmind_dot.errors import CommandTimeoutError, DotError
 
@@ -116,12 +117,33 @@ def _deferred_interrupts() -> Generator[None]:
         signal.signal(signal.SIGINT, prev)
 
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_URL_TRAILING_PUNCT = ".,;:!?"
+
+
+def _is_safe_https_url(url: str) -> bool:
+    if any(ch.isspace() or ord(ch) <= 0x1F or ord(ch) == 0x7F for ch in url):
+        return False
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and bool(parsed.hostname) and parsed.username is None and parsed.password is None
+
+
 def _open_browser(url: str) -> None:
-    if not url.startswith("https://"):
+    if not _is_safe_https_url(url):
         return
-    opener = "/usr/bin/open" if sys.platform == "darwin" else shutil.which("xdg-open")
-    if not opener or (sys.platform == "darwin" and not Path(opener).exists()):
-        return
+    if sys.platform == "darwin":
+        opener = "/usr/bin/open"
+        if not Path(opener).exists():
+            return
+    else:
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            return
+        opener = shutil.which("xdg-open")
+        if not opener:
+            return
     with suppress(OSError):
         subprocess.Popen(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
             [opener, url],
@@ -130,6 +152,19 @@ def _open_browser(url: str) -> None:
             stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
+
+
+def _forward_stderr(stream: IO[str], target: IO[str], open_url: re.Pattern[str], *, open_browser: bool) -> None:
+    opened = False
+    with stream:
+        for line in stream:
+            target.write(line)
+            target.flush()
+            if not open_browser or opened:
+                continue
+            if match := open_url.search(_ANSI_ESCAPE_RE.sub("", line)):
+                opened = True
+                _open_browser(match.group(0).rstrip(_URL_TRAILING_PUNCT))
 
 
 class Runner:
@@ -243,14 +278,7 @@ class Runner:
                         process_group=0 if detached else None,
                     )
                 if open_url is not None and process.stderr is not None:
-                    opened = False
-                    with process.stderr:
-                        for line in process.stderr:
-                            err_target.write(line)
-                            err_target.flush()
-                            if not opened and not detached and (match := open_url.search(line)):
-                                opened = True
-                                _open_browser(match.group(0))
+                    _forward_stderr(process.stderr, err_target, open_url, open_browser=not detached)
                 code = process.wait()
             except BaseException:
                 if process is not None:

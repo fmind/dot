@@ -164,22 +164,22 @@ def _session_sig_and_unchanged(
     path: Path,
     source_cwd: str,
     prev: SessionManifest | None,
-    db_sig: str,
-    checkpoint: str,
+    *,
+    db_unchanged: bool = False,
+    session_stamp: str = "",
 ) -> tuple[str, str, bool]:
     sig = "" if adapter.database else _sig(path)
     prev_sig = prev.source_signature if prev else ""
+    if adapter.database:
+        if db_unchanged:
+            return sig, prev_sig, bool(prev_sig)
+        return sig, session_stamp, bool(prev_sig) and bool(session_stamp) and prev_sig == session_stamp
     stored_sig = (
         f"{sig};cwd={source_cwd}"
         if adapter.external_cwd and sig and source_cwd
         else (prev_sig if adapter.external_cwd and sig and prev_sig.startswith(f"{sig};cwd=") else sig)
     )
-    unchanged = (
-        bool(prev_sig) and bool(db_sig) and db_sig == checkpoint
-        if adapter.database
-        else bool(sig) and prev_sig == stored_sig
-    )
-    return sig, stored_sig, unchanged
+    return sig, stored_sig, bool(sig) and prev_sig == stored_sig
 
 
 def _write_sync_state(
@@ -219,7 +219,7 @@ def _sync_agent(state: State, outcome: SyncOutcome, root: Path, adapter: AgentAd
     failed_before, last = outcome.failed, read_sync_state(root, adapter.name)
     announced = isinstance(last, SyncState) and last.current
     db_sig = ""
-    checkpoint = ""
+    db_unchanged = False
     try:
         if adapter.database:
             db_sig = _db_sig(source)
@@ -228,7 +228,11 @@ def _sync_agent(state: State, outcome: SyncOutcome, root: Path, adapter: AgentAd
                 if isinstance(last, SyncState) and last.current and not last.failed and not last.retained
                 else ""
             )
-        candidates = adapter.enumerate(source)
+            db_unchanged = bool(db_sig) and db_sig == checkpoint
+        if adapter.database and not db_unchanged and adapter.enumerate_stamped is not None:
+            candidates = adapter.enumerate_stamped(source)
+        else:
+            candidates = [(sid, cwd, path, "") for sid, cwd, path in adapter.enumerate(source)]
     except _SESSION_ERRORS as error:
         _record_sync_failure(state, outcome, adapter, "scan sessions", error)
         candidates = []
@@ -240,14 +244,16 @@ def _sync_agent(state: State, outcome: SyncOutcome, root: Path, adapter: AgentAd
     if adapter.name == "claude":
         owners = {s: m.parent_session_id for s, m in stored.items() if m.parent_session_id}
         candidates = [
-            (f"{s}-{p}" if (p := claude_parent_session_id(p_)) and owners.setdefault(s, p) != p else s, c, p_)
-            for s, c, p_ in candidates
+            (f"{s}-{p}" if (p := claude_parent_session_id(p_)) and owners.setdefault(s, p) != p else s, c, p_, st)
+            for s, c, p_, st in candidates
         ]
     counts = SyncOutcome()
-    for sid, source_cwd, path in candidates:
+    for sid, source_cwd, path, session_stamp in candidates:
         try:
             prev = stored.get(sid)
-            sig, stored_sig, unchanged = _session_sig_and_unchanged(adapter, path, source_cwd, prev, db_sig, checkpoint)
+            sig, stored_sig, unchanged = _session_sig_and_unchanged(
+                adapter, path, source_cwd, prev, db_unchanged=db_unchanged, session_stamp=session_stamp
+            )
             if prev and prev.parser_version == SESSION_PARSER_VERSION and unchanged:
                 counts.unchanged += 1
                 continue
@@ -264,7 +270,7 @@ def _sync_agent(state: State, outcome: SyncOutcome, root: Path, adapter: AgentAd
             src = SessionSource(
                 parsed.source_type,
                 parsed.fingerprint,
-                (parsed.fingerprint if adapter.database else stored_sig) if ok else "",
+                ((parsed.session_stamp or parsed.fingerprint) if adapter.database else stored_sig) if ok else "",
                 parsed.malformed,
                 parsed.skipped,
                 parsed.sidechain,

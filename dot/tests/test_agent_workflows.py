@@ -115,7 +115,20 @@ def test_sync_sessions_incremental_and_claude_subagents(tmp_path: Path, monkeypa
     out2 = sync_sessions(make_state())
     assert out2.unchanged == 6
 
-    # Growing shared SQLite DBs with new sessions must not rewrite unchanged historical bundles.
+    # Growing shared SQLite DBs with new sessions skips parsing unchanged historical sessions via per-session stamps.
+    parsed_sids: list[tuple[str, str]] = []
+    cop_orig = sync_module.AGENT_ADAPTERS["copilot"]
+    oc_orig = sync_module.AGENT_ADAPTERS["opencode"]
+    monkeypatch.setitem(
+        sync_module.AGENT_ADAPTERS,
+        "copilot",
+        replace(cop_orig, parser=lambda p, s, c: (parsed_sids.append(("copilot", s)), cop_orig.parser(p, s, c))[1]),
+    )
+    monkeypatch.setitem(
+        sync_module.AGENT_ADAPTERS,
+        "opencode",
+        replace(oc_orig, parser=lambda p, s, c: (parsed_sids.append(("opencode", s)), oc_orig.parser(p, s, c))[1]),
+    )
     with closing(sqlite3.connect(cop_db)) as conn, conn:
         conn.execute("INSERT INTO sessions VALUES ('cop-2', ?, '2026-11-15T01:00:00Z')", (str(tmp_path / "repo"),))
         conn.execute(
@@ -135,10 +148,60 @@ def test_sync_sessions_incremental_and_claude_subagents(tmp_path: Path, monkeypa
             ),
         )
     out3 = sync_sessions(make_state())
+    assert out3.selected == 2
     assert out3.ingested == 2
     assert out3.unchanged == 6
+    assert parsed_sids == [("copilot", "cop-2"), ("opencode", "oc-2")]
     assert read_session_manifest(session_bundle_path("copilot", "cop-1")).ingested_at == cop1_ingested
     assert read_session_manifest(session_bundle_path("opencode", "oc-1")).ingested_at == oc1_ingested
+
+    # Updating an existing session invalidates only that session's stamp without reparsing sibling sessions.
+    parsed_sids.clear()
+    with closing(sqlite3.connect(cop_db)) as conn, conn:
+        conn.execute("INSERT INTO turns VALUES (1, 'cop-1', 0, 'follow-up', 'done', '2026-11-15T02:00:00Z')")
+    out_upd = sync_sessions(make_state(), agent="copilot")
+    assert out_upd.selected == 1
+    assert out_upd.ingested == 1
+    assert out_upd.unchanged == 1
+    assert parsed_sids == [("copilot", "cop-1")]
+
+    # OpenCode in-place equal-length JSON update reparses only oc-1, leaving oc-2 untouched.
+    parsed_sids.clear()
+    with closing(sqlite3.connect(oc_db)) as conn, conn:
+        conn.execute(
+            "INSERT INTO session_part VALUES ('m1', 'oc-1', 0, 'text', 1000, ?)",
+            (json.dumps({"type": "text", "text": "aaaa"}),),
+        )
+    out_oc_ins = sync_sessions(make_state(), agent="opencode")
+    assert out_oc_ins.selected == 1
+    assert out_oc_ins.unchanged == 1
+    assert parsed_sids == [("opencode", "oc-1")]
+    parsed_sids.clear()
+    with closing(sqlite3.connect(oc_db)) as conn, conn:
+        conn.execute(
+            "UPDATE session_part SET data = ? WHERE message_id = 'm1'",
+            (json.dumps({"type": "text", "text": "bbbb"}),),
+        )
+    out_oc_eq = sync_sessions(make_state(), agent="opencode")
+    assert out_oc_eq.selected == 1
+    assert out_oc_eq.unchanged == 1
+    assert parsed_sids == [("opencode", "oc-1")]
+
+    # Untouched DB checkpoint uses lightweight enumerate() and skips enumerate_stamped().
+    monkeypatch.setitem(
+        sync_module.AGENT_ADAPTERS,
+        "opencode",
+        replace(
+            oc_orig,
+            enumerate_stamped=lambda _p: (_ for _ in ()).throw(AssertionError("should skip stamped scan")),
+        ),
+    )
+    out_fast = sync_sessions(make_state(), agent="opencode")
+    assert out_fast.unchanged == 2
+    assert out_fast.selected == 0
+
+    monkeypatch.setitem(sync_module.AGENT_ADAPTERS, "copilot", cop_orig)
+    monkeypatch.setitem(sync_module.AGENT_ADAPTERS, "opencode", oc_orig)
 
     # A database bundle with cleared source_signature retries even when database_signature matches checkpoint.
     cop1_path = session_bundle_path("copilot", "cop-1")

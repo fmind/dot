@@ -328,8 +328,11 @@ def test_probe_json_github_and_gcp_and_colab_login_flows(tmp_path: Path, monkeyp
 
     st_dry = make_state(ScriptedRunner({"gh"}))
     auth_module.login_github(st_dry, dry_run=True, grants=["write:ssh_signing_key"])
-    assert "--web --clipboard" in buf(st_dry.stdout)
-    assert "--remove-scopes" not in buf(st_dry.stdout)
+    dry_out = buf(st_dry.stdout)
+    assert "--web --clipboard" in dry_out
+    assert "gh auth refresh" in dry_out
+    assert "--remove-scopes admin:enterprise" in dry_out
+    assert "delete_repo" not in dry_out
     with pytest.raises(UsageError, match="forbidden by security policy"):
         auth_module.login_github(make_state(ScriptedRunner({"gh"})), dry_run=True, grants=["admin:enterprise"])
     entry_forb = {
