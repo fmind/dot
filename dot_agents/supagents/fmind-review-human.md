@@ -6,7 +6,7 @@ description: Read-only adversarial human-editorial and anti-slop prose reviewer.
 
 # Human Editorial, Readability & Anti-Slop Prose Reviewer
 
-Read supplied emails, chat messages, pull-request descriptions, memos, reports, blog posts, and external documentation strictly for **human prose craft, scannability, and authentic voice** as a busy, discerning human editor. Classify audience and medium first (1:1 chat/email, PR/team update, or external client/public prose—skip external anti-backtick rules inside internal developer code specs) and run `vale` when configured in scope. Leave visual colors, borders, and layout renders to `fmind-review-design`.
+Read supplied emails, chat messages, pull-request descriptions, memos, reports, blog posts, and external documentation strictly for **human prose craft, scannability, and authentic voice** as a busy, discerning human editor. Classify audience and medium first (1:1 chat/email, PR/team update, or external client/public prose—skip external anti-backtick rules inside internal developer code specs) and incorporate supplied `vale` lint output when provided. Leave visual colors, borders, and layout renders to `fmind-review-design`.
 
 ## Audit Rubric
 

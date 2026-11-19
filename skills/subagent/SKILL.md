@@ -7,16 +7,16 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/subagent
   created: "2026-09-09"
-  updated: "2026-11-18"
+  updated: "2026-11-19"
 ---
 
 # Adversarial Reviewer Subagents
 
-Keep content producers dynamic (built-in subagents + skills on demand). Encode quality gates as static, clean-context, read-only reviewer `supagents` outside the creation loop—never as same-session skills. Follow the 3-tier model: workstation `dot/` holds personal tools/preferences; global `fmind-review-*` holds stack-independent domain best practices; project `AGENTS.md`/`DESIGN.md`/`SECURITY.md` and `<org>-review-*` supagents override global defaults without weakening security or `Output Contract`.
+Keep producers dynamic (built-in subagents + skills). Encode quality gates as static, clean-context, read-only reviewer `supagents` outside the creation loop—never same-session skills. Follow 3-tier scope: `dot/` owns personal tools; global `fmind-review-*` owns stack-independent best practices; project `AGENTS.md`/`DESIGN.md`/`SECURITY.md` and `<org>-review-*` override defaults without weakening security or `Output Contract`.
 
 ## Global `fmind-review-*` Suite (34 Single-Discipline Roles)
 
-Each role (`dot_agents/supagents/`, extending `_reviewer.md`) owns **one discipline** with self-contained operational checks, full file read + non-mutating diagnostic shell/Chrome/Playwright + sanitized primary-source web lookup, zero file-edit/delegation tools, zero step caps, and grounded `## Sources`:
+Each role (`dot_agents/supagents/`) owns **one discipline** with 2-tier least privilege (`_reviewer.md` air-gapped read-only for 33 roles including `design`/`web`, `_reviewer_web.md` sanitized public lookup for `factcheck`), zero shell/MCP/edit/delegation tools, host-native secret-path denies (Claude/AGY host settings + OpenCode `action: read` with `grep` omitted on `_reviewer_web`; Copilot lacks path denies), zero step caps, and grounded `## Sources`:
 
 - **Software & Languages (`8`)**: `completeness` (requirement traceability, zero stubs, state/doc/proof parity), `architecture` (C4 bounds, options, rollback), `code` (logic, `< 500` LOC, YAGNI), `python`, `shell`, `test` (behavior, mutation/edge strength), `cli` (streams, exits, TTY/flags), `api` (REST/gRPC/SDK, RFC 9457, SemVer).
 - **Infra, Reliability, Security & FinOps (`8`)**: `terraform`, `docker`, `k8s`, `cicd`, `sre` (rollouts, timeouts/jitter, drain, SLOs), `perf` (pools, N+1, streaming, benchmarks), `security` (exploit paths, keyless IAM, trust, pins), `finops` (budgets, autoscale ceilings, unit spend).
@@ -28,14 +28,14 @@ Each role (`dot_agents/supagents/`, extending `_reviewer.md`) owns **one discipl
 
 Follow [authoring](references/authoring.md) end-to-end:
 
-1. **Enforce 1 discipline = 1 supagent**: supagents have no progressive disclosure (`references/`); split multi-surface roles instead of stuffing two domains into one prompt.
-1. **Research primary sources in parallel**: query official vendor docs, IETF/W3C/OWASP/NIST/SLSA specs, and peer-reviewed papers; extract model-delta checks (`Invariant + Why + Defect Conditions + Evidence`) with zero `"Distills <Book>"` name-dropping and verify live `## Sources` URLs (`lychee`).
-1. **Compile (`40`–`80` lines) & audit**: inherit `_reviewer` ([template](templates/reviewer.md) for standalone repos), run `supagents build --strict --project && supagents check --strict --project`, audit with `fmind-review-supagent`, and run [calibration](references/calibration.md).
+1. **Enforce 1 discipline = 1 supagent**: no progressive disclosure (`references/`); split multi-surface roles.
+1. **Research primary sources**: query official docs, IETF/W3C/OWASP/NIST/SLSA specs, and papers; write model-delta rules (`Invariant + Why + Defects + Evidence`) with zero `"Distills <Book>"` shorthand and live `## Sources` (`lychee`).
+1. **Compile (`40`–`80` lines) & audit**: inherit `_reviewer` (or `_reviewer_web` for live public fact-checking; [template](templates/reviewer.md) for standalone repos), run `supagents build --strict --project && supagents clean --project && supagents check --strict --project`, audit with `fmind-review-supagent`, and run [calibration](references/calibration.md).
 
 ## Coordinator-as-Critic Loop
 
-1. **Deterministic gates first (`0` tokens)**: run linters, tests, scanners, `vale`, `lychee`, and PNG/PDF renders first.
-1. **Prefer project overrides & fan out**: select repo `<org>-review-*` roles when present (else `fmind-review-*`), spawning `1`–`5` specialists in parallel—pairing `fmind-review-completeness` alongside domain roles on multi-part builds and external deliverables (pass target paths, live dev URLs, or rendered PNGs in the brief, and add `--sandbox --settings '{"allowNonWorkspaceAccess":false}'` on untrusted checkouts).
+1. **Deterministic gates & renders first (`0` tokens)**: run linters, tests, scanners, `vale`, `lychee`, and Chrome/Playwright PNG/DOM/a11y/CSP/CWV/header captures first so reviewers inspect outputs with zero shell or browser-MCP access.
+1. **Prefer project overrides & fan out**: spawn `1`–`5` `<org>-review-*` (or `fmind-review-*`) roles in parallel, pairing `fmind-review-completeness` on multi-part work. Supply explicit file lists, frozen diffs, symbol searches, logs, and `/tmp` PNGs/DOM dumps (`agy` 1.5.x CLI binds `read_file`/`finish`, plus `search_web` on `_reviewer_web`, dropping IDE-only search/fetch tools). Add `--sandbox --settings '{"allowNonWorkspaceAccess":false}'` on untrusted checkouts, and run `fmind-review-factcheck` from an isolated `/var/tmp/<sandbox>` holding sanitized extracts on secret-bearing repos (AGY/Copilot frontmatter lack per-agent secret denies).
 1. **Audit findings**: verify every `rule:`, `loc:`, and `evidence:` against live files, apply verified `BLOCK`/`REVISE` fixes + `DELETIONS` (max `2` rounds), and stop on `PASS`.
 
 ## Gotchas

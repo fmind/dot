@@ -171,7 +171,11 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] == "1"
         assert data["env"]["CUSTOM_SETTING"] == "preserved"
         assert data["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
-        assert data["permissions"]["deny"] == ["Read(./private)"]
+        secret_paths = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())["paths"]
+        expected_claude_denies = [
+            f"Read(~/{entry['path']}/**)" if entry["dir"] else f"Read(~/{entry['path']})" for entry in secret_paths
+        ]
+        assert data["permissions"]["deny"] == ["Read(./private)", *expected_claude_denies]
         assert data["env"]["DISABLE_UPDATES"] == "1"
         assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
         assert data["permissions"]["defaultMode"] == "bypassPermissions"
@@ -204,8 +208,8 @@ class HarnessConfigTests(unittest.TestCase):
             "claude-fable-5-1": {"effortLevel": "high"},
             "claude-fable-5-2": {"effortLevel": "high"},
         }
-        # dot trust owns permissions.additionalDirectories; host deny/additionalDirectories pass through untouched.
-        assert fresh["permissions"] == {"defaultMode": "bypassPermissions"}
+        # dot trust owns permissions.additionalDirectories; managed credential-store Read denies seed fresh configs.
+        assert fresh["permissions"] == {"defaultMode": "bypassPermissions", "deny": expected_claude_denies}
 
     def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
         template = "dot_config/private_opencode/modify_private_opencode.json"
@@ -371,11 +375,18 @@ class HarnessConfigTests(unittest.TestCase):
             "showTips": True,
             "accountOption": False,
         }
+        secret_paths = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())["paths"]
+        expected_agy_denies = [f"read_file({self.home / entry['path']})" for entry in secret_paths]
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         for key, value in original.items():
-            if key not in {"showFeedbackSurvey", "showTips"}:
+            if key not in {"showFeedbackSurvey", "showTips", "permissions"}:
                 assert data[key] == value
+        assert data["permissions"] == {
+            "allow": original["permissions"]["allow"],
+            "ask": original["permissions"]["ask"],
+            "deny": ["command(rm -rf)", *expected_agy_denies],
+        }
         assert data["showFeedbackSurvey"] is False
         assert data["showTips"] is False
         assert data["editorMode"] == "vim"
@@ -393,12 +404,15 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh["showFeedbackSurvey"] is False
         assert fresh["showTips"] is False
         assert fresh["verbosity"] == "high"
+        assert fresh["permissions"] == {"deny": expected_agy_denies}
         for key in ("model", "runningLightSpeed", "colorScheme"):
             assert key not in fresh
         assert "trustedWorkspaces" not in fresh  # dot trust owns folder trust.
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
         template = "private_dot_gemini/private_config/modify_private_config.json"
+        secret_paths = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())["paths"]
+        expected_agy_denies = [f"read_file({self.home / entry['path']})" for entry in secret_paths]
         original = {
             "userSettings": {
                 "cliRemoteControlHostname": "fixture-host",
@@ -428,7 +442,7 @@ class HarnessConfigTests(unittest.TestCase):
         ]
         assert grants["allow"] == ["read_file(/fixture)", *managed]
         assert grants["ask"] == original["userSettings"]["globalPermissionGrants"]["ask"]
-        assert grants["deny"] == ["command(rm *)"]
+        assert grants["deny"] == ["command(rm *)", *expected_agy_denies]
         assert data["customState"] == original["customState"]
         assert settings["autoExecutionPolicy"] == "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER"
         assert settings["permissionPreset"] == "AGENT_PERMISSION_PRESET_TURBO"
@@ -437,7 +451,7 @@ class HarnessConfigTests(unittest.TestCase):
         fresh = json.loads(self.render(template, ""))["userSettings"]
         assert "cliRemoteControlHostname" not in fresh
         assert "themeMode" not in fresh
-        assert fresh["globalPermissionGrants"] == {"allow": managed}
+        assert fresh["globalPermissionGrants"] == {"allow": managed, "deny": expected_agy_denies}
 
     def test_antigravity_cloud_override_is_explicit_and_json_safe(self):
         template = "private_dot_gemini/private_antigravity-cli/modify_private_settings.json"

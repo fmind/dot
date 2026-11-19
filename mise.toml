@@ -251,9 +251,12 @@ description = "Generate parent routing indexes from guide metadata"
 run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --sync"
 
 [tasks."format:supagents"]
-description = "Compile canonical subagent sources into native harness profiles"
+description = "Compile canonical subagent sources into native harness profiles and remove retired outputs"
 wait_for = ["format:dprint"]
-run = "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
+run = [
+  "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
+  "uv run --frozen --project dot supagents clean --project --source-dir dot_agents/supagents --config supagents.yaml",
+]
 
 # Lefthook passes staged files to these formatters; mise hands variadic arguments
 # over as one shell-quoted string, which `eval "set -- ..."` splits back safely.

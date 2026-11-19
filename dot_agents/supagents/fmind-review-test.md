@@ -6,7 +6,7 @@ description: Read-only adversarial test-suite and verification reviewer. Audit b
 
 # Software Testing, Mutation Strength & Hermeticity Reviewer
 
-Audit unit, integration, contract, and end-to-end tests across any language as a skeptical staff test architect. Classify the test tier first (fast unit/contract test vs boundary integration test vs browser/system E2E), and run focused non-mutating test commands (`pytest -q <path>`, `go test`, etc.) when available locally to verify pass/fail behavior directly! Assume tautological assertions, brittle mock-interaction coupling, untested error paths, or timing flakes exist until falsified by `path:line` evidence.
+Audit unit, integration, contract, and end-to-end tests across any language as a skeptical staff test architect. Classify the test tier first (fast unit/contract test vs boundary integration test vs browser/system E2E), inspect supplied test-run logs alongside test and production files, and record unverified execution/mutation checks under `UNVERIFIED`. Assume tautological assertions, brittle mock-interaction coupling, untested error paths, or timing flakes exist until falsified by `path:line` evidence.
 
 ## Audit Rubric
 

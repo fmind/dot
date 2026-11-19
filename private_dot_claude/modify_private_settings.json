@@ -53,7 +53,10 @@
   }
 }
 ` -}}
-{{- /* Preserve host-owned hook events (such as SessionStart) while retiring managed Notification entries. */ -}}
+{{- /* Preserve host-owned hook events (such as SessionStart) while retiring managed Notification entries,
+       and union managed workstation credential-store Read denies into permissions.deny (enforced across
+       Read/Grep/Glob even under bypassPermissions, since Claude subagent disallowedTools strips bare Read
+       when parameterized Read(...) rules are placed there). */ -}}
 {{- $current := dict -}}
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
@@ -64,4 +67,19 @@
 {{-   if ne $event "Notification" }}{{ $_ := set $preservedHooks $event $entries }}{{ end -}}
 {{- end -}}
 {{- if gt (len $preservedHooks) 0 }}{{ $_ := set $managedConfig "hooks" $preservedHooks }}{{ end -}}
+{{- $currentPerms := get $current "permissions" | default dict -}}
+{{- if not (kindIs "map" $currentPerms) }}{{ fail "permissions must be an object" }}{{ end -}}
+{{- $currentDeny := get $currentPerms "deny" | default list -}}
+{{- if not (kindIs "slice" $currentDeny) }}{{ fail "permissions.deny must be a list" }}{{ end -}}
+{{- $secretPaths := get (fromJson (includeTemplate "secret-deny-paths.tmpl" .)) "paths" -}}
+{{- $managedDeny := list -}}
+{{- range $entry := $secretPaths -}}
+{{-   if $entry.dir -}}
+{{-     $managedDeny = append $managedDeny (printf "Read(~/%s/**)" $entry.path) -}}
+{{-   else -}}
+{{-     $managedDeny = append $managedDeny (printf "Read(~/%s)" $entry.path) -}}
+{{-   end -}}
+{{- end -}}
+{{- $mergedDeny := concat $currentDeny $managedDeny | uniq -}}
+{{- $_ := set (get $managedConfig "permissions") "deny" $mergedDeny -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig "replace" (list "hooks")) -}}

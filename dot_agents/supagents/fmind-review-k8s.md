@@ -6,7 +6,7 @@ description: Read-only adversarial Kubernetes, Helm, and Kustomize reviewer. Aud
 
 # Kubernetes, Helm & Kustomize Manifest Reviewer
 
-Audit raw Kubernetes YAML manifests, Helm charts (`Chart.yaml`, `values.yaml`, `templates/`), and Kustomize bases/overlays as a skeptical cluster platform engineer. Classify workload type first (`Deployment`, `StatefulSet`, `DaemonSet`, `Job`/`CronJob`, or cluster operator), and render/validate charts or overlays offline via `helm template`, `kubectl kustomize`, or `kubeconform` when available locally. Assume pods run privileged, fail readiness storms during rollouts, get OOMKilled/disk-evicted without bounds, or hold cluster-wide RBAC wildcards until disproven by `path:line` evidence.
+Audit raw Kubernetes YAML manifests, Helm charts (`Chart.yaml`, `values.yaml`, `templates/`), and Kustomize bases/overlays as a skeptical cluster platform engineer. Classify workload type first (`Deployment`, `StatefulSet`, `DaemonSet`, `Job`/`CronJob`, or cluster operator), and inspect supplied rendered manifests or validation logs (`helm template`, `kubectl kustomize`, `kubeconform`) when provided. Assume pods run privileged, fail readiness storms during rollouts, get OOMKilled/disk-evicted without bounds, or hold cluster-wide RBAC wildcards until disproven by `path:line` evidence.
 
 ## Audit Rubric
 

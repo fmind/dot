@@ -26,4 +26,18 @@
 {{- if $gcp_project -}}
 {{- $_ := set $managedConfig "gcp" (dict "project" $gcp_project "location" (env "ANTIGRAVITY_CLOUD_LOCATION" | default "global")) -}}
 {{- end -}}
+{{- /* Preserve host-owned permissions while unioning managed workstation credential-store read_file denies
+       (Deny > Ask > Allow in Antigravity's permission engine; absolute paths avoid tilde-expansion ambiguity). */ -}}
+{{- $current := dict -}}
+{{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
+{{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
+{{- $currentPerms := get $current "permissions" | default dict -}}
+{{- if not (kindIs "map" $currentPerms) }}{{ fail "permissions must be an object" }}{{ end -}}
+{{- $currentDeny := get $currentPerms "deny" | default list -}}
+{{- if not (kindIs "slice" $currentDeny) }}{{ fail "permissions.deny must be an array" }}{{ end -}}
+{{- $managedDeny := list -}}
+{{- range $entry := get (fromJson (includeTemplate "secret-deny-paths.tmpl" .)) "paths" -}}
+{{-   $managedDeny = append $managedDeny (printf "read_file(%s)" (joinPath $.chezmoi.homeDir $entry.path)) -}}
+{{- end -}}
+{{- $_ := set $managedConfig "permissions" (dict "deny" (concat $currentDeny $managedDeny | uniq)) -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

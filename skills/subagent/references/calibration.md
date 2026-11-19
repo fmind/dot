@@ -11,7 +11,7 @@ Create synthetic fixtures inside a clean `/var/tmp` sandbox directory (never cus
 
 ## Headless Production-Contract Probe
 
-Run headless from the sandbox without overriding the supagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the sandbox (for visual/browser roles capturing `/tmp` renders under `allowNonWorkspaceAccess: false`, allocate `render_dir="$(cd "$(mktemp -d /tmp/agy-render.XXXXXX)" && pwd -P)"`, pass `--add-dir "$render_dir"`, direct `-p` to write temporary renders inside `"$render_dir"`, and remove `"$render_dir"` on exit):
+Run headless from the sandbox without overriding the supagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the sandbox (for visual/web roles or diff/gate-log bundles outside the sandbox under `allowNonWorkspaceAccess: false`, allocate `render_dir="$(cd "$(mktemp -d /tmp/agy-render.XXXXXX)" && pwd -P)"`, pre-render PNG/PDF/DOM/log fixtures into `"$render_dir"` before launching the reviewer, pass `--add-dir "$render_dir"` plus exact fixture paths in `-p`, and remove `"$render_dir"` on exit):
 
 ```bash
 sandbox=$(mktemp -d /var/tmp/subagent-cal.XXXXXX)

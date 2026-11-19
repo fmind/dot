@@ -21,9 +21,15 @@
 {{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
 {{- $allow := dig "userSettings" "globalPermissionGrants" "allow" (list) $current -}}
 {{- if not (kindIs "slice" $allow) }}{{ fail "globalPermissionGrants.allow must be an array" }}{{ end -}}
+{{- $deny := dig "userSettings" "globalPermissionGrants" "deny" (list) $current -}}
+{{- if not (kindIs "slice" $deny) }}{{ fail "globalPermissionGrants.deny must be an array" }}{{ end -}}
 {{- /* Full autonomy for remote sessions (developer, 2026-10-01): wildcard grants for every action
-       (https://antigravity.google/docs/permissions). Added without replacing host-owned allow/ask/deny
-       lists; an explicit ask or deny rule still wins. */ -}}
+       (https://antigravity.google/docs/permissions) paired with managed credential-store read_file denies
+       without replacing host-owned allow/ask/deny lists (an explicit ask or deny rule still wins). */ -}}
 {{- $grants := list "read_file(*)" "write_file(*)" "command(*)" "read_url(*)" "execute_url(*)" "mcp(*)" -}}
-{{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow $grants | uniq)) -}}
+{{- $managedDeny := list -}}
+{{- range $entry := get (fromJson (includeTemplate "secret-deny-paths.tmpl" .)) "paths" -}}
+{{-   $managedDeny = append $managedDeny (printf "read_file(%s)" (joinPath $.chezmoi.homeDir $entry.path)) -}}
+{{- end -}}
+{{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow $grants | uniq) "deny" (concat $deny $managedDeny | uniq)) -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}
