@@ -26,7 +26,10 @@ set -gx CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS 1
 set -gx COPILOT_ALLOW_ALL 1
 set -gx COPILOT_AUTO_UPDATE false
 set -gx COPILOT_TELEMETRY_DISABLED true
-set -gx GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND file
+# Keep gws off the macOS Keychain only; Linux keeps the system Secret Service keyring.
+if test (uname -s) = Darwin
+    set -gx GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND file
+end
 set -gx HF_HUB_DISABLE_TELEMETRY 1
 set -gx HF_HUB_DISABLE_UPDATE_CHECK 1
 # ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively.

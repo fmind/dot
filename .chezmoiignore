@@ -29,8 +29,9 @@ tests
 .config/git/config.*
 
 # zsh is the macOS default login shell; Linux logins use .profile and .bashrc.
-# Docker's Compose plugin path serves the mise-installed macOS Docker stack; Linux keeps its own.
+# Docker's Compose plugin path and macOS mise env overrides apply only on darwin; Linux keeps its own.
 {{- if ne .chezmoi.os "darwin" }}
+.config/mise/conf.d/macos.toml
 .docker
 .zprofile
 {{- end }}

@@ -145,40 +145,63 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
 
 def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[1]
-    mise_env = {
+    base_mise_env = {
         key: str(value).replace("{{env.HOME}}", str(tmp_path))
         for key, value in tomllib.loads((root / "dot_config/mise/config.toml").read_text(encoding="utf-8"))[
             "env"
         ].items()
     }
+    macos_mise_env = {
+        key: str(value).replace("{{env.HOME}}", str(tmp_path))
+        for key, value in tomllib.loads((root / "dot_config/mise/conf.d/macos.toml").read_text(encoding="utf-8"))[
+            "env"
+        ].items()
+    }
+    assert "GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND" not in base_mise_env
+    assert macos_mise_env == {"GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND": "file"}
+    assert ".config/mise/conf.d/macos.toml" in (root / ".chezmoiignore").read_text(encoding="utf-8")
+
     fish = _fish()
-    base_env = {"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"}
-    baseline = subprocess.run(
-        [fish, "--no-config", "--command", "env -0"],
-        cwd=root,
-        env=base_env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=10,
-        check=True,
-    )
-    sourced = subprocess.run(
-        [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; env -0"],
-        cwd=root,
-        env=base_env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=10,
-        check=True,
-    )
-    before = dict(entry.split("=", 1) for entry in baseline.stdout.split("\0") if "=" in entry)
-    after = dict(entry.split("=", 1) for entry in sourced.stdout.split("\0") if "=" in entry)
-    exported = {key: value for key, value in after.items() if before.get(key) != value and key not in SHELL_ONLY_ENV}
-    assert exported == mise_env
+
+    def _exported(path_env: str) -> dict[str, str]:
+        base_env = {"HOME": str(tmp_path), "PATH": path_env}
+        baseline = subprocess.run(
+            [fish, "--no-config", "--command", "env -0"],
+            cwd=root,
+            env=base_env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=10,
+            check=True,
+        )
+        sourced = subprocess.run(
+            [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; env -0"],
+            cwd=root,
+            env=base_env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=10,
+            check=True,
+        )
+        before = dict(entry.split("=", 1) for entry in baseline.stdout.split("\0") if "=" in entry)
+        after = dict(entry.split("=", 1) for entry in sourced.stdout.split("\0") if "=" in entry)
+        return {key: value for key, value in after.items() if before.get(key) != value and key not in SHELL_ONLY_ENV}
+
+    expected_native = base_mise_env | (macos_mise_env if sys.platform == "darwin" else {})
+    assert _exported("/usr/bin:/bin") == expected_native
+
+    # Exercise both OS branches via a synthetic uname shim so Linux CI covers macOS-only exports too.
+    for os_name, expected in (("Linux", base_mise_env), ("Darwin", base_mise_env | macos_mise_env)):
+        shim_dir = tmp_path / f"bin-{os_name}"
+        shim_dir.mkdir()
+        uname_shim = shim_dir / "uname"
+        uname_shim.write_text(f"#!/bin/sh\necho {os_name}\n", encoding="utf-8")
+        uname_shim.chmod(0o755)
+        assert _exported(f"{shim_dir}:/usr/bin:/bin") == expected
 
 
 def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path: Path) -> None:

@@ -46,8 +46,6 @@ COPILOT_ALLOW_ALL = "1"
 COPILOT_AUTO_UPDATE = "false"
 # Copilot-owned GitHub and Entra authentication telemetry; no settings key covers it.
 COPILOT_TELEMETRY_DISABLED = "true"
-# Keep gws off the macOS Keychain (avoiding per-binary partition prompts and split keyring backends across tools).
-GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND = "file"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Skip hf's PyPI/extension update checks, /api/agent-harnesses fetch, and hf-cli skill hint.
 HF_HUB_DISABLE_UPDATE_CHECK = "1"

@@ -68,8 +68,8 @@ def test_modifier_ignores_prefix_and_orphan_end_markers(tmp_path: Path) -> None:
 def test_macos_only_targets_are_ignored_elsewhere() -> None:
     ignore = (ROOT / ".chezmoiignore").read_text(encoding="utf-8")
     _, block = ignore.split('{{- if ne .chezmoi.os "darwin" }}\n', 1)
-    # zsh login profile and the Docker plugin config for the mise-installed macOS Docker stack.
-    assert block.split("{{- end }}", 1)[0].split() == [".docker", ".zprofile"]
+    # macOS-only mise env overrides, zsh login profile, and the Docker plugin config for the mise-installed macOS Docker stack.
+    assert block.split("{{- end }}", 1)[0].split() == [".config/mise/conf.d/macos.toml", ".docker", ".zprofile"]
     _, linux_block = ignore.split('{{- if ne .chezmoi.os "linux" }}\n', 1)
     assert linux_block.split("{{- end }}", 1)[0].split() == [".config/systemd", "systemd-user-reload.sh"]
 

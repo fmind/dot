@@ -1,0 +1,7 @@
+# Docs: https://mise.jdx.dev/configuration.html
+# macOS-only environment overrides (excluded on Linux by .chezmoiignore).
+
+[env]
+# Keep gws off the macOS Keychain (avoiding per-binary partition prompts and split keyring backends across tools).
+# Linux keeps gws on the default Secret Service keyring.
+GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND = "file"
