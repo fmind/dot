@@ -3881,10 +3881,10 @@ url = "https://github.com/earendil-works/pi/releases/download/v1.5.2/pi-darwin-a
 url_api = "https://api.github.com/repos/earendil-works/pi/releases/assets/731292526"
 
 [[tools."pypi:brain-framework"]]
-version = "29.0.0"
+version = "29.0.1"
 backend = "pypi:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-brain-framework/29.0.0~60d65a25", digest = "sha256:816271a1bd88e645734029417b1cbb4bf8a7b4104352eaa5abbd7f22df21da2c" }
+uv = { path = "locks/pypi-brain-framework/29.0.1~60d65a25", digest = "sha256:ceb23f9f89b5977715043f2851f29582c7231ad7b6615a415625b22f8f7e41ba" }
 
 [tools."pypi:brain-framework".options]
 python = "3.14"
