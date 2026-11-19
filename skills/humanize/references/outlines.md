@@ -37,11 +37,11 @@ Lead with user/operator effect and preserve technical _why_ for squash-merge his
 
 ### Executive analysis, technical RFC, or audit report
 
-1. **Executive summary + KPI strip**: headline conclusion, 2–4 key metrics vs baseline, and explicit decision or scope.
+1. **Executive summary (or KPI strip, never both stacked)**: plain 1–2 sentence takeaway, primary metric vs baseline, and explicit decision or scope (keep filter exclusions and denominator methodology in `Sources & Annexes`).
 1. **Architecture / Findings**: literal conclusion-led headings, clean diagrams/charts/tables ([primitives](primitives.md)), exact mechanisms, boundaries, and trade-offs.
 1. **Edge cases, risks, & sensitivity**: failure modes, security/cost bounds, assumptions, and flip conditions.
 1. **Implementation / Next steps**: sequenced actions with owners, verification gates, and rollback plan.
-1. **Sources (& optional Annexes)**: visible primary sources naming what each link grounds plus date/version; collapsible `<details>` or appendix for raw benchmarks/logs.
+1. **Sources (& Annexes)**: visible primary sources naming what each link grounds plus date/version; `<details>` or a dedicated `Annexes` tab for filter exclusions, formulas, and raw benchmarks/logs.
 
 ## Decks (Typically 6 to 12 Slides, Scaled to Evidence)
 

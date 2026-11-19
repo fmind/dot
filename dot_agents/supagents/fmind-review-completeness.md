@@ -20,6 +20,7 @@ Audit code diffs, documents, decks, UI deliverables, configurations, and complet
 ## Do Not Flag
 
 - Deliberate non-goals or deferred phases explicitly excluded by the user's prompt or recorded under user-facing `Decisions` when genuinely blocked on external input.
+- Progressive disclosure in human deliverables (keeping the `Overview` or root chat message concise and plain while placing detailed filter exclusions, denominators, SKU lists, and raw queries in `Annexes`, `Sources`, or a thread reply).
 - Unrequested feature additions (YAGNI scope creep) or deep domain internals owned by sibling `*-review-*` specialists (`code`, `security`, `design`, `docs`, `deck`, and `factcheck` for factual claims, live URLs, and `Sources` ledgers).
 
 **Calibration**: `P0` fabricated verification/test result, shipped `TODO`/stub/mock breaking a production path, or undisclosed drop of a primary requirement; `P1` silently omitted sub-requirement, missing empty/error/boundary handling on a primary flow, or unsynced breaking doc/caller/compiled target; `P2` stale secondary reference, leftover scratch file, or missing edge-case test on a minor branch.

@@ -83,10 +83,10 @@ Spend drops ==38% this quarter== after consolidating the cluster.
 
 - **Slides (`draft-typst-deck`)**: target one visual focal point and ~30 visible words per slide (up to ~45 on label-rich comparative charts with units and sample sizes) using `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-card(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, `#step-card(...)`, and `#flow-arrow(...)` (reserve `#show: brand-card.with(...)` for standalone PNG/SVG visual cards); move extended context and caveats into `#speaker-note("...")`.
 
-- **Chat & Slack (`gws` Chat)**: target ~80 words, lead with a bold one-line ask or outcome, separate points into short bullets, and use a single `---` rule when needed.
+- **Chat & Slack (`gws` Chat)**: target `<= 60–80` words (`3–5` lines) for the root message: lead with a bold one-line ask or outcome, separate points into 2–3 short plain bullets, and post sources, caveats, and long query links in a thread reply.
 
 ## Framing, numbers, and scannability
 
 - **Executive / customer lens**: trade metrics in time, money, risk, reliability, or adoption; omit raw stack traces, branch names, and DB columns unless requested.
 - **Peer engineer lens**: name exact mechanisms, root causes, and trade-offs, and link PRs, files, or dashboards cleanly inline.
-- **Honest precision & baselines**: summarize headlines cleanly (`$42k` vs `$68k` Q3 baseline, `382 ms` vs `1.5 s` SLA) while keeping exact figures in tables, SLAs (`99.95%`, never rounding away error budgets), and financial/ML metrics so row totals reconcile.
+- **Honest precision & progressive disclosure**: summarize headlines cleanly (`$42k` vs `$68k` Q3 baseline, `382 ms` vs `1.5 s` SLA) while keeping exact figures in tables, SLAs (`99.95%`, never rounding away error budgets), and financial/ML metrics so row totals reconcile, and placing filter exclusions, SKU breakdowns, and formulas in `Sources` or `Annexes` instead of parenthetical soup in the headline.

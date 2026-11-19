@@ -73,6 +73,7 @@ Audit technical reports, documentation, articles, slides, spreadsheets, proposal
 ## Do Not Flag
 
 - Purely subjective value judgments or stylistic phrasing that assert no verifiable factual or numerical claim.
+- Progressive disclosure where headline/overview sentences state the clean primary figure and scope while detailed filter exclusions, SKU breakdowns, formulas, and query links are documented in `Sources`, `Annexes`, or a thread reply.
 - Prose tone/slop polish, doc-site page structure, or formal legal strategy owned by `fmind-review-human`, `fmind-review-docs`, and `fmind-review-compliance`.
 
 **Calibration**: `P0` fabricated URL/citation/quote, contradicted headline claim, broken decision-changing math, or privacy-leaking search query; `P1` unverified factual claim presented as fact, secondary blog used where primary source contradicts/differs, `x`-vs-`%` or period-mismatch error, or unversioned/broken provenance on a headline report claim; `P2` stale minor version date or missing `N`/window qualifier on secondary stat.

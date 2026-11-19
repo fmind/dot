@@ -8,7 +8,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft-doc
   created: "2026-10-27"
-  updated: "2026-11-17"
+  updated: "2026-11-18"
 ---
 
 # Draft Doc
@@ -19,7 +19,7 @@ Create and update Google Docs in Drive with `gws`, following [humanize](../human
 
 **Ask the user** whether to create a **standard Google Doc (`.gdoc`)** or a **Markdown Google Doc (`.md`)** when unstated. On updates, match the existing Drive `mimeType` (convert formats by creating a new sibling file, never across `mimeType`s in place).
 
-1. **Standard `.gdoc` (`application/vnd.google-apps.document`)**: polished reports with native typography, `<mark>`, callouts, styled tables, headers/margins, comments/suggestions, and PDF/DOCX export via HTML import or `documents.batchUpdate` ([references/gdoc.md](references/gdoc.md)).
+1. **Standard `.gdoc` (`application/vnd.google-apps.document`)**: polished reports with native typography (`>= 10.5pt` body, `>= 10pt` table cells, never `< 10pt`), `<mark>`, at most one callout box per tab, styled tables, headers/margins, multi-tab structure (`Overview`, `Annexes`, `FAQ`), comments/suggestions, and PDF/DOCX export via HTML import or `documents.batchUpdate` ([references/gdoc.md](references/gdoc.md)).
 1. **Markdown `.md` (`text/markdown`)**: version-controlled technical docs updated via `drive.files.update` with native `$...$` equations; opens pageless (ignoring HTML/CSS) and pairs Markdown tables with compiled Typst/Mermaid/SVG PNGs (`<=440 pt` / `600 px`; [references/dialect.md](references/dialect.md)).
 
 ## Branding

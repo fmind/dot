@@ -31,8 +31,8 @@ Replies (including skill outputs) must stand alone without requiring tool or sub
 
 ### To other people
 
-- **Craft for the medium**: load `humanize`; lead with outcome/decision, calibrate depth and monospace to the reader, cut AI slop and em dashes (`vale`), format visually, and leak no assistant framing.
-- **Cite primary sources**: link authoritative sources inline, and close substantive deliverables (docs, sheets, reports, proposals) with a `Sources` section (source, claim, date/version).
+- **Craft for the medium**: load `humanize`; open with a plain, conversational sentence stating what it is and why it matters (never a noun-stacked feature list or parenthetical filter dump), calibrate depth and monospace to the reader, cut AI slop and em dashes (`vale`), format visually without stacking summary boxes, and leak no assistant framing.
+- **Progressive disclosure & primary sources**: keep headlines, overviews, and main chat/mail copy focused on the core decision and primary baseline; push filter exclusions, denominators, SKU lists, formulas, and raw queries into `Sources`, `Annexes`, or thread replies, and close substantive deliverables with a `Sources` section (source, claim, date/version).
 
 ## Rigor
 
@@ -57,7 +57,7 @@ Customer, employer, and existing projects keep their own stack and design.
 
 - **Default stack**: Python (`python-stack`) for apps, agents, CLIs, and automation; PEP 723 `uv` scripts; Zensical for docs sites.
 - **Concurrent I/O**: `asyncio` for network, LLM, and MCP calls; bounded pools for subprocess/file fan-out (`python-stack`).
-- **Lean, complete code**: prefer existing tools and deletion over wrappers; keep modules `< 500` LOC, configs minimal, abstractions at real boundaries, and edge/error/empty states handled.
+- **Lean, complete code**: prefer existing tools and deletion over wrappers; keep modules `< 500` LOC, configs minimal, abstractions at real boundaries, and edge/error/empty states handled. Use code for deterministic data, APIs, and validation—never build YAML/template prose generators when a skill + Markdown example + check script suffices.
 - **Config and docs in sync**: document defaults, precedence, and validation; prefer native formats (else YAML for people, schema-backed JSON for programs); comment non-obvious choices, keep ops idempotent, and sync docs/skills (`repository-docs`).
 - **Calm visuals and UIs**: follow project brand guidelines or `~/.agents/DESIGN.md`; verify empty, loading, error, and populated states across desktop and mobile viewports (`web-frontend`, `chrome-devtools`, `diagrams-as-code`).
 

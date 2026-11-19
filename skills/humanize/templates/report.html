@@ -40,7 +40,6 @@
       .summary { margin-top: 1.75rem; padding: 1.4rem 1.5rem; border-radius: 16px; background: var(--selection); border-left: 5px solid var(--primary); }
       .summary h2 { margin: 0 0 0.5rem; font-size: 0.92rem; }
       .takeaway { font-size: 1.25rem; line-height: 1.4; font-weight: 700; color: var(--primary); margin-bottom: 0.65rem; }
-      .ask { margin: 1rem 0 0; padding: 0.95rem 1.25rem; background: var(--panel); border-radius: 12px; border-left: 4px solid var(--primary); }
       .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: 1rem; margin: 1.75rem 0 0; }
       .tile { padding: 1rem 1.2rem; border-radius: 12px; background: var(--panel); border-top: 5px solid var(--c, var(--primary)); }
       .tile .value { display: block; font-size: 2.1rem; font-weight: 700; line-height: 1.1; color: var(--c, var(--primary)); font-variant-numeric: tabular-nums; }
@@ -89,10 +88,11 @@
       <section class="summary" aria-labelledby="summary-title">
         <h2 id="summary-title">Executive summary</h2>
         <p class="takeaway">{Core signal and recommendation in one plain sentence.}</p>
-        <p style="margin-bottom: 0;">{Brief context with the decisive figure <mark>{highlighted against baseline}</mark> and inline source links.}</p>
+        <p>{Brief context with the decisive figure <mark>{highlighted against baseline}</mark> and inline source links.}</p>
+        <p style="margin-bottom: 0;"><strong>Decision needed:</strong> {Clear yes/no choice and target date.}</p>
       </section>
-      <p class="ask"><strong>Decision needed:</strong> {Clear yes/no choice and target date.}</p>
 
+      <!-- Optional KPI strip: include ONLY when distinct numeric tiles add clarity beyond the summary above; delete otherwise to avoid box fatigue. -->
       <section class="tiles" aria-label="Key figures">
         <div class="tile"><span class="value">{€X–Y}</span><span class="label">{Primary metric delta vs baseline}</span></div>
         <div class="tile" style="--c: var(--series-2)"><span class="value">{N weeks}</span><span class="label">{Time to value}</span></div>
