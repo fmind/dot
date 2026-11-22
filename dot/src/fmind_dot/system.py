@@ -11,24 +11,18 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from fmind_dot import __version__
-from fmind_dot.archive.store import (
-    SESSION_STORE_VERSION,
-    agent_bundle_paths,
-    read_session_manifest,
-    session_store_root,
-)
-from fmind_dot.archive.sync import AGENT_SOURCES, read_sync_state, source_root
-from fmind_dot.auth import (
+from fmind_dot.auth_probes import (
     GCLOUD_CLI_TOKEN,
     PROBE_TIMEOUT_SECONDS,
     adc_ready,
     gcloud_ready,
+    github_plaintext_headless_ok,
     github_ready,
     github_status,
     github_token_plaintext,
     workspace_ready,
 )
-from fmind_dot.command import Parser, add_json
+from fmind_dot.command import Parser, add_json, add_quiet
 from fmind_dot.config import expand_path, policy
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
 from fmind_dot.process import CommandResult, run_parallel
@@ -43,16 +37,11 @@ DOCTOR_SECRETS = ("~/.config/chezmoi/key.txt", _SIGNING_PRIVATE_KEY)
 _SHARED_PERSONA, _SHARED_SKILLS = "~/.agents/AGENTS.md", "~/.agents/skills"
 _AGENT_HOSTS: dict[str, tuple[str, str]] = {
     "agy": ("~/.gemini/GEMINI.md", "~/.gemini/config/skills"),
-    "claude": ("~/.claude/CLAUDE.md", "~/.claude/skills"),
     "copilot": ("~/.copilot/copilot-instructions.md", ""),
-    "opencode": ("~/.config/opencode/AGENTS.md", ""),
-    "pi": ("~/.pi/agent/AGENTS.md", ""),
 }
 _AGENT_REVIEWERS: dict[str, tuple[str, str]] = {
     "agy": ("~/.gemini/config/agents", "fmind-review-*.md"),
-    "claude": ("~/.claude/agents", "fmind-review-*.md"),
     "copilot": ("~/.copilot/agents", "fmind-review-*.agent.md"),
-    "opencode": ("~/.config/opencode/agents", "fmind-review-*.md"),
 }
 
 _DOCTOR_GROUPS = (
@@ -142,10 +131,12 @@ def _tool_results(state: State) -> list[CheckResult]:
 def _auth_results(state: State) -> list[CheckResult]:
     def github() -> CheckResult | bool:
         entry = github_status(state)
-        if not github_ready(state, entry, reconcile=False):
+        if not github_ready(entry, reconcile=False):
             return False
         if not github_token_plaintext(entry):
             return True
+        if github_plaintext_headless_ok(entry):
+            return CheckResult("gh", "pass", "authenticated (headless 0600 hosts.yml)", condition="healthy")
         msg = "authenticated; token in plaintext hosts.yml: unlock the system keyring, then run gh auth logout and dot login github"
         return CheckResult("gh", "warn", msg, condition="insecure")
 
@@ -153,7 +144,7 @@ def _auth_results(state: State) -> list[CheckResult]:
     checks: dict[str, tuple[str, bool, Callable[[], CheckResult | bool]]] = {
         "gh": ("gh", "github" in configured, github),
         "gcloud": ("gcloud", "gcp" in configured, lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
-        "gcloud-adc": ("gcloud", bool({"gcp", "colab"} & configured), lambda: adc_ready(state)),
+        "gcloud-adc": ("gcloud", "gcp" in configured, lambda: adc_ready(state)),
         "gws": ("gws", "workspace" in configured, lambda: workspace_ready(state)),
     }
 
@@ -218,7 +209,7 @@ def _same_file(path: Path, target: Path) -> bool:
         return False
 
 
-def _inspect_agent(root: Path, name: str) -> CheckResult:
+def _inspect_agent(name: str) -> CheckResult:
     persona_path, skills_path = _AGENT_HOSTS[name]
     shared = expand_path(_SHARED_SKILLS)
     checks: list[tuple[str, bool]] = [
@@ -231,37 +222,7 @@ def _inspect_agent(root: Path, name: str) -> CheckResult:
     if problems := [lbl for lbl, ok in checks if not ok]:
         msg = f"discovery broken ({','.join(problems)}); run chezmoi apply --force"
         return CheckResult(name, "fail", msg, condition="broken")
-    if name not in AGENT_SOURCES:
-        return CheckResult(name, "pass", "persona, skills, and reviewers configured", condition="healthy")
-    try:
-        source_root(name).stat()
-        source_present = True
-    except FileNotFoundError:
-        source_present = False
-    except OSError:
-        msg = f"source unreadable; restore access and run dot stats --agent {name}"
-        return CheckResult(name, "fail", msg, condition="unreadable")
-    info = read_sync_state(root, name)
-    if isinstance(info, str):
-        last_sync, failures, retained = info, 0, 0
-    else:
-        last_sync, failures, retained = info.synced_at if info.current else "stale", info.failed, info.retained
-    try:
-        paths = agent_bundle_paths(root / name)
-        for path in paths:
-            read_session_manifest(path, usage=False)
-        sessions = len(paths)
-    except FileNotFoundError:
-        sessions = 0
-    except OSError, ValueError:
-        msg = f"archive unreadable under ~/.agents/sessions/{SESSION_STORE_VERSION}/{name}"
-        return CheckResult(name, "fail", msg, condition="unreadable")
-    if last_sync == "unreadable" or (last_sync in {"never", "stale"} and source_present) or failures:
-        msg = f"sync {last_sync} (failures={failures}); run dot stats --agent {name}"
-        return CheckResult(name, "fail", msg, condition="unsynced")
-    note = f", retained={retained}" if retained else ""
-    details = f"archive={'readable' if sessions else 'empty'} sessions={sessions} last_sync={last_sync}{note}"
-    return CheckResult(name, "pass", details, condition="healthy")
+    return CheckResult(name, "pass", "persona, skills, and reviewers configured", condition="healthy")
 
 
 def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
@@ -309,25 +270,84 @@ def headroom_results(paths: list[Path] | None = None, *, memory: int | None = No
 
 
 def run_doctor(state: State, *, fix: bool, deep: bool = False) -> list[CheckResult]:
-    root, names = session_store_root(), list(_AGENT_HOSTS)
+    names = list(_AGENT_HOSTS)
     remedy = "free disk space or verify with `dot doctor --headroom`"
     disk = [
         r if r.status == "pass" else replace(r, details=f"{r.details}; {remedy}")
         for r in headroom_results(memory=0)
         if r.name == "disk"
     ]
+    tasks: list[tuple[str, Callable[[], list[CheckResult]]]] = [
+        ("docker", lambda: _docker_results(state)),
+        ("tools", lambda: _tool_results(state)),
+        ("install", lambda: _install_results(state)),
+        ("agents", lambda: run_parallel(state.runner, _inspect_agent, names, len(names))),
+    ]
+    if deep:
+        tasks.insert(0, ("auth", lambda: _auth_results(state)))
+    probed = dict(run_parallel(state.runner, lambda item: (item[0], item[1]()), tasks, len(tasks)))
     sections = {
-        "auth": _auth_results(state)
-        if deep
-        else [CheckResult("authentication", "skip", "use --deep to probe providers")],
+        "auth": probed.get("auth") or [CheckResult("authentication", "skip", "use --deep to probe providers")],
         "secrets": _secret_results(fix=fix),
-        "docker": _docker_results(state),
+        "docker": probed["docker"],
         "resources": disk,
-        "tools": _tool_results(state),
-        "install": _install_results(state),
-        "agents": run_parallel(state.runner, lambda name: _inspect_agent(root, name), names, len(names)),
+        "tools": probed["tools"],
+        "install": probed["install"],
+        "agents": probed["agents"],
     }
     return [replace(item, group=group) for group, items in sections.items() for item in items]
+
+
+_DOCTOR_ICONS = {"pass": "✓", "fail": "✗", "warn": "!", "skip": "○"}
+
+
+def _attention_results(results: Sequence[CheckResult], *, quiet: bool) -> list[CheckResult]:
+    return [i for i in results if i.status in {"fail", "warn"}] if quiet else list(results)
+
+
+def _write_headroom(state: State, results: Sequence[CheckResult], *, as_json: bool, quiet: bool) -> None:
+    shown = _attention_results(results, quiet=quiet)
+    if as_json:
+        payload = [replace(i, group="resources").payload() for i in shown]
+        write_json(state.stdout, diagnostic_report("headroom", payload))
+        return
+    verdict = next((s.upper() for s in ("fail", "warn") if any(i.status == s for i in results)), "PASS")
+    parts = [
+        f"{r.name} {r.details}" + (f" ({r.path})" if r.path else "") + ("" if r.status == "pass" else f" [{r.status}]")
+        for r in shown
+    ]
+    summary = "; ".join(parts) if parts else f"{len(results)} passed"
+    lim = f" · limits: disk {_DISK_FAIL_GIB} GiB (warn below {_DISK_WARN_GIB}), memory {_MEMORY_FAIL_GIB} GiB"
+    print(f"{verdict} · headroom: {summary}{'' if verdict == 'PASS' else lim}", file=state.stdout)
+
+
+def _write_workstation_group(state: State, group: str, label: str, items: Sequence[CheckResult]) -> None:
+    print(f"\n{label}", file=state.stdout)
+    if group == "tools":
+        passed_tools = sum(1 for item in items if item.status == "pass")
+        for item in items:
+            if item.status != "pass":
+                print(f"  {_DOCTOR_ICONS[item.status]} {item.name:<20} {item.details}", file=state.stdout)
+        if passed_tools:
+            print(f"  ✓ {f'tools ({passed_tools})':<20} capability probes passed", file=state.stdout)
+        return
+    for item in items:
+        detail = f"{item.details} ({item.path})" if item.name == "disk" else item.details
+        print(f"  {_DOCTOR_ICONS[item.status]} {item.name:<20} {detail}", file=state.stdout)
+
+
+def _write_workstation_text(state: State, results: Sequence[CheckResult], *, quiet: bool) -> None:
+    if quiet:
+        for item in _attention_results(results, quiet=True):
+            detail = f"{item.details} ({item.path})" if item.name == "disk" else item.details
+            print(f"  {_DOCTOR_ICONS[item.status]} [{item.group}] {item.name:<18} {detail}", file=state.stdout)
+        verdict = "FAIL" if any(i.status == "fail" for i in results) else "PASS"
+        labels = (("fail", "failed"), ("warn", "warned"), ("pass", "passed"), ("skip", "skipped"))
+        counts = ((sum(1 for i in results if i.status == s), lbl) for s, lbl in labels)
+        print(f"{verdict} · doctor: {', '.join(f'{n} {lbl}' for n, lbl in counts if n)}", file=state.stdout)
+        return
+    for group, label in _DOCTOR_GROUPS:
+        _write_workstation_group(state, group, label, [i for i in results if i.group == group])
 
 
 def _doctor(state: State, args: argparse.Namespace) -> None:
@@ -335,41 +355,29 @@ def _doctor(state: State, args: argparse.Namespace) -> None:
         if args.fix or args.deep:
             raise UsageError("--headroom cannot be combined with --fix or --deep")
         results = headroom_results()
-        if args.as_json:
-            payload = [replace(i, group="resources").payload() for i in results]
-            write_json(state.stdout, diagnostic_report("headroom", payload))
-        else:
-            verdict = next((s.upper() for s in ("fail", "warn") if any(i.status == s for i in results)), "PASS")
-            parts = [
-                f"{r.name} {r.details}"
-                + (f" ({r.path})" if r.path else "")
-                + ("" if r.status == "pass" else f" [{r.status}]")
-                for r in results
-            ]
-            lim = f" · limits: disk {_DISK_FAIL_GIB} GiB (warn below {_DISK_WARN_GIB}), memory {_MEMORY_FAIL_GIB} GiB"
-            print(f"{verdict} · headroom: {'; '.join(parts)}{'' if verdict == 'PASS' else lim}", file=state.stdout)
+        _write_headroom(state, results, as_json=args.as_json, quiet=args.quiet)
     else:
         _ = state.config
         results = run_doctor(state, fix=args.fix, deep=args.deep)
         if args.as_json:
-            write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in results]))
+            shown = _attention_results(results, quiet=args.quiet)
+            write_json(state.stdout, diagnostic_report("workstation", [item.payload() for item in shown]))
         else:
-            icons = {"pass": "✓", "fail": "✗", "warn": "!", "skip": "○"}
-            for group, label in _DOCTOR_GROUPS:
-                print(f"\n{label}", file=state.stdout)
-                for item in results:
-                    if item.group == group:
-                        detail = f"{item.details} ({item.path})" if item.name == "disk" else item.details
-                        print(f"  {icons[item.status]} {item.name:<20} {detail}", file=state.stdout)
+            _write_workstation_text(state, results, quiet=args.quiet)
     if any(i.status == "fail" for i in results):
         raise SystemExit(1)
 
 
 def register_doctor(commands: Parser) -> None:
-    epilog = f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free (warns below {_DISK_WARN_GIB}). --headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory."
-    summary = "Check local workstation health; --deep also probes authentication"
+    epilog = (
+        f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free (warns below {_DISK_WARN_GIB}). "
+        f"--headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory; exit 2 when --headroom is combined with --fix or --deep.\n\n"
+        "Examples: dot doctor --deep · dot doctor --headroom · dot doctor -q --json"
+    )
+    summary = "Check local workstation health; --deep also probes provider authentication"
     d = commands.command("doctor", summary, _doctor, config=False, epilog=epilog)
     add_json(d)
+    add_quiet(d)
     d.add_argument("--fix", action="store_true", help="Repair local secret-file permissions")
     d.add_argument("--deep", action="store_true", help="Also probe provider authentication")
     headroom_help = f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom before large downloads or builds; prints one line"

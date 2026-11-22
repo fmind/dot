@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import locale
 import os
 import re
 import shutil
@@ -78,13 +77,14 @@ def _terminate(process: subprocess.Popen[str], *, group: bool = True) -> None:
             process.wait(timeout=_TERMINATION_GRACE_SECONDS)
     finally:
         _signal(process, signal.SIGKILL, group=group)
-    for stream in (process.stdin, process.stdout, process.stderr):
-        if stream is not None:
-            stream.close()
-    try:
-        process.wait(timeout=3)
-    except subprocess.TimeoutExpired:
-        process.kill()
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is not None:
+                with suppress(OSError):
+                    stream.close()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 @contextmanager
@@ -132,7 +132,7 @@ def _is_safe_https_url(url: str) -> bool:
 
 
 def _open_browser(url: str) -> None:
-    if not _is_safe_https_url(url):
+    if not _is_safe_https_url(url) or os.environ.get("SSH_TTY") or os.environ.get("SSH_CONNECTION"):
         return
     if sys.platform == "darwin":
         opener = "/usr/bin/open"
@@ -169,6 +169,8 @@ def _forward_stderr(stream: IO[str], target: IO[str], open_url: re.Pattern[str],
 
 class Runner:
     """Run external tools with timeout and process-group cleanup."""
+
+    requires_tty: bool = True
 
     def __init__(self) -> None:
         self._cancelled = threading.Event()
@@ -214,7 +216,7 @@ class Runner:
                     stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    encoding=locale.getencoding(),
+                    encoding="utf-8",
                     errors="replace",
                     start_new_session=True,
                 )

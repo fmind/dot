@@ -27,7 +27,6 @@ def test_parser_tree_help_and_version(tmp_path: Path, monkeypatch: pytest.Monkey
         "doctor",
         "login",
         "pull",
-        "stats",
         "status",
         "trust",
     }
@@ -39,7 +38,7 @@ def test_parser_tree_help_and_version(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setenv("HOME", str(tmp_path))
     help_res = CliRunner().invoke(app, [])
     assert help_res.exit_code == 0
-    assert "stats" in help_res.stdout
+    assert "doctor" in help_res.stdout
     assert "context" in help_res.stdout
 
     env = os.environ | {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
@@ -114,15 +113,22 @@ def test_reporting_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 def test_command_candidates_cover_commands_flags_values_and_double_dash() -> None:
     parser = build_parser()
     top = {v for v, _ in candidates(parser, [""])}
-    assert top == {"context", "doctor", "login", "pull", "stats", "status", "trust"}
+    assert top == {"context", "doctor", "login", "pull", "status", "trust"}
     flags = {v for v, _ in candidates(parser, ["status", "--"])}
     assert {"--json", "--fetch", "--needs-attention"} <= flags
     eq_vals = [v for v, _ in candidates(parser, ["login", "gcp", "--config="])]
     assert eq_vals == []
-    assert {"colab", "gcp", "github", "workspace"} == {v for v, _ in candidates(parser, ["login", ""])}
+    assert {"gcp", "github", "workspace"} == {v for v, _ in candidates(parser, ["login", ""])}
+    assert {"gcp", "github", "workspace"} == {v for v, _ in candidates(parser, ["login", "--check", ""])}
     assert candidates(parser, ["status", "--", "a"]) == []
-    assert [v for v, _ in candidates(parser, ["stats", "--agent", "c"])] == ["claude", "codex", "copilot"]
-    assert [v for v, _ in candidates(parser, ["stats", "--agent=a"])] == ["--agent=agy"]
+    for cmd in ("doctor", "context"):
+        short_flags = {v for v, _ in candidates(parser, [cmd, "-"])}
+        assert {"-q", "--quiet"} <= short_flags
+        quiet_line = parser.children[cmd].format_help().split("--quiet", 1)[1].splitlines()[0]
+        assert "--json" in quiet_line
+    for name, child in parser.children.items():
+        help_text = child.format_help()
+        assert "Examples:" in help_text, f"{name} --help missing Examples:"
 
 
 @pytest.mark.parametrize(
@@ -173,3 +179,47 @@ def test_main_exit_codes_and_complete_env(
     with pytest.raises(SystemExit) as sig:
         cli_module.main()
     assert sig.value.code == 130
+
+
+@pytest.mark.parametrize("flag", ["--help", "--version"])
+def test_main_closed_stdout_pipe_help_version_and_dot_error_exit_141(flag: str) -> None:
+    env = os.environ | {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "fmind_dot", flag],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert proc.stdout is not None
+    proc.stdout.close()
+    _out, err = proc.communicate(timeout=5)
+    assert proc.returncode == 141
+    assert err == b""
+
+
+@pytest.mark.parametrize("exc_expr", ["cli.DotError('boom')", "KeyboardInterrupt()"])
+def test_main_closed_stdout_pipe_errors_and_fileno_suppression(exc_expr: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    env = os.environ | {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    code = (
+        "import sys; from fmind_dot import cli; "
+        f"cli.app = lambda: (sys.stdout.write('partial\\n'), (_ for _ in ()).throw({exc_expr})); cli.main()"
+    )
+    proc = subprocess.Popen([sys.executable, "-c", code], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert proc.stdout is not None
+    proc.stdout.close()
+    _out, err = proc.communicate(timeout=5)
+    assert proc.returncode == 141
+    assert err == b""
+
+    class BrokenStreamNoFileno:
+        def write(self, _text: str) -> int:
+            raise BrokenPipeError
+
+        def flush(self) -> None:
+            raise BrokenPipeError
+
+    monkeypatch.setattr(sys, "stdout", BrokenStreamNoFileno())
+    monkeypatch.setattr(cli_module, "app", lambda: sys.stdout.write("x"))
+    with pytest.raises(SystemExit) as stopped:
+        cli_module.main()
+    assert stopped.value.code == 141

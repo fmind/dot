@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import copy
 import functools
-import math
 import os
+import posixpath
 import re
 import urllib.parse
 from collections.abc import Callable
@@ -21,8 +20,8 @@ GITHUB_OWNER_RE = re.compile(r"^[A-Za-z0-9](?:-?[A-Za-z0-9])*$")
 PATH_PATTERN_RE = re.compile(r"^(?:~/|/)\S[^\r\n]*$")
 SCOPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_:/.-]*$")
 PROJECT_RE = re.compile(r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
-LoginProvider = Literal["colab", "gcp", "github", "workspace"]
-LOGIN_PROVIDERS: tuple[LoginProvider, ...] = ("colab", "gcp", "github", "workspace")
+LoginProvider = Literal["gcp", "github", "workspace"]
+LOGIN_PROVIDERS: tuple[LoginProvider, ...] = ("gcp", "github", "workspace")
 
 # Google's consent page hangs after Allow when one request holds more than 50 scopes (bisected 2026-10-26).
 WORKSPACE_SCOPE_LIMIT = 50
@@ -36,16 +35,47 @@ def expand_google_scope(scope: str) -> str:
         return scope
     if "://" in scope:
         parts = urllib.parse.urlsplit(scope)
-        scheme, netloc, path = parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/")
-        if scheme in {"http", "https"} and netloc == "mail.google.com" and not path:
+        scheme = parts.scheme.lower()
+        host = (parts.hostname or "").lower()
+        if not host:
+            return scope.lower()
+        is_google_host = host in {"mail.google.com", "www.googleapis.com"}
+        if is_google_host and scheme in {"http", "https"}:
+            scheme = "https"
+        netloc = host if is_google_host else parts.netloc.lower()
+        collapsed = re.sub(r"/+", "/", parts.path)
+        norm_path = posixpath.normpath(collapsed) if collapsed else ""
+        if norm_path in {".", "/"}:
+            norm_path = ""
+        if scheme == "https" and host == "mail.google.com" and not norm_path:
             return "https://mail.google.com/"
-        return urllib.parse.urlunsplit((scheme, netloc, path, parts.query, parts.fragment))
+        return urllib.parse.urlunsplit((scheme, netloc, norm_path.rstrip("/"), parts.query, parts.fragment))
     suffix = scope.rstrip("/")
-    return _GOOGLE_ALIASES.get(suffix.lower(), f"{_GWS_AUTH}{suffix}")
+    if not suffix:
+        return ""
+    if (alias := _GOOGLE_ALIASES.get(suffix.lower())) is not None:
+        return alias
+    return expand_google_scope(f"{_GWS_AUTH}{suffix}")
+
+
+def is_valid_google_scope(scope: str) -> bool:
+    """Return True when an expanded Google OAuth scope is non-empty and under /auth/<name> for googleapis."""
+    if not SCOPE_RE.fullmatch(scope) or scope.rstrip("/").lower() == "https://www.googleapis.com/auth":
+        return False
+    if "://" in scope:
+        parts = urllib.parse.urlsplit(scope)
+        host = (parts.hostname or "").lower()
+        if parts.scheme not in {"http", "https"} or not host:
+            return False
+        if host == "www.googleapis.com":
+            path = parts.path.lower()
+            if not path.startswith("/auth/") or not path.removeprefix("/auth/").strip("/"):
+                return False
+    return True
 
 
 class ConfigValidationError(ValueError):
-    """Strict config or pricing validation error that never echoes invalid input values."""
+    """Strict config validation error that never echoes invalid input values."""
 
     def __init__(self, path: tuple[object, ...], reason: str) -> None:
         self.path = path
@@ -111,21 +141,7 @@ def _expect_list[T](
     return [parse_item(item, (*path, index)) for index, item in enumerate(raw)]
 
 
-def _expect_price(raw: object, path: tuple[object, ...]) -> float:
-    if isinstance(raw, bool) or not isinstance(raw, int | float):
-        raise ConfigValidationError(path, "must be a number")
-    try:
-        value = float(raw)
-    except OverflowError as error:
-        raise ConfigValidationError(path, "must be a finite number") from error
-    if not math.isfinite(value) or value < 0:
-        raise ConfigValidationError(path, "must be a non-negative finite number")
-    return value
-
-
 def _parse_provider(raw: object, path: tuple[object, ...]) -> LoginProvider:
-    if raw == "colab":
-        return "colab"
     if raw == "gcp":
         return "gcp"
     if raw == "github":
@@ -177,80 +193,17 @@ class TrustConfig:
 
 
 @dataclass
-class ModelPrice:
-    input: float
-    output: float
-    cache_read: float | None = None
-    cache_write: float | None = None
-    cache_write_1h: float | None = None
-
-    @classmethod
-    def from_raw(cls, raw: object, path: tuple[object, ...]) -> ModelPrice:
-        allowed = frozenset({"input", "output", "cache_read", "cache_write", "cache_write_1h"})
-        data = _expect_mapping(raw, allowed, path)
-        for req in ("input", "output"):
-            if req not in data:
-                raise ConfigValidationError((*path, req), "required setting missing")
-        kwargs: dict[str, float | None] = {}
-        for name in ("input", "output"):
-            kwargs[name] = _expect_price(data[name], (*path, name))
-        for opt in ("cache_read", "cache_write", "cache_write_1h"):
-            if opt in data and data[opt] is not None:
-                kwargs[opt] = _expect_price(data[opt], (*path, opt))
-        return cls(
-            input=float(kwargs["input"] or 0.0),
-            output=float(kwargs["output"] or 0.0),
-            cache_read=kwargs.get("cache_read"),
-            cache_write=kwargs.get("cache_write"),
-            cache_write_1h=kwargs.get("cache_write_1h"),
-        )
-
-
-@dataclass
-class PricingConfig:
-    as_of: str
-    basis: str
-    sources: list[str]
-    models: dict[str, ModelPrice]
-
-    @classmethod
-    def from_raw(cls, raw: object, path: tuple[object, ...] = ()) -> PricingConfig:
-        data = _expect_mapping(raw, frozenset({"as_of", "basis", "sources", "models"}), path)
-        for req in ("as_of", "basis", "sources", "models"):
-            if req not in data:
-                raise ConfigValidationError((*path, req), "required setting missing")
-        as_of = _expect_str(data["as_of"], (*path, "as_of"), non_empty=True)
-        basis = _expect_str(data["basis"], (*path, "basis"), non_empty=True)
-        sources = _expect_list(data["sources"], (*path, "sources"), lambda v, p: _expect_str(v, p))
-        raw_models = data["models"]
-        if not isinstance(raw_models, dict):
-            raise ConfigValidationError((*path, "models"), "must be a mapping")
-        models: dict[str, ModelPrice] = {}
-        for key, value in raw_models.items():
-            if type(key) is not str or not key:
-                raise ConfigValidationError((*path, "models"), "model names must be non-empty strings")
-            models[key] = ModelPrice.from_raw(value, (*path, "models", key))
-        return cls(as_of=as_of, basis=basis, sources=sources, models=models)
-
-
-@functools.cache
-def _parsed_default_pricing() -> PricingConfig:
-    loaded = yaml.safe_load(Path(__file__).with_name("api-prices.yaml").read_text(encoding="utf-8"))
-    return PricingConfig.from_raw(loaded)
-
-
-def default_pricing() -> PricingConfig:
-    """Return the bundled API token price table."""
-    return copy.deepcopy(_parsed_default_pricing())
-
-
-@dataclass
 class WorkspaceConfig:
     project: str | None = None
     extra_scopes: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        if {expand_google_scope(s).lower() for s in self.extra_scopes} & WORKSPACE_FORBIDDEN_SCOPES:
+        if any(not SCOPE_RE.fullmatch(s) for s in self.extra_scopes):
+            raise ConfigValidationError(("auth", "workspace", "extra_scopes"), "contains an invalid Google OAuth scope")
+        expanded = [expand_google_scope(s) for s in self.extra_scopes]
+        if any(not is_valid_google_scope(s) for s in expanded):
+            raise ConfigValidationError(("auth", "workspace", "extra_scopes"), "contains an invalid Google OAuth scope")
+        if {s.lower() for s in expanded} & WORKSPACE_FORBIDDEN_SCOPES:
             raise ConfigValidationError(
                 ("auth", "workspace", "extra_scopes"),
                 "contains a forbidden high-risk scope (https://mail.google.com/, gmail.settings.sharing, or cloud-platform)",

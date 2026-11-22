@@ -12,7 +12,6 @@ from fmind_dot.trust import (
     github_owner,
     installed_harnesses,
     register_agy_projects,
-    register_claude_directories,
     run_trust,
     trust_folders,
 )
@@ -20,57 +19,32 @@ from tests.fakes import ScriptedRunner, buf, make_state
 
 
 def _harness_home(home: Path) -> None:
-    for d in (".claude", ".gemini/antigravity-cli", ".pi/agent"):
-        (home / d).mkdir(parents=True)
-    (home / ".claude.json").write_text(
-        json.dumps({"oauthAccount": {"id": "k"}, "projects": {"/other": {"hasTrustDialogAccepted": False}}})
-    )
+    (home / ".gemini/antigravity-cli").mkdir(parents=True)
     (home / ".gemini/antigravity-cli/settings.json").write_text(json.dumps({"editorMode": "vim"}))
     for p in home.rglob("*"):
         if p.is_file():
             p.chmod(0o600)
 
 
-def test_trust_folders_all_harnesses_and_pi_git_only(tmp_path: Path) -> None:
+def test_trust_folders_agy_and_idempotency(tmp_path: Path) -> None:
     _harness_home(tmp_path)
     repo, notes = tmp_path / "work/repo", tmp_path / "work/notes"
     (repo / ".git").mkdir(parents=True)
     notes.mkdir()
-    pi_store = tmp_path / ".pi/agent/trust.json"
-    pi_store.write_text(json.dumps({"/else": False, str(repo): False}))
 
     changed = trust_folders([repo, notes], home=tmp_path)
-    assert changed == {repo: ["claude", "agy", "pi"], notes: ["claude", "agy"]}
+    assert changed == {repo: ["agy"], notes: ["agy"]}
     assert trust_folders([repo, notes], home=tmp_path) == {repo: [], notes: []}
 
-    assert json.loads((tmp_path / ".claude.json").read_text())["oauthAccount"] == {"id": "k"}
     assert json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"] == [
         str(repo),
         str(notes),
     ]
-    assert json.loads(pi_store.read_text()) == {"/else": False, str(repo): True}
     assert (tmp_path / ".gemini/antigravity-cli/settings.json").stat().st_mode & 0o777 == 0o600
 
 
-def test_register_claude_directories_and_agy_projects(tmp_path: Path) -> None:
+def test_register_agy_projects(tmp_path: Path) -> None:
     home = tmp_path.resolve()
-    (home / ".claude").mkdir()
-    (home / ".agents").mkdir()
-    ws = home / "work"
-    sub = ws / "proj"
-    (sub / ".git").mkdir(parents=True)
-    added = register_claude_directories([ws, sub], home=home)
-    assert added == [home / ".agents", ws]
-    assert register_claude_directories([ws, sub], home=home) == []
-
-    for bad, match in (
-        ('{"permissions": "x"}', "permissions must"),
-        ('{"permissions": {"additionalDirectories": [1]}}', "array of strings"),
-    ):
-        (home / ".claude/settings.json").write_text(bad)
-        with pytest.raises(DotError, match=match):
-            register_claude_directories([ws], home=home)
-
     reg = home / ".gemini/config/projects"
     reg.mkdir(parents=True)
     chezmoi, existing = home / ".local/share/chezmoi", home / "work/existing"
@@ -130,10 +104,15 @@ def test_run_trust_explicit_all_and_empty_state(tmp_path: Path, monkeypatch: pyt
     st = make_state(runner, cfg)
     run_trust(st, [str(plain), "all"])
     out = buf(st.stdout)
-    assert f"+ {ws}: trusted in" in out
+    assert f"+ {plain}: trusted in" in out
+    assert f"+ {ws}: trusted in" not in out
     assert f"+ {owned}: trusted in" in out
     assert f"- {foreign}: skipped" in out
     assert "Copilot" not in out
+    agy = json.loads((home / ".gemini/antigravity-cli/settings.json").read_text())
+    assert str(ws) not in agy["trustedWorkspaces"]
+    assert str(owned) in agy["trustedWorkspaces"]
+    assert str(foreign) not in agy["trustedWorkspaces"]
 
     st2 = make_state(runner, cfg)
     run_trust(st2, ["all"])
@@ -153,25 +132,27 @@ def test_trust_rejects_home_ancestors_symlinks_and_corrupt_json(
     with pytest.raises(DotError, match="not a directory"):
         run_trust(make_state(), [str(tmp_path / "missing")])
 
-    (home / ".claude").symlink_to(outside, target_is_directory=True)
+    (home / ".gemini").symlink_to(outside, target_is_directory=True)
     with pytest.raises(DotError, match="refusing symlinked"):
         installed_harnesses(home)
-    (home / ".claude").unlink()
+    (home / ".gemini").unlink()
 
-    (home / ".claude").mkdir()
-    (home / ".claude.json").symlink_to(outside / "s.json")
+    agy_dir = home / ".gemini/antigravity-cli"
+    agy_dir.mkdir(parents=True)
+    agy_settings = agy_dir / "settings.json"
+    agy_settings.symlink_to(outside / "s.json")
     with pytest.raises(DotError, match="refusing symlinked trust file"):
         trust_folders([tmp_path], home=home)
-    (home / ".claude.json").unlink()
+    agy_settings.unlink()
 
-    (home / ".claude.json").write_bytes(b"\xff")
+    agy_settings.write_bytes(b"\xff")
     with pytest.raises(DotError, match="not valid UTF-8"):
         trust_folders([tmp_path], home=home)
 
-    (home / ".claude.json").write_text("[]")
+    agy_settings.write_text("[]")
     with pytest.raises(DotError, match="must contain a JSON object"):
         trust_folders([tmp_path], home=home)
 
-    (home / ".claude.json").write_text('{"projects": []}')
-    with pytest.raises(DotError, match="projects must be a JSON object"):
+    agy_settings.write_text('{"trustedWorkspaces": {}}')
+    with pytest.raises(DotError, match="trustedWorkspaces must be a JSON array"):
         trust_folders([tmp_path], home=home)

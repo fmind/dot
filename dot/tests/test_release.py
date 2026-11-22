@@ -120,9 +120,8 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
     ) in runner.calls
     assert ("dprint", "fmt", "CHANGELOG.md") in runner.calls
     assert runner.interactive_calls == [
-        ("mise", "run", "check:network"),
+        ("mise", "run", "all"),
         ("mise", "run", "test:starters"),
-        ("mise", "run", "build"),
         ("mise", "run", "check:completions"),
         COMMIT,
         PUSH,
@@ -132,7 +131,7 @@ def test_release_bumps_validates_commits_tags_and_pushes_atomically(project: Pat
     assert RESTORE not in runner.calls
 
 
-@pytest.mark.parametrize("task", ["check:network", "test:starters", "build", "check:completions"])
+@pytest.mark.parametrize("task", ["all", "test:starters", "check:completions"])
 def test_gate_failure_keeps_generated_files_without_tagging(project: Path, task: str) -> None:
     runner = ReleaseRunner(project)
     runner.interactive_codes[("mise", "run", task)] = 1
@@ -165,7 +164,7 @@ def test_failed_commit_hook_keeps_generated_files_without_tagging(project: Path)
 
 def test_interrupt_keeps_generated_files_and_propagates(project: Path) -> None:
     runner = ReleaseRunner(project)
-    runner.interactive_codes[("mise", "run", "build")] = KeyboardInterrupt()
+    runner.interactive_codes[("mise", "run", "all")] = KeyboardInterrupt()
 
     with pytest.raises(KeyboardInterrupt):
         run_release(make_state(runner), yes=True)

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import errno
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+from fmind_dot import __version__
 from fmind_dot.with_secret import main
 
 
@@ -54,6 +57,7 @@ def test_with_secret_injects_file_and_env_without_argv_leak(tmp_path: Path, monk
 @pytest.mark.parametrize(
     ("argv", "expected"),
     [
+        ([], "usage:"),
         (["TEST_API_KEY"], "usage:"),
         (["bad-name", sys.executable], "uppercase environment variable name"),
         (["UV_PUBLISH_TOKEN", sys.executable], "Trusted Publishing"),
@@ -65,6 +69,35 @@ def test_with_secret_usage_errors(argv: list[str], expected: str, capsys: pytest
         main(argv)
     assert stopped.value.code == 2
     assert expected in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (["-h"], "usage: with-secret [-h] [-V] NAME [--] COMMAND [ARGS...]"),
+        (["--help"], "usage: with-secret [-h] [-V] NAME [--] COMMAND [ARGS...]"),
+        (["-V"], f"with-secret version {__version__}"),
+        (["--version"], f"with-secret version {__version__}"),
+    ],
+)
+def test_with_secret_help_and_version(argv: list[str], expected: str, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as stopped:
+        main(argv)
+    assert stopped.value.code == 0
+    captured = capsys.readouterr()
+    assert expected in captured.out
+    if argv[0] in {"-h", "--help"}:
+        assert "Exit codes:" in captured.out
+        assert "Examples:" in captured.out
+    assert captured.err == ""
+
+
+def test_with_secret_forwards_help_flag_after_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TEST_API_KEY", raising=False)
+    _setup_secret(tmp_path, "TEST_API_KEY", b"synthetic-help\n", 0o600)
+    calls: list[list[str]] = []
+    main(["TEST_API_KEY", "--", sys.executable, "--help"], exec_fn=lambda _exe, argv, _env: calls.append(argv))
+    assert calls == [[sys.executable, "--help"]]
 
 
 def test_with_secret_failures_and_security_checks(
@@ -159,3 +192,35 @@ def test_with_secret_failures_and_security_checks(
         main(["TEST_API_KEY", sys.executable])
     assert stopped.value.code == 1
     assert "chmod 600" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("flag", ["--help", "--version"])
+def test_with_secret_closed_stdout_pipe_exits_141_without_stderr_noise(
+    flag: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env = os.environ | {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import sys; from fmind_dot.with_secret import main; main(sys.argv[1:])", flag],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert proc.stdout is not None
+    proc.stdout.close()
+    _out, err = proc.communicate(timeout=5)
+    assert proc.returncode == 141
+    assert err == b""
+
+    monkeypatch.setattr(sys.stdout, "write", lambda _s: (_ for _ in ()).throw(BrokenPipeError()))
+    with pytest.raises(SystemExit) as stopped:
+        main([flag])
+    assert stopped.value.code == 141
+
+    class NoFilenoPipe:
+        def write(self, _text: str) -> int:
+            raise BrokenPipeError
+
+    monkeypatch.setattr(sys, "stdout", NoFilenoPipe())
+    with pytest.raises(SystemExit) as stopped_attr:
+        main([flag])
+    assert stopped_attr.value.code == 141

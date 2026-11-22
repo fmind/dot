@@ -11,6 +11,9 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Never
 
+from fmind_dot import __version__
+from fmind_dot.errors import suppress_broken_pipe_stdout
+
 _NAME_RE = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 _MAX_SECRET_BYTES = 65_536
 _SECRETS_REL = Path(".config/dot/secrets")
@@ -19,6 +22,15 @@ _SECRETS_REL = Path(".config/dot/secrets")
 def _fail(message: str, code: int = 1) -> Never:
     sys.stderr.write(f"with-secret: error: {message}\n")
     raise SystemExit(code)
+
+
+def _write_stdout(text: str) -> Never:
+    try:
+        sys.stdout.write(text)
+        sys.stdout.flush()
+    except BrokenPipeError:
+        suppress_broken_pipe_stdout()
+    raise SystemExit(0)
 
 
 def _read_secret_file(name: str) -> str:
@@ -74,8 +86,21 @@ def main(
 ) -> None:
     """Run COMMAND with NAME injected into its child environment only."""
     args = list(sys.argv[1:] if argv is None else argv)
+    if args and args[0] in {"-h", "--help"}:
+        _write_stdout(
+            "usage: with-secret [-h] [-V] NAME [--] COMMAND [ARGS...]\n\n"
+            "Run COMMAND with NAME injected into its child environment only.\n\n"
+            "options:\n"
+            "  -h, --help     show this help message and exit\n"
+            "  -V, --version  show program's version number and exit\n\n"
+            "Exit codes: 0 help/version or child exit 0; 1 missing or unsafe secret, or command not found/exec error; "
+            "2 usage error (missing args, invalid NAME, or retired UV_PUBLISH_TOKEN); else child exit code.\n\n"
+            "Examples: with-secret OPENROUTER_MANAGEMENT_KEY -- <command> · with-secret MY_KEY env\n"
+        )
+    if args and args[0] in {"-V", "--version"}:
+        _write_stdout(f"with-secret version {__version__}\n")
     if len(args) < 2:
-        _fail("usage: with-secret NAME [--] COMMAND [ARGS...]", 2)
+        _fail("usage: with-secret [-h] [-V] NAME [--] COMMAND [ARGS...]", 2)
     name = args[0]
     if not _NAME_RE.fullmatch(name):
         _fail("NAME: expected an uppercase environment variable name", 2)

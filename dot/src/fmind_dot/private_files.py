@@ -1,32 +1,9 @@
-"""Owner-only directories and atomic file publication with explicit permissions."""
+"""Atomic file publication with explicit permissions."""
 
 import contextlib
 import os
 import tempfile
 from pathlib import Path
-
-
-def private_directory(path: Path) -> Path:
-    """Create a directory if needed and restrict it to its owner."""
-    if path.is_symlink():
-        raise OSError(f"refusing symlinked private directory: {path}")
-    path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    try:
-        descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    except OSError as error:
-        if path.is_symlink():
-            raise OSError(f"refusing symlinked private directory: {path}") from error
-        raise
-    try:
-        os.fchmod(descriptor, 0o700)
-    finally:
-        os.close(descriptor)
-    return path
-
-
-def write_private_file(path: Path, content: bytes) -> None:
-    """Publish an owner-only file, including when replacing a less restrictive file."""
-    write_atomic_file(path, content, mode=0o600)
 
 
 def write_atomic_file(path: Path, content: bytes, *, mode: int) -> None:

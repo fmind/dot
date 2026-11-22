@@ -154,7 +154,6 @@ gcp:
     - userinfo.email
     - cloud-platform
     - sqlservice.login
-    - colaboratory
     - bigquery.readonly
     - logging.read
     - cloud-platform.read-only
@@ -178,26 +177,18 @@ doctor_tools:
   - betterleaks
   - bf
   - chezmoi
-  - claude
   - copilot
   - dprint
   - file
   - gcloud
   - gh
   - git
-  - git-cliff
   - gws
-  - jactionlint
-  - lefthook
   - mise
   - nvim
-  - opencode
-  - pgcli
-  - pi
   - python
   - ruff
   - sqlite3
-  - sqruff
   - supagents
   - tree-sitter
   - trivy
@@ -211,33 +202,22 @@ completions:
     - betterleaks
     - chezmoi
     - copilot
-    - cosign
     - databricks
     - dot
     - genie
-    - lefthook
     - mise
     - trivy
   packages:
-    fastfetch: github:fastfetch-cli/fastfetch
-    git-cliff: git-cliff
-    hurl: hurl
-    hurlfmt: hurl
-    hyperfine: hyperfine
     lsd: lsd
     ya: yazi
     yazi: yazi
     zoxide: zoxide
   env:
-    colab: _COLAB_COMPLETE=source_fish
     hf: _HF_COMPLETE=fish_source
-    marimo: _MARIMO_COMPLETE=fish_source
   commands:
     completions_fish:
-      - ast-grep
       - doggo
       - dprint
-      - pup
       - starship
       - typst
     generate_shell_completion_fish:
@@ -245,7 +225,6 @@ completions:
       - ty
       - uv
     generate_complete_fish:
-      - lychee
       - rg
       - xh
     custom:
@@ -257,10 +236,6 @@ completions:
       bat:
         - bat
         - --completion
-        - fish
-      cf:
-        - cf
-        - complete
         - fish
       delta:
         - delta
@@ -280,16 +255,9 @@ completions:
         - lfs
         - completion
         - fish
-      jactionlint:
-        - jactionlint
-        - --completion=fish
       lazygit:
         - lazygit
         - completion
-        - fish
-      opencode:
-        - opencode
-        - --completions
         - fish
       tree-sitter:
         - tree-sitter

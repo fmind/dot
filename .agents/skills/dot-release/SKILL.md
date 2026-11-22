@@ -1,18 +1,18 @@
 ---
 name: dot-release
-description: "Qualify, publish, verify, and recover fmind/dot releases via mise run release."
+description: "Qualify, publish, verify, recover fmind/dot releases via mise run release."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-11-17"
+  updated: "2026-11-22"
 ---
 
 # Dot Release
 
-Qualify `fmind/dot` and ship releases through `mise run release`. Run **Qualification** standalone when asked to verify the tree without committing or releasing; run [publish](references/publish.md) only on `/dot-release` or an explicit release request. The global [release guide](../../../skills/git-delivery/references/release/GUIDE.md) owns generic versioning; [full-review](../../../skills/full-review/SKILL.md), [repository-docs](../../../skills/repository-docs/SKILL.md), [dot-development](../dot-development/SKILL.md), and [dot-skills](../dot-skills/SKILL.md) own domain checks.
+Qualify `fmind/dot` and ship releases through `mise run release`. Run **Qualification** standalone when asked to verify the tree without committing or releasing; run [publish](references/publish.md) only on `/dot-release` or an explicit release request. The global [release guide](../../../skills/git-delivery/references/release/GUIDE.md) owns generic versioning; [full-review](../../../skills/full-review/SKILL.md), [docs/repository](../../../skills/docs/references/repository/GUIDE.md), [dot-development](../dot-development/SKILL.md), and [dot-skills](../dot-skills/SKILL.md) own domain checks.
 
 ## Qualification
 
@@ -20,7 +20,7 @@ Qualify `fmind/dot` and ship releases through `mise run release`. Run **Qualific
 1. **Review changes**: inspect `git diff <tag>` plus uncommitted work (excluding generated locks), fanning out read-only subreviews by area (`dot/`, chezmoi/harnesses, docs/skills) on large sets. Verify findings against code or live data and add regression tests for behavior fixes.
 1. **Sync docs & metadata**: align `README.md`, `AGENTS.md`, `dot_agents/AGENTS.md`, `.github/*.md`, `.agents/skills/`, and `skills/` with live `--help`, `mise tasks`, and JSON schemas; bump `updated:` on edited skills and run `mise run format:skills`.
 1. **Run gates**: `mise run format` (isolated if unrelated edits exist), `mise run all`, `mise run check:completions`, and `mise run test:starters`; rerun anything invalidated by later fixes.
-1. **Smoke-test `dot`** from repo root via `uv run --frozen --project dot dot` (`--directory dot` resolves `.` to `dot/`): `--help` on every top-level command, then `doctor`, `doctor --headroom`, `context --check`, `status`, and `stats --no-sync` (all exit 0 or explained).
+1. **Smoke-test `dot`** from repo root via `uv run --frozen --project dot dot` (`--directory dot` resolves `.` to `dot/`): `--help` on every top-level command, then `doctor`, `doctor --headroom`, `context --check`, and `status` (all exit 0 or explained).
 1. **Check workstation** when dotfiles or tools changed: `mise run diff` and `mise run doctor` (installed `dot` showing `STALE` is expected before `deploy`/release). Stop here on qualification-only runs and report fixed/deferred items and gate results.
 
 ## Gotchas

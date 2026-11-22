@@ -508,3 +508,40 @@ def test_narrow_terminal_large_deficits_help_and_unresolvable_home(
     monkeypatch.setattr(Path, "expanduser", bad_expand)
     with pytest.raises(DotError, match=r"invalid path ~/\.agents"):
         context_report(project)
+
+
+def test_context_quiet_json_text_and_details_conflict(tmp_path: Path) -> None:
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
+    skill(global_root, "global-fixture")
+    skill(project / ".agents", "local-fixture")
+    (global_root / "AGENTS.md").write_text("# Global\n")
+    (project / "AGENTS.md").write_text("# Local\n")
+    source = tmp_path / "src"
+    skill(source, "global-fixture")
+    skill(source / ".agents", "local-fixture")
+    (source / "dot_agents").mkdir()
+    (source / "dot_agents/AGENTS.md").write_text("# Global\n")
+    (source / "AGENTS.md").write_text("# Local\n")
+
+    conflict = runner.invoke(app, ["context", "--source", str(source), "--project", str(source), "-q", "--details"])
+    assert conflict.exit_code == 2
+    assert "--quiet" in conflict.stderr
+
+    q_json = runner.invoke(
+        app, ["context", "--source", str(source), "--project", str(source), "--check", "--json", "-q"]
+    )
+    assert q_json.exit_code == 0
+    assert len(q_json.stdout.encode("utf-8")) < 512
+    doc = json.loads(q_json.stdout)
+    assert set(doc) == {"schema", "passed", "budgets", "subagent_budgets", "duplicates", "duplicate_subagents"}
+    assert doc["passed"] is True
+
+    q_txt = runner.invoke(app, ["context", "--source", str(source), "--project", str(source), "-q"])
+    assert q_txt.exit_code == 0
+    assert q_txt.stdout.startswith("PASS · context below")
+    assert len(q_txt.stdout.splitlines()) == 1
+
+    (source / "AGENTS.md").write_text("x" * 25_000)
+    q_fail = runner.invoke(app, ["context", "--source", str(source), "--project", str(source), "--check", "-q"])
+    assert q_fail.exit_code == 1
+    assert "Local context budget exceeded" in q_fail.stdout

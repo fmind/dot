@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import argparse
-import functools
 import os
 import re
-import socket as socket  # Re-exported for contract test monkeypatching.
 import stat
 import sys
 import unicodedata
+from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -18,15 +18,7 @@ from markdown_it import MarkdownIt
 
 import fmind_dot.context_budget as cb
 from dot_tasks import ROOT
-from dot_tasks.privacy_checks import (
-    EMAIL_PATTERN as EMAIL_PATTERN,
-)
-from dot_tasks.privacy_checks import (
-    _workstation_tokens as _workstation_tokens,
-)
-from dot_tasks.privacy_checks import (
-    privacy_findings as _privacy_findings,
-)
+from dot_tasks.privacy_checks import privacy_findings as _privacy_findings
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 
@@ -116,17 +108,25 @@ def _frontmatter(path: Path, root: Path) -> tuple[dict[str, Any] | None, str, li
     if tok_err := _token_errors(rel, text):
         return None, text, tok_err
     try:
-        return *cb.parse_frontmatter(text, rel), []
+        meta, body = cb.parse_frontmatter(text, rel)
+        return meta, body, []
     except DotError as error:
         return None, text, [str(error)]
 
 
-def _reachable_resources(skill: Path, texts: dict[Path, str], resources: set[Path]) -> set[Path]:
+def _reachable_resources(
+    skill: Path,
+    texts: dict[Path, str],
+    resources: set[Path],
+    *,
+    cached_targets: Mapping[Path, tuple[str, ...]] | None = None,
+) -> set[Path]:
     """Follow document-relative disclosures; disconnected reference cycles stay orphaned."""
     reached, pending = {skill}, [skill]
     while pending:
         doc = pending.pop()
-        urls = (urlsplit(t) for t in _document_targets(texts[doc]))
+        targets = cached_targets[doc] if cached_targets and doc in cached_targets else _document_targets(texts[doc])
+        urls = (urlsplit(t) for t in targets)
         linked = {(doc.parent / unquote(u.path)).resolve() for u in urls if not u.scheme and not u.netloc and u.path}
         for res in resources - reached:
             rel_esc = re.escape(Path(os.path.relpath(res, doc.parent)).as_posix())
@@ -158,23 +158,46 @@ def _bad_markers(text: str) -> bool:
     return has_start != has_end or (has_start and text.index(GUIDE_START) > text.index(GUIDE_END))
 
 
-def _guide_index(directory: Path, root: Path, errors: list[str] | None = None) -> str:
-    lines = [GUIDE_START, ""]
+def _guide_entries(directory: Path, root: Path) -> tuple[list[tuple[Path, dict[str, Any] | None]], list[str]]:
+    entries: list[tuple[Path, dict[str, Any] | None]] = []
+    errors: list[str] = []
     for path in _guides(directory):
         meta, _, guide_errors = _frontmatter(path, root)
+        errors.extend(guide_errors)
+        entries.append((path, meta))
+    return entries, errors
+
+
+def _guide_index(
+    directory: Path,
+    root: Path,
+    errors: list[str] | None = None,
+    *,
+    entries: Sequence[tuple[Path, dict[str, Any] | None]] | None = None,
+) -> str:
+    if entries is None:
+        entries, guide_errors = _guide_entries(directory, root)
         if errors is not None:
             errors.extend(guide_errors)
+    lines = [GUIDE_START, ""]
+    for path, meta in entries:
         if meta is not None:
             lines.append(f"- [{meta.get('name')}]({path.relative_to(directory).as_posix()}): {meta.get('description')}")
     return "\n".join([*lines, "", GUIDE_END])
 
 
-def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
-    findings: list[str] = []
-    rel_skill, guides, names, targets = _relative(root, skill), _guides(skill.parent), set(), _document_targets(body)
-    for path in guides:
-        meta, _, errors = _frontmatter(path, root)
-        findings.extend(errors)
+def _guide_findings(
+    root: Path,
+    skill: Path,
+    body: str,
+    *,
+    targets: tuple[str, ...],
+    entries: list[tuple[Path, dict[str, Any] | None]],
+    entry_errors: list[str],
+) -> list[str]:
+    findings: list[str] = list(entry_errors)
+    rel_skill, names = _relative(root, skill), set()
+    for path, meta in entries:
         if meta is None:
             continue
         rel, name = _relative(root, path), path.parent.name if path.name == "GUIDE.md" else path.stem
@@ -197,15 +220,25 @@ def _guide_findings(root: Path, skill: Path, body: str) -> list[str]:
     has_start, has_end = GUIDE_START in body, GUIDE_END in body
     if _bad_markers(body):
         findings.append(f"{rel_skill}: malformed or inverted {GUIDE_START} / {GUIDE_END} markers")
-    elif (guides or has_start or "## Task guides" in body) and _guide_index(skill.parent, root) not in body:
+    elif (entries or has_start or "## Task guides" in body) and _guide_index(
+        skill.parent, root, entries=entries
+    ) not in body:
         hint = "stale guide index; run mise run format:skills" if has_start and has_end else _MISSING_GUIDE
         findings.append(f"{rel_skill}: {hint}")
     return findings
 
 
-def _resource_findings(root: Path, skill: Path) -> list[str]:
+def _resource_findings(
+    root: Path,
+    skill: Path,
+    *,
+    skill_body: str,
+    skill_targets: tuple[str, ...],
+    guide_paths: set[Path],
+) -> list[str]:
     directory, rel_skill = skill.parent, _relative(root, skill)
-    guides, texts, resources, findings = set(_guides(directory)), {skill: skill.read_text(encoding="utf-8")}, set(), []
+    texts = {skill: skill_body}
+    resources, findings = set(), []
     for path in sorted(directory.rglob("*")):
         if path == skill or path.name == "__pycache__" or path.suffix in {".pyc", ".pyo"}:
             continue
@@ -235,15 +268,16 @@ def _resource_findings(root: Path, skill: Path) -> list[str]:
                 findings.extend(read_errors)
                 if text is not None:
                     is_ref = first == "references" and path.suffix == ".md" and "templates" not in parent_parts
-                    if is_ref and path not in guides:
+                    if is_ref and path not in guide_paths:
                         findings.extend(_token_errors(rel, text))
                     texts[path] = text
-    unreachable = sorted(resources - _reachable_resources(skill, texts, resources))
+    unreachable = sorted(
+        resources - _reachable_resources(skill, texts, resources, cached_targets={skill: skill_targets})
+    )
     findings.extend(f"{_relative(root, p)}: resource is not reachable from SKILL.md" for p in unreachable)
     return findings
 
 
-@functools.cache
 def _document_targets(content: str) -> tuple[str, ...]:
     return tuple(
         val
@@ -285,8 +319,12 @@ def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
     if meta.get("license") != "MIT":
         findings.append(f"{rel}: license must be MIT")
     findings.extend(_metadata_findings(rel, meta.get("metadata")))
-    findings.extend(_guide_findings(root, path, body))
-    findings.extend(_resource_findings(root, path))
+    targets = _document_targets(body)
+    entries, entry_errors = _guide_entries(path.parent, root)
+    findings.extend(_guide_findings(root, path, body, targets=targets, entries=entries, entry_errors=entry_errors))
+    findings.extend(
+        _resource_findings(root, path, skill_body=body, skill_targets=targets, guide_paths={p for p, _ in entries})
+    )
     return findings
 
 
@@ -297,32 +335,40 @@ def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
 
 def _repository_check(root: Path) -> tuple[list[str], int]:
     root = root.resolve()
-    discovered, findings = _discover_skills(root)
-    for name, path in sorted(discovered):
-        findings.extend(_skill_findings(root, name, path))
-    if root == ROOT:
-        findings.extend(privacy_findings(root))
+    executor = ThreadPoolExecutor(max_workers=1) if root == ROOT else None
+    privacy_future = executor.submit(privacy_findings, root) if executor is not None else None
     try:
-        context = cb.context_report(root, source=root)
-        for scope, b in context["budgets"].items():
-            if not b["passed"]:
-                head = f"{scope} AGENTS.md + skill discovery contains {b['estimated_tokens']} estimated tokens"
-                findings.append(f"{head}; must be below {cb.CONTEXT_TOKEN_LIMIT}; {_BUDGET_HINT}")
-        for scope, b in context["subagent_budgets"].items():
-            if not b["passed"]:
-                head = f"{scope} subagent discovery contains {b['estimated_tokens']} estimated tokens"
-                findings.append(f"{head}; must be below {cb.SUBAGENT_TOKEN_LIMIT}; {_BUDGET_HINT}")
-        for item in context["duplicates"]:
-            paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
-            findings.append(f"agent context: duplicate skill name {item['name']!r} in {paths}; {cb.DUPLICATE_GUIDANCE}")
-        for item in context["duplicate_subagents"]:
-            paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
-            findings.append(
-                f"agent context: duplicate subagent name {item['name']!r} in {paths}; {cb.DUPLICATE_SUBAGENT_GUIDANCE}"
-            )
-    except DotError as error:
-        findings.append(f"agent context: {error}")
-    return sorted(set(findings)), len(discovered)
+        discovered, findings = _discover_skills(root)
+        for name, path in sorted(discovered):
+            findings.extend(_skill_findings(root, name, path))
+        try:
+            context = cb.context_report(root, source=root)
+            for scope, b in context["budgets"].items():
+                if not b["passed"]:
+                    head = f"{scope} AGENTS.md + skill discovery contains {b['estimated_tokens']} estimated tokens"
+                    findings.append(f"{head}; must be below {cb.CONTEXT_TOKEN_LIMIT}; {_BUDGET_HINT}")
+            for scope, b in context["subagent_budgets"].items():
+                if not b["passed"]:
+                    head = f"{scope} subagent discovery contains {b['estimated_tokens']} estimated tokens"
+                    findings.append(f"{head}; must be below {cb.SUBAGENT_TOKEN_LIMIT}; {_BUDGET_HINT}")
+            for item in context["duplicates"]:
+                paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
+                findings.append(
+                    f"agent context: duplicate skill name {item['name']!r} in {paths}; {cb.DUPLICATE_GUIDANCE}"
+                )
+            for item in context["duplicate_subagents"]:
+                paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
+                findings.append(
+                    f"agent context: duplicate subagent name {item['name']!r} in {paths}; {cb.DUPLICATE_SUBAGENT_GUIDANCE}"
+                )
+        except DotError as error:
+            findings.append(f"agent context: {error}")
+        if privacy_future is not None:
+            findings.extend(privacy_future.result())
+        return sorted(set(findings)), len(discovered)
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True)
 
 
 def repository_findings(root: Path) -> list[str]:

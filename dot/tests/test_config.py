@@ -9,10 +9,8 @@ import pytest
 from fmind_dot.config import (
     Config,
     ConfigValidationError,
-    ModelPrice,
-    PricingConfig,
+    WorkspaceConfig,
     config_file_path,
-    default_pricing,
     env_path,
     load_config,
     policy,
@@ -28,7 +26,6 @@ def test_defaults_and_schema_version_are_python_first() -> None:
     assert config.trust.agy_projects == ["~/.local/share/chezmoi"]
     assert len(config.auth.workspace.scopes) > 5
     assert "github" in policy()
-    assert default_pricing() is not default_pricing()
 
 
 @pytest.mark.parametrize("pattern", ["fmind/agent-*", "", "~", "~/ x", "./repo"])
@@ -73,13 +70,37 @@ def test_load_config_overlay_and_strict_validation(tmp_path: Path) -> None:
         "CLOUD-PLATFORM/",
         "https://mail.google.com/",
         "https://mail.google.com",
+        "https://mail.google.com:443/",
+        "http://mail.google.com:80/",
         "HTTPS://Mail.Google.Com/",
+        "http://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com:443/auth/cloud-platform",
+        "https://www.googleapis.com//auth/./cloud-platform/",
         "HTTPS://WWW.GOOGLEAPIS.COM/auth/cloud-platform/",
+        "foo/../cloud-platform",
         "gmail.settings.sharing",
     ):
         path.write_text(f"auth:\n  workspace:\n    extra_scopes: ['{forbidden}']\n", encoding="utf-8")
         with pytest.raises(ConfigValidationError, match="forbidden high-risk scope"):
             load_config(path)
+
+    for invalid_scope in (
+        "https://www.googleapis.com/auth/",
+        "https://www.googleapis.com/AUTH/",
+        "https://www.googleapis.com/auth/..",
+        "https://www.googleapis.com/bar",
+        "https://www.googleapis.com/",
+        "https:///",
+        "a://",
+        "foo/..",
+        "foo/../../bar",
+    ):
+        path.write_text(f"auth:\n  workspace:\n    extra_scopes: ['{invalid_scope}']\n", encoding="utf-8")
+        with pytest.raises(ConfigValidationError, match="invalid Google OAuth scope"):
+            load_config(path)
+
+    with pytest.raises(ConfigValidationError, match="invalid Google OAuth scope"):
+        WorkspaceConfig(extra_scopes=["/drive"])
 
     excess = ", ".join(f"scope_{i}" for i in range(60))
     path.write_text(f"auth:\n  workspace:\n    extra_scopes: [{excess}]\n", encoding="utf-8")
@@ -96,13 +117,6 @@ def test_load_config_overlay_and_strict_validation(tmp_path: Path) -> None:
         with pytest.raises(ConfigValidationError, match=match) as caught:
             load_config(path)
         assert "bogus" not in str(caught.value)
-
-    with pytest.raises(ConfigValidationError, match="must be a number"):
-        ModelPrice.from_raw({"input": True, "output": 1.0}, ("models", "x"))
-    with pytest.raises(ConfigValidationError, match=r"negative|non-negative"):
-        PricingConfig.from_raw(
-            {"as_of": "2026-11-12", "basis": "b", "sources": [], "models": {"x": {"input": -1, "output": 1}}}
-        )
 
 
 @pytest.mark.parametrize(

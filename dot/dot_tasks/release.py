@@ -17,7 +17,7 @@ _RELEASE_CHANGELOG_FILE = Path("CHANGELOG.md")
 _RELEASE_GENERATED_FILES = (_RELEASE_CHANGELOG_FILE, _RELEASE_VERSION_FILE, Path("dot/uv.lock"))
 _RELEASE_CLIFF_CONFIG = Path("dot_config/git-cliff/cliff.toml")
 _CD_URL = "https://github.com/fmind/dot/actions/workflows/cd.yml"
-_RELEASE_GATES = ("check:network", "test:starters", "build", "check:completions")
+_RELEASE_GATES = ("all", "test:starters", "check:completions")
 _GIT_TIMEOUT_SECONDS = 300
 _TOOL_TIMEOUT_SECONDS = 600
 # Pre-releases/build suffixes normalize differently in PEP 440 distribution names.

@@ -79,6 +79,16 @@ def add_json(parser: Parser) -> None:
     parser.add_argument("-j", "--json", dest="as_json", action="store_true", help="Emit structured JSON")
 
 
+def add_quiet(parser: Parser) -> None:
+    """One definition keeps every concise-output flag documented identically."""
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Emit concise summary output (also filters or trims --json payloads)",
+    )
+
+
 def _takes_value(action: argparse.Action) -> bool:
     return bool(action.option_strings) and action.nargs != 0
 

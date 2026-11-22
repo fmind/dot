@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from dot_tasks import privacy_checks
 from dot_tasks import skill_contracts as checker
 from dot_tasks.mise_refresh import validate
 from repo_helpers import ROOT, chezmoi
@@ -296,7 +297,7 @@ def test_python_only_owned_sources_and_fzf_and_mise_locks(tmp_path: Path) -> Non
     ).splitlines()
     retired = {".go", ".js", ".jsx", ".ts", ".tsx"}
     active = {p for p in owned if Path(p).suffix in retired and (ROOT / p).exists()}
-    assert active == {"private_dot_pi/private_agent/extensions/google-vertex.ts"}
+    assert active == set()
 
     for fetched in (False, True):
         home = tmp_path / str(fetched)
@@ -375,7 +376,7 @@ def test_age_sources_encrypted_and_ignored_without_key(tmp_path: Path) -> None:
 )
 def test_email_pattern_delimiters(template: str, expected: str | None) -> None:
     dom = ".".join(("corp", "io"))
-    m = checker.EMAIL_PATTERN.search(template.format(f"alice@{dom}"))
+    m = privacy_checks.EMAIL_PATTERN.search(template.format(f"alice@{dom}"))
     assert (m.group(1) if m else None) == (f"{expected}@{dom}" if expected else None)
 
 
@@ -414,6 +415,16 @@ def test_privacy_findings_and_fail_closed(tmp_path: Path, monkeypatch: pytest.Mo
     assert any("unapproved email domain 'corp-domain.io'" in f for f in findings)
     assert any("local workstation identifier 'fmind-internal-9999'" in f for f in findings)
     (repo / "sample.py").write_text('OK = "alice@example.com"\n')
+    (repo / "valid.age").write_bytes(b"-----BEGIN AGE ENCRYPTED FILE-----\nabc\n")
+    assert checker.privacy_findings(repo, home=home) == []
+    (repo / "plain.age").write_text("SECRET=plaintext\n", encoding="utf-8")
+    (repo / "link.age").symlink_to(repo / "valid.age")
+    age_findings = checker.privacy_findings(repo, home=home)
+    assert any("plain.age: .age source is not age-encrypted ciphertext" in f for f in age_findings)
+    assert any("link.age: encrypted .age source must not be a symlink" in f for f in age_findings)
+    (repo / "plain.age").unlink()
+    (repo / "link.age").unlink()
+    (repo / "valid.age").unlink()
     subprocess.run(["git", "-C", str(repo), "add", "sample.py"], check=True, timeout=30)
     subprocess.run(
         ["git", "-C", str(repo), "-c", "commit.gpgsign=false", "commit", "-q", "-m", "bad"],
@@ -424,12 +435,12 @@ def test_privacy_findings_and_fail_closed(tmp_path: Path, monkeypatch: pytest.Mo
     assert any(f"unapproved author email {bad_work!r}" in f for f in checker.privacy_findings(repo, home=home))
 
     (home / ".config/git/config.acmecorp").unlink()
-    monkeypatch.setattr(checker.socket, "gethostname", lambda: "workbench.example.test")
+    monkeypatch.setattr(privacy_checks.socket, "gethostname", lambda: "workbench.example.test")
     (home / ".config/dot.yaml").write_text(
         "trust:\n  github_owners: [acme-corp]\nprivacy:\n  allowed_tokens: [WorkBench]\n"
     )
     (home / ".config/dot.work.yaml").write_text("pull:\n  directories: [~/work/secondary-org]\n")
-    assert checker._workstation_tokens(home, include_hostname=True) == {"acme-corp", "secondary-org"}
+    assert privacy_checks._workstation_tokens(home, include_hostname=True) == {"acme-corp", "secondary-org"}
 
 
 @pytest.mark.parametrize(

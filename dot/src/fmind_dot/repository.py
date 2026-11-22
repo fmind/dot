@@ -303,7 +303,11 @@ def run_status(
 
 
 def register_pull(commands: Parser) -> None:
-    msg = "Skips dirty worktrees and branches without an upstream, and reports diverged branches without changing them. Exit 1 when any repository fails or diverged."
+    msg = (
+        "Skips dirty worktrees and branches without an upstream, and reports diverged branches without changing them. "
+        "Exit 1 when any repository fails or diverged.\n\n"
+        "Examples: dot pull · dot pull ~/fmind/dot --json"
+    )
     p = commands.command(
         "pull",
         "Fast-forward configured repositories; never merges, rebases, or touches dirty checkouts",
@@ -321,7 +325,10 @@ def register_status(commands: Parser) -> None:
         lambda state, args: run_status(
             state, as_json=args.as_json, paths=args.paths, needs_attention=args.needs_attention, fetch=args.fetch
         ),
-        epilog="Exit 1 when any repository cannot be inspected; --json still prints every result.",
+        epilog=(
+            "Exit 1 when any repository cannot be inspected; --json still prints every result.\n\n"
+            "Examples: dot status --needs-attention · dot status --fetch --json"
+        ),
     )
     s.add_argument("paths", nargs="*", type=Path, help="Repositories to inspect; defaults to configured workspaces")
     add_json(s)

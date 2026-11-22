@@ -11,6 +11,7 @@ import tomllib
 from pathlib import Path
 
 from fmind_dot.config import xdg_dir
+from fmind_dot.private_files import write_atomic_file
 
 _GRAPH_FILES = {"uv": ("pyproject.toml", "uv.lock"), "aube": ("package.json", "aube-lock.yaml")}
 # Revision 4 (mise 2026.11.1) adds npm provenance repositories; mise refuses newer revisions.
@@ -77,7 +78,7 @@ def capture(source: Path, destination: Path) -> None:
     targets = {rel: _bundle_path(destination.parent, rel) for rel in incoming}
     for rel in sorted(incoming, key=lambda path: path == lock):
         targets[rel].parent.mkdir(parents=True, exist_ok=True)
-        targets[rel].write_bytes(incoming[rel])
+        write_atomic_file(targets[rel], incoming[rel], mode=0o644)
     for rel in previous.keys() - incoming.keys():
         (target := destination.parent / rel).unlink()
         _rmdir_empty(target.parent, destination.parent)

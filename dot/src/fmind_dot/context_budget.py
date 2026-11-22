@@ -10,7 +10,7 @@ from typing import IO, Any, Literal
 
 import yaml
 
-from fmind_dot.command import Parser, add_json
+from fmind_dot.command import Parser, add_json, add_quiet
 from fmind_dot.errors import DotError, UsageError
 from fmind_dot.reporting import display_path, write_json, write_report_line
 from fmind_dot.state import State
@@ -359,7 +359,12 @@ def _write_check_errors(err: IO[str], report: dict[str, Any]) -> None:
         err.write(f"Duplicate subagent names: {names}. {DUPLICATE_SUBAGENT_GUIDANCE}\n")
 
 
+_QUIET_JSON_KEYS = ("schema", "passed", "budgets", "subagent_budgets", "duplicates", "duplicate_subagents")
+
+
 def _context(state: State, args: argparse.Namespace) -> None:
+    if args.quiet and args.details:
+        raise UsageError("--quiet cannot be combined with --details")
     for flag, value in (("--project", args.project), ("--source", args.source)):
         if value is not None:
             try:
@@ -368,15 +373,18 @@ def _context(state: State, args: argparse.Namespace) -> None:
                 raise UsageError(f"{flag}: {value}") from None
     report = context_report(args.project, source=args.source)
     if args.as_json:
-        write_json(state.stdout, report)
+        out = {k: report[k] for k in _QUIET_JSON_KEYS} if args.quiet else report
+        write_json(state.stdout, out)
         if args.check and not report["passed"]:
             _write_check_errors(state.stderr, report)
-    elif args.check and report["passed"] and not args.details:
+    elif (args.check or args.quiet) and report["passed"] and not args.details:
         ctx = ", ".join(f"{s} {b['estimated_tokens']:,}" for s, b in report["budgets"].items())
         sub = ", ".join(f"{s} {b['estimated_tokens']:,}" for s, b in report["subagent_budgets"].items())
         state.stdout.write(
             f"PASS · context below {CONTEXT_TOKEN_LIMIT:,} ({ctx}); subagents below {SUBAGENT_TOKEN_LIMIT:,} ({sub})\n"
         )
+    elif args.quiet and not report["passed"]:
+        _write_check_errors(state.stdout, report)
     else:
         _print_report(state.stdout, report, details=args.details)
     if args.check and not report["passed"]:
@@ -388,7 +396,8 @@ def register(commands: Parser) -> None:
         "Measure global, project, and combined AGENTS.md, skill, and subagent discovery costs; report duplicate names"
     )
     epilog = (
-        "Exit codes: 0 report or passing --check; 1 failed --check or invalid/unreadable input; 2 usage error.\n\n"
+        "Exit codes: 0 report or passing --check; 1 failed --check or invalid/unreadable input; "
+        "2 usage error (including --quiet with --details).\n\n"
         "Examples: dot context --check · dot context --source . --project . --details · dot context --check --json"
     )
     c = commands.command("context", desc, _context, config=False, epilog=epilog)
@@ -404,3 +413,4 @@ def register(commands: Parser) -> None:
     det_help = "Include source paths, on-demand file costs, and coverage in text output"
     c.add_argument("--details", action="store_true", help=det_help)
     add_json(c)
+    add_quiet(c)

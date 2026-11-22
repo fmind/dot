@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import configparser
 import functools
 import hashlib
 import http.client
-import json
 import re
 import subprocess
 import sys
@@ -18,9 +16,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from dot_tasks import ROOT
+from fmind_dot.private_files import write_atomic_file
 
 REPOSITORY = "https://github.com/fmind/theme"
 RAW = "https://raw.githubusercontent.com/fmind/theme/{revision}/{path}"
@@ -30,16 +27,13 @@ ENTRY = re.compile(r'(    url = "\{\{ \$base \}\}/(?P<path>[^"]+)"\n    checksum
 
 # Source file -> (upstream theme file, key paths copied from it); suffix selects parser.
 COPIED: dict[str, tuple[str, tuple[tuple[str, ...], ...]]] = {
-    "dot_config/fastfetch/config.jsonc": ("themes/fastfetch/fmind.json", (("display", "color"),)),
-    "dot_config/lazydocker/config.yml": ("themes/lazydocker/fmind.yml", (("gui", "theme"),)),
-    "dot_config/pgcli/config": ("themes/pgcli/fmind.config", (("main", "syntax_style"), ("colors",))),
     "dot_config/ripgrep/config.tmpl": ("themes/ripgrep/fmind.ripgreprc", (("colors",),)),
     "dot_config/starship.toml": ("themes/starship/fmind.toml", (("palette",), ("palettes",))),
 }
 
 # Byte-for-byte raw copies synchronized with upstream files in COPIED's revision.
 RAW_COPIES: dict[str, str] = {
-    "skills/draft-typst-deck/templates/fmind.typ": "themes/typst/fmind.typ",
+    "skills/draft/references/typst-deck/templates/fmind.typ": "themes/typst/fmind.typ",
 }
 
 Fetch = Callable[[str], bytes]
@@ -47,10 +41,8 @@ _PIN_ERRORS = (
     OSError,
     http.client.HTTPException,
     ValueError,
-    configparser.Error,
     subprocess.SubprocessError,
     tomllib.TOMLDecodeError,
-    yaml.YAMLError,
 )
 
 
@@ -75,7 +67,9 @@ def prefetch(revision: str, template: str, download: Fetch = fetch) -> Fetch:
     """Download every distinct upstream theme file for a revision concurrently."""
     if not (paths := [m.group("path") for m in ENTRY.finditer(template)]):
         return download
-    raw = [RAW.format(revision=revision, path=p) for p in [*paths, *(u for u, _ in COPIED.values())]]
+    raw = [
+        RAW.format(revision=revision, path=p) for p in [*paths, *(u for u, _ in COPIED.values()), *RAW_COPIES.values()]
+    ]
     urls = list(dict.fromkeys(raw))
     with ThreadPoolExecutor(max_workers=min(8, len(urls))) as executor:
         cache = dict(zip(urls, executor.map(download, urls), strict=True))
@@ -101,13 +95,6 @@ def parse(text: str, upstream: str) -> dict[str, Any]:
     match Path(upstream).suffix:
         case ".toml":
             return tomllib.loads(text)
-        case ".yml" | ".yaml":
-            return yaml.safe_load(text) or {}
-        case ".json":  # Native configs may be JSONC; only whole-line comments occur in these files.
-            return json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE))
-        case ".config":  # pgcli's INI dialect; values keep their quotes on both sides.
-            (ini := configparser.ConfigParser(interpolation=None)).read_string(text)
-            return {section: dict(ini[section]) for section in ini.sections()}
         case ".ripgreprc":
             return {"colors": [line for line in text.splitlines() if line.startswith("--colors=")]}
     raise ValueError(f"unsupported theme format: {upstream}")
@@ -161,7 +148,7 @@ def main() -> int:
             sys.stderr.write(f"{joined}Copy the upstream blocks from {revision}, then rerun.\n")
             return 1
         if updated != template:
-            path.write_text(updated, encoding="utf-8")
+            write_atomic_file(path, updated.encode("utf-8"), mode=0o644)
     except _PIN_ERRORS as error:
         sys.stderr.write(f"Cannot pin fmind/theme: {error}\n")
         return 1

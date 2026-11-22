@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import shutil
 import sys
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from fmind_dot.command import FISH_COMPLETION
-from fmind_dot.config import expand_path, policy, xdg_dir
+from fmind_dot.config import expand_path, policy
 from fmind_dot.errors import DotError
-from fmind_dot.private_files import private_directory, write_atomic_file
-from fmind_dot.process import run_parallel
+from fmind_dot.private_files import write_atomic_file
+from fmind_dot.process import CommandResult, run_parallel
 from fmind_dot.state import State, require_tools
 
 _COMPLETION_TIMEOUT_SECONDS = 60.0
@@ -32,7 +35,6 @@ _COMPLETION_COMMANDS: dict[str, tuple[str, ...]] = (
 COMPLETION_TOOLS: frozenset[str] = (
     frozenset(_comp["plain"]) | _COMPLETION_PACKAGES.keys() | _COMPLETION_ENV.keys() | _COMPLETION_COMMANDS.keys()
 )
-MANAGED_COMPLETIONS: frozenset[str] = frozenset({"agy.fish"})
 
 
 def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
@@ -51,11 +53,63 @@ def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> 
         raise DotError(f"failed to publish Fish script: {path.name}") from error
 
 
-def _completion_available(state: State, tool: str) -> bool:
+def _parse_install_paths(raw: str) -> dict[str, Path]:
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    install_paths: dict[str, Path] = {}
+    for pkg, entries in parsed.items():
+        if not isinstance(pkg, str) or not isinstance(entries, list):
+            continue
+        match = next(
+            (
+                ip
+                for entry in entries
+                if isinstance(entry, dict)
+                and entry.get("active")
+                and entry.get("installed")
+                and isinstance(ip := entry.get("install_path"), str)
+                and ip
+            ),
+            None,
+        )
+        if match is not None:
+            install_paths[pkg] = Path(match)
+    return install_paths
+
+
+def _mise_context(state: State) -> tuple[dict[str, Path], str | None]:
+    if state.runner.which("mise") is None:
+        return {}, None
+
+    def probe(cmd: list[str]) -> CommandResult | None:
+        try:
+            return state.runner.run(cmd, timeout=_COMPLETION_TIMEOUT_SECONDS, check=False)
+        except DotError, OSError:
+            return None
+
+    ls_res, bp_res = run_parallel(
+        state.runner, probe, [["mise", "ls", "--current", "--json"], ["mise", "bin-paths"]], 2
+    )
+    install_paths = _parse_install_paths(ls_res.stdout) if ls_res is not None and ls_res.returncode == 0 else {}
+    mise_bin_path: str | None = None
+    if bp_res is not None and bp_res.returncode == 0:
+        dirs = [d for line in bp_res.stdout.splitlines() if (d := line.strip())]
+        if dirs and all(Path(d).is_absolute() for d in dirs):
+            mise_bin_path = os.pathsep.join(dirs)
+    return install_paths, mise_bin_path
+
+
+def _completion_available(state: State, tool: str, *, mise_bin_path: str | None = None) -> bool:
     if (executable := state.runner.which(tool)) is None:
         return False
     mise = state.runner.which("mise")
     if tool != "mise" and mise is not None and executable.resolve() == mise.resolve():
+        if mise_bin_path is not None:
+            return shutil.which(tool, path=mise_bin_path) is not None
         result = state.runner.run(["mise", "which", tool], timeout=_COMPLETION_TIMEOUT_SECONDS, check=False)
         if result.returncode:
             if "not currently active" in result.stderr or "No version is set" in result.stderr:
@@ -64,17 +118,31 @@ def _completion_available(state: State, tool: str) -> bool:
     return True
 
 
-def _generate_completion(state: State, tool: str, workdir: Path) -> str:
+def _generate_completion(
+    state: State,
+    tool: str,
+    workdir: Path,
+    *,
+    install_paths: Mapping[str, Path] | None = None,
+    mise_bin_path: str | None = None,
+    run_env: Mapping[str, str] | None = None,
+) -> str:
     if tool == "dot":
         return FISH_COMPLETION
-    if not _completion_available(state, tool):
+    if not _completion_available(state, tool, mise_bin_path=mise_bin_path):
         raise FileNotFoundError(tool)
     if package := _COMPLETION_PACKAGES.get(tool):
-        require_tools(state, [["mise"]])
-        root = state.runner.run(["mise", "where", "--", package], timeout=_COMPLETION_TIMEOUT_SECONDS).stdout.strip()
-        if not root or not Path(root).is_absolute() or not Path(root).is_dir():
+        if install_paths and (pkg_root := install_paths.get(package)) is not None:
+            root_path = pkg_root
+        else:
+            require_tools(state, [["mise"]])
+            root = state.runner.run(
+                ["mise", "where", "--", package], timeout=_COMPLETION_TIMEOUT_SECONDS
+            ).stdout.strip()
+            root_path = Path(root) if root else Path()
+        if not root_path.is_absolute() or not root_path.is_dir():
             raise DotError(f"mise returned an invalid completion package directory for {tool}")
-        if len(matches := list(Path(root).rglob(f"{tool}.fish"))) != 1:
+        if len(matches := list(root_path.rglob(f"{tool}.fish"))) != 1:
             raise DotError(f"expected one bundled Fish completion for {tool}, found {len(matches)}")
         try:
             return matches[0].read_text(encoding="utf-8")
@@ -90,7 +158,7 @@ def _generate_completion(state: State, tool: str, workdir: Path) -> str:
     cwd = workdir / tool
     cwd.mkdir(exist_ok=True)
     try:
-        result = state.runner.run(cmd, cwd=cwd, timeout=_COMPLETION_TIMEOUT_SECONDS)
+        result = state.runner.run(cmd, cwd=cwd, env=run_env, timeout=_COMPLETION_TIMEOUT_SECONDS)
     except (DotError, OSError) as error:
         raise DotError(f"failed to generate completions for {tool}") from error
     if not result.stdout.strip():
@@ -107,13 +175,19 @@ def _prune_fish(directory: Path, pattern: str, keep: set[str] | frozenset[str], 
                 failures.append(f"{path.name}: {error}")
 
 
-def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
+def _run_completion(state: State, directory: Path) -> list[str]:
     try:
         directory.mkdir(mode=0o755, parents=True, exist_ok=True)
     except OSError as error:
         raise DotError("failed to create completions directory") from error
     failures: list[str] = []
-    _prune_fish(directory, "*.fish", {f"{t}.fish" for t in COMPLETION_TOOLS}.union(MANAGED_COMPLETIONS), failures)
+    _prune_fish(directory, "*.fish", {f"{t}.fish" for t in COMPLETION_TOOLS}, failures)
+    install_paths, mise_bin_path = _mise_context(state)
+    run_env = (
+        {"PATH": f"{mise_bin_path}{os.pathsep}{os.environ.get('PATH', '')}".rstrip(os.pathsep)}
+        if mise_bin_path
+        else None
+    )
     print(
         f"=> Generating Fish autocompletions for {len(COMPLETION_TOOLS)} tools in {directory}...\n", file=state.stdout
     )
@@ -122,9 +196,15 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
 
         def complete(tool: str) -> tuple[str, str | None]:
             try:
-                _write_validated_fish(
-                    state, directory / f"{tool}.fish", _generate_completion(state, tool, workdir), 0o644
+                script = _generate_completion(
+                    state,
+                    tool,
+                    workdir,
+                    install_paths=install_paths,
+                    mise_bin_path=mise_bin_path,
+                    run_env=run_env,
                 )
+                _write_validated_fish(state, directory / f"{tool}.fish", script, 0o644)
                 return f"  ✓ Generated completions for {tool}", None
             except FileNotFoundError:
                 return f"  ○ {tool} is not installed or active, skipping", None
@@ -135,34 +215,17 @@ def _run_completion(state: State, directory: Path, cache: Path) -> list[str]:
             print(line, file=state.stdout)
             if failure is not None:
                 failures.append(failure)
-    try:
-        private_directory(cache)
-    except OSError:
-        failures.append("fish cache directory: failed to create")
-        print("  ✗ Failed to create fish cache directory", file=state.stdout)
-        return failures
-    _prune_fish(cache, "*-init.fish", {"atuin-init.fish"}, failures)
-    try:
-        if _completion_available(state, "atuin"):
-            out = state.runner.run(
-                ["atuin", "init", "fish", "--disable-ai"], timeout=_COMPLETION_TIMEOUT_SECONDS
-            ).stdout
-            _write_validated_fish(state, cache / "atuin-init.fish", out, 0o600)
-            print("  ✓ Generated atuin-init.fish", file=state.stdout)
-    except (DotError, OSError) as error:
-        failures.append(f"atuin-init.fish: {error}")
-        print("  ✗ Failed to generate atuin-init.fish", file=state.stdout)
     return failures
 
 
 def run_completion(state: State, *, check_only: bool = False) -> None:
     if check_only:
         with tempfile.TemporaryDirectory(prefix="dot-completion-check-") as temp:
-            failures = _run_completion(state, Path(temp) / "completions", Path(temp) / "cache")
+            failures = _run_completion(state, Path(temp) / "completions")
         success = "Completion check passed; installed scripts were not changed."
     else:
         directory = expand_path(COMPLETIONS_PATH)
-        failures = _run_completion(state, directory, xdg_dir("XDG_CACHE_HOME", ".cache") / "fish")
+        failures = _run_completion(state, directory)
         success = f"\n✓ Completions updated in {directory}"
     if failures:
         raise DotError("completion generation failed: " + "; ".join(failures))

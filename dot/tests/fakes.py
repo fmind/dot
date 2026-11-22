@@ -62,6 +62,8 @@ class TerminalIO(io.StringIO):
 
 
 class ScriptedRunner(Runner):
+    requires_tty: bool = False
+
     def __init__(
         self,
         installed: set[str] | None = None,

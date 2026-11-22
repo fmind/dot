@@ -5,7 +5,7 @@ import json
 import os
 import re
 import stat
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -25,7 +25,7 @@ _GITHUB_ORIGIN = re.compile(
 )
 _ORIGIN_TIMEOUT_SECONDS = 10
 _ORIGIN_CONCURRENCY = 8
-_Edit = Callable[[Path, str, list[str]], tuple[str, list[str]]]
+_AGY_SETTINGS_REL = Path(".gemini/antigravity-cli/settings.json")
 
 
 def _lstat_regular(path: Path) -> os.stat_result | None:
@@ -88,110 +88,31 @@ def _dump_json(data: dict[str, Any]) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
-def _update(path: Path, edit: _Edit, folders: list[str], *, home: Path | None = None) -> list[str]:
-    updated, changed = edit(path, _read_text(path), folders)
-    if changed:
-        _write_text(path, updated, home=home)
-    return changed
-
-
-def _json_list(path: Path, raw: str, folders: list[str], key: str) -> tuple[str, list[str]]:
-    data = _load_json(path, raw)
-    if not isinstance(trusted := data.setdefault(key, []), list):
-        raise DotError(f"{path}: {key} must be a JSON array")
+def _update_trusted_workspaces(path: Path, folders: list[str], *, home: Path | None = None) -> list[str]:
+    data = _load_json(path, _read_text(path))
+    if not isinstance(trusted := data.setdefault("trustedWorkspaces", []), list):
+        raise DotError(f"{path}: trustedWorkspaces must be a JSON array")
     changed = [f for f in folders if f not in trusted]
-    trusted.extend(changed)
-    return _dump_json(data), changed
-
-
-def _claude(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
-    data = _load_json(path, text)
-    if not isinstance(projects := data.setdefault("projects", {}), dict):
-        raise DotError(f"{path}: projects must be a JSON object")
-    changed: list[str] = []
-    for folder in folders:
-        if not isinstance(project := projects.setdefault(folder, {}), dict):
-            raise DotError(f"{path}: project {folder} must be a JSON object")
-        if project.get("hasTrustDialogAccepted") is not True:
-            project["hasTrustDialogAccepted"] = True
-            changed.append(folder)
-    return _dump_json(data), changed
-
-
-def _claude_settings(path: Path, text: str, folders: list[str], *, home: Path) -> tuple[str, list[str]]:
-    data = _load_json(path, text)
-    if not isinstance(perms := data.setdefault("permissions", {}), dict):
-        raise DotError(f"{path}: permissions must be a JSON object")
-    dirs = perms.setdefault("additionalDirectories", [])
-    if not isinstance(dirs, list) or not all(isinstance(i, str) for i in dirs):
-        raise DotError(f"{path}: permissions.additionalDirectories must be a JSON array of strings")
-    expanded = [expand_path(i, home=home) for i in dirs]
-    covered = {i.resolve() for i in expanded} | set(expanded)
-    changed: list[str] = []
-    for raw in folders:
-        folder, resolved = Path(raw), Path(raw).resolve()
-        if not any(resolved.is_relative_to(p) or folder.is_relative_to(p) for p in covered):
-            dirs.append(raw)
-            covered.update((folder, resolved))
-            changed.append(raw)
-    return _dump_json(data), changed
-
-
-def register_claude_directories(folders: Sequence[Path], *, home: Path | None = None) -> list[Path]:
-    """Extend Claude's permissions.additionalDirectories with ~/.agents and uncovered roots."""
-    resolved_home = (home or Path.home()).resolve()
-    claude_dir = resolved_home / ".claude"
-    _reject_symlink_path(claude_dir, resolved_home, "harness directory")
-    if not claude_dir.is_dir():
-        return []
-    ordered = [resolved_home / ".agents", *sorted(set(folders), key=lambda i: (len(i.parts), str(i)))]
-    selected = {str(folder): folder for folder in ordered}
-    added = _update(
-        claude_dir / "settings.json",
-        lambda p, t, items: _claude_settings(p, t, items, home=resolved_home),
-        list(selected),
-        home=resolved_home,
-    )
-    return [selected[raw] for raw in added]
-
-
-def _pi(path: Path, text: str, folders: list[str]) -> tuple[str, list[str]]:
-    data = _load_json(path, text)
-    changed = [f for f in folders if data.get(f) is not True and (Path(f) / ".git").exists()]
-    data.update(dict.fromkeys(changed, True))
-    return _dump_json(data), changed
-
-
-def _harnesses(home: Path) -> dict[str, tuple[Path, _Edit]]:
-    return {
-        "claude": (home / ".claude.json", _claude),
-        "agy": (
-            home / ".gemini/antigravity-cli/settings.json",
-            lambda p, t, f: _json_list(p, t, f, "trustedWorkspaces"),
-        ),
-        "pi": (home / ".pi/agent/trust.json", _pi),
-    }
+    if changed:
+        trusted.extend(changed)
+        _write_text(path, _dump_json(data), home=home)
+    return changed
 
 
 def installed_harnesses(home: Path | None = None) -> list[str]:
     resolved_home = (home or Path.home()).resolve()
-    installed: list[str] = []
-    for name, (path, _) in _harnesses(resolved_home).items():
-        state_dir = resolved_home / ".claude" if name == "claude" else path.parent
-        _reject_symlink_path(state_dir, resolved_home, "harness directory")
-        if state_dir.is_dir():
-            installed.append(name)
-    return installed
+    state_dir = (resolved_home / _AGY_SETTINGS_REL).parent
+    _reject_symlink_path(state_dir, resolved_home, "harness directory")
+    return ["agy"] if state_dir.is_dir() else []
 
 
 def trust_folders(folders: list[Path], *, home: Path | None = None) -> dict[Path, list[str]]:
     resolved_home = (home or Path.home()).resolve()
     selected = {str(f): f for f in folders}
     changed: dict[Path, list[str]] = {f: [] for f in selected.values()}
-    harnesses = _harnesses(resolved_home)
-    for name in installed_harnesses(resolved_home):
-        for folder in _update(harnesses[name][0], harnesses[name][1], list(selected), home=resolved_home):
-            changed[selected[folder]].append(name)
+    if installed_harnesses(resolved_home):
+        for folder in _update_trusted_workspaces(resolved_home / _AGY_SETTINGS_REL, list(selected), home=resolved_home):
+            changed[selected[folder]].append("agy")
     return changed
 
 
@@ -269,12 +190,12 @@ def _target_folders(state: State, target: str, forbidden: set[Path]) -> tuple[li
             return find_git_repositories(state, [path]), []
         except NotGitWorkTreeError:
             return [path], []
-    trusted = {root for d in state.config.pull.directories if (root := expand_path(d).resolve()).is_dir()}
-    candidates = [repo for repo in find_git_repositories(state) if repo not in trusted]
+    candidates = find_git_repositories(state)
     allowed = run_parallel(state.runner, lambda repo: _allowed_origin(state, repo), candidates, _ORIGIN_CONCURRENCY)
+    trusted: list[Path] = []
     skipped: list[Path] = []
     for repo, ok in zip(candidates, allowed, strict=True):
-        (trusted.add if ok else skipped.append)(repo)
+        (trusted.append if ok else skipped.append)(repo)
     return sorted(trusted), skipped
 
 
@@ -288,25 +209,19 @@ def run_trust(state: State, targets: Sequence[str] = (".",)) -> None:
         selected.update(found)
         excluded.update(skipped_here)
     folders, skipped = sorted(selected), sorted(excluded - selected)
-    claude_roots = (
-        [*[expand_path(d).resolve() for d in state.config.pull.directories], *folders] if "all" in targets else folders
-    )
-    for root in [*folders, *claude_roots]:
+    for root in folders:
         if root in forbidden:
             raise DotError(f"refusing to trust {root}: it contains the home directory")
-    harnesses = installed_harnesses(home)
-    if not harnesses:
+    if not installed_harnesses(home):
         state.stdout.write("○ No agent harness state found; nothing to trust yet.\n")
         return
-    projects = register_agy_projects(folders, state.config.trust.agy_projects, home=home) if "agy" in harnesses else []
-    claude_dirs = register_claude_directories(claude_roots, home=home) if "claude" in harnesses else []
+    projects = register_agy_projects(folders, state.config.trust.agy_projects, home=home)
     changes = trust_folders(folders, home=home)
     lines = []
     for folder in folders:
         changed = changes[folder]
         detail = f"trusted in {', '.join(changed)}" if changed else "already trusted"
         lines.append(f"{'✓' if not changed else '+'} {folder}: {detail}\n")
-    lines.extend(f"+ {f}: added to Claude additionalDirectories\n" for f in claude_dirs)
     lines.extend(f"+ {f}: added to agy Remote Control projects\n" for f in projects)
     lines.extend(f"- {f}: skipped (origin is not a github.com repository of trust.github_owners)\n" for f in skipped)
     state.stdout.writelines(lines)
@@ -315,9 +230,12 @@ def run_trust(state: State, targets: Sequence[str] = (".",)) -> None:
 def register(commands: Parser) -> None:
     t = commands.command(
         "trust",
-        "Pre-accept folder trust in Claude, agy, and Pi, and add trusted repositories to agy Remote Control projects",
+        "Pre-accept folder trust in agy and add trusted repositories to agy Remote Control projects",
         lambda state, args: run_trust(state, args.targets or ["."]),
-        epilog="The target 'all' covers pull.directories and their trust.github_owners repositories.",
+        epilog=(
+            "The target 'all' covers trust.github_owners repositories under pull.directories.\n\n"
+            "Examples: dot trust . · dot trust all"
+        ),
     )
     t.add_argument(
         "targets",

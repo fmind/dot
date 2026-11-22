@@ -233,6 +233,11 @@ def test_interactive_env_stdin_eof_and_sigint_behavior(tmp_path: Path, monkeypat
         process_module._open_browser("https://accounts.google.com/o/oauth2/auth")  # noqa: SLF001
         assert opened_calls == []
         mp.setenv("DISPLAY", ":0")
+        mp.setenv("SSH_TTY", "/dev/pts/0")
+        process_module._open_browser("https://accounts.google.com/o/oauth2/auth")  # noqa: SLF001
+        assert opened_calls == []
+        mp.delenv("SSH_TTY", raising=False)
+        mp.delenv("SSH_CONNECTION", raising=False)
         for bad_url in (
             "http://example.com",
             "file:///tmp/evil.html",
@@ -284,3 +289,27 @@ def test_run_parallel_inline_workers_errors_and_cancel(monkeypatch: pytest.Monke
         run_parallel(runner, lambda _x: (_ for _ in ()).throw(KeyboardInterrupt()), [0], 1)
     with pytest.raises(DotError, match="cancelled"):
         runner.run([sys.executable, "-c", "pass"])
+
+
+def test_runner_run_decodes_and_encodes_utf8_under_c_locale() -> None:
+    dot_src = str(Path(__file__).resolve().parents[1] / "src")
+    script = (
+        "import sys; "
+        f"sys.path.insert(0, {dot_src!r}); "
+        "from fmind_dot.process import Runner; "
+        "sample = '\\u276f\\u21b3\\u03bcs\\u2014\\n'; "
+        "res = Runner().run([sys.executable, '-c', 'import sys; sys.stdout.buffer.write(sys.stdin.buffer.read())'], input_text=sample); "
+        "assert res.stdout == sample, repr(res.stdout); "
+        "assert '\\ufffd' not in res.stdout"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        env={**os.environ, "LC_ALL": "C", "LANG": "C"},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr

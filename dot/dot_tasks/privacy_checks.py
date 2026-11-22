@@ -7,6 +7,7 @@ import re
 import socket
 import stat
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -173,10 +174,27 @@ def privacy_findings(root: Path, home: Path | None = None, *, repo_root: Path = 
     else:
         relatives = [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and not p.is_symlink()]
 
+    _age_headers = (b"-----BEGIN AGE ENCRYPTED FILE-----\n", b"age-encryption.org/v1\n")
     for rel in sorted(relatives):
-        if rel in PRIVACY_SKIP_PATHS or rel.startswith(PRIVACY_SKIP_PREFIXES) or rel.endswith(".age"):
+        if rel in PRIVACY_SKIP_PATHS or rel.startswith(PRIVACY_SKIP_PREFIXES):
             continue
-        if not (path := root / rel).is_file() or path.is_symlink():
+        path = root / rel
+        if rel.endswith(".age"):
+            if path.is_symlink():
+                findings.append(f"{rel}: encrypted .age source must not be a symlink")
+                continue
+            if not path.exists():
+                continue
+            try:
+                with path.open("rb") as stream:
+                    header = stream.read(64)
+            except OSError as error:
+                findings.append(f"{rel}: unreadable .age source ({error})")
+                continue
+            if not header.startswith(_age_headers):
+                findings.append(f"{rel}: .age source is not age-encrypted ciphertext")
+            continue
+        if not path.is_file() or path.is_symlink():
             continue
         try:
             text = path.read_text(encoding="utf-8")
@@ -204,3 +222,14 @@ def privacy_findings(root: Path, home: Path | None = None, *, repo_root: Path = 
                 elif token_pat is not None and (hit := token_pat.search(email)) is not None:
                     findings.append(f"{pre}: {role} email contains local workstation identifier {hit.group(0)!r}")
     return sorted(set(findings))
+
+
+def main() -> int:
+    findings = privacy_findings(ROOT)
+    for finding in findings:
+        sys.stderr.write(f"privacy: {finding}\n")
+    return 1 if findings else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
