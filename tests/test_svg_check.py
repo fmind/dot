@@ -1,29 +1,26 @@
 """Exercise the SVG illustration checker against the template and broken variants."""
 
-import importlib.util
 import subprocess
 import sys
 import tempfile
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
-GUIDE = Path(__file__).resolve().parents[1] / "skills/diagrams-as-code/references/svg"
+from repo_helpers import ROOT, load_script
+
+GUIDE = ROOT / "skills/diagrams-as-code/references/svg"
 SCRIPT = GUIDE / "scripts/check_svg.py"
 TEMPLATE = GUIDE / "templates/illustration.svg"
 
 
 @pytest.fixture
 def svg() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_svg", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_script("check_svg", SCRIPT)
 
 
 def variant(tmp_path: Path, old: str, new: str) -> Path:
@@ -280,23 +277,36 @@ def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: M
                 ),
                 encoding="utf-8",
             )
-            original = direct(clean, "original.png")
-            original_fallback = direct(fallback, "original-fallback.png")
-            # A synchronous pixel change proves script execution; <image> below proves network
-            # access without racing an asynchronous request against screenshot process exit.
-            assert direct(event, "active.png") != original
-            direct(network, "network-control.png")
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                f_original = pool.submit(direct, clean, "original.png")
+                f_fallback = pool.submit(direct, fallback, "original-fallback.png")
+                f_active = pool.submit(direct, event, "active.png")
+                f_network = pool.submit(direct, network, "network-control.png")
+                original = f_original.result()
+                original_fallback = f_fallback.result()
+                # A synchronous pixel change proves script execution; <image> below proves network
+                # access without racing an asynchronous request against screenshot process exit.
+                assert f_active.result() != original
+                f_network.result()
             assert set(requests) == {"/localhost", "/127.0.0.1", "/svg-preview.test"}
             requests.clear()
 
             # Bypass the authoring checks to exercise the browser boundary itself.
-            for source in (clean, event, network):
-                shots = svg.render(source, out)
+            def render_isolated(source: Path) -> tuple[Path, list[Path]]:
+                target = out / source.stem
+                target.mkdir()
+                return source, svg.render(source, target)
+
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                rendered = [
+                    future.result() for future in [pool.submit(render_isolated, s) for s in (clean, event, network)]
+                ]
+            for source, shots in rendered:
                 assert len(shots) == 2
                 if source != network:
                     assert shots[0].read_bytes() == original
                     assert shots[1].read_bytes() == original_fallback
-                assert requests == []
+            assert requests == []
         finally:
             server.shutdown()
             thread.join()

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import shutil
@@ -13,20 +12,15 @@ from types import ModuleType
 
 import pytest
 
-from repo_helpers import native_binary
+from repo_helpers import ROOT, load_script, native_binary
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/draft/references/typst-deck/scripts/build_typst_deck.py"
-TEMPLATE_DECK = Path(__file__).resolve().parents[1] / "skills/draft/references/typst-deck/templates/deck.typ"
+SCRIPT = ROOT / "skills/draft/references/typst-deck/scripts/build_typst_deck.py"
+TEMPLATE_DECK = ROOT / "skills/draft/references/typst-deck/templates/deck.typ"
 
 
 @pytest.fixture
 def mod() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("build_typst_deck", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_script("build_typst_deck", SCRIPT)
 
 
 def test_discover_font_paths_finds_deck_repo_and_user_font_dirs(

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import importlib.util
 import json
 import re
 import shutil
@@ -16,7 +15,9 @@ from typing import Any
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/draft/references/mail/scripts/draft_email.py"
+from repo_helpers import ROOT, load_script
+
+SCRIPT = ROOT / "skills/draft/references/mail/scripts/draft_email.py"
 
 SAMPLE_SEND_AS: dict[str, Any] = {
     "sendAsEmail": "github@fmind.dev",
@@ -39,12 +40,7 @@ def _decode_raw_mime(raw_b64: str) -> EmailMessage:
 
 @pytest.fixture
 def mod() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("draft_email", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_script("draft_email", SCRIPT)
 
 
 def test_compose_new_thread_builds_multipart_alternative_and_injects_signature(mod: ModuleType) -> None:

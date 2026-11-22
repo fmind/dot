@@ -1,6 +1,5 @@
 """Exercise the variant contact sheet without a real browser."""
 
-import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -8,18 +7,15 @@ from types import ModuleType
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/diagrams-as-code/references/variants/scripts/gallery.py"
+from repo_helpers import ROOT, load_script
+
+SCRIPT = ROOT / "skills/diagrams-as-code/references/variants/scripts/gallery.py"
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
 
 
 @pytest.fixture
 def gallery() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("visual_gallery", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_script("visual_gallery", SCRIPT)
 
 
 def test_labels_keep_round_numbers_and_skip_the_sheet(gallery: ModuleType, tmp_path: Path) -> None:

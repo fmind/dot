@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shlex
 import shutil
 import subprocess
 from collections.abc import Iterator, Mapping
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -23,6 +25,22 @@ WORKFLOWS = [
     ROOT / "skills/docs/references/site/templates/docs.yml",
     ROOT / "skills/infra-as-code/templates/tofu.yml",
 ]
+
+# Repository composite actions and shipped composite-action templates.
+ACTIONS = [
+    *sorted((ROOT / ".github/actions").glob("*/action.yml")),
+    *sorted((ROOT / "skills/github/references/ci-cd/templates").glob("*/action.yml")),
+]
+
+
+def load_script(name: str, path: Path) -> ModuleType:
+    """Load a standalone Python script file as an isolated module."""
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def native_binary(name: str) -> Path | None:

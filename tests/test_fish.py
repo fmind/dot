@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from repo_helpers import native_binary
+from repo_helpers import ROOT, native_binary
 
 _GUARDED_ENV_VARS = frozenset(
     {
@@ -56,7 +56,6 @@ def _fish() -> str:
 
 
 def test_fish_aliases_load_without_errors() -> None:
-    root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [
             _fish(),
@@ -74,7 +73,7 @@ def test_fish_aliases_load_without_errors() -> None:
                 "true"
             ),
         ],
-        cwd=root,
+        cwd=ROOT,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
@@ -94,11 +93,10 @@ def test_fish_paths_keep_homebrew_ahead_of_usr_local(tmp_path: Path) -> None:
         pytest.skip("both Homebrew and /usr/local bin directories are required")
     # Resolve fish before the test replaces PATH with the system directories under test.
     fish = _fish()
-    root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         # Fish rebuilds PATH from fish_user_paths in its shared config, so isolate only user configuration.
         [fish, "--command", "source dot_config/fish/conf.d/paths.fish; string join \\n -- $PATH"],
-        cwd=root,
+        cwd=ROOT,
         env={**os.environ, "PATH": f"{usr_local}:/usr/bin:/bin:{homebrew}", "XDG_CONFIG_HOME": str(tmp_path)},
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -200,7 +198,6 @@ def _install_auto_zellij_stubs(tmp_path: Path) -> tuple[Path, Path]:
 
 @pytest.mark.parametrize("exit_status", [0, 1])
 def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_status: int) -> None:
-    root = Path(__file__).resolve().parents[1]
     bin_dir, calls = _install_auto_zellij_stubs(tmp_path)
     env = _clean_fish_env(
         tmp_path,
@@ -215,7 +212,7 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
             "source dot_config/fish/conf.d/plugins.fish; "
             "emit fish_prompt; echo shell-survived; emit fish_prompt; echo second-prompt"
         ),
-        cwd=root,
+        cwd=ROOT,
         env=env,
     )
     assert returncode == 0, stderr
@@ -242,7 +239,6 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
     ],
 )
 def test_auto_zellij_skips_agent_ci_ssh_and_nested_pty_shells(tmp_path: Path, blocked_env: dict[str, str]) -> None:
-    root = Path(__file__).resolve().parents[1]
     bin_dir, calls = _install_auto_zellij_stubs(tmp_path)
     env = _clean_fish_env(
         tmp_path,
@@ -254,7 +250,7 @@ def test_auto_zellij_skips_agent_ci_ssh_and_nested_pty_shells(tmp_path: Path, bl
     env.update(blocked_env)
     returncode, stdout, stderr = _run_fish_pty(
         f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo survived',
-        cwd=root,
+        cwd=ROOT,
         env=env,
     )
     assert returncode == 0, stderr
@@ -264,7 +260,6 @@ def test_auto_zellij_skips_agent_ci_ssh_and_nested_pty_shells(tmp_path: Path, bl
 
 
 def test_auto_zellij_skips_non_tty_and_attaches_when_term_program_unset_on_pty(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     bin_dir, calls = _install_auto_zellij_stubs(tmp_path)
     env = _clean_fish_env(
         tmp_path,
@@ -280,7 +275,7 @@ def test_auto_zellij_skips_non_tty_and_attaches_when_term_program_unset_on_pty(t
             "--command",
             f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo ok',
         ],
-        cwd=root,
+        cwd=ROOT,
         env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -298,7 +293,7 @@ def test_auto_zellij_skips_non_tty_and_attaches_when_term_program_unset_on_pty(t
     assert "TERM_PROGRAM" not in env
     returncode, stdout, stderr = _run_fish_pty(
         f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo attached',
-        cwd=root,
+        cwd=ROOT,
         env=env,
     )
     assert returncode == 0, stderr
@@ -308,7 +303,6 @@ def test_auto_zellij_skips_non_tty_and_attaches_when_term_program_unset_on_pty(t
 
 
 def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls"
@@ -328,7 +322,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
     )
     result = subprocess.run(
         [_fish(), "--no-config", "--interactive", "--command", cmd],
-        cwd=root,
+        cwd=ROOT,
         env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -348,9 +342,115 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
         "zoxide init fish",
     ]
 
+    # A second interactive shell reuses the cached init scripts without respawning the 5 tools.
+    calls.unlink()
+    cached = subprocess.run(
+        [_fish(), "--no-config", "--interactive", "--command", cmd],
+        cwd=ROOT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert cached.returncode == 0, cached.stderr
+    assert cached.stderr == "", cached.stderr
+    assert cached.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
+    assert not calls.exists()
+
+    # Touching a binary invalidates only its cached init script.
+    future = time.time() + 10
+    os.utime(bin_dir / "fzf", (future, future))
+    refreshed = subprocess.run(
+        [_fish(), "--no-config", "--interactive", "--command", cmd],
+        cwd=ROOT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert refreshed.returncode == 0, refreshed.stderr
+    assert refreshed.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
+    assert calls.read_text(encoding="utf-8").splitlines() == ["fzf --fish"]
+
+    # An in-place upgrade whose archive preserves an older mtime still invalidates the cache.
+    calls.unlink()
+    older = time.time() - 3600
+    os.utime(bin_dir / "zoxide", (older, older))
+    older_refresh = subprocess.run(
+        [_fish(), "--no-config", "--interactive", "--command", cmd],
+        cwd=ROOT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert older_refresh.returncode == 0, older_refresh.stderr
+    assert calls.read_text(encoding="utf-8").splitlines() == ["zoxide init fish"]
+
+    # Empty tool output never commits a header-only no-op cache file.
+    empty_env = _clean_fish_env(tmp_path / "empty", PLUGIN_TEST_CALLS=str(tmp_path / "empty-calls"), ZELLIJ="0")
+    empty_bin = tmp_path / "empty-bin"
+    empty_bin.mkdir()
+    for name in ("mise", "fzf", "atuin", "starship", "zoxide"):
+        exe = empty_bin / name
+        exe.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        exe.chmod(0o755)
+    empty_run = subprocess.run(
+        [
+            _fish(),
+            "--no-config",
+            "--interactive",
+            "--command",
+            f'set -gx PATH "{empty_bin}" $PATH; source dot_config/fish/conf.d/plugins.fish',
+        ],
+        cwd=ROOT,
+        env=empty_env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert empty_run.returncode == 0, empty_run.stderr
+    assert not list((tmp_path / "empty/.cache/fish/init").glob("*.fish"))
+
+    # Relative XDG_CACHE_HOME is ignored per XDG spec and falls back to $HOME/.cache.
+    rel_home = tmp_path / "rel-home"
+    rel_home.mkdir()
+    rel_cwd = tmp_path / "untrusted-cwd"
+    (rel_cwd / "relcache/fish/init").mkdir(parents=True)
+    (rel_cwd / "relcache/fish/init/mise.fish").write_text("set -g stub_mise poisoned\n", encoding="utf-8")
+    rel_env = _clean_fish_env(
+        rel_home, XDG_CACHE_HOME="relcache", PLUGIN_TEST_CALLS=str(tmp_path / "rel-calls"), ZELLIJ="0"
+    )
+    rel_cmd = cmd.replace("dot_config/fish/conf.d/plugins.fish", f'"{ROOT / "dot_config/fish/conf.d/plugins.fish"}"')
+    rel_run = subprocess.run(
+        [_fish(), "--no-config", "--interactive", "--command", rel_cmd],
+        cwd=rel_cwd,
+        env=rel_env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert rel_run.returncode == 0, rel_run.stderr
+    assert rel_run.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
+    assert (rel_home / ".cache/fish/init/mise.fish").is_file()
+
 
 def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     base_cmd = "source dot_config/fish/config.fish"
     env = _clean_fish_env(tmp_path, ZELLIJ="0", TERM_PROGRAM="ghostty")
 
@@ -361,7 +461,7 @@ def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) ->
     private_fish.symlink_to(private_target)
     rc_sym, stdout_sym, stderr_sym = _run_fish_pty(
         f'{base_cmd}; if set -q SYM_PRIVATE_SOURCED; echo "SYM=1"; else; echo "SYM=0"; end',
-        cwd=root,
+        cwd=ROOT,
         env=env,
     )
     assert rc_sym == 0
@@ -371,7 +471,7 @@ def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) ->
     private_target.unlink()
 
     private_fish.mkdir()
-    rc_dir, _stdout_dir, stderr_dir = _run_fish_pty(base_cmd, cwd=root, env=env)
+    rc_dir, _stdout_dir, stderr_dir = _run_fish_pty(base_cmd, cwd=ROOT, env=env)
     assert rc_dir == 0
     assert stderr_dir == "", stderr_dir
     private_fish.rmdir()
@@ -379,7 +479,7 @@ def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) ->
         private_fish.write_text("set -gx SECRET_STUFF 1\n", encoding="utf-8")
         private_fish.chmod(0o000)
         try:
-            rc_perm, _stdout_perm, stderr_perm = _run_fish_pty(base_cmd, cwd=root, env=env)
+            rc_perm, _stdout_perm, stderr_perm = _run_fish_pty(base_cmd, cwd=ROOT, env=env)
             assert rc_perm == 0
             assert stderr_perm == "", stderr_perm
         finally:
@@ -388,7 +488,6 @@ def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) ->
 
 
 def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     themes_dir = tmp_path / ".config/fish/themes"
     themes_dir.mkdir(parents=True)
     theme_file = themes_dir / "fmind.theme"
@@ -415,7 +514,7 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
                 "(string join , -- $fish_color_keyword)"
             ),
         ],
-        cwd=root,
+        cwd=ROOT,
         env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -428,11 +527,38 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
     assert result.stderr == "", result.stderr
     assert result.stdout.splitlines() == ["cmd=174ea6,--theme=fmind", "kw=174ea6,--bold,--theme=fmind"]
 
+    # A second interactive shell reuses the cached theme script and preserves the exact colors.
+    cached_theme = subprocess.run(
+        [
+            _fish(),
+            "--no-config",
+            "--interactive",
+            "--command",
+            (
+                "source dot_config/fish/conf.d/theme.fish; "
+                'printf "cmd=%s\\nkw=%s\\n" '
+                "(string join , -- $fish_color_command) "
+                "(string join , -- $fish_color_keyword)"
+            ),
+        ],
+        cwd=ROOT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert cached_theme.returncode == 0, cached_theme.stderr
+    assert cached_theme.stderr == "", cached_theme.stderr
+    assert cached_theme.stdout.splitlines() == ["cmd=174ea6,--theme=fmind", "kw=174ea6,--bold,--theme=fmind"]
+
     # Missing or unreadable fmind.theme is skipped cleanly without stderr errors.
     theme_file.unlink()
     missing_run = subprocess.run(
         [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
-        cwd=root,
+        cwd=ROOT,
         env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -450,7 +576,7 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
         try:
             perm_run = subprocess.run(
                 [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
-                cwd=root,
+                cwd=ROOT,
                 env=env,
                 stdin=subprocess.DEVNULL,
                 capture_output=True,
@@ -466,22 +592,21 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
 
 
 def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     base_mise_env = {
         key: str(value).replace("{{env.HOME}}", str(tmp_path))
-        for key, value in tomllib.loads((root / "dot_config/mise/config.toml").read_text(encoding="utf-8"))[
+        for key, value in tomllib.loads((ROOT / "dot_config/mise/config.toml").read_text(encoding="utf-8"))[
             "env"
         ].items()
     }
     macos_mise_env = {
         key: str(value).replace("{{env.HOME}}", str(tmp_path))
-        for key, value in tomllib.loads((root / "dot_config/mise/conf.d/macos.toml").read_text(encoding="utf-8"))[
+        for key, value in tomllib.loads((ROOT / "dot_config/mise/conf.d/macos.toml").read_text(encoding="utf-8"))[
             "env"
         ].items()
     }
     assert "GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND" not in base_mise_env
     assert macos_mise_env == {"GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND": "file"}
-    assert ".config/mise/conf.d/macos.toml" in (root / ".chezmoiignore").read_text(encoding="utf-8")
+    assert ".config/mise/conf.d/macos.toml" in (ROOT / ".chezmoiignore").read_text(encoding="utf-8")
 
     fish = _fish()
 
@@ -489,7 +614,7 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
         base_env = {"HOME": str(tmp_path), "PATH": path_env}
         baseline = subprocess.run(
             [fish, "--no-config", "--command", "env -0"],
-            cwd=root,
+            cwd=ROOT,
             env=base_env,
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -500,7 +625,7 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
         )
         sourced = subprocess.run(
             [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; env -0"],
-            cwd=root,
+            cwd=ROOT,
             env=base_env,
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -527,11 +652,10 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
 
 
 def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     fish = _fish()
     repaired = subprocess.run(
         [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL"],
-        cwd=root,
+        cwd=ROOT,
         env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "SHELL": str(tmp_path / "missing-fish")},
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -545,7 +669,7 @@ def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path:
 
     preserved = subprocess.run(
         [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL"],
-        cwd=root,
+        cwd=ROOT,
         env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "SHELL": "/bin/sh"},
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -558,7 +682,6 @@ def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path:
 
 
 def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     shims = tmp_path / ".local/share/mise/shims"
     installs = tmp_path / ".local/share/mise/installs/python/3.14/bin"
     other = tmp_path / "other"
@@ -589,7 +712,7 @@ def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path:
     fish = _fish()
     result = subprocess.run(
         [fish, "--no-config", "--interactive", "--command", script],
-        cwd=root,
+        cwd=ROOT,
         env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"},
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -615,24 +738,22 @@ def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path:
 
 
 def test_shell_secret_exports_are_retired() -> None:
-    root = Path(__file__).resolve().parents[1]
-    conf = root / "dot_config/fish/conf.d"
+    conf = ROOT / "dot_config/fish/conf.d"
     assert not any((conf / name).exists() for name in ("secrets.fish", "private_secrets.fish"))
     # Any `set` that exports (-x, -gx, -g -x, --export) a token-like name is a regression.
     export = re.compile(r"\bset\s+(?:-{1,2}\w+\s+)*?(?:-\w*x\w*|--export)\s+(?:-{1,2}\w+\s+)*\w*(TOKEN|API_KEY)")
-    for script in (root / "dot_config/fish").rglob("*.fish*"):
+    for script in (ROOT / "dot_config/fish").rglob("*.fish*"):
         assert not export.search(script.read_text(encoding="utf-8")), script
 
 
 def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
     fish = _fish()
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     wrapper = bin_dir / "with-secret"
     wrapper.write_text(
         f"#!{sys.executable}\n"
-        f"import sys; sys.path.insert(0, {str(root / 'dot/src')!r})\n"
+        f"import sys; sys.path.insert(0, {str(ROOT / 'dot/src')!r})\n"
         "from fmind_dot.with_secret import main; main()\n",
         encoding="utf-8",
     )
@@ -656,7 +777,7 @@ def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path)
     def run_fish(cmd: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [fish, "--no-config", "--command", cmd],
-            cwd=root,
+            cwd=ROOT,
             env=base_env | (extra_env or {}),
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -674,11 +795,11 @@ def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path)
     )
     assert nested.returncode == 0, nested.stderr
     assert nested.stdout.splitlines() == ["synthetic-personal", "other-secret", "['a b', '$(touch nope)']"]
-    assert not (root / "nope").exists()
+    assert not (ROOT / "nope").exists()
 
     posix_shell = subprocess.run(
         ["/bin/sh", "-c", f'with-secret TEST_API_KEY -- "{py}" -c \'import os; print(os.environ["TEST_API_KEY"])\''],
-        cwd=root,
+        cwd=ROOT,
         env=base_env,
         stdin=subprocess.DEVNULL,
         capture_output=True,

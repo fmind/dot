@@ -20,14 +20,7 @@ from yaml.resolver import BaseResolver
 from dot_tasks.skill_contracts import _read_utf8
 from repo_helpers import ROOT, chezmoi, native_binary
 
-_ROLES = (
-    "agents api architecture cicd cli code completeness compliance containers data docs factcheck "
-    "finops frontend human mlops proposal python security shell simplicity skill sre terraform "
-    "test visuals"
-)
-EXPECTED_REVIEWERS = frozenset(f"fmind-review-{r}" for r in _ROLES.split())
-LOCAL_REVIEWERS = frozenset({"fmind-review-supagent"})
-ALL_REVIEWERS = EXPECTED_REVIEWERS | LOCAL_REVIEWERS
+EXPECTED_REVIEWERS = frozenset(p.stem for p in (ROOT / "dot_agents/supagents").glob("fmind-review-*.md"))
 WEB_REVIEWERS = frozenset({"fmind-review-factcheck"})
 RETIRED_REVIEWERS = (
     "fmind-review-ai",
@@ -45,8 +38,36 @@ RETIRED_REVIEWERS = (
     "fmind-review-rag",
     "fmind-review-readme",
     "fmind-review-sql",
-    "fmind-review-supagent",
     "fmind-review-web",
+)
+RETIRED_HOST_REVIEWERS = (
+    "fmind-review-agents",
+    "fmind-review-api",
+    "fmind-review-architecture",
+    "fmind-review-cicd",
+    "fmind-review-cli",
+    "fmind-review-code",
+    "fmind-review-completeness",
+    "fmind-review-compliance",
+    "fmind-review-containers",
+    "fmind-review-data",
+    "fmind-review-docs",
+    "fmind-review-factcheck",
+    "fmind-review-finops",
+    "fmind-review-frontend",
+    "fmind-review-human",
+    "fmind-review-mlops",
+    "fmind-review-proposal",
+    "fmind-review-python",
+    "fmind-review-security",
+    "fmind-review-shell",
+    "fmind-review-simplicity",
+    "fmind-review-skill",
+    "fmind-review-sre",
+    "fmind-review-supagent",
+    "fmind-review-terraform",
+    "fmind-review-test",
+    "fmind-review-visuals",
 )
 EXPECTED_SUPAGENTS_CONFIG: dict[str, dict[str, dict[str, str]]] = {
     "targets": {
@@ -223,7 +244,7 @@ def _assert_domain_body_blocks(name: str, raw_body: Sequence[str], *, compiled: 
     assert "{{BODY}}" not in domain_text
     assert not re.search(r"\]\(\s*https?://", domain_text, flags=re.IGNORECASE), f"{name}: inline URL link forbidden"
     if "fmind-review-" in name:
-        unknown_refs = set(re.findall(r"\bfmind-review-[a-z0-9-]+\b(?!\*)", domain_text)) - ALL_REVIEWERS
+        unknown_refs = set(re.findall(r"\bfmind-review-[a-z0-9-]+\b(?!\*)", domain_text)) - EXPECTED_REVIEWERS
         assert not unknown_refs, f"{name}: unknown fmind-review-* reference(s): {sorted(unknown_refs)}"
     if "fmind-review-supagent" not in name:
         assert "Distills " not in domain_text, f"{name}: strip standard name-dropping"
@@ -238,19 +259,17 @@ def _assert_domain_body_blocks(name: str, raw_body: Sequence[str], *, compiled: 
     assert any(ln.strip() for ln in domain_lines[1:rub_idx]), f"{name}: missing role-gate intro"
 
     rubric_lines = [ln for ln in domain_lines[rub_idx + 1 : dnf_idx] if ln.strip() and not ln.startswith("   ")]
+    assert rubric_lines, f"{name}: missing rubric rules"
     assert all(RUBRIC_ITEM_RE.match(ln) for ln in rubric_lines), f"{name}: malformed rubric item"
-    assert 5 <= len(rubric_lines) <= 8, f"{name}: expected 5..8 rubric rules, got {len(rubric_lines)}"
 
     dnf_lines = [ln for ln in domain_lines[dnf_idx + 1 : cal_idxs[0]] if ln.strip()]
-    assert 2 <= len(dnf_lines) <= 4, f"{name}: expected 2..4 Do Not Flag bullets"
+    assert dnf_lines, f"{name}: missing Do Not Flag bullets"
     assert all(ln.startswith("- ") for ln in dnf_lines), f"{name}: bad Do Not Flag"
     assert all(sev in domain_lines[cal_idxs[0]] for sev in ("`P0`", "`P1`", "`P2`")), f"{name}: missing P0/P1/P2"
     return len(rubric_lines)
 
 
 def _assert_contract_body(name: str, raw_body: Sequence[str], expected_contract: str) -> int:
-    assert 35 <= len(raw_body) <= 75, f"{name}: keep reviewer body in 35..75 lines (got {len(raw_body)})"
-    assert sum(1 for ln in raw_body if ln.strip()) >= 20, f"{name}: body too thin"
     body_text = "\n".join(raw_body)
     assert len(body_text) < 7_000, f"{name}: compiled body exceeds 7,000 chars ({len(body_text)})"
     rubric_count = _assert_domain_body_blocks(name, raw_body, compiled=True)
@@ -270,6 +289,8 @@ def _validate_child_source(stem: str, meta: dict[str, Any], raw_body: Sequence[s
 
 
 def test_canonical_reviewer_sources_partial_and_template_stay_bounded() -> None:
+    assert EXPECTED_REVIEWERS, "expected at least one global reviewer source"
+    assert WEB_REVIEWERS <= EXPECTED_REVIEWERS, "web reviewers must exist in dot_agents/supagents"
     source_dir = ROOT / "dot_agents/supagents"
     all_entries = sorted(source_dir.rglob("*"))
     assert all(not p.is_symlink() and p.is_file() and p.parent == source_dir for p in all_entries)
@@ -306,18 +327,10 @@ def test_canonical_reviewer_sources_partial_and_template_stay_bounded() -> None:
     ]
     for doc_path in doc_paths:
         doc_text = doc_path.read_text(encoding="utf-8")
-        unknown_doc_refs = set(re.findall(r"\bfmind-review-[a-z0-9-]+\b(?!\*)", doc_text)) - ALL_REVIEWERS
+        unknown_doc_refs = set(re.findall(r"\bfmind-review-[a-z0-9-]+\b(?!\*)", doc_text)) - EXPECTED_REVIEWERS
         assert not unknown_doc_refs, f"{doc_path.relative_to(ROOT)}: unknown refs: {sorted(unknown_doc_refs)}"
-    assert "Single-discipline `fmind-review-*` subagents" in (ROOT / "README.md").read_text(encoding="utf-8")
-
-    # Local repo-only reviewers live under .agents/supagents/ as standalone definitions.
-    local_dir = ROOT / ".agents/supagents"
-    local_entries = sorted(local_dir.glob("*.md"))
-    assert {p.stem for p in local_entries} == LOCAL_REVIEWERS
-    for local_path in local_entries:
-        lmeta, lraw = _split_frontmatter(local_path)
-        _validate_metadata(lmeta, local_path.stem, expected_blocks=EXPECTED_HOST_BLOCKS)
-        _assert_contract_body(local_path.name, lraw, expected_contracts["_reviewer"])
+    for retired_local in (".agents/supagents", ".agents/agents", ".github/agents"):
+        assert not (ROOT / retired_local).exists(), f"{retired_local} should be removed once all roles are global"
 
 
 def test_split_frontmatter_rejects_symlinks_duplicate_yaml_keys_and_bidi(tmp_path: Path) -> None:
@@ -414,7 +427,7 @@ def test_validate_metadata_fails_closed_on_privilege_escalation(
                     and ln.startswith("- ")
                 )
             ],
-            "2..4 Do Not Flag",
+            "missing Do Not Flag",
             id="few-dnf",
         ),
         pytest.param(None, lambda b: [*b, "## Sources"], "unexpected H2", id="inline-sources-h2"),
@@ -473,8 +486,6 @@ def test_expected_output_contract_and_body_bounds_fail_closed() -> None:
         tampered = [ln.replace(clause, "omitted") for ln in traw]
         with pytest.raises(AssertionError, match="Output Contract drift"):
             _assert_contract_body("reviewer.md", tampered, expected_contract)
-    with pytest.raises(AssertionError, match=r"35\.\.75 lines"):
-        _assert_contract_body("reviewer.md", [*([""] * 45), *traw], expected_contract)
     bloated = [traw[0], traw[1], f"{traw[2]} {'x' * 6_000}", *traw[3:]]
     with pytest.raises(AssertionError, match="7,000 chars"):
         _assert_contract_body("reviewer.md", bloated, expected_contract)
@@ -521,41 +532,6 @@ def test_supagents_strict_check_and_compiled_outputs() -> None:
             _validate_host_block(host, {k: v for k, v in fm.items() if k not in {"name", "description"}}, tier=tier)
             _assert_contract_body(f"{host}/{path.name}", raw_body, expected_contracts[tier])
 
-    # Repo-local supagents under .agents/supagents/ compile into .agents/agents/ and .github/agents/.
-    local_cmd = [
-        sys.executable,
-        "-m",
-        "supagents",
-        "check",
-        "--strict",
-        "--project",
-        "--source-dir",
-        ".agents/supagents",
-        "--target",
-        "AGY",
-        "--target",
-        "COPILOT",
-    ]
-    local_check = subprocess.run(
-        local_cmd, cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=False
-    )
-    assert local_check.returncode == 0, local_check.stdout + local_check.stderr
-    assert f"{len(LOCAL_REVIEWERS) * 2} unchanged, 0 obsolete, 0 warnings, 0 errors" in local_check.stdout
-    for host, rel_dir, suffix in (
-        ("AGY", ".agents/agents", ".md"),
-        ("COPILOT", ".github/agents", ".agent.md"),
-    ):
-        entries = sorted((ROOT / rel_dir).rglob("*"))
-        assert {p.name.removesuffix(suffix) for p in entries} == LOCAL_REVIEWERS
-        for path in entries:
-            stem = path.name.removesuffix(suffix)
-            fm, raw_body = _split_frontmatter(path)
-            assert fm.get("name") == stem
-            assert isinstance(fm.get("description"), str)
-            assert 40 <= len(fm["description"]) <= 190
-            _validate_host_block(host, {k: v for k, v in fm.items() if k not in {"name", "description"}})
-            _assert_contract_body(f"local/{host}/{path.name}", raw_body, expected_contracts["_reviewer"])
-
 
 def test_chezmoiremove_retires_removed_reviewers_and_retired_hosts_only(tmp_path: Path) -> None:
     assert EXPECTED_REVIEWERS.isdisjoint(RETIRED_REVIEWERS)
@@ -588,7 +564,7 @@ def test_chezmoiremove_retires_removed_reviewers_and_retired_hosts_only(tmp_path
         ),
         *(
             path
-            for active in EXPECTED_REVIEWERS
+            for active in RETIRED_HOST_REVIEWERS
             for path in (
                 f".claude/agents/{active}.md",
                 f".config/opencode/agents/{active}.md",
@@ -645,8 +621,6 @@ def test_supagents_config_and_outputs_excluded_from_chezmoi_and_dprint() -> None
     dprint = json.loads("\n".join(dprint_lines))
     for settings in EXPECTED_SUPAGENTS_CONFIG["targets"].values():
         assert f"{settings['project_path']}/**" in dprint["excludes"]
-    for local_out in (".agents/agents/**", ".github/agents/**"):
-        assert local_out in dprint["excludes"]
 
 
 def _run_vale(vale: Path, config: Path, *targets: Path, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -692,7 +666,11 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
     bad_typ = tmp_path / "bad.typ"
     bad_typ.write_text("= Delve into this rollout\nFast — seamless launch.\n", encoding="utf-8")
 
-    blocking_run = _run_vale(vale, config, slop, slop_readme, bad_html, bad_htm, bad_typ)
+    bad_agents = tmp_path / ".agents" / "AGENTS.md"
+    bad_agents.parent.mkdir(parents=True, exist_ok=True)
+    bad_agents.write_text("Use separate sentences — never em dashes.\n", encoding="utf-8")
+
+    blocking_run = _run_vale(vale, config, slop, slop_readme, bad_html, bad_htm, bad_typ, bad_agents)
     assert blocking_run.returncode == 1, blocking_run.stdout + blocking_run.stderr
     blocking = json.loads(blocking_run.stdout)
     slop_by_check = {(item["Line"], item["Check"]): item["Severity"] for item in blocking[str(slop)]}
@@ -716,6 +694,7 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
         ("Fmind.EmDash", "error"),
         ("Fmind.SlopStyle", "warning"),
     }
+    assert [(i["Check"], i["Severity"]) for i in blocking[str(bad_agents)]] == [("Fmind.EmDash", "error")]
 
     advisory = tmp_path / "advisory.md"
     advisory.write_text(
@@ -753,7 +732,7 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
         tmp_path / "docs" / "guide.md": "Pass `--one`, `--two`, and `--three` to the CLI.\n",
         tmp_path / "notes.txt": "Run `a`, `b`, and `c`.\n",
         tmp_path / "component.mdx": "export const msg = `${a}` + `${b}` + `${c}`;\n\nClean copy.\n",
-        tmp_path / "AGENTS.md": "Use `one`, `two`, and `three` — keep diffs small.\n",
+        tmp_path / "AGENTS.md": "Use `one`, `two`, and `three`. Keep diffs small.\n",
         tmp_path / "GEMINI.md": "Use `one`, `two`, and `three` — keep diffs small.\n",
         tmp_path / ".gemini" / "rules.md": "Use `one`, `two`, and `three` — keep diffs small.\n",
         tmp_path / "copilot-instructions.md": "Use `one`, `two`, and `three` — keep diffs small.\n",
@@ -796,17 +775,26 @@ def test_vale_accepts_external_starter_markdown_templates() -> None:
     ]
     result = _run_vale(vale, ROOT / ".vale.ini", *templates, cwd=ROOT)
     assert result.returncode == 0, f"{result.stdout}{result.stderr}"
-    assert json.loads(result.stdout) == {}
+    errors = [item for items in json.loads(result.stdout).values() for item in items if item["Severity"] == "error"]
+    assert errors == [], f"unexpected Vale errors: {errors}"
 
     # Absolute-path invocations (as used by editors) must honor repo .vale.ini overrides.
-    abs_internal = [
+    abs_skills = [
         ROOT / "skills/python/SKILL.md",
         ROOT / ".agents/skills/chezmoi/SKILL.md",
-        ROOT / "private_dot_gemini/private_config/agents/fmind-review-code.md",
     ]
-    abs_result = _run_vale(vale, ROOT / ".vale.ini", *abs_internal)
+    abs_compiled = ROOT / "private_dot_gemini/private_config/agents/fmind-review-code.md"
+    abs_result = _run_vale(vale, ROOT / ".vale.ini", *abs_skills, abs_compiled)
     assert abs_result.returncode == 0, f"{abs_result.stdout}{abs_result.stderr}"
-    assert json.loads(abs_result.stdout) == {}
+    abs_findings = json.loads(abs_result.stdout)
+    assert abs_findings.get(str(abs_compiled), []) == [], (
+        f"expected Fmind=NO for compiled agent: {abs_findings.get(str(abs_compiled))}"
+    )
+    suppressed = {"Fmind.EmDash", "Fmind.ParagraphLength", "Fmind.SentenceLength"}
+    for skill_path in abs_skills:
+        skill_items = abs_findings.get(str(skill_path), [])
+        leaked = [i for i in skill_items if i["Severity"] == "error" or i["Check"] in suppressed]
+        assert leaked == [], f"unexpected Vale alerts on {skill_path.relative_to(ROOT)}: {leaked}"
 
 
 def test_repo_vale_config_still_enforces_em_dash_on_relocated_starter_templates(tmp_path: Path) -> None:

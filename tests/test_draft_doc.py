@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import subprocess
 import sys
@@ -11,7 +10,8 @@ from typing import Any
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from repo_helpers import ROOT, load_script
+
 DRAFT_SLIDES = ROOT / "skills/draft/references/slides/templates/draft_slides.py"
 DRAFT_SHEETS = ROOT / "skills/draft/references/sheets/templates/draft_sheets.py"
 
@@ -24,15 +24,6 @@ def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
         check=False,
         timeout=30,
     )
-
-
-def _load(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    assert spec
-    assert spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 def test_draft_slides_starter_builds_unique_ids_and_write_control(
@@ -62,7 +53,7 @@ def test_draft_slides_starter_builds_unique_ids_and_write_control(
     assert plan["requests"][0]["createSlide"]["objectId"].endswith("_01")
 
     # Appending to an existing presentation passes writeControl.requiredRevisionId.
-    mod = _load("draft_slides", DRAFT_SLIDES)
+    mod = load_script("draft_slides", DRAFT_SLIDES)
     batch_payloads: list[dict[str, object]] = []
 
     def fake_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
@@ -119,7 +110,7 @@ def test_draft_sheets_starter_validates_rows_splits_formulas_and_resolves_sheet_
     ragged.write_text(json.dumps({"title": "Bad", "sheet": "S", "rows": [["A", "B"], ["only-one"]]}), encoding="utf-8")
     assert _run(DRAFT_SHEETS, str(ragged), "--dry-run").returncode == 1
 
-    mod = _load("draft_sheets", DRAFT_SHEETS)
+    mod = load_script("draft_sheets", DRAFT_SHEETS)
     assert mod.col_label(1) == "A"
     assert mod.col_label(26) == "Z"
     assert mod.col_label(27) == "AA"

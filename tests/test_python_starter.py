@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import re
@@ -12,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from repo_helpers import ROOT, load_script
 
 
 def _render(name: str, replacements: dict[str, str], *, owner: str = "python", guide: str = "foundation") -> str:
@@ -536,11 +535,7 @@ def test_opentofu_starter_validates(tmp_path: Path) -> None:
 def test_typst_deck_figure_card_renders_png(tmp_path: Path) -> None:
     templates_dir = ROOT / "skills" / "draft" / "references" / "typst-deck" / "templates"
     helper_path = ROOT / "skills" / "draft" / "references" / "typst-deck" / "scripts" / "build_typst_deck.py"
-    spec = importlib.util.spec_from_file_location("build_typst_deck", helper_path)
-    assert spec
-    assert spec.loader
-    helper = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(helper)
+    helper = load_script("build_typst_deck", helper_path)
 
     for name in ("fmind.typ", "fmind-slides.typ", "figure-card.typ"):
         shutil.copy2(templates_dir / name, tmp_path / name)

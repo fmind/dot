@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from repo_helpers import ROOT, WORKFLOWS
+from repo_helpers import ACTIONS, ROOT, WORKFLOWS
 
 ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@[0-9a-f]{40}$")
 COMMENTED_ACTION = re.compile(
@@ -32,14 +32,18 @@ def _walk(value: object) -> Iterator[object]:
 
 
 def test_workflow_actions_are_immutable_and_version_commented() -> None:
-    for path in WORKFLOWS:
+    for path in (*WORKFLOWS, *ACTIONS):
         content = path.read_text(encoding="utf-8")
         workflow = yaml.safe_load(content)
         uses = [value for value in _walk(workflow) if isinstance(value, str) and not value.startswith("./")]
 
         assert uses, path
         assert all(ACTION.fullmatch(value) for value in uses), path
-        action_lines = [line for line in content.splitlines() if re.match(r"^\s*(?:-\s*)?uses:", line)]
+        action_lines = [
+            line
+            for line in content.splitlines()
+            if re.match(r"^\s*(?:-\s*)?uses:", line) and not re.match(r"^\s*(?:-\s*)?uses:\s+\./", line)
+        ]
         assert all(COMMENTED_ACTION.fullmatch(line) for line in action_lines), path
 
 
@@ -69,11 +73,23 @@ def test_release_templates_gate_publishers_on_the_tagged_revision(relative: str)
     assert any("git status --porcelain" in command and "git status --short" in command for command in commands)
     checkout = next(step for step in gate["steps"] if step.get("uses", "").startswith("actions/checkout@"))
     assert "ref" not in checkout["with"]  # Checkout the triggering tag, never moving main.
+
+    def _needs(job_name: str) -> list[str]:
+        raw = jobs[job_name].get("needs", [])
+        return [raw] if isinstance(raw, str) else list(raw)
+
+    def _reaches_validate(job_name: str, seen: set[str] | None = None) -> bool:
+        visited = set() if seen is None else seen
+        if job_name in visited:
+            return False
+        visited.add(job_name)
+        direct = _needs(job_name)
+        return "validate" in direct or any(_reaches_validate(parent, visited) for parent in direct)
+
     for name, job in jobs.items():
         if name == "validate":
             continue
-        needs = job["needs"] if isinstance(job["needs"], list) else [job["needs"]]
-        assert "validate" in needs
+        assert _reaches_validate(name), name
         assert "always(" not in job.get("if", "")
         assert not job.get("continue-on-error")
 

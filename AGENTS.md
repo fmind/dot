@@ -1,6 +1,6 @@
 # AGENTS.md (Project)
 
-`fmind/dot` — chezmoi + mise dotfiles for AI-CLI/Python development on Linux and macOS. User setup, auth, and common tasks live in [README.md](README.md); repo procedures live in `.agents/skills/` (`chezmoi`, `dot-development`, `dot-skills`, `dot-release`).
+`fmind/dot`: chezmoi + mise dotfiles for AI-CLI/Python development on Linux and macOS. User setup, auth, and common tasks live in [README.md](README.md); repo procedures live in `.agents/skills/` (`chezmoi`, `dot-development`, `dot-skills`, `dot-release`).
 
 ## House Rules
 

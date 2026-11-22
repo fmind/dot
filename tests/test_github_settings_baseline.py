@@ -1,14 +1,19 @@
 """Run the GitHub settings baseline script against a fake gh that records every call."""
 
+import io
 import json
 import os
 import subprocess
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any
 
+from repo_helpers import load_script
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills/github/references/repository/scripts/settings_baseline.py"
+_BASELINE: Any = load_script("settings_baseline", SCRIPT)
 BASE = "repos/owner/repo"
 # Canned GET responses keyed by "GET path"; an unlisted GET answers 404 like a disabled feature.
 # The read-back starts with the first repository GET after a mutation; from then on "after" overrides "before".
@@ -125,8 +130,41 @@ def public_after() -> dict[str, Any]:
 
 
 def run(
-    tmp_path: Path, scenario: dict[str, Any], *args: str, repo: str = "owner/repo"
+    tmp_path: Path, scenario: dict[str, Any], *args: str, repo: str = "owner/repo", in_process: bool = True
 ) -> tuple[subprocess.CompletedProcess[str], list[dict[str, Any]]]:
+    if in_process:
+        calls: list[dict[str, Any]] = []
+        mutated = False
+        after = False
+
+        def fake_gh(*gh_args: str, body: object = None) -> str:
+            nonlocal mutated, after
+            arg_list = list(gh_args)
+            calls.append({"args": arg_list, "body": body})
+            if arg_list[0] != "api" or arg_list[2] != "GET":
+                mutated = True
+                return ""
+            if mutated and arg_list[-1] == "repos/owner/repo":
+                after = True
+            responses = {**scenario["before"], **(scenario.get("after", {}) if after else {})}
+            key = f"GET {arg_list[-1]}"
+            if key not in responses:
+                raise _BASELINE.NotFoundError(f"gh {' '.join(arg_list)}: gh: Not Found (HTTP 404)")
+            return json.dumps(responses[key])
+
+        stdout, stderr = io.StringIO(), io.StringIO()
+        original_gh = _BASELINE.gh
+        _BASELINE.gh = fake_gh
+        try:
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                try:
+                    rc = int(_BASELINE.main([repo, *args]))
+                except SystemExit as exc:
+                    rc = exc.code if isinstance(exc.code, int) else 1
+        finally:
+            _BASELINE.gh = original_gh
+        return subprocess.CompletedProcess([str(SCRIPT), repo, *args], rc, stdout.getvalue(), stderr.getvalue()), calls
+
     gh = tmp_path / "gh"
     gh.write_text(f"#!{sys.executable}\n{FAKE_GH}", encoding="utf-8")
     gh.chmod(0o700)
@@ -166,7 +204,9 @@ def bodies(calls: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def test_public_apply_sets_every_baseline_setting(tmp_path: Path) -> None:
-    result, calls = run(tmp_path, {"before": public_before(), "after": public_after()}, "--apply", "--disable", "wiki")
+    result, calls = run(
+        tmp_path, {"before": public_before(), "after": public_after()}, "--apply", "--disable", "wiki", in_process=False
+    )
     assert result.returncode == 0, result.stderr
     assert mutations(calls) == [
         (

@@ -1,4 +1,4 @@
-"""Exercise editor clipboard selection, independent repository review state, and list editing."""
+"""Exercise editor clipboard selection, Python LSP, repository review state, and list editing."""
 
 import os
 import shutil
@@ -10,7 +10,7 @@ import pytest
 from repo_helpers import ROOT, native_binary
 
 
-def run_lua(tmp_path: Path, script: str, **variables: str) -> None:
+def run_lua(tmp_path: Path, script: str, *, timeout: int = 30, **variables: str) -> None:
     nvim = shutil.which("nvim")
     assert nvim, "Neovim is required by the repository gate"
     probe = tmp_path / "probe.lua"
@@ -39,7 +39,7 @@ def run_lua(tmp_path: Path, script: str, **variables: str) -> None:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=timeout,
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -372,3 +372,41 @@ assert(calls[2][6]:match("^[0-9a-f]+$") and #calls[2][6] == 40, "expected 40-cha
     )
     assert res.returncode == 1
     assert not (bad_dir / "data" / "nvim" / "lazy" / "lazy.nvim").exists()
+
+
+def test_ty_refreshes_imports_changed_outside_the_editor(tmp_path: Path) -> None:
+    ty = shutil.which("ty")
+    assert ty, "ty is required by the repository gate"
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "lsp-fixture"\nversion = "0.0.0"\n')
+    (tmp_path / "dependency.py").write_text('value: str = "wrong"\n')
+    (tmp_path / "main.py").write_text("from dependency import value\nresult: int = value\n")
+    run_lua(
+        tmp_path,
+        """
+local specs = dofile(vim.env.LSP_CONFIG)
+local config = specs[1].opts.servers.ty
+config.cmd = { vim.env.TY_EXECUTABLE, "server" }
+config.filetypes = { "python" }
+config.root_dir = vim.env.LSP_PROJECT
+vim.lsp.config("ty", config)
+vim.lsp.enable("ty")
+vim.cmd.edit(vim.env.LSP_PROJECT .. "/main.py")
+vim.bo.filetype = "python"
+local function type_errors()
+  return vim.tbl_filter(function(diagnostic)
+    return diagnostic.code == "invalid-assignment"
+  end, vim.diagnostic.get(0))
+end
+assert(vim.wait(15000, function() return #type_errors() == 1 end, 50),
+  "ty did not report the initial imported type error")
+-- Change an unopened dependency without sending didChange from a buffer.
+vim.fn.writefile({ "value: int = 42" }, vim.env.LSP_PROJECT .. "/dependency.py")
+assert(vim.wait(15000, function() return #type_errors() == 0 end, 50),
+  "ty kept stale diagnostics after the dependency changed on disk")
+vim.lsp.stop_client(vim.lsp.get_clients())
+""",
+        timeout=40,
+        LSP_CONFIG=str(ROOT / "dot_config/nvim/lua/plugins/lsp.lua"),
+        TY_EXECUTABLE=ty,
+        LSP_PROJECT=str(tmp_path),
+    )

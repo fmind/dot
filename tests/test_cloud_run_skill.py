@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import importlib.util
 import json
 import os
 import re
@@ -13,7 +12,7 @@ from types import ModuleType
 import pytest
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+from repo_helpers import ROOT, load_script
 
 
 def _workflow_steps() -> list[dict[str, object]]:
@@ -277,12 +276,7 @@ def _load_probe_module() -> ModuleType:
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source
     assert "suggest_on_error=True" in source
-    spec = importlib.util.spec_from_file_location("probe_candidate", helper)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_script("probe_candidate", helper)
 
 
 def test_probe_candidate_validates_url_fetches_token_and_checks_health_ready(

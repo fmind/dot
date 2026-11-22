@@ -13,7 +13,7 @@ from typing import TypedDict, cast
 import pytest
 import yaml
 
-from repo_helpers import WORKFLOWS
+from repo_helpers import ACTIONS, WORKFLOWS
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "install.sh"
@@ -190,15 +190,21 @@ def test_interrupted_mise_download_is_never_executed(tmp_path: Path) -> None:
 
 def test_every_copy_of_the_mise_version_agrees() -> None:
     copies = {"install.sh": pinned_mise_version()}
-    # Shipped workflow templates scaffold other repositories with the same tested mise.
+    # Shipped workflow and composite-action templates scaffold other repositories with the same tested mise.
     for path in WORKFLOWS:
         workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
         for name, job in workflow["jobs"].items():
-            for index, step in enumerate(job["steps"]):
+            for index, step in enumerate(job.get("steps", [])):
                 if step.get("uses", "").startswith("jdx/mise-action@"):
                     # An unpinned action would install the latest mise, not the tested one.
                     relative = path.relative_to(ROOT)
                     copies[f"{relative}:{name}:{index}"] = str(step.get("with", {}).get("version"))
+    for path in ACTIONS:
+        action = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for index, step in enumerate(action.get("runs", {}).get("steps", [])):
+            if step.get("uses", "").startswith("jdx/mise-action@"):
+                relative = path.relative_to(ROOT)
+                copies[f"{relative}:runs:{index}"] = str(step.get("with", {}).get("version"))
     for template in (
         "skills/python/references/foundation/templates",
         "skills/infra-as-code/templates",
@@ -215,7 +221,7 @@ def test_every_copy_of_the_mise_version_agrees() -> None:
     copies["README.md"] = readme.group(1)
     copies["mise.toml"] = str(tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8")).get("min_version"))
 
-    assert len(copies) >= 14
+    assert len(copies) >= 12
     assert set(copies.values()) == {pinned_mise_version()}, copies
 
 

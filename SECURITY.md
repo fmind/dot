@@ -12,11 +12,11 @@ This is a personal project maintained on a best-effort basis; there is no respon
 
 ## Scope
 
-In scope: [`install.sh`](../install.sh), the chezmoi source tree, the `dot` CLI, the GitHub workflows, SHA-256 checksum/pin integrity for externals, and the agent configurations and skills shipped here (see [installation & trust boundaries](../README.md#installation), [folder trust](../skills/dot-cli/references/daily-workflows.md#folder-trust), and [mise settings](../dot_config/mise/config.toml)).
+In scope: [`install.sh`](install.sh), the chezmoi source tree, the `dot` CLI, the GitHub workflows, SHA-256 checksum/pin integrity for externals, and the agent configurations and skills shipped here (see [installation & trust boundaries](README.md#installation), [folder trust](skills/dot-cli/references/daily-workflows.md#folder-trust), and [mise settings](dot_config/mise/config.toml)).
 
 Accepted workstation trade-offs (known behavior, not vulnerabilities):
 
-- **Workstation vs repository verification:** repository tools ([`mise.toml`](../mise.toml)) keep mise's default signature and provenance verification enabled for CI. Global workstation tools ([`dot_config/mise/config.toml`](../dot_config/mise/config.toml)) disable optional cosign/minisign/SLSA/GitHub attestation checks while keeping npm provenance, packslip signatures, and SHA-256 download digests active, and enable background `mise` self-updates every 24h (`self_update.auto = "24h"`).
+- **Workstation vs repository verification:** repository tools ([`mise.toml`](mise.toml)) keep mise's default signature and provenance verification enabled for CI. Global workstation tools ([`dot_config/mise/config.toml`](dot_config/mise/config.toml)) disable optional cosign/minisign/SLSA/GitHub attestation checks while keeping npm provenance, packslip signatures, and SHA-256 download digests active, and enable background `mise` self-updates every 24h (`self_update.auto = "24h"`).
 - **Autonomous single-user agents:** shipped Antigravity and Copilot settings intentionally grant autonomous permissions on trusted local workspaces (Antigravity adds credential-store path denies; Copilot runs unrestricted without path denies). Keep untrusted repositories outside trusted paths or inside isolated containers/VMs.
 
 Out of scope:

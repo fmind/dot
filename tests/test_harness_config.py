@@ -144,6 +144,27 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh["memory"] is False
         assert fresh["theme"] == "default"
 
+    def _expected_agy_denies(self) -> list[str]:
+        expected = json.loads(self.render(".chezmoitemplates/agy-secret-denies.tmpl", ""))
+        assert {
+            f"read_file({self.home / '.private.fish'})",
+            f"read_file({self.home / '.local/share/atuin'})",
+            f"read_file({self.home / '.cache/huggingface/stored_tokens'})",
+            f"read_file({self.home / '.claude/projects'})",
+            f"read_file({self.home / '.databrickscfg'})",
+            f"read_file({self.home / '.databricks'})",
+            f"read_file({self.home / '.genie'})",
+            f"read_file({self.home / '.config/acli'})",
+            f"read_file({self.home / '.config/cf'})",
+            f"read_file({self.home / '.gemini/config/mcp_config.json'})",
+            f"read_file({self.home / '.copilot/mcp-config.json'})",
+            f"read_file({self.home / '.pgpass'})",
+            f"read_file({self.home / '.vault-token'})",
+        } <= set(expected)
+        assert {"read_file(*.env*)", "read_file(*.pem)", "read_file(*.key)"} <= set(expected)
+        assert "read_file(*.age)" not in expected
+        return expected
+
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
         template = "private_dot_gemini/private_antigravity-cli/modify_private_settings.json"
         original = {
@@ -159,27 +180,7 @@ class HarnessConfigTests(unittest.TestCase):
             "showTips": True,
             "accountOption": False,
         }
-        secret_spec = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())
-        expected_agy_denies = [
-            *(f"read_file({self.home / rel})" for rel in secret_spec["paths"]),
-            *(f"read_file({glob})" for glob in secret_spec["globs"]),
-        ]
-        assert {
-            f"read_file({self.home / '.private.fish'})",
-            f"read_file({self.home / '.local/share/atuin'})",
-            f"read_file({self.home / '.cache/huggingface/stored_tokens'})",
-            f"read_file({self.home / '.claude/projects'})",
-            f"read_file({self.home / '.databrickscfg'})",
-            f"read_file({self.home / '.databricks'})",
-            f"read_file({self.home / '.genie'})",
-            f"read_file({self.home / '.config/acli'})",
-            f"read_file({self.home / '.config/cf'})",
-            f"read_file({self.home / '.gemini/config/mcp_config.json'})",
-            f"read_file({self.home / '.copilot/mcp-config.json'})",
-            f"read_file({self.home / '.vault-token'})",
-        } <= set(expected_agy_denies)
-        assert {"read_file(*.env*)", "read_file(*.pem)", "read_file(*.key)"} <= set(expected_agy_denies)
-        assert "read_file(*.age)" not in expected_agy_denies
+        expected_agy_denies = self._expected_agy_denies()
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         for key, value in original.items():
@@ -218,27 +219,7 @@ class HarnessConfigTests(unittest.TestCase):
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
         template = "private_dot_gemini/private_config/modify_private_config.json"
-        secret_spec = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())
-        expected_agy_denies = [
-            *(f"read_file({self.home / rel})" for rel in secret_spec["paths"]),
-            *(f"read_file({glob})" for glob in secret_spec["globs"]),
-        ]
-        assert {
-            f"read_file({self.home / '.private.fish'})",
-            f"read_file({self.home / '.local/share/atuin'})",
-            f"read_file({self.home / '.cache/huggingface/stored_tokens'})",
-            f"read_file({self.home / '.claude/projects'})",
-            f"read_file({self.home / '.databrickscfg'})",
-            f"read_file({self.home / '.databricks'})",
-            f"read_file({self.home / '.genie'})",
-            f"read_file({self.home / '.config/acli'})",
-            f"read_file({self.home / '.config/cf'})",
-            f"read_file({self.home / '.gemini/config/mcp_config.json'})",
-            f"read_file({self.home / '.copilot/mcp-config.json'})",
-            f"read_file({self.home / '.vault-token'})",
-        } <= set(expected_agy_denies)
-        assert {"read_file(*.env*)", "read_file(*.pem)", "read_file(*.key)"} <= set(expected_agy_denies)
-        assert "read_file(*.age)" not in expected_agy_denies
+        expected_agy_denies = self._expected_agy_denies()
         original = {
             "userSettings": {
                 "cliRemoteControlHostname": "fixture-host",
@@ -340,8 +321,7 @@ class HarnessConfigTests(unittest.TestCase):
                     self.render(template, content)
 
     def test_json_merge_rejects_falsy_invalid_types_and_defaults_null(self):
-        secret_spec = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())
-        agy_secret_count = len(secret_spec["paths"]) + len(secret_spec["globs"])
+        agy_secret_count = len(self._expected_agy_denies())
         invalid_cases = [
             (
                 "private_dot_gemini/private_antigravity-cli/modify_private_settings.json",

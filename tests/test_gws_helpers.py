@@ -10,7 +10,9 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills/gws/scripts"
+from repo_helpers import ROOT, load_script
+
+SCRIPTS = ROOT / "skills/gws/scripts"
 
 
 def run_helper(
@@ -297,13 +299,8 @@ def test_drive_upload_dry_run_and_validation(tmp_path: Path) -> None:
 
 def test_drive_upload_create_and_verify_with_mocked_gws(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import hashlib
-    import importlib.util
 
-    spec = importlib.util.spec_from_file_location("drive_upload", SCRIPTS / "drive_upload.py")
-    assert spec
-    assert spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    mod = load_script("drive_upload", SCRIPTS / "drive_upload.py")
 
     pdf = tmp_path / "deck.pdf"
     pdf.write_bytes(b"%PDF-1.7\nhello\n")

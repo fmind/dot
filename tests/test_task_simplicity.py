@@ -25,15 +25,22 @@ DOCS_STARTERS = ("skills/docs/references/site/templates/mise.toml",)
 TIMEOUT_SECONDS = 120
 
 
+def _toml_value(value: object) -> str:
+    if isinstance(value, dict):
+        pairs = ", ".join(f"{json.dumps(k)} = {_toml_value(v)}" for k, v in value.items())
+        return "{ " + pairs + " }"
+    return json.dumps(value)
+
+
 def materialize(root: Path, starter: str, prefix: str = "") -> dict[str, str]:
     config = tomllib.loads((ROOT / STARTERS.get(starter, starter)).read_text())
     lines = ["[settings.task]", "run_auto_install = false", "[vars]"]
-    lines.extend(f"{key} = {json.dumps(value)}" for key, value in config.get("vars", {}).items())
+    lines.extend(f"{key} = {_toml_value(value)}" for key, value in config.get("vars", {}).items())
     for name, task in config["tasks"].items():
         if not name.startswith(prefix):
             continue
         lines.append(f"[tasks.{json.dumps(name)}]")
-        lines.extend(f"{key} = {json.dumps(value)}" for key, value in task.items())
+        lines.extend(f"{key} = {_toml_value(value)}" for key, value in task.items())
     (root / "mise.toml").write_text("\n".join(lines))
     mise = shutil.which("mise")
     assert mise is not None
@@ -178,7 +185,7 @@ def test_repository_shell_hook_preserves_unselected_files(tmp_path: Path) -> Non
     selected.write_text(source)
     unrelated.write_text(source)
     hooks = yaml.safe_load((ROOT / "lefthook.yml").read_text())["pre-commit"]["jobs"]
-    [hook] = [hook for hook in hooks if hook["run"].startswith("mise run format:shell ")]
+    [hook] = [hook for hook in hooks if hook.get("run", "").startswith("mise run format:shell ")]
     assert hook["run"].endswith(" {staged_files}")
     assert hook["stage_fixed"] is True
     result = run(tmp_path, env, "mise", "run", hook["run"].split()[2], selected.name)

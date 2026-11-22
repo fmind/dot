@@ -1,6 +1,5 @@
 """Exercise the ignore audit against disposable Git repositories."""
 
-import importlib.util
 import json
 import subprocess
 from pathlib import Path
@@ -8,17 +7,14 @@ from types import ModuleType
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/full-review/references/update-ignores/scripts/audit.py"
+from repo_helpers import ROOT, load_script
+
+SCRIPT = ROOT / "skills/full-review/references/update-ignores/scripts/audit.py"
 
 
 @pytest.fixture
 def audit() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("update_ignores_audit", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_script("update_ignores_audit", SCRIPT)
 
 
 @pytest.fixture

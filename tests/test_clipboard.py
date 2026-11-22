@@ -1,6 +1,5 @@
 """Exercise clipboard round trips without touching the desktop clipboard."""
 
-import importlib.util
 import io
 import sys
 from pathlib import Path
@@ -8,16 +7,14 @@ from types import ModuleType
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/clipboard/scripts/copy.py"
+from repo_helpers import ROOT, load_script
+
+SCRIPT = ROOT / "skills/clipboard/scripts/copy.py"
 
 
 @pytest.fixture
 def clipboard(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    spec = importlib.util.spec_from_file_location("clipboard_copy", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = load_script("clipboard_copy", SCRIPT)
     # Fake tools are Python scripts; a loaded host can exceed the 5 s production timeout.
     monkeypatch.setattr(module, "TIMEOUT", 60)
     return module

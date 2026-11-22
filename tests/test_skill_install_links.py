@@ -229,11 +229,11 @@ def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path,
     assert (source / "skills/python/SKILL.md").read_text() == "# Fixture\n"
 
 
-@pytest.mark.parametrize("link", [".gemini/config/skills"])
 def test_existing_host_skill_directory_blocks_forced_apply(
-    installation: tuple[Path, Path, list[str]], link: str
+    installation: tuple[Path, Path, list[str]],
 ) -> None:
     _, home, command = installation
+    link = ".gemini/config/skills"
     owned = home / link / "personal"
     owned.mkdir(parents=True)
     (owned / "SKILL.md").write_text("# Personal\n")
