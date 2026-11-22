@@ -5,9 +5,7 @@
 CHANGELOG.md
 dot_config/mise/locks/
 lazy-lock.json
-# Skill symlink templates and compiled native agent targets; skills/, dot_agents/supagents/, and .agents/supagents/ hold canonical sources.
-.agents/agents/
-.github/agents/
+# Skill symlink templates and compiled native agent targets; skills/ and dot_agents/supagents/ hold canonical sources.
 dot_agents/skills/
 private_dot_copilot/agents/
 private_dot_gemini/private_config/agents/

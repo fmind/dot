@@ -1,6 +1,7 @@
 # Docs: https://git-scm.com/docs/gitignore
 
 # Local agent state; shared skills remain versioned.
+.claude/
 .gemini/
 
 # Python environments, caches, and generated distributions at any depth.

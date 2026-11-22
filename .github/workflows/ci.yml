@@ -5,6 +5,12 @@ on:
     branches:
       - main
   pull_request:
+  workflow_call: # CD runs these jobs on the tagged commit before publishing.
+    inputs:
+      cache:
+        description: Read the shared mise tool cache; CD passes "false" to avoid reusing cached binaries
+        type: string
+        default: "true"
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,15 +31,30 @@ jobs:
         with:
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        # jactionlint ignore=self-repository
+        uses: ./.github/actions/setup-mise
         with:
-          cache: true
-          # Match the tested bootstrap baseline and revision-4 lockfile reader.
-          version: 2026.11.9
+          cache: ${{ inputs.cache || 'true' }}
       - name: Run canonical gate
         run: mise run all
+      - name: Verify clean tree
+        run: git status --short && [ -z "$(git status --porcelain)" ]
+  starters:
+    # Run network-resolving starter contracts in parallel with the canonical Linux gate.
+    name: Starter contracts
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        # jactionlint ignore=self-repository
+        uses: ./.github/actions/setup-mise
+        with:
+          cache: ${{ inputs.cache || 'true' }}
       - name: Run starter contracts
-        # `all` skips the network-resolving starters; Linux is the primary platform.
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: mise run test:starters
@@ -51,10 +72,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Install toolchain
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        # jactionlint ignore=self-repository
+        uses: ./.github/actions/setup-mise
         with:
-          cache: true
-          version: 2026.11.9
+          cache: ${{ inputs.cache || 'true' }}
       - name: Render chezmoi and shell templates
         run: |
           mise run check:chezmoi

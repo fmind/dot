@@ -2,6 +2,7 @@
 # Docs: https://lefthook.dev/configuration/
 
 glob_matcher: doublestar
+output: [summary, failure, execution_out]
 # Jobs run in list order: formatters fix and restage only the staged files, then fast
 # safety checks guard secrets, privacy, and Python lint. CI (`mise run all`) owns the full gate.
 pre-commit:
@@ -24,11 +25,23 @@ pre-commit:
       run: mise run format:shell -- {staged_files}
       stage_fixed: true
     - name: format supagents
-      glob: "{dot_agents/supagents/*.md,.agents/supagents/*.md,supagents.yaml}"
-      run: mise run format:supagents && git add -A private_dot_gemini/private_config/agents private_dot_copilot/agents .agents/agents .github/agents
-    - name: check leaks
-      run: mise run check:leaks
-    - name: check privacy
-      run: uv run --frozen --directory dot python -m dot_tasks.privacy_checks
-    - name: check Python lint
-      run: mise run check:python:lint
+      glob: "{dot_agents/supagents/*.md,supagents.yaml}"
+      run: mise run format:supagents && git add -A private_dot_gemini/private_config/agents private_dot_copilot/agents
+    - name: safety checks
+      group:
+        parallel: true
+        jobs:
+          - name: check leaks
+            run: mise run check:leaks
+          - name: check privacy
+            run: mise run check:privacy
+          - name: check Python lint
+            run: mise run check:python:lint
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: scan vulnerabilities
+      run: mise run check:network
+    - name: test
+      run: mise run test

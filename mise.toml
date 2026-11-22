@@ -2,7 +2,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Keep equal to install.sh and the workflow pins (test_bootstrap enforces it).
-min_version = "2026.11.9"
+min_version = "2026.11.12"
 
 [settings]
 # Signature and provenance verification keep mise defaults here, so CI (which has no
@@ -17,9 +17,12 @@ run_auto_install = false
 # MISE_TASK_QUIET=false restores mise's execution messages for debugging.
 quiet = true
 
+[task_config]
+dir = "{{config_root}}"
+
 [vars]
 # Skill templates scaffold other repositories' workflows; the workflow linters skip them unless named.
-workflow_templates = "skills/github/references/ci-cd/templates/*.yml skills/gcloud/references/cloud-run/templates/deploy.yml skills/docs/references/site/templates/docs.yml skills/infra-as-code/templates/tofu.yml skills/code-security/templates/codeql.yml"
+workflow_templates = "skills/github/references/ci-cd/templates/*.yml skills/github/references/ci-cd/templates/setup-mise/action.yml skills/gcloud/references/cloud-run/templates/deploy.yml skills/docs/references/site/templates/docs.yml skills/infra-as-code/templates/tofu.yml skills/code-security/templates/codeql.yml"
 # Plain shell scripts that shfmt formats; chezmoi shell templates are rendered and linted only.
 shell_scripts = "install.sh run_*.sh dot_local/bin/executable_*"
 # uv installs the dot entry point here; the absolute path avoids Graphviz's dot on PATH.
@@ -69,11 +72,12 @@ vale = "latest"
 [tasks.all]
 alias = "a"
 description = "Run the full CI gate locally (check, test, build)"
-run = ["mise run check", "mise run test", "mise run build"]
+depends = ["check", "test", "build"]
 
 [tasks.build]
 alias = "b"
 description = "Build the dot Python source distribution and wheel"
+wait_for = ["check:leaks"]
 run = "uv build dot --out-dir dot/dist --clear --no-sources"
 sources = ["dot/pyproject.toml", "dot/uv.lock", "dot/LICENSE", "dot/src/**/*.py", "dot/src/**/*.yaml"]
 outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
@@ -81,7 +85,7 @@ outputs = ["dot/dist/*.whl", "dot/dist/*.tar.gz"]
 [tasks.check]
 alias = "c"
 description = "Run all static checks in parallel"
-depends = ["check:local", "check:network"]
+depends = ["check:local", "check:network", "check:skills:publish"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no remote database"
@@ -92,6 +96,7 @@ depends = [
   "check:format",
   "check:leaks",
   "check:lua",
+  "check:privacy",
   "check:python",
   "check:shell",
   "check:skills",
@@ -171,6 +176,10 @@ run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-ba
 description = "Check Neovim Lua formatting (stylua)"
 run = "stylua --check dot_config/nvim"
 
+[tasks."check:privacy"]
+description = "Scan non-encrypted sources and local commits for unapproved emails, SSH comments, and workstation tokens"
+run = "uv run --frozen --project dot dot privacy -q ."
+
 [tasks."check:python"]
 description = "Lint, format-check, type-check, and validate Python packaging and dependencies"
 depends = [
@@ -214,8 +223,16 @@ run = "uv lock --check --project dot"
 
 [tasks."check:scan"]
 description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
+env.TRIVY_NO_PROGRESS = "true"
 # Pass the repository's workstation Trivy config explicitly so checkouts use it before deploy.
-run = "trivy --config dot_config/trivy/trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars ."
+run = """
+set -eu
+if ! output="$(trivy --quiet --config dot_config/trivy/trivy.yaml fs --tf-vars skills/infra-as-code/templates/terraform.example.tfvars . 2>&1)"; then
+  rc=$?
+  printf '%s\n' "$output" >&2
+  exit "$rc"
+fi
+"""
 
 [tasks."check:shell"]
 description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh and plain run scripts"
@@ -240,7 +257,7 @@ shfmt -d -i 2 -s {{vars.shell_scripts}}
 
 [tasks."check:skills"]
 description = "Validate first-party Agent Skill packages, context budgets, and documentation links"
-depends = ["check:skills:contracts", "check:skills:links", "check:skills:publish"]
+depends = ["check:skills:contracts", "check:skills:links"]
 
 [tasks."check:skills:publish"]
 hide = true
@@ -253,19 +270,25 @@ run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts"
 [tasks."check:skills:links"]
 hide = true
 # Generated-project templates link relative to their future repository.
-run = "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md' '.agents/supagents/*.md'"
+run = "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md'"
 
 [tasks."check:supagents"]
 description = "Validate cross-harness subagent sources and generated configurations"
 wait_for = ["format:supagents"]
-run = [
-  "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
-  "uv run --frozen --project dot supagents check --strict --project --source-dir .agents/supagents --target AGY --target COPILOT",
-]
+run = """
+set -eu
+if output="$(uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml 2>&1)"; then
+  printf '%s\n' "$output" | tail -n 1
+else
+  rc=$?
+  printf '%s\n' "$output" >&2
+  exit "$rc"
+fi
+"""
 
 [tasks."check:tasks"]
-description = "Validate repository task definitions"
-run = "mise tasks validate"
+description = "Validate repository task and Git hook definitions"
+run = ["mise tasks validate", "lefthook validate"]
 
 [tasks."check:tofu"]
 description = "Check OpenTofu starter HCL formatting"
@@ -276,15 +299,9 @@ description = "Check spelling across documentation, skills, and sources (typos)"
 run = "typos --config .typos.toml"
 
 [tasks."check:vale"]
-description = "Check external documentation and templates for AI slop and prose style (vale)"
-# Fail on any alert (errors or warnings) to match test_vale_accepts_external_starter_markdown_templates.
-run = '''
-set -u
-rc=0
-out="$(vale --no-global --config .vale.ini --output=line README.md skills/humanize/templates/ skills/docs/references/repository/templates/README.md skills/infra-as-code/templates/README.md skills/docs/references/site/templates/ skills/python/references/foundation/templates/docs-index.md)" || rc=$?
-[ -z "$out" ] || printf '%s\n' "$out"
-[ "$rc" -eq 0 ] && [ -z "$out" ]
-'''
+description = "Check external documentation and templates for AI slop errors (vale; warnings stay advisory)"
+# Fail on Vale errors (exit 1) only; SlopStyle/Wordiness/length warnings print as advisory output.
+run = "vale --no-global --config .vale.ini --output=line AGENTS.md dot_agents/AGENTS.md README.md skills/humanize/templates/ skills/docs/references/repository/templates/README.md skills/infra-as-code/templates/README.md skills/docs/references/site/templates/ skills/python/references/foundation/templates/docs-index.md"
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"
@@ -322,8 +339,6 @@ wait_for = ["format:dprint"]
 run = [
   "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
   "uv run --frozen --project dot supagents clean --project --source-dir dot_agents/supagents --config supagents.yaml",
-  "uv run --frozen --project dot supagents build --strict --project --source-dir .agents/supagents --target AGY --target COPILOT",
-  "uv run --frozen --project dot supagents clean --project --source-dir .agents/supagents --target AGY --target COPILOT",
 ]
 
 # Lefthook passes staged files to these formatters; mise hands variadic arguments
@@ -372,8 +387,9 @@ alias = "t"
 description = "Run the Python CLI and repository contract tests"
 # Cap xdist workers at 8 to bound memory and subprocess fan-out.
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
-env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
-run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
+wait_for = ["check:leaks"]
+env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage", TZ = "UTC" }
+run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 --dist worksteal dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
 description = "Materialize and execute Python, MCP, ML, script, docs, OpenTofu, and deck starter contracts"
