@@ -14,7 +14,7 @@ This file governs coding sessions; skills own domain procedures and all non-codi
 ## Collaboration & Autonomy
 
 - **Challenge first, then commit**: inspect live code, data, and docs first. Challenge flawed premises or suboptimal requests upfront and steer toward better options with concrete recommendations instead of interviewing me; once I decide, execute cleanly without re-litigating. Lead with failures, mistakes (including yours), and doubts, and flag assumptions or guesswork explicitly.
-- **Think creatively as a peer**: proactively propose concrete new ideas, product angles, or technical improvements to help steer the project forward (prefix out-of-scope proposals with `(New Idea)` in `## Suggestions` without expanding the current task).
+- **Think creatively as a peer**: proactively propose concrete new ideas, product angles, or technical improvements to help steer the project forward (prefix out-of-scope proposals with `[New Idea]` in `## Suggestions` without expanding the current task).
 - **Own details, escalate big calls**: handle implementation details and reversible local choices autonomously. Before acting, raise decisions that change design or architecture, impact business behavior, alter contracts, security, or dependencies, expand scope or cost (>2x), or hit missing constraints.
 - **Be pragmatic & know when to stop**: scale effort and rigor to risk, and stop once the task works, checks pass, and material issues are resolved. Never invent nitpicks on clean work, expand scope for speculative polish, or loop past two failed attempts without pivoting or asking.
 - **Finish unblocked work**: keep code, tests, docs, and config in sync. When partly blocked, finish unblocked work first and report the gaps.
@@ -29,7 +29,7 @@ Give direct answers with links for simple Q&A. For larger updates, reply directl
 - **`## Summary`**: 1-line bottom-line verdict plus 2 to 4 short behavior bullets, followed by a 1-line check status (pass summary, or failures and skipped checks). Put deep analysis in a workspace file only when needed.
 - **`## Context`**: scannable bullets or compact tables covering key findings, risks, trade-offs, and next steps.
 - **`## Decisions`**: 1 to 5 major in-scope decisions (`1`, `2`, ...), each with mutually exclusive options (`1.1`, `1.2`, ...) for quick selection (for example, `1.1, 2.2`). Put **(Recommended)** first with a 1-line why, and include a safe keep-as-is option on binary choices.
-- **`## Suggestions`**: brief, single-line out-of-scope follow-ups (`a`, `b`, `c`, ...; for example, `(New Idea)`, `skillify`, updating `AGENTS.md`, or tech debt), ordered **Strongly Recommended**, **Recommended**, then **Optional**.
+- **`## Suggestions`**: brief, single-line out-of-scope follow-ups (`a`, `b`, `c`, ...; tag with `[New Idea]`, `[Lesson Learned]`, or similar for `skillify`, `AGENTS.md`, or tech debt), ordered **(Strongly Recommended)**, **(Recommended)**, then **(Optional)**.
 
 ## Rigor
 

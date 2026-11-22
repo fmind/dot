@@ -2,7 +2,7 @@
 name: bf
 description: "Search/update Brain Framework (bf, /bf): notes (concepts/projects/actions), loops, JSONL records."
 license: MIT
-compatibility: "Requires Brain Framework 32 (bf, rg, jq) on Linux or macOS."
+compatibility: "Requires Brain Framework 33 (bf, rg, jq) on Linux or macOS."
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
@@ -21,7 +21,7 @@ metadata:
 1. **Resolve brain & workspace rules**:
    - Discovery resolves `--brain PATH` → enclosing `bf.yaml` → `BF_BRAIN` → `$BRAIN_LOCATION` → `~/brain`. Zero global config.
    - Inspect the target brain's `AGENTS.md` first (it overrides this guide). Inside a brain (`bf status` shows `"inside_brain":true`), operate automatically; outside, use `/bf` only when requested.
-   - Run `bf` (`32.x`) on `PATH` (`uv run --locked bf` only inside a trusted brain declaring `uv.lock`); check `bf --help` for exact flags.
+   - Run `bf` (`33.x`) on `PATH` (`uv run --locked bf` only inside a trusted brain declaring `uv.lock`); check `bf --help` for exact flags.
 1. **Orient & search before live connectors**:
    - Check health first with `bf status` (`--format text` for bird's-eye overview; `attention`, `orphaned_states`) and `bf review` (stale notes, newer evidence, open tasks). Empty search results never prove absence when `problems`/`attention` are present.
    - Search via `bf query "terms"` (EN+FR synonyms) or `bf query --jq 'FILTER'` (`--kind note|memory|usage`, `-s/--scope`, `--format json|jsonl`), or directly with `rg`/`jq`/`duckdb` over `memories/*.jsonl` and `usages/*.jsonl`.
