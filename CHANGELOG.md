@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.1.0] - 2026-11-22
+
+### 🚀 Features
+
+- _(dot)_ Add dot privacy CLI, lazy-load commands, and harden trust parsing
+- _(agents)_ Add shell/analytics/spec roles, rename extract/sql skills, and refine persona
+
+### ⚡ Performance
+
+- _(fish)_ Cache interactive tool init and theme scripts with XDG hardening
+
+### 📚 Documentation
+
+- Move SECURITY.md to repo root and align docs and contract tests
+
+### ⚙️ Build & CI
+
+- Share setup-mise action, reuse CI in CD, and bump mise to 2026.11.12
+
 ## [18.0.0] - 2026-11-22
 
 ### 🚀 Features
