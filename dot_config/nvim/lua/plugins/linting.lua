@@ -93,7 +93,7 @@ return {
         opts.linters_by_ft[filetype] = { "sqlfluff", "sqruff" }
       end
       -- OpenTofu replaces the terraform extra's terraform_validate; the extra installs tflint
-      -- but never runs it, so lint with the global copy too.
+      -- but never runs it, so wire tflint explicitly when available in the project or Mason.
       for _, filetype in ipairs({ "opentofu", "terraform", "tf" }) do
         opts.linters_by_ft[filetype] = { "tofu", "tflint" }
       end
