@@ -109,14 +109,16 @@
 ) = box(fill: fill, stroke: stroke, radius: radius, inset: inset, body)
 
 #let status-badge(role: "primary", body) = {
-  let bg = (
+  let palette = (
     primary: colors.primary,
     error: colors.error,
     warning: colors.warning,
     success: colors.success,
     information: colors.information,
     type: colors.type,
-  ).at(role, default: colors.primary)
+  )
+  assert(type(role) == str and role in palette, message: "Unknown status-badge role: " + repr(role))
+  let bg = palette.at(role)
   box(
     fill: bg,
     radius: 999pt,
@@ -231,7 +233,7 @@
 )
 
 // Composed card, chip, tile and flow helpers for concept illustrations.
-#let chip(width: 176pt, radius: 999pt, body) = box(
+#let chip(width: 176pt, radius: 6pt, body) = box(
   width: width,
   fill: colors.panel,
   radius: radius,
@@ -256,6 +258,7 @@
 )
 
 #let flow-arrow(step: none, caption: none, length: 34pt, dir: ltr) = {
+  assert(dir in (ltr, rtl, ttb, btt), message: "Unknown flow-arrow dir: " + repr(dir))
   let shaft = if dir in (ltr, rtl) {
     line(length: length, stroke: 1.6pt + colors.primary)
   } else {
@@ -286,8 +289,19 @@
   align(center + horizon, stack(spacing: 5pt, ..items))
 }
 
-#let loop-back(caption, step: none, inset-x: 88pt, fill: colors.canvas, body) = context {
-  let w = calc.max(0pt, measure(body).width - 2 * inset-x)
+#let loop-back(caption, step: none, inset-x: 88pt, fill: colors.canvas, body) = layout(size => context {
+  let body-w = measure(width: size.width, body).width
+  let raw-inset = if type(inset-x) == ratio {
+    body-w * inset-x
+  } else if type(inset-x) == relative {
+    body-w * inset-x.ratio + inset-x.length.to-absolute()
+  } else if type(inset-x) == length {
+    inset-x.to-absolute()
+  } else {
+    panic("inset-x must be a length, ratio, or relative length: " + repr(inset-x))
+  }
+  let inset = calc.max(0pt, calc.min(raw-inset, calc.max(0pt, (body-w - 16pt) / 2)))
+  let w = calc.max(0pt, body-w - 2 * inset)
   let tag = if step != none {
     stack(dir: ltr, spacing: 6pt, step-badge(step), align(horizon, caption))
   } else {
@@ -296,32 +310,33 @@
   stack(
     spacing: 6pt,
     body,
-    pad(
-      left: inset-x,
-      right: inset-x,
-      bottom: 8pt,
-      box(
-        width: w,
-        height: 22pt,
-        stroke: (
-          left: 1.6pt + colors.primary,
-          right: 1.6pt + colors.primary,
-          bottom: 1.6pt + colors.primary,
-        ),
-        radius: (bottom: 7pt),
-      )[
-        #place(
-          top + left,
-          dx: -3.8pt,
-          dy: -2pt,
-          polygon(fill: colors.primary, (3.8pt, 0pt), (7.6pt, 7pt), (0pt, 7pt)),
-        )
-        #place(
-          bottom + center,
-          dy: 8.5pt,
-          box(fill: fill, inset: (x: 8pt, y: 1pt), tag),
-        )
-      ],
-    ),
+    box(width: body-w, inset: (bottom: 8pt))[
+      #pad(
+        left: inset,
+        right: inset,
+        box(
+          width: w,
+          height: 22pt,
+          stroke: (
+            left: 1.6pt + colors.primary,
+            right: 1.6pt + colors.primary,
+            bottom: 1.6pt + colors.primary,
+          ),
+          radius: (bottom: 7pt),
+        )[
+          #place(
+            top + left,
+            dx: -3.8pt,
+            dy: -2pt,
+            polygon(fill: colors.primary, (3.8pt, 0pt), (7.6pt, 7pt), (0pt, 7pt)),
+          )
+        ],
+      )
+      #place(
+        bottom + center,
+        dy: 8.5pt,
+        box(fill: fill, inset: (x: 8pt, y: 1pt), tag),
+      )
+    ],
   )
-}
+})

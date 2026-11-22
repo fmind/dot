@@ -1,12 +1,12 @@
 # Docs: https://www.chezmoi.io/reference/special-files/chezmoiexternal-format/
 # Pin fmind/theme to one commit with SHA-256 checksums (`mise run upgrade` advances via dot_tasks.theme_pin,
 # and verifies inline copies in configs that cannot include external files).
-{{ $base := "https://raw.githubusercontent.com/fmind/theme/1b80a1a1163e0c6541ee3811fdae6274dd20f259" }}
+{{ $base := "https://raw.githubusercontent.com/fmind/theme/64708d469a51f49619a5765baa00eb3bff36840b" }}
 
 [".agents/DESIGN.md"]
     type = "file"
     url = "{{ $base }}/DESIGN.md"
-    checksum.sha256 = "e7d3f69eccdce78d2c95fc9a4c2fee8c723a02db48d6445f433a590e601472bf"
+    checksum.sha256 = "40dafff7ad4552bd1349261265da90330c4e17c83b1ea6f3db67dc38648fa732"
 
 # Ready-made renderer files sit beside DESIGN.md, so skills copy a pinned file instead of palette values.
 [".agents/themes/css/fmind.css"]
@@ -37,7 +37,7 @@
 [".agents/themes/typst/fmind.typ"]
     type = "file"
     url = "{{ $base }}/themes/typst/fmind.typ"
-    checksum.sha256 = "39e1709508b4c46eb8ddd5e7b4c74d3944744da0224a3417941343784f6f2494"
+    checksum.sha256 = "24499909006e207b44b332d3cd07de1744337d495f5a8d1ea7b847f70c86d3ae"
 
 [".agents/themes/vhs/fmind.tape"]
     type = "file"
