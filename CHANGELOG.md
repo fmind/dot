@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.2.0] - 2026-11-22
+
+### 🚀 Features
+
+- _(dot)_ Add dot privacy --staged and wire pre-commit hook
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Fail closed on ancestor git errors and corrupt packed refs
+
+### 📚 Documentation
+
+- _(agents)_ Standardize suggestion tags and bump bf skill to v33
+
+### ⚙️ Build & CI
+
+- Split macOS starter contracts into parallel job
+
+### 🧹 Miscellaneous
+
+- _(tools)_ Bump global supagents (2.0.0) and brain-framework (33.0.0) locks
+- _(tools)_ Bump global brain-framework lock to 33.1.0
+
 ## [18.1.0] - 2026-11-22
 
 ### 🚀 Features
