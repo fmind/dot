@@ -5,7 +5,7 @@ description: "Turn session corrections and decisions into minimal edits to check
 
 # Lesson Learned
 
-Route durable session lessons to one canonical owner without rule bloat. Trigger on `(Lesson Learned)` proposals after corrections, repeated instructions, non-obvious traps, or durable approved decisions (never routine implementations). [Skillify](../SKILL.md) owns skill/guide authoring, [trim](trim.md) owns shortening, and [AGENTS.md guidance](../../docs/references/repository/references/agents.md) owns layer boundaries.
+Route durable session lessons to one canonical owner without rule bloat. Surface proposals under out-of-scope `Suggestions` (or when asked) after corrections, repeated instructions, non-obvious traps, or durable approved decisions, never after routine implementations. [Skillify](../SKILL.md) owns skill/guide authoring, [trim](trim.md) owns shortening, and [AGENTS.md guidance](../../docs/references/repository/references/agents.md) owns layer boundaries.
 
 ## Workflow
 
@@ -18,7 +18,7 @@ Route durable session lessons to one canonical owner without rule bloat. Trigger
    1. global persona (`dot_agents/AGENTS.md` in `fmind/dot`);
    1. decision log (via [bf](../../bf/SKILL.md) when present) for dated choices and "do not re-raise" calls.
 1. **Sharpen before adding**: tighten or replace existing lines and prune obsoleted text before adding anything new; verify budgets pass (`dot context --project .`, plus `--source .` in `fmind/dot`).
-1. **Propose, then apply**: present ranked `(Lesson Learned)` diffs naming owner path and old/new text; apply only after explicit user approval and run the owner's checks (`pytest`, `mise run check:skills`, formatters).
+1. **Propose, then apply**: surface brief proposals under out-of-scope `Suggestions` naming owner path and change (or show exact diffs when asked); apply only after explicit user approval and run the owner's checks (`pytest`, `mise run check:skills`, formatters).
 
 ## Gotchas
 

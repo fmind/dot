@@ -27,9 +27,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
-          version: 2026.11.9
+          version: 2026.11.12
+          install_args: --locked
           cache: false
       - name: Initialize offline tooling
         env:
@@ -54,9 +55,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
-          version: 2026.11.9
+          version: 2026.11.12
+          install_args: --locked
           cache: false
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -83,9 +85,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Install tools using mise
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
-          version: 2026.11.9
+          version: 2026.11.12
+          install_args: --locked
           cache: false
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0

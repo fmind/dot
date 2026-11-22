@@ -5,7 +5,7 @@ description: "Set GitHub repo description, homepage, topics, merge policy, and s
 
 # GitHub Repository
 
-Set repository description, homepage, and topics via `gh repo edit` ([gh](../../SKILL.md)). Run the [settings baseline](references/settings-baseline.md) only for new solo-maintained repos or explicit settings passes, never on metadata-only requests.
+Set repository description, homepage, and topics via `gh repo edit` ([github](../../SKILL.md)). Run the [settings baseline](references/settings-baseline.md) only for new solo-maintained repos or explicit settings passes, never on metadata-only requests.
 
 ## Workflow
 

@@ -1,6 +1,6 @@
 ---
 name: dot-cli
-description: "Run dot/with-secret (context, doctor, login, pull, status, trust), check CLI/ADC auth, and manage systemd/launchd jobs."
+description: "Run dot/with-secret (context, doctor, login, privacy, pull, status, trust), check auth, manage timers."
 license: MIT
 metadata:
   kind: connector
@@ -28,7 +28,7 @@ Use `dot` for bounded repository checks, workstation diagnostics, provider login
 - [authentication](references/authentication.md): Reconcile configured provider logins, OAuth scopes, one-off grants, and scoped secrets.
 - [context](references/context.md): Measure instruction, skill, and subagent discovery budgets in source or installed catalogs.
 - [contracts](references/contracts.md): Resolve configuration, JSON output, and exit codes.
-- [daily-workflows](references/daily-workflows.md): Run workstation doctor, repo status/pull, folder trust, and completions.
+- [daily-workflows](references/daily-workflows.md): Run workstation doctor, repo privacy/status/pull, folder trust, and completions.
 - [disk-space](references/disk-space.md): Audit disk headroom, cache growth, and shared tool versions before large builds or downloads.
 - [scheduled-jobs](references/scheduled-jobs/GUIDE.md): Schedule/debug local jobs via systemd timers, launchd.
 

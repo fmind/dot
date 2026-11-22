@@ -1,6 +1,6 @@
 ---
 name: humanize
-description: "Write and edit short, clear, insightful prose and visuals for busy leaders, email, chat, memos, PRs, docs, and slides."
+description: "Write/edit short, clear prose and visuals for leaders, email, chat, memos, PRs, docs, slides."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
@@ -30,8 +30,10 @@ Central guide for human-facing writing. **Default reader:** a busy executive or 
 
 ## Pre-Send Gate
 
+Apply these checks to **long-form, public, or high-stakes drafts** (memos, briefs, proposals, decks, public docs, sensitive leadership emails); skip Vale and subagent spawns on short 1:1 replies or quick Chat posts unless requested.
+
 1. **Lint**: `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` (omit `--config` if repo `.vale.ini` exists).
-1. **Review & inspect**: freeze and run `fmind-review-human` on **all leadership, stakeholder, and external drafts** (emails, Chat posts, memos, briefs, docs, decks). Add `fmind-review-completeness` + matching roles (`factcheck`, `docs`, `proposal`, `visuals`, `frontend`; [subagent](../subagent/SKILL.md)) on substantive deliverables, and inspect `1440x900` & `390x844` or PDF/PNG renders for zero clipping.
+1. **Review & inspect**: freeze and run `fmind-review-human` (plus `fmind-review-completeness` and matching `factcheck`/`docs`/`proposal`/`visuals`/`frontend` roles on substantive deliverables; [subagent](../subagent/SKILL.md)), and inspect `1440x900` & `390x844` or PDF/PNG renders for zero clipping.
 
 ## Documentation
 

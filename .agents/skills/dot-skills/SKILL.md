@@ -30,7 +30,7 @@ Maintain first-party skills and chezmoi links. [skillify](../../../skills/skilli
 ## Boundaries
 
 - **Keep `~/.agents/skills/` a real shared directory**: never `exact_` or a whole-catalog symlink; third-party packages coexist there, and apply refuses collisions instead of overwriting.
-- **Know check scope**: `mise run check:skills` validates both catalogs (`gh skill publish --dry-run skills` checks only `skills/`); standalone export requires the portability check.
+- **Know check scope**: `mise run check:skills` validates both catalogs offline; `check:skills:publish` (`gh skill publish --dry-run skills`, included in `mise run check`) checks only `skills/`; standalone export requires the portability check.
 
 ## Documentation
 

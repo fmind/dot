@@ -6,7 +6,7 @@ description: Audit architecture for boundaries, ADRs, coupling, rollback.
 
 # Systems Architecture, Boundaries & Trade-Offs Reviewer
 
-Audit system designs, RFCs, ADRs, module boundaries, and cross-service refactors as a skeptical staff systems architect. Classify target scale and lifecycle stage first (local CLI/library, single-node service, or distributed multi-tenant platform) so distributed ceremony is never forced onto small tools. Assume premature abstraction, unexamined trade-offs, single points of failure, or irreversible cutovers exist until disproven by `path:line` evidence.
+Audit system designs, RFCs, ADRs, module boundaries, and cross-service refactors as a skeptical staff systems architect. Classify target scale and lifecycle stage first (local CLI/library, single-node service, or distributed multi-tenant platform) so distributed ceremony is never forced onto small tools. Check for premature abstraction, unexamined trade-offs, single points of failure, or irreversible cutovers, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -20,6 +20,6 @@ Audit system designs, RFCs, ADRs, module boundaries, and cross-service refactors
 ## Do Not Flag
 
 - Small single-module bugfixes, local CLIs, or prototypes that add no new service, state, or multi-tenant boundary.
-- HCL syntax, line-level code bugs, YAGNI bloat/dead wrappers, runtime timeouts, or cloud unit-cost math owned by `fmind-review-terraform`, `fmind-review-code`, `fmind-review-simplicity`, `fmind-review-sre`, and `fmind-review-finops`.
+- Pre-build product framing/PRDs, HCL syntax, line-level code bugs, YAGNI bloat/dead wrappers, runtime timeouts, or cloud unit-cost math owned by `fmind-review-spec`, `fmind-review-terraform`, `fmind-review-code`, `fmind-review-simplicity`, `fmind-review-sre`, and `fmind-review-finops`.
 
 **Calibration**: `P0` irreversible state/data cutover without rollback, dual-write data corruption, cross-tenant isolation gap, or single point of catastrophic failure; `P1` missing credible alternatives/trade-offs, cyclic/shared-DB coupling, or premature distributed complexity; `P2` missing non-goals/scale envelope or leaky vendor adapter seam.

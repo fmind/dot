@@ -7,7 +7,7 @@ description: "Structured headless agy review with JSON schema and fail-closed ex
 
 Run from the target repository; [review.schema.json](references/review.schema.json) mirrors `_reviewer.md`'s Output Contract (`verdict`, `summary`, `P0`–`P2` `findings`, `deletions`, `unverified`).
 
-- **Pre-capture deterministic evidence**: `fmind-review-*` roles are shell-free and MCP-free (`commandExecutionPolicy: "off"`, `inheritMcp: false`; all global roles inherit air-gapped `_reviewer.md` except `fmind-review-factcheck` on `_reviewer_web.md`, plus repo-local `fmind-review-supagent`). Because `agy` 1.5.x binds `read_file` + `finish` on air-gapped roles (plus `search_web` on `_reviewer_web`), run deterministic gates first and write the frozen diff, touched file list, directory manifests, `--help`, `vale --output=JSON`, gate logs, and PNG/DOM renders into a temp dir exposed read-only via `--add-dir`:
+- **Pre-capture deterministic evidence**: `fmind-review-*` roles are shell-free and MCP-free (`commandExecutionPolicy: "off"`, `inheritMcp: false`; all global roles inherit air-gapped `_reviewer.md` except `fmind-review-factcheck` on `_reviewer_web.md`). Because `agy` 1.5.x binds `read_file` + `finish` on air-gapped roles (plus `search_web` on `_reviewer_web`), run deterministic gates first and write the frozen diff, touched file list, directory manifests, `--help`, `vale --output=JSON`, gate logs, and PNG/DOM renders into a temp dir exposed read-only via `--add-dir`:
 
 ```bash
 render_dir="$(cd "$(mktemp -d /tmp/agy-review.XXXXXX)" && pwd -P)"

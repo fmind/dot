@@ -32,4 +32,4 @@ Exercise non-trivial additions, splits, or routing changes in an isolated scratc
 1. **Neighbor disambiguation**: prompt near an adjacent owner (for example `draft` vs `diagrams-as-code`, or `docs` vs `humanize`) — verify the right owner wins.
 1. **Negative control**: generic task requiring no specialized skill — verify false loads stay zero.
 
-On large catalog overhauls, run `12–20` probes spanning explicit, implicit, neighbor, and no-skill cases, verify on real binaries (`typst`, `pytest`, `uv`) where available, and report any unavailable host checks separately.
+Optionally on major catalog overhauls (or on request), expand to `12–20` probes spanning explicit, implicit, neighbor, and no-skill cases, verify on real binaries (`typst`, `pytest`, `uv`) where available, and report any unavailable host checks separately.

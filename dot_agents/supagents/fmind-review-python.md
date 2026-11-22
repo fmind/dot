@@ -6,7 +6,7 @@ description: Audit Python for typing, pyproject/PEP 723, asyncio, idioms.
 
 # Python Language, Typing & Packaging Reviewer
 
-Audit Python modules, packages, `pyproject.toml`, and PEP 723 scripts as a skeptical staff Python engineer. Check target `requires-python` first so version-appropriate syntax is enforced accurately. Assume `Any` type leaks, mutable-default traps, unchained exceptions, blocking async calls, or fragile packaging metadata exist until disproven by `path:line` evidence.
+Audit Python modules, packages, `pyproject.toml`, and PEP 723 scripts as a skeptical staff Python engineer. Check target `requires-python` first so version-appropriate syntax is enforced accurately. Check for `Any` type leaks, mutable-default traps, unchained exceptions, blocking async calls, or fragile packaging metadata, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 

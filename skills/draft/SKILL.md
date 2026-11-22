@@ -28,4 +28,4 @@ Draft Google Workspace documents, spreadsheets, presentations, Gmail drafts (nev
 
 ## Documentation
 
-- Companions: [gws](../gws/SKILL.md), [humanize](../humanize/SKILL.md), [proposal](../proposal/SKILL.md), [ingest](../ingest/SKILL.md), [diagrams-as-code](../diagrams-as-code/SKILL.md), [subagent](../subagent/SKILL.md).
+- Companions: [gws](../gws/SKILL.md), [humanize](../humanize/SKILL.md), [proposal](../proposal/SKILL.md), [extract](../extract/SKILL.md), [diagrams-as-code](../diagrams-as-code/SKILL.md), [subagent](../subagent/SKILL.md).

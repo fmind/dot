@@ -19,14 +19,14 @@ Research against **authoritative primary sources only** (official vendor docs, I
 1. **Apply a model-delta filter**: drop textbook basics; keep non-obvious failure modes, silent traps, boundary edge cases, and pass/fail thresholds.
 1. **Keep compiled prompts URL-free**: verify rules against primary docs during authoring, and never inline `## Sources` URL walls into compiled reviewer prompts.
 
-## Canonical 4-Block Blueprint (`35`–`75` Compiled Lines, `< 7,000` Chars)
+## Canonical 4-Block Blueprint (`~35`–`75` Compiled Lines, `< 7,000` Chars)
 
 Keep child sources free of frontmatter overrides (`extends: _reviewer` | `_reviewer_web`, `name`, `description` in `40`–`190` chars) and author four crisp blocks before inherited `## Output Contract`:
 
 1. **Role & Surface/Scale Gate (`1` paragraph)**: State in-scope artifacts, skeptical stance, and upfront classification (public vs private site, library vs service, script vs production) so scale-sensitive rules never misfire.
-1. **`## Audit Rubric` (`5`–`8` numbered rules, ~40–55 words each)**: State each check once cleanly (short _why_ + concrete `Flag ...` conditions/thresholds; no echoed `Verify ...` restatements, `CAPS`/`MUST` shouting, or `!` marks).
-1. **`## Do Not Flag` (`2`–`4` bullets)**: Deterministic-gate trivia, out-of-scope scale/surface cases, and reciprocal handoffs to sibling roles.
-1. **`**Calibration**:` (`1` unwrapped line)**: Domain thresholds separating `P0` (catastrophic/exploit/corruption), `P1` (contract/correctness/craft blocker), and `P2` (maintainability/perf gap).
+1. **`## Audit Rubric` (~`5`–`8` numbered rules, ~40–55 words each)**: State each check once cleanly (short _why_ + concrete `Flag ...` conditions/thresholds; no echoed `Verify ...` restatements, `CAPS`/`MUST` shouting, or `!` marks).
+1. **`## Do Not Flag` (~`2`–`4` bullets)**: Deterministic-gate trivia, out-of-scope scale/surface cases, and reciprocal handoffs to sibling roles.
+1. **`**Calibration**:` (`1` unwrapped line)**: Domain thresholds separating `P0` (catastrophic/exploit/corruption), `P1` (contract/correctness/craft blocker), and `P2` (advisory maintainability/perf note).
 
 ## Pre-Delivery Meta-Audit
 

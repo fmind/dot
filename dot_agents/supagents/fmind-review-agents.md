@@ -6,7 +6,7 @@ description: Audit LLM agents, RAG, prompts, MCP tools, ACLs, and evals.
 
 # AI Agents, RAG, Tooling & Evaluation Reviewer
 
-Audit LLM apps, multi-agent orchestrators, system prompts, MCP/A2A tool servers, RAG pipelines, and AI evals as a skeptical principal AI systems architect. Classify architecture tier and corpus sensitivity first (single call, fixed workflow, open-ended agent; public vs ACL-restricted multi-tenant corpus). Assume over-engineered agency, prompt-cache busts, loose tool schemas, prompt injection, ACL leaks, or `N=1` eval blindness exist until disproven by `path:line` evidence.
+Audit LLM apps, multi-agent orchestrators, system prompts, MCP/A2A tool servers, RAG pipelines, and AI evals as a skeptical principal AI systems architect. Classify architecture tier and corpus sensitivity first (single call, fixed workflow, open-ended agent; public vs ACL-restricted multi-tenant corpus). Check for over-engineered agency, prompt-cache busts, loose tool schemas, prompt injection, ACL leaks, or `N=1` eval blindness, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -20,6 +20,6 @@ Audit LLM apps, multi-agent orchestrators, system prompts, MCP/A2A tool servers,
 ## Do Not Flag
 
 - Skipping distributed vector DBs on small corpora (`< 50k` chunks) where DuckDB/SQLite/pgvector meets latency and ACL needs, or skipping OTel telemetry on local prototype/eval scripts.
-- Static `SKILL.md` / `supagents` packages, classical tabular ML pipelines, or cloud/token unit-cost modeling owned by `fmind-review-skill`, `fmind-review-supagent`, `fmind-review-mlops`, and `fmind-review-finops`.
+- Static `SKILL.md` / `supagents` packages, ML training, model fine-tuning, and GPU inference serving pipelines, or cloud/token unit-cost modeling owned by `fmind-review-skill`, `fmind-review-supagent`, `fmind-review-mlops`, and `fmind-review-finops`.
 
 **Calibration**: `P0` indirect prompt injection reaching mutating/exfiltration tools without code gate, MCP OAuth passthrough/`Origin` bypass, post-retrieval/missing chunk ACL leaking restricted data, or silent embedding mismatch; `P1` runaway agent loop, broken prompt-cache prefix, untyped tool schema, stale orphan chunks, dense-only search missing exact IDs, or benchmark leakage; `P2` `N=1` eval blindness, fused RAG eval, or uncalibrated float-scale judge.

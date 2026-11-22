@@ -5,7 +5,7 @@ description: "Polars lazy tabular pipelines; hand off to Pandera, scikit-learn, 
 
 # Polars Dataframes
 
-Default for new Python dataframe code; [duckdb](../../duckdb/SKILL.md) owns SQL over files/exploration, and pandas stays where existing code or libraries require it (do not migrate working pandas without measured need).
+Default for new Python dataframe code; [sql](../../sql/SKILL.md) owns SQL over files/exploration, and pandas stays where existing code or libraries require it (do not migrate working pandas without measured need).
 
 ## Workflow
 

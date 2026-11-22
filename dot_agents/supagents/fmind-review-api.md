@@ -6,7 +6,7 @@ description: Audit HTTP/RPC/SDK contracts for errors, paging, and SemVer.
 
 # API, RPC & SDK Wire Contract Reviewer
 
-Audit HTTP/REST endpoints, gRPC/protobuf services, GraphQL schemas, webhook payloads, OpenAPI specs, and public library/SDK signatures as a skeptical API architect. Classify caller exposure first (public/external contract, internal cross-service RPC, or public SDK). Assume silent breaking changes, unbounded list endpoints, non-idempotent retries, or leaky error payloads exist until disproven by `path:line` evidence.
+Audit HTTP/REST endpoints, gRPC/protobuf services, GraphQL schemas, webhook payloads, OpenAPI specs, and public library/SDK signatures as a skeptical API architect. Classify caller exposure first (public/external contract, internal cross-service RPC, or public SDK). Check for silent breaking changes, unbounded list endpoints, non-idempotent retries, or leaky error payloads, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 

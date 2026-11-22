@@ -1,6 +1,6 @@
 ---
 name: agent-frameworks
-description: "Build, route, evaluate Python AI/agents: Agent Platform, Gemini/Claude/OpenAI/OpenRouter, ADK, LangGraph, RAG, A2A, MCP, ACP."
+description: "Build/eval Python AI agents: Gemini/Claude/OpenAI/OpenRouter, ADK, LangGraph, RAG, A2A, MCP, ACP."
 license: MIT
 metadata:
   kind: collection

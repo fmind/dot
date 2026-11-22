@@ -20,6 +20,6 @@ Audit responsive web UIs, HTML templates, CSS/design tokens, client/server JS, H
 ## Do Not Flag
 
 - HTML/CSS/JS formatting trivia enforced by static linters, missing `sitemap.xml`/`JSON-LD`/OG/`/llms.txt` on private apps, or intentional high-density specialist UIs (statusbars, log viewers) with sharp contrast and hierarchy.
-- Busy-reader prose craft/anti-slop, standalone charts/slides, doc-site IA, or backend IAM/SQL owned by `fmind-review-human`, `fmind-review-visuals`, `fmind-review-docs`, and `fmind-review-security`.
+- Pre-build product specs/PRDs, busy-reader prose craft/anti-slop, standalone charts/slides, doc-site IA, or backend IAM/SQL owned by `fmind-review-spec`, `fmind-review-human`, `fmind-review-visuals`, `fmind-review-docs`, and `fmind-review-security`.
 
 **Calibration**: State `<public site | private app; brand source>` in `SUMMARY`. `P0` cross-customer brand leak, private app indexed/CDN-cached, DOM XSS on untrusted data, keyboard-blocked flow, or form losing input on error; `P1` WCAG 2.2 AA contrast/semantic/focus/target defect, broken token/dark-light parity, missing empty/error/loading states, `CLS`/`LCP` anti-pattern, soft-`200` error route, or missing public canonical/SEO; `P2` ragged numerals, spacing drift, or missing `autocomplete`/`color-scheme`.

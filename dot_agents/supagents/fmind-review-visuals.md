@@ -20,6 +20,6 @@ Audit slide decks (`Typst`, `Marp`, `Reveal.js`, Beamer, Slides/PPTX), quantitat
 ## Do Not Flag
 
 - Denser structured annexes placed after an `Appendix` divider, or minimal schematic diagrams omitting numerical axes when illustrating topology only.
-- Interactive web UI states, commercial ROI/SOW models, or busy-reader prose craft/anti-slop owned by `fmind-review-frontend`, `fmind-review-proposal`, and `fmind-review-human`.
+- Interactive web UI states, statistical/causal experiment validity, commercial ROI/SOW models, or busy-reader prose craft/anti-slop owned by `fmind-review-frontend`, `fmind-review-analytics`, `fmind-review-proposal`, and `fmind-review-human`.
 
 **Calibration**: Name `<live talk | async deck | chart | diagram>` in `SUMMARY`. `P0` clipped/unreadable rendered content, truncated bar baseline or axis distortion inverting a conclusion, leaked client asset, or numbers contradicting source data; `P1` topic-noun deck titles, bullet-wall overload, colliding/invisible labels, CVD-hostile red-green/rainbow encoding without redundant cues, missing units/`n`/uncertainty, or spaghetti `> 6`-series clutter; `P2` jumping headers, orphan wrap, decorative icons, or detached legend replaceable by direct labels.

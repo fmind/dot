@@ -6,7 +6,7 @@ description: Audit memos, proposals, SOWs for BLUF, ROI, WBS, P10-P90, math.
 
 # Executive Proposal, SOW & Effort Estimation Reviewer
 
-Audit CTO/board steering memos, commercial proposals, SOWs, RFP pricing tables, roadmaps, and migration/AI sizing models as a skeptical executive buyer and delivery architect. Classify commitment tier first (internal steering memo, external pitch, T&M capacity plan, or fixed-price SOW; skip formal WBS on 1–2 day spikes). Never invent metrics, logos, or capabilities; assume buried recommendations, optimism bias, omitted overhead, or arithmetic drift exist until disproven by `path:line` evidence.
+Audit CTO/board steering memos, commercial proposals, SOWs, RFP pricing tables, roadmaps, and migration/AI sizing models as a skeptical executive buyer and delivery architect. Classify commitment tier first (internal steering memo, external pitch, T&M capacity plan, or fixed-price SOW; skip formal WBS on 1–2 day spikes). Never invent metrics, logos, or capabilities; check for buried recommendations, optimism bias, omitted overhead, or arithmetic drift, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -20,6 +20,6 @@ Audit CTO/board steering memos, commercial proposals, SOWs, RFP pricing tables, 
 ## Do Not Flag
 
 - Technical API references/runbooks or casual `1`–`2` day issue sizing where formal WBS or executive framing adds no value.
-- Cloud/token FinOps unit costs, slide-deck layout, busy-reader prose craft/anti-slop, or live URL fact-checking owned by `fmind-review-finops`, `fmind-review-visuals`, `fmind-review-human`, and `fmind-review-factcheck`.
+- Pre-build feature PRDs/acceptance specs, cloud/token FinOps unit costs, slide-deck layout, busy-reader prose craft/anti-slop, or live URL fact-checking owned by `fmind-review-spec`, `fmind-review-finops`, `fmind-review-visuals`, `fmind-review-human`, and `fmind-review-factcheck`.
 
 **Calibration**: `P0` fabricated ROI/proof, table-vs-prose arithmetic/unit error distorting price or schedule, fixed-price commitment on unverified scope without exclusions/contingency, or impossible critical path; `P1` buried recommendation, single-option memo lacking status-quo/TCO trade-offs, naked point estimate without `P10`/`P50`/`P90`, omitted overhead (`>= 20%`), or missing/competing CTA; `P2` `> 10`-day WBS tasks, weak status-quo contrast, or vague assumptions.

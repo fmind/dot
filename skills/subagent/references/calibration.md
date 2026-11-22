@@ -1,12 +1,12 @@
 # Seeded-Defect Reviewer Calibration
 
-Verify in a **fresh session** that a reviewer supagent catches target defect classes, cites `rule: <Rubric #N | doc:line>`, and passes clean controls without nitpicking on the production `VERDICT / SUMMARY / FINDINGS / DELETIONS / UNVERIFIED` contract. Follow [agent evaluation](../../agent-frameworks/references/evaluation/GUIDE.md) (`>= 3` paired trials per prompt revision).
+Verify in a **fresh session** that a reviewer supagent catches target defect classes, cites `rule: <Rubric #N | doc:line>`, and passes clean controls without nitpicking on the production `VERDICT / SUMMARY / FINDINGS / DELETIONS / UNVERIFIED` contract. Run **1 paired probe** (seeded defect + clean control) for routine prompt edits; reserve `>= 3` paired trials ([agent evaluation](../../agent-frameworks/references/evaluation/GUIDE.md)) as an optional stability check for major rewrites or on request.
 
 ## Calibration Matrix
 
 Create synthetic fixtures inside a clean `/var/tmp` sandbox directory (never customer data in public repos) so fixture files stay inside the active workspace root under `allowNonWorkspaceAccess: false`:
 
-1. **Seeded defect cases (`>= 2` distinct rubric rules)**: plant concrete flaws per lens (e.g., shell interpolation + hardcoded dummy token for `security`; a `600`-LOC module + swallowed exception for `code`; `"Distills Book X"` name-dropping + mixed multi-discipline rubric for `supagent`).
+1. **Seeded defect cases (`>= 2` distinct `P0`/`P1` rubric rules)**: plant concrete `P0`/`P1` flaws per lens (e.g., shell interpolation + hardcoded dummy token for `security`; a `600`-LOC module + swallowed exception for `code`; `"Distills Book X"` name-dropping + mixed multi-discipline rubric for `supagent`).
 1. **Clean controls (`>= 2` clean edge cases)**: fix those exact flaws cleanly, including valid edge cases covered by `## Do Not Flag` (e.g., short plain 1:1 email for `human`; private `noindex` app without `sitemap.xml` for `frontend`).
 
 ## Headless Production-Contract Probe
@@ -31,7 +31,7 @@ good_out=$(mktemp /var/tmp/subagent-good.XXXXXX)
   jq -er '.status == "SUCCESS" and (.finished_reason // null) == null and (.response | test("VERDICT: PASS")) and (.response | test("FINDINGS: none"))' "$good_out" >/dev/null
 ```
 
-Require across `>= 3` fresh-session trials:
+Verify on the fresh-session probe (and optionally across `>= 3` trials on major rewrites):
 
 - Zero writes to the fixture directory (`mtime` / checksum unchanged).
 - `bad_out` returns `VERDICT: BLOCK` or `REVISE`, cites every planted defect with accurate `loc:` and `rule: Rubric #<N>`, and invents zero unwritten standards.

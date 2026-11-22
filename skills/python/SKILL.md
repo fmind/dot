@@ -1,6 +1,6 @@
 ---
 name: python
-description: "Build Python packages, CLIs, APIs, web apps, and PEP 723 scripts: uv, Ruff, ty, pytest, Pydantic, Litestar, Django, FastAPI, Gradio, NiceGUI, OpenTelemetry, hyperfine/oha."
+description: "Build Python packages, CLIs, APIs, web apps, PEP 723 scripts: uv, Ruff, ty, pytest, Pydantic, Litestar, Django, FastAPI, OTel."
 license: MIT
 metadata:
   kind: collection
@@ -44,4 +44,4 @@ Load the matching domain guide(s) below plus `language` and `testing`. Defaults:
 
 ## Documentation
 
-- Companions: [mlops](../mlops/SKILL.md), [agent-frameworks](../agent-frameworks/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [mise](../mise/SKILL.md), [bootstrap](../github/references/bootstrap.md), [duckdb](../duckdb/SKILL.md).
+- Companions: [mlops](../mlops/SKILL.md), [agent-frameworks](../agent-frameworks/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [mise](../mise/SKILL.md), [bootstrap](../github/references/bootstrap.md), [sql](../sql/SKILL.md).

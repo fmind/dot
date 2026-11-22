@@ -1,6 +1,6 @@
 ---
 name: github
-description: "Operate GitHub with gh (issues, PRs, repos, bootstrap, licenses, Actions logs) and configure CI/CD, Dependabot, Lefthook."
+description: "Operate GitHub via gh (issues, PRs, repos, Actions logs) and configure CI/CD, Dependabot, Lefthook."
 license: MIT
 metadata:
   kind: collection

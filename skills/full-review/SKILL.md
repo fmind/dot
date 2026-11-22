@@ -24,8 +24,12 @@ Ask only when ambiguity alters scope, cost, or reversibility:
 ## Workflow
 
 1. **Baseline & deterministic gates**: check `git status --short`, diffs, latest tag, and `git fetch` (preserve uncommitted work); read `AGENTS.md`, `README.md`, and skills; run `mise run check`, tests, [smoke](references/smoke.md), and scanners before spawning reviewers.
-1. **Audit & fan out reviewers** (name any skip): run [repo-audit](references/repo-audit.md) on whole-repo runs; pre-capture frozen diff, manifest, gate logs, `vale --output=JSON`, `--help`, and PNG/DOM renders ([headless-review](../agent-harnesses/references/headless-review/GUIDE.md)), then fan out `fmind-review-completeness` + matching `fmind-review-*` roles ([subagent](../subagent/SKILL.md)) and verify every `loc`/`evidence` claim.
-1. **Fix, prove, report**: land root-cause fixes + tests for verified `P0`–`P2` findings and `DELETIONS` (hold irreversible/costly/architectural forks); rerun `mise run all`, renders, and reviewers (max `2` rounds per [subagent](../subagent/SKILL.md)). Emit verdict (`ready` | `ready with caveats` | `blocked`), highest proven rung (`#proof-ladder`), `path:line` evidence, decisions, and gaps.
+1. **Audit & fan out reviewers** (name any skip): run [repo-audit](references/repo-audit.md) on whole-repo runs; pre-capture frozen diff, manifest, gate logs, `vale --output=JSON`, `--help`, and PNG/DOM renders ([headless-review](../agent-harnesses/references/headless-review/GUIDE.md)), then pick the best-suited `fmind-review-*` roles below ([subagent](../subagent/SKILL.md)) and verify every `loc`/`evidence` claim.
+1. **Fix, prove, report**: land root-cause fixes + tests for verified `P0`–`P1` findings (plus quick `P2`/`DELETIONS` in one pass; hold irreversible/costly/architectural forks); rerun `mise run all`, renders, and reviewers only for `P0`–`P1` fixes (max `2` rounds per [subagent](../subagent/SKILL.md)). Emit verdict (`ready` | `ready with caveats` | `blocked`), highest proven rung (`#proof-ladder`), `path:line` evidence, decisions, and gaps.
+
+## Supagent Routing
+
+Pick matching `fmind-review-*` roles from discovered subagents ([subagent](../subagent/SKILL.md)): `1–2` on small diffs or `3–5` in parallel on cross-cutting/whole-repo reviews. Anchor substantive reviews with `fmind-review-completeness`, add `fmind-review-simplicity` on whole-repo/refactors, and isolate `fmind-review-factcheck` on secret-bearing repos per [cross-harness-agents](../agent-harnesses/references/cross-harness-agents.md#permission-limits).
 
 ## Proof ladder
 
@@ -34,7 +38,7 @@ Claim only the highest proven rung (`source-ready` → `local-green` → `exact-
 ## Severity
 
 - **P0** active breach/data loss/outage · **P1** correctness/security/availability blocker · **P2** material edge-case/perf/test gap · **P3** minor nit.
-- Stop editing once gates are green and verified `P0`–`P2` findings plus `DELETIONS` reach `PASS` (defer `P3`/speculative ideas without mutating; never oscillate). Cite `path:line`, trigger, evidence, impact, and minimal fix (or `"none material"`).
+- Stop editing once gates are green and verified `P0`–`P1` findings reach `PASS` (apply quick `P2`/`DELETIONS` in one pass without re-review; defer `P3`/speculative ideas without mutating; never oscillate). Cite `path:line`, trigger, evidence, impact, and minimal fix (or `"none material"`).
 
 ## Task guides
 

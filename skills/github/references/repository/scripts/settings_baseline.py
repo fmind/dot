@@ -372,7 +372,7 @@ def repository_name(value: str) -> str:
     return value
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("repository", metavar="OWNER/REPO", type=repository_name)
     mode = parser.add_mutually_exclusive_group()
@@ -388,7 +388,7 @@ def main() -> int:
         action="store_true",
         help="leave the SHA-pin requirement as is while any uses: is unpinned",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         before = after = inspect(args.repository)
         if args.apply:

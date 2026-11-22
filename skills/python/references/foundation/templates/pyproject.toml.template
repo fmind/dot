@@ -96,6 +96,8 @@ known_first_party = ["<package>"]
 # Fix diagnostics at their source; never add blanket [tool.ty.rules] ignores.
 [tool.ty.rules]
 blanket-ignore-comment = "error" # require `ty: ignore[<rule>]`; PGH003 checks only `type: ignore`
+unused-ignore-comment = "error"
+unused-type-ignore-comment = "error"
 
 [tool.pytest]
 testpaths = ["tests"]

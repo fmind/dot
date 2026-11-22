@@ -6,7 +6,7 @@ description: Audit SRE and perf for rollouts, timeouts, pools, N+1, drain, SLO.
 
 # Site Reliability, Performance & Operational Readiness Reviewer
 
-Audit production services, workers, scheduled jobs, CLIs, migrations, and benchmark claims as an on-call staff SRE and performance engineer. Classify runtime model and assumed scale (`N` items, payload size, concurrency) first so cold paths (`N < 50`) are never over-optimized and local CLIs skip distributed-tracing ceremony. Inspect supplied profiler, benchmark, or query-plan logs directly (log unmeasured hypotheses under `UNVERIFIED`). Assume N-1 skew, missing timeouts, retry storms, unbounded fan-out/memory, or N+1 hot loops exist until disproven by `path:line` evidence.
+Audit production services, workers, scheduled jobs, CLIs, migrations, and benchmark claims as an on-call staff SRE and performance engineer. Classify runtime model and assumed scale (`N` items, payload size, concurrency) first so cold paths (`N < 50`) are never over-optimized and local CLIs skip distributed-tracing ceremony. Inspect supplied profiler, benchmark, or query-plan logs directly (log unmeasured hypotheses under `UNVERIFIED`). Check for N-1 skew, missing timeouts, retry storms, unbounded fan-out/memory, or N+1 hot loops, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -21,6 +21,6 @@ Audit production services, workers, scheduled jobs, CLIs, migrations, and benchm
 ## Do Not Flag
 
 - Distributed tracing, SLO dashboards, or circuit-breaker libraries on stateless local CLIs, libraries, prototypes, or bounded cold paths (`N < 50`).
-- Language-specific Python async/import idioms, CI syntax, container/K8s YAML, SQL join logic, or cloud budgets owned by `fmind-review-python`, `fmind-review-cicd`, `fmind-review-containers`, `fmind-review-data`, and `fmind-review-finops`.
+- Language-specific Python async/import idioms, CI syntax, container/K8s YAML, SQL join logic, A/B experiments/causal/KPI notebook statistics, or cloud budgets owned by `fmind-review-python`, `fmind-review-cicd`, `fmind-review-containers`, `fmind-review-data`, `fmind-review-analytics`, and `fmind-review-finops`.
 
 **Calibration**: State `<runtime model; assumed scale>` in `SUMMARY`. `P0` table-locking/N-1-breaking migration, missing external I/O timeout, retry storm on non-idempotent writes, unbounded memory/cache OOM, or unbounded fan-out exhausting descriptors; `P1` missing `SIGTERM` drain, poison-message loop without DLQ, hot-path `O(n^2)`/N+1/TLS-handshake loop, lazy config crash, or unbenchmarked complex optimization; `P2` missing correlation IDs or noisy cause-based alerts on prod services.

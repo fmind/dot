@@ -3,8 +3,7 @@
 # Local agent scratch and host state; shared skills stay versioned.
 .agents/prompts/
 .agents/tmp/
-.claude/*
-!.claude/skills
+.claude/
 .gemini/
 
 # Environment overrides and secrets; commit examples only.

@@ -1,6 +1,6 @@
 ---
 name: finops
-description: "Model cloud and AI/LLM unit economics, configure billing budgets and quota ceilings, and audit non-human technical spend."
+description: "Model cloud/AI unit economics, set billing budgets/quotas, and audit non-human spend."
 license: MIT
 metadata:
   kind: task

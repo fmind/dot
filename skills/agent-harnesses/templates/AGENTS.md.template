@@ -4,9 +4,9 @@ Rules for coding agents in `<slug>` (<1-2 sentences on what this project does>).
 
 ## Tasks
 
-- `<install command>` — install dependencies and git hooks.
-- `<check command>` — lint, type-check, format check, and security scans.
-- `<test command>` — offline test suite.
+- `<install command>`: install dependencies and git hooks.
+- `<check command>`: lint, type-check, format check, and security scans.
+- `<test command>`: offline test suite.
 
 ## Conventions
 

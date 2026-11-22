@@ -9,7 +9,7 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; keep existing conventions
 
 ## Defaults
 
-- **Interpreter & layout**: `mise` owns Python/`.python-version` (`3.14` default; `3.15` for pure-Python packages; [tool-versions](../../../mise/references/tool-versions.md#workstation-and-projects)); `uv` owns `.venv` and `uv.lock`. Use `src/<package>/` (`dependencies = []` initially); qualify min Python via `uv run --isolated --locked --python <min> pytest`.
+- **Interpreter & layout**: `mise` owns Python/`.python-version` (`3.14` default; `3.15` for pure-Python packages; [tool-versions](../../../mise/references/tool-versions.md#workstation-and-projects)); `uv` owns `.venv` and `uv.lock`. Use `src/<package>/` (`dependencies = []` initially); qualify min Python via `uv run --isolated --locked --python <min> pytest` and published library floors via `uv run --isolated --resolution lowest-direct`.
 - **Proven packages & gates**: `pydantic`, `pyyaml` (`safe_load`), `httpx2` + `stamina` ([api-client](../api-client/GUIDE.md)), `structlog` + OTel ([observability](../observability.md), [telemetry.py](templates/telemetry.py)), Polars, `argparse`/Cyclopts, and `sqlite3` (`WAL` + `busy_timeout=5000`). Gates: Ruff, `ty`, `deptry`, `pytest` (`pytest-socket`, `pytest-timeout`, warnings as errors, 85% branch coverage), `jactionlint`, and `dprint` (`format:dprint`; see [pyproject.toml.template](templates/pyproject.toml.template)).
 - **Docs, templates, migrations**: opt-in Zensical API docs (`mkdocstrings-python` + `api-autonav`, not `pdoc`); Jinja `autoescape=True` + `StrictUndefined`; rehearse Alembic/Django migrations on a backup copy.
 

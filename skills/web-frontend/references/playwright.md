@@ -19,6 +19,7 @@ Browser automation and E2E testing ([python/testing](../../python/references/tes
 - **Respect authorization boundaries**: testing never authorizes reusing personal browser profiles/cookies, creating accounts, accepting terms, hitting staging/prod unapproved, or bypassing login/MFA/CAPTCHA.
 - **Share `~/.cache/ms-playwright`**: install only needed browsers and never run `playwright uninstall` in teardown (other projects share the cache); clean up only temp profiles and passing-run artifacts.
 - **Reinstall after version bumps**: rerun `uv run playwright install chromium` whenever Playwright upgrades.
+- **CLI Lighthouse & live deploy smokes**: for automated CWV/a11y budgets in `mise` tasks, pin `npm:lighthouse` beside Playwright and run both against ephemeral local servers (`test:lighthouse:local`) and post-deploy URLs (`test:deployed`).
 
 ## Official Skills
 

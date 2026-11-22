@@ -1,6 +1,6 @@
 ---
 name: cloud-ops
-description: "Operate cloud/SaaS CLIs: acli (Jira/Confluence), aws, cf (Cloudflare), databricks/genie, hf (Hugging Face), pup (Datadog)."
+description: "Operate cloud/SaaS CLIs: acli (Jira/Confluence), aws, cf (Cloudflare), databricks, hf, pup (Datadog)."
 license: MIT
 metadata:
   kind: collection

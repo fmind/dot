@@ -5,7 +5,7 @@ description: "Run FinOps-bounded BigQuery dry runs, parameterized SQL, partition
 
 # BigQuery (`bq` & Python Storage Read)
 
-Query and inspect BigQuery datasets safely with hard byte caps, partition pruning, and parameterized SQL ([gcloud](../SKILL.md) owns auth/project identity; [duckdb](../../duckdb/SKILL.md) owns local Parquet/SQLite analysis).
+Query and inspect BigQuery datasets safely with hard byte caps, partition pruning, and parameterized SQL ([gcloud](../SKILL.md) owns auth/project identity; [sql](../../sql/SKILL.md) owns local Parquet/SQLite/Postgres analysis).
 
 ## FinOps Dry-Run & Hard Caps (`bq`)
 

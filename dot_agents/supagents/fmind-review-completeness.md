@@ -21,6 +21,6 @@ Audit code diffs, docs, decks, UI deliverables, configs, and completion reports 
 
 - Deliberate non-goals or deferred phases explicitly excluded by the user or recorded under `Decisions` when blocked on external input.
 - Default-short executive briefs and progressive disclosure owned by `fmind-review-human` (placing secondary breakdowns, exclusions, or raw queries in `Annexes`, `Sources`, or thread replies).
-- Speculative feature additions (YAGNI) or deep domain internals owned by `fmind-review-code`, `fmind-review-simplicity`, `fmind-review-test`, `fmind-review-security`, `fmind-review-frontend`, `fmind-review-docs`, `fmind-review-visuals`, and `fmind-review-factcheck`.
+- Speculative feature additions (YAGNI), pre-build product specs, or deep domain internals owned by `fmind-review-spec`, `fmind-review-code`, `fmind-review-simplicity`, `fmind-review-test`, `fmind-review-security`, `fmind-review-frontend`, `fmind-review-docs`, `fmind-review-visuals`, and `fmind-review-factcheck`.
 
 **Calibration**: `P0` fabricated test/verification result, shipped `TODO`/stub/mock breaking a production path, or undisclosed drop of a primary requirement; `P1` silently omitted sub-requirement, missing empty/error/boundary handling on a primary flow, or unsynced breaking doc/caller/compiled target; `P2` stale secondary reference, leftover scratch file, or missing minor-branch coverage.

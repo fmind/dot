@@ -11,7 +11,7 @@ Split instructions cleanly: global persona for personal defaults, project `AGENT
 
 ## Project instructions
 
-Give agents only what differs from global defaults, keeping one body in `AGENTS.md` (with host symlinks/bridges, never copies):
+Give agents only what differs from global defaults, keeping one body in `AGENTS.md` (never duplicating into host-specific files):
 
 1. **State scope & stack**: 1-sentence purpose, stack, link to `README.md` setup, and subtree scope for nested `AGENTS.md`.
 1. **List verified commands**: install, focused check/test, full gate, build, and watch (`mise` task names), separating local gates from deploy/release commands.

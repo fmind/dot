@@ -24,6 +24,6 @@ Audit emails, chat posts, updates, memos, briefs, slide copy, PRs, reports, and 
 - Deterministic Markdown formatting, whitespace, or spelling trivia enforced by static linters.
 - Literal CLI flag, path, and symbol backticks or technical mechanisms inside peer-developer `AGENTS.md`, `SKILL.md`, API references, or engineering PRs/RFCs.
 - Explicit long-form depth when requested (spec, SOW, deep-dive audit)—still flag uncurated data dumps or ugly walls.
-- CSS/WCAG renders, chart/slide geometry, doc-site nav, commercial ROI/WBS/SOW pricing, or live factual/math checks owned by `fmind-review-frontend`, `fmind-review-visuals`, `fmind-review-docs`, `fmind-review-proposal`, and `fmind-review-factcheck`.
+- CSS/WCAG renders, chart/slide geometry, doc-site nav, pre-build product spec/PRD framing, commercial ROI/WBS/SOW pricing, statistical/experimental rigor, or live factual/math checks owned by `fmind-review-frontend`, `fmind-review-visuals`, `fmind-review-docs`, `fmind-review-spec`, `fmind-review-proposal`, `fmind-review-analytics`, and `fmind-review-factcheck`.
 
 **Calibration**: `P0` leaked private/customer name or internal ID in external copy, wrong recipient language, or contradictory ask; `P1` buried take-home/bad news or "how" opening, ignored recipient concern, uncurated data dump lacking baseline, dev jargon or prose backticks on non-dev copy, bloat `> 1.5x` budget, visual wall/stacked boxes, or AI slop/em dashes; `P2` unlinked source with known URL, `"here"` anchor, link-spam wall, wordy/passive sentence, or robotic label on short note.

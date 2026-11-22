@@ -3,7 +3,7 @@
 # Merge into the repository's existing task graph; do not replace application gates.
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.11.9"
+min_version = "2026.11.12"
 
 [settings]
 lockfile = true
@@ -14,6 +14,9 @@ minimum_release_age = "0d"
 run_auto_install = false
 # Keep build warnings and errors; MISE_TASK_QUIET=false restores command echoes.
 quiet = true
+
+[task_config]
+dir = "{{config_root}}"
 
 [tools]
 # Scaffold selectors: replace with exact pins; CI installs only what this table declares.
@@ -69,6 +72,10 @@ run = "jactionlint --profile pedantic"
 description = "Audit GitHub Actions workflows with online checks"
 run = "jactionlint --online=strict --strict-exit"
 
+[tasks."check:tasks"]
+description = "Validate repository task definitions"
+run = "mise tasks validate"
+
 [tasks."check:vuln"]
 alias = "cv"
 description = "Scan documentation dependencies for vulnerabilities (uv audit)"
@@ -97,7 +104,7 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run offline checks (pre-commit)"
-depends = ["check:actions", "check:format", "check:leaks"]
+depends = ["check:actions", "check:format", "check:leaks", "check:tasks"]
 
 [tasks."check:network"]
 description = "Audit locked dependencies and build the site with vendored font/Mermaid assets (pre-push)"

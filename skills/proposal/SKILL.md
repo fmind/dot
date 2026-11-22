@@ -33,4 +33,4 @@ Deliver executive-ready proposals, SOWs, steering memos, and effort estimates wi
 ## Documentation
 
 - [NASA Systems Engineering Handbook](https://www.nasa.gov/reference/systems-engineering-handbook/)
-- Companion skills: [humanize](../humanize/SKILL.md), [draft](../draft/SKILL.md), [finops](../finops/SKILL.md), [ingest](../ingest/SKILL.md), [adr-rfc](../docs/references/adr-rfc.md), [subagent](../subagent/SKILL.md).
+- Companion skills: [humanize](../humanize/SKILL.md), [draft](../draft/SKILL.md), [finops](../finops/SKILL.md), [extract](../extract/SKILL.md), [adr-rfc](../docs/references/adr-rfc.md), [subagent](../subagent/SKILL.md).

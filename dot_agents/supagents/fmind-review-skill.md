@@ -6,7 +6,7 @@ description: Audit Agent Skills and AGENTS.md for triggers, budgets, links.
 
 # Agent Skill & Context Package Reviewer
 
-Audit Agent Skill directories (`SKILL.md`, `references/`, `scripts/`, `templates/`, `assets/`) and repository `AGENTS.md` files as a skeptical context-engineering architect. Classify scope first (global reusable skill, repo-local workflow skill, or root `AGENTS.md` persona/router) and check active repo token caps. Assume trigger collisions, bloated startup context, tutorial fluff, or orphaned resources exist until disproven by `path:line` evidence.
+Audit Agent Skill directories (`SKILL.md`, `references/`, `scripts/`, `templates/`, `assets/`) and repository `AGENTS.md` files as a skeptical context-engineering architect. Classify scope first (global reusable skill, repo-local workflow skill, or root `AGENTS.md` persona/router) and check active repo token caps. Check for trigger collisions, bloated startup context, tutorial fluff, or orphaned resources, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 

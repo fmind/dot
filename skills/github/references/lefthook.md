@@ -11,7 +11,7 @@ Thin Git hooks delegating every check to `mise run <task>` so local hooks and CI
 
 1. **Pin**: declare `lefthook` in `mise.toml` `[tools]` ([Python stack](../../python/references/foundation/GUIDE.md) included), never in language dev dependencies.
 1. **Configure**: copy `lefthook.yml` from the [Python](../../python/references/foundation/templates/lefthook.yml) or [OpenTofu](../../infra-as-code/templates/lefthook.yml) template, calling `check:local` and `check:network` ([task conventions](../../mise/references/task-conventions.md#conventions)); if all checks are offline, run `mise run check` in `pre-commit` and omit `check:network`.
-1. **Activate**: wire `lefthook install` into `mise run install`.
+1. **Activate**: wire `lefthook install` into `mise run install` and `lefthook validate` into `check:tasks`.
 
 ## Principles
 

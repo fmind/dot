@@ -15,7 +15,7 @@ Check frontmatter `name` against `~/.agents/skills` and `.agents/skills` ([same-
 
 ## Version Policy
 
-Preview `gh skill preview <owner/repo> <name>@<version>` and `gh skill install <owner/repo> <name> --pin <version>` enforce immutable pins when required without mixing managers on one skill. `fmind/dot` validates first-party skills via `mise run check:skills` (`gh skill publish --dry-run` + local contracts).
+Preview `gh skill preview <owner/repo> <name>@<version>` and `gh skill install <owner/repo> <name> --pin <version>` enforce immutable pins when required without mixing managers on one skill. `fmind/dot` validates first-party skills via `mise run check:skills` (offline contracts and links) and `mise run check:skills:publish` (`gh skill publish --dry-run skills`, included in `mise run check`).
 
 ## Documentation
 

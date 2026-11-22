@@ -2,6 +2,7 @@
 # Docs: https://lefthook.dev/configuration/
 
 glob_matcher: doublestar
+output: [summary, failure, execution_out]
 # Jobs run in list order: formatters fix and restage only the staged files, then checks validate the tree.
 pre-commit:
   jobs:

@@ -4,9 +4,9 @@ Keep discovery compact and load procedures on demand. `check:skills` checks sche
 
 ## Categories and scope
 
-- **Connector** (`metadata.kind: connector`): reusable CLI or API boundary (`bf`, `dot-cli`, `duckdb`, `fmind`, `gcloud`, `gws`); owns auth, bounded queries, output format, and guardrails so task skills link instead of duplicating.
-- **Task** (`metadata.kind: task`): cross-project workflow (`finops`, `full-review`, `humanize`, `ingest`, `mise`, `proposal`, `skillify`, `subagent`); self-contained unless distinct modes or long schemas warrant `references/`.
-- **Collection** (`metadata.kind: collection`): cohesive domain (`python`, `mlops`, `cloud-ops`, `docs`, `draft`, `github`, `containers`, `agent-frameworks`, `code-security`, `diagrams-as-code`, `agent-harnesses`) whose `SKILL.md` routes to guides and shared prerequisites.
+- **Connector** (`metadata.kind: connector`): reusable CLI or API boundary (e.g., `bf`, `dot-cli`, `fmind`, `gcloud`, `gws`, `sql`); owns auth, bounded queries, output format, and guardrails so task skills link instead of duplicating.
+- **Task** (`metadata.kind: task`): cross-project workflow (e.g., `extract`, `finops`, `full-review`, `humanize`, `mise`, `proposal`, `shell`, `skillify`, `subagent`); self-contained unless distinct modes or long schemas warrant `references/`.
+- **Collection** (`metadata.kind: collection`): cohesive domain (e.g., `python`, `mlops`, `cloud-ops`, `docs`, `draft`, `github`, `containers`, `agent-frameworks`, `code-security`, `diagrams-as-code`, `agent-harnesses`) whose `SKILL.md` routes to guides and shared prerequisites.
 - **Scope (`skills/` vs `.agents/skills/`)**: promote globally only for recurring triggers, non-trivial deltas beyond public docs, and room under [structure and budgets](#structure-budgets-and-authoring); default to repo-local first.
 
 ## Naming and ownership
@@ -17,9 +17,9 @@ Keep discovery compact and load procedures on demand. `check:skills` checks sche
   - _Supporting files_ (`references/<topic>.md` or `references/<name>/references/<topic>.md`): plain Markdown with no YAML frontmatter (`check:skills` rejects non-indexed frontmatter files).
 - **Action-led descriptions (1–180 chars)**: open with the work performed plus triggers/tools; keep guide descriptions scoped to their branch.
 - **Boundary seams** (avoid overlap when adding/routing guides):
-  - **Prose vs channel vs commercial**: [humanize](../../humanize/SKILL.md) owns audience/craft; [draft](../../draft/SKILL.md) owns Workspace/Typst plumbing; [proposal](../../proposal/SKILL.md) owns SOW/WBS/effort; [finops](../../finops/SKILL.md) owns cloud/AI TCO; [ingest](../../ingest/SKILL.md) owns inbound extraction.
+  - **Prose vs channel vs commercial**: [humanize](../../humanize/SKILL.md) owns audience/craft; [draft](../../draft/SKILL.md) owns Workspace/Typst plumbing; [proposal](../../proposal/SKILL.md) owns SOW/WBS/effort; [finops](../../finops/SKILL.md) owns cloud/AI TCO; [extract](../../extract/SKILL.md) owns inbound extraction.
   - **Code vs ML vs agents**: [python](../../python/SKILL.md) owns core Python/web/CLIs; [mlops](../../mlops/SKILL.md) owns tabular/ML/notebooks; [agent-frameworks](../../agent-frameworks/SKILL.md) owns LLM SDKs/evals/RAG; [agent-harnesses](../../agent-harnesses/SKILL.md) owns CLI hosts/MCP/setup.
-  - **Docs vs review**: [docs](../../docs/SKILL.md) owns README/AGENTS/ADR/Zensical; [full-review](../../full-review/SKILL.md) owns repo/PR/smoke audits; [subagent](../../subagent/SKILL.md) owns read-only `fmind-review-*` reviewers.
+  - **Docs vs review**: [docs](../../docs/SKILL.md) owns README/AGENTS/ADR/runbooks/postmortems/Zensical; [full-review](../../full-review/SKILL.md) owns repo/PR/smoke audits; [subagent](../../subagent/SKILL.md) owns read-only `fmind-review-*` reviewers.
 
 ## Structure, budgets, and authoring
 

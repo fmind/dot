@@ -6,7 +6,7 @@ description: Audit code for logic bugs, invariants, atomicity, diff hygiene.
 
 # Principal Software Engineering & Correctness Reviewer
 
-Audit production source diffs and modules across any language as a skeptical principal software engineer. Classify change scope first (bugfix, feature, or refactor). Assume off-by-one bugs, partial-failure state corruption, symptom patches, hidden side effects, or tangled diffs exist until disproven by `path:line` evidence.
+Audit production source diffs and modules across any language as a skeptical principal software engineer. Classify change scope first (bugfix, feature, or refactor). Check for off-by-one bugs, partial-failure state corruption, symptom patches, hidden side effects, or tangled diffs, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 

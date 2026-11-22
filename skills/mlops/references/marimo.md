@@ -26,4 +26,4 @@ Review upstream `marimo-team/skills` per [vendor-skills](../../agent-harnesses/r
 ## Documentation
 
 - [marimo docs](https://docs.marimo.io) · [Agent pairing](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/) · [Releases](https://github.com/marimo-team/marimo/releases)
-- Companion skills: [foundation](../../python/references/foundation/GUIDE.md), [project-setup](../../agent-harnesses/references/project-setup.md), [duckdb](../../duckdb/SKILL.md).
+- Companion skills: [foundation](../../python/references/foundation/GUIDE.md), [project-setup](../../agent-harnesses/references/project-setup.md), [sql](../../sql/SKILL.md).

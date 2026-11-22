@@ -36,7 +36,7 @@ Apply to new solo-maintained repositories or explicit settings passes; preserve 
 - **Report Free-plan limits without changing visibility**: private rulesets/branch protection return 403 `Upgrade to GitHub Pro` on Free, and private vulnerability reporting is public-only; report skipped items as notes.
 - **Never edit organization rulesets**: `rules/branches/<branch>` merges org and repo rules; mutate only the repo's owned ruleset.
 - **Do not retry paid secret-scanning subfeatures**: validity checks and non-provider patterns stay `disabled` silently on Free.
-- **Check owner-level `SECURITY.md`**: public `<owner>/.github` (`gh api repos/<owner>/.github/contents/SECURITY.md`; `fmind/.github` routes to private vulnerability reporting) covers public repos unless repo-specific scope/versions need a local `SECURITY.md`.
+- **Check owner-level `SECURITY.md`**: public `<owner>/.github` (`gh api repos/<owner>/.github/contents/SECURITY.md`; `fmind/.github` routes to private vulnerability reporting) covers public repos unless repo-specific scope/versions need a local `SECURITY.md` at repository root (GitHub's primary discovery path, matching `AGENTS.md` and [subagent](../../../../subagent/SKILL.md)).
 - **Personal repos have no read-only collaborator role**: downgrading to `pull` returns 422 on user-owned repos (remove inactive collaborators instead; orgs support `pull`).
 - **Harden organizations once**: enforce 2FA (web UI), SHA-pinned actions, and default "GitHub recommended" code security with temporary `admin:org` (`dot login github --grant admin:org`, then `dot login github`).
 

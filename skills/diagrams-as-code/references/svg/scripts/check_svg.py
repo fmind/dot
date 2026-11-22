@@ -11,6 +11,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 NS = "{http://www.w3.org/2000/svg}"
@@ -186,11 +187,21 @@ def render(path: Path, out: Path) -> list[Path]:
         staging = Path(temporary)
         fallback = staging / f"{path.stem}.fallback.svg"
         fallback.write_text(BRAND_FONTS.sub("", path.read_text(encoding="utf-8")), encoding="utf-8")
-        profile = staging / "profile"
-        shots = [
-            screenshot(source, staging / f"{name}.png", width, height, binary=binary, profile=profile)
-            for source, name in ((path, path.stem), (fallback, f"{path.stem}.fallback"))
-        ]
+        tasks = ((path, path.stem), (fallback, f"{path.stem}.fallback"))
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [
+                pool.submit(
+                    screenshot,
+                    source,
+                    staging / f"{name}.png",
+                    width,
+                    height,
+                    binary=binary,
+                    profile=staging / f"profile-{name}",
+                )
+                for source, name in tasks
+            ]
+            shots = [future.result() for future in futures]
         return [shot.replace(out / shot.name) for shot in shots]
 
 

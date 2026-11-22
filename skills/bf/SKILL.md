@@ -1,6 +1,6 @@
 ---
 name: bf
-description: "Search/update Brain Framework (bf, /bf): notes (concepts/projects/actions), loops (sensors/routines/agents), and JSONL records (memories/usages/logs)."
+description: "Search/update Brain Framework (bf, /bf): notes (concepts/projects/actions), loops, JSONL records."
 license: MIT
 compatibility: "Requires Brain Framework 32 (bf, rg, jq) on Linux or macOS."
 metadata:

@@ -1,6 +1,6 @@
 ---
 name: docs
-description: "Sync README, AGENTS.md, and repo docs; write ADRs/RFCs; build Zensical docs/courses sites and migrate MkDocs/Hugo."
+description: "Sync README, AGENTS.md, repo docs; write ADRs/RFCs, runbooks, postmortems; build Zensical sites, migrate MkDocs/Hugo."
 license: MIT
 metadata:
   kind: collection
@@ -20,6 +20,7 @@ Keep human and agent repository docs aligned with live code, and build Zensical 
 
 - [adr-rfc](references/adr-rfc.md): Write lightweight ADRs and architecture RFCs with scale bounds, alternatives, failure modes, and rollback.
 - [repository](references/repository/GUIDE.md): Sync README, AGENTS.md, repo docs with verified behavior.
+- [runbook-postmortem](references/runbook-postmortem.md): Write Day-2 operational runbooks, safe cutover plans, SLO alerts, and blameless incident postmortems.
 - [site](references/site/GUIDE.md): Build Zensical docs, courses, and API sites; deploy Pages or migrate MkDocs/Hugo.
 
 <!-- guides:end -->

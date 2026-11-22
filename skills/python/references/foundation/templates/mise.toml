@@ -2,7 +2,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.11.9"
+min_version = "2026.11.12"
 
 [settings]
 lockfile = true
@@ -13,6 +13,9 @@ minimum_release_age = "0d"
 run_auto_install = false
 # Preserve child output; MISE_TASK_QUIET=false restores execution messages.
 quiet = true
+
+[task_config]
+dir = "{{config_root}}"
 
 [tools]
 # Scaffold selectors: replace with exact baseline pins before locking and installation.
@@ -42,7 +45,7 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no network (pre-commit)"
-depends = ["check:actions", "check:deps", "check:format", "check:leaks", "check:lint", "check:types"]
+depends = ["check:actions", "check:deps", "check:format", "check:leaks", "check:lint", "check:tasks", "check:types"]
 
 [tasks."check:actions"]
 alias = "ca"
@@ -86,6 +89,10 @@ run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-ba
 alias = "cl"
 description = "Lint Python sources (ruff)"
 run = "uv run --locked ruff check"
+
+[tasks."check:tasks"]
+description = "Validate repository task and Git hook definitions"
+run = ["mise tasks validate", "lefthook validate"]
 
 [tasks."check:types"]
 alias = "ct"
@@ -140,6 +147,7 @@ run = ["UV_MALWARE_CHECK=1 uv sync --locked --preview-features malware-check", "
 [tasks.test]
 alias = "t"
 description = "Run offline tests with the coverage gate"
+env.TZ = "UTC"
 # The positive fail_under in pyproject.toml preserves the total and coverage gate.
 run = 'uv run --locked pytest -q -m "not integration and not e2e" --cov --cov-report='
 

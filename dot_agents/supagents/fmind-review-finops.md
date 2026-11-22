@@ -20,6 +20,6 @@ Audit cloud infrastructure, compute, databases, warehouses, object storage, netw
 ## Do Not Flag
 
 - Human engineering effort, WBS/SOW delivery pricing, or legal terms owned by `fmind-review-proposal` and `fmind-review-compliance`.
-- Missing org-level billing Terraform or enterprise `cost-center` tagging inside small personal projects or pure code libraries (log under `UNVERIFIED`), or non-cost prompt/reliability logic owned by `fmind-review-agents` and `fmind-review-sre`.
+- Missing org-level billing Terraform or enterprise `cost-center` tagging inside small personal projects or pure code libraries (log under `UNVERIFIED`), or non-cost prompt, reliability, SQL/ETL correctness, or HCL module logic owned by `fmind-review-agents`, `fmind-review-sre`, `fmind-review-data`, and `fmind-review-terraform`.
 
 **Calibration**: `P0` uncapped loop/autoscale/egress/warehouse-scan/token-budget path risking runaway spend; `P1` unjustified always-on GPU/compute capacity, NAT/cross-region egress amplification, high-cardinality telemetry explosion, or broken LLM prompt-cache/tier economics; `P2` missing storage/log retention TTL or uncached CI runner waste.

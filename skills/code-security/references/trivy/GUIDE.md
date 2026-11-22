@@ -35,7 +35,7 @@ run = "trivy --config trivy.yaml fs ."
 
 ## Gotchas
 
-- **Pass `--config trivy.yaml` explicitly**: `--config` > `TRIVY_CONFIG` > `./trivy.yaml`, so bare `trivy fs .` uses the shell's global `TRIVY_CONFIG`; scan untrusted repos from outside with independent `--config`/`--ignorefile`.
+- **Isolate repo Trivy config and logs**: pass `--config trivy.yaml` explicitly (`--config` > `TRIVY_CONFIG` > `./trivy.yaml`), and set `TRIVY_CONFIG = "trivy.yaml"` (or `false`) and `TRIVY_NO_PROGRESS = "true"` in project `mise.toml` `[env]` so local runs match CI and ignore the workstation's global `TRIVY_CONFIG`; scan untrusted repos from outside with independent `--config`/`--ignorefile`.
 - **Disable telemetry in `trivy.yaml`**: set `scan.disable-telemetry: true` and `scan.skip-version-check: true` (`--debug` verifies).
 - **Pass `--skip-dirs ''` on images** so repo `**/.venv` exclusions do not hide `/app/.venv` packages, and scan immutable `@<digest>` refs rather than mutable tags.
 - **Keep license gates honest**: resolve Debian/package license hits against project distribution policy instead of blanket ignores.

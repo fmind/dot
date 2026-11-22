@@ -1,6 +1,6 @@
 ---
 name: agent-harnesses
-description: "Operate Antigravity (agy CLI, Remote Control, SDK) and Copilot; host bridges/discovery, vendor skills, MCP setup, headless reviews, prompts."
+description: "Operate Antigravity (agy CLI, Remote Control, SDK) and Copilot: project setup, vendor skills, MCP, headless reviews."
 license: MIT
 metadata:
   kind: collection
@@ -12,7 +12,7 @@ metadata:
 
 # Agent Harnesses & Project Setup
 
-Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared repository `AGENTS.md`, `.agents/skills/`, host bridges, and vendor skills without mixing settings or lifecycles.
+Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared repository `AGENTS.md`, `.agents/skills/`, host overrides, and vendor skills without mixing settings or lifecycles.
 
 ## Workflow
 
@@ -31,7 +31,7 @@ Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared
 - [headless-review](references/headless-review/GUIDE.md): Structured headless agy review with JSON schema and fail-closed exit checks.
 - [mcp-setup](references/mcp-setup.md): Add, vet, or fix MCP servers across coding hosts and verify live access.
 - [notifications](references/notifications.md): Zellij OSC 7501 turn attention, push alerts, brain context hooks.
-- [project-setup](references/project-setup.md): Set up repo AGENTS.md, shared skills, host bridges, discovery, and vendor skills.
+- [project-setup](references/project-setup.md): Set up repo AGENTS.md, shared skills, discovery, host overrides, and vendor skills.
 - [remote-control](references/remote-control.md): Headless agy Remote Control: session tunnels, daemon, and project registry.
 - [statusline](references/statusline.md): Configure or diagnose the managed agy status line and terminal title.
 - [task-prompts](references/task-prompts/GUIDE.md): Write task, delegation, and handoff prompts; resume, compact, or fork agy sessions.

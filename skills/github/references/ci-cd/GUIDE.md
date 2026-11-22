@@ -17,9 +17,10 @@ CI runs [mise](../../../mise/SKILL.md) `all` to match local [lefthook](../leftho
 
 ## Principles
 
-- **Keep steps flat**: one command or `mise run <task>` per step; use action outputs over CLI scraping and Python scripts over YAML shell blocks.
+- **Keep steps flat**: one command or `mise run <task>` per step; use action outputs over CLI scraping and Python scripts over YAML shell blocks. Pass `install_args: --locked` on `jdx/mise-action`—or copy [setup-mise](templates/setup-mise/action.yml) to `.github/actions/setup-mise/action.yml` to centralize the pin, support selective `tools:`, and key the tool cache on `mise.lock` alone.
 - **Disable release caches**: `jdx/mise-action` sets `cache: true` in CI and `cache: false` in release/deploy jobs.
-- **Separate build from publish**: build `dist/` without OIDC, upload `dist/`, and grant `id-token: write` solely to `pypa/gh-action-pypi-publish`, which signs single-subject PEP 740 `publish/v1` attestations (PyPI **Full Provenance**; never pre-create `*.publish.attestation` or split uploads).
+- **Test dependency floors for libraries**: run `uv run --isolated --resolution lowest-direct --no-dev --with pytest ... pytest -q` in CI or weekly `security.yml` to prove published `pyproject.toml` lower bounds work.
+- **Separate build, attest, and publish**: build `dist/` without OIDC, verify tag == `v$(uv version --short)` and record `python-package.sha256`, attest provenance in an isolated job (`actions/attest` after verifying hashes and file count), and grant PyPI Trusted Publishing `id-token: write` solely to `pypa/gh-action-pypi-publish` (which signs PEP 740 `publish/v1` attestations; never pre-create `*.publish.attestation` or split uploads). For multi-platform releases, call `ci.yml` via `workflow_call` from `cd.yml` instead of duplicating gate steps.
 - **Verify candidate images before promotion**: push `:candidate-<sha>`, resolve `PLATFORMS` child digests via `image-platforms.py`, run the [cosign release sequence](../../../containers/references/docker/references/cosign.md#release-sequence) per child (signing the index once; default Trivy scans AMD64 only), then promote that digest via [Buildx imagetools](https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/).
 - **Pin actions to 40-hex SHAs**: write `<owner>/<repo>@<sha> # vX.Y.Z`; Dependabot patches vulnerabilities and [upgrade-tools](../../../mise/references/upgrade-tools/GUIDE.md) updates the rest.
 

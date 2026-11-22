@@ -1,6 +1,6 @@
 ---
 name: mlops
-description: "Build Python ML/MLOps pipelines and notebooks: Polars, Pandera, scikit-learn, LightGBM, Optuna, PyTorch, vLLM, MLflow, marimo, Airflow, Kaggle."
+description: "Build Python ML/MLOps pipelines and notebooks: Polars, Pandera, scikit-learn, LightGBM, PyTorch, vLLM, MLflow, marimo."
 license: MIT
 metadata:
   kind: collection
@@ -32,4 +32,4 @@ Build ML workflows from exploration to evaluated delivery, grounded in [reviewed
 ## Documentation
 
 - [Source map](references/sources.md) (each guide links its upstream docs).
-- Companions: [python](../python/SKILL.md), [duckdb](../duckdb/SKILL.md), [databricks](../cloud-ops/references/databricks/GUIDE.md), [hf](../cloud-ops/references/hf.md).
+- Companions: [python](../python/SKILL.md), [sql](../sql/SKILL.md), [databricks](../cloud-ops/references/databricks/GUIDE.md), [hf](../cloud-ops/references/hf.md).

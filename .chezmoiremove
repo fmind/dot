@@ -16,14 +16,14 @@
 .claude/skills
 .config/opencode/AGENTS.md
 .config/opencode/themes/fmind.json
-{{- range list "fmind-review-ai" "fmind-review-arch" "fmind-review-deck" "fmind-review-design" "fmind-review-docker" "fmind-review-estimate" "fmind-review-figures" "fmind-review-interface" "fmind-review-k8s" "fmind-review-ops" "fmind-review-perf" "fmind-review-pitch" "fmind-review-rag" "fmind-review-readme" "fmind-review-sql" "fmind-review-supagent" "fmind-review-web" }}
+{{- range list "fmind-review-ai" "fmind-review-arch" "fmind-review-deck" "fmind-review-design" "fmind-review-docker" "fmind-review-estimate" "fmind-review-figures" "fmind-review-interface" "fmind-review-k8s" "fmind-review-ops" "fmind-review-perf" "fmind-review-pitch" "fmind-review-rag" "fmind-review-readme" "fmind-review-sql" "fmind-review-web" }}
 {{ printf ".agents/supagents/%s.md" . }}
 {{ printf ".gemini/config/agents/%s.md" . }}
 {{ printf ".claude/agents/%s.md" . }}
 {{ printf ".copilot/agents/%s.agent.md" . }}
 {{ printf ".config/opencode/agents/%s.md" . }}
 {{- end }}
-{{- range list "agents" "api" "architecture" "cicd" "cli" "code" "completeness" "compliance" "containers" "data" "docs" "factcheck" "finops" "frontend" "human" "mlops" "proposal" "python" "security" "shell" "simplicity" "skill" "sre" "terraform" "test" "visuals" }}
+{{- range list "agents" "api" "architecture" "cicd" "cli" "code" "completeness" "compliance" "containers" "data" "docs" "factcheck" "finops" "frontend" "human" "mlops" "proposal" "python" "security" "shell" "simplicity" "skill" "sre" "supagent" "terraform" "test" "visuals" }}
 {{ printf ".claude/agents/fmind-review-%s.md" . }}
 {{ printf ".config/opencode/agents/fmind-review-%s.md" . }}
 {{- end }}
@@ -37,7 +37,7 @@
 {{- end }}
 # Skills merged or renamed in recent releases. List a name only while it is still
 # this checkout's link, so apply never deletes a same-named package installed by another tool.
-{{- range list "acli" "agent-evaluation" "agent-project" "agent-protocols" "agy" "airflow" "auth-status" "aws" "cf" "chrome-devtools" "cloud-run" "colab" "databricks" "docker" "documentation-site" "dprint" "draft-doc" "draft-google-sheets" "draft-google-slides" "draft-mail" "draft-typst-deck" "fmind-visuals" "gh" "github-actions" "google-developer" "hf" "kaggle" "kubernetes" "lesson-learned" "mcp-setup" "model-providers" "playwright" "project-scaffolding" "pup" "python-mlops" "python-stack" "python-web" "repository-docs" "scheduled-jobs" "stakeholder-writing" "task-prompts" "terms-review" "trim" "upgrade-tools" "xh" }}
+{{- range list "acli" "agent-evaluation" "agent-project" "agent-protocols" "agy" "airflow" "auth-status" "aws" "cf" "chrome-devtools" "cloud-run" "colab" "databricks" "docker" "documentation-site" "dprint" "draft-doc" "draft-google-sheets" "draft-google-slides" "draft-mail" "draft-typst-deck" "duckdb" "fmind-visuals" "gh" "github-actions" "google-developer" "hf" "ingest" "kaggle" "kubernetes" "lesson-learned" "mcp-setup" "model-providers" "playwright" "project-scaffolding" "pup" "python-mlops" "python-stack" "python-web" "repository-docs" "scheduled-jobs" "stakeholder-writing" "task-prompts" "terms-review" "trim" "upgrade-tools" "xh" }}
 {{-   $path := joinPath $.chezmoi.destDir ".agents/skills" . }}
 {{-   $info := lstat $path }}
 {{-   if and $info (eq $info.type "symlink") }}

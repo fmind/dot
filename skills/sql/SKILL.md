@@ -1,18 +1,18 @@
 ---
-name: duckdb
-description: "Query/export CSV, Parquet, JSON, and SQLite with DuckDB and sqlite3; SQL quality and dbt contracts."
+name: sql
+description: "Query/export CSV, Parquet, JSON, SQLite, PostgreSQL via DuckDB, sqlite3, psql; SQL/dbt quality."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
-  source: github.com/fmind/dot/tree/main/skills/duckdb
+  source: github.com/fmind/dot/tree/main/skills/sql
   created: "2026-09-02"
   updated: "2026-11-22"
 ---
 
-# DuckDB and SQLite
+# SQL, DuckDB, SQLite & PostgreSQL
 
-Use DuckDB for local analytics across CSV, Parquet, JSON, and attached SQLite files; keep SQLite for embedded application state.
+Use DuckDB for local analytics across CSV, Parquet, JSON, and attached SQLite files; keep SQLite for embedded application state; use [postgres](references/postgres.md) for live PostgreSQL/`pgvector` inspection via `psql`.
 
 ## Commands
 
@@ -28,7 +28,7 @@ Keep the non-interactive flags above on every call (`-light-mode` skips DuckDB 2
 ## Workflow
 
 1. **Inspect, bound, isolate**: run `DESCRIBE`/`SUMMARIZE` (pin CSV types), guard scans with `SET max_execution_time=<ms>`, mark `LIMIT` previews partial, export Parquet (commit `.sql`, not `.duckdb`; open DBs `-readonly`), and match output flags.
-1. **Reconcile grain and nulls**: check key uniqueness, pre/post-join counts (`1:N` fan-out), `IS NOT DISTINCT FROM`, and `NaN` vs `NULL` aggregates before reporting; audit SQL/dbt via [sql-quality-and-dbt](references/sql-quality-and-dbt.md) and `fmind-review-data` ([subagent](../subagent/SKILL.md)).
+1. **Reconcile grain and nulls**: check key uniqueness, pre/post-join counts (`1:N` fan-out), `IS NOT DISTINCT FROM`, and `NaN` vs `NULL` aggregates before reporting; audit SQL/dbt via [quality-and-dbt](references/quality-and-dbt.md) and `fmind-review-data` ([subagent](../subagent/SKILL.md)).
 
 ## Gotchas
 
@@ -41,8 +41,9 @@ Keep the non-interactive flags above on every call (`-light-mode` skips DuckDB 2
 
 <!-- guides:start -->
 
+- [postgres](references/postgres.md): Inspect PostgreSQL and pgvector safely via psql and Cloud SQL Auth Proxy: read-only timeouts, EXPLAIN plans, locks.
+- [quality-and-dbt](references/quality-and-dbt.md): Lint and format SQL with sqruff or sqlfluff and enforce dbt Core contracts and slim CI tests.
 - [remote-storage](references/remote-storage.md): Remote object storage (S3, GCS, HTTP, Hugging Face) and extensions: install, load, and credential providers.
-- [sql-quality-and-dbt](references/sql-quality-and-dbt.md): Lint and format SQL with sqruff or sqlfluff and enforce dbt Core contracts and slim CI tests.
 
 <!-- guides:end -->
 
@@ -54,4 +55,4 @@ Upstream: `duckdb/duckdb-skills`, with separate selections for querying, file fo
 
 - [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview) · [agent mode](https://duckdb.org/docs/stable/clients/cli/agent_mode) · [SQLite CLI](https://sqlite.org/cli.html)
 - Releases: [DuckDB](https://github.com/duckdb/duckdb/releases) · [SQLite changes](https://sqlite.org/changes.html)
-- Companion skills: [python/script](../python/references/script/GUIDE.md) (a one-file pipeline when SQL is not enough), [python/foundation](../python/references/foundation/GUIDE.md) (typed application data access and embedded SQLite).
+- Companion skills: [gcloud/bigquery](../gcloud/references/bigquery.md) (BigQuery dry-runs and byte caps), [mlops/polars](../mlops/references/polars.md) (Python lazy frames), [python/script](../python/references/script/GUIDE.md) (a one-file pipeline when SQL is not enough), [python/foundation](../python/references/foundation/GUIDE.md) (typed application data access and embedded SQLite).

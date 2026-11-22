@@ -5,23 +5,23 @@ description: "Write Python tests with pytest, fixtures, property, mutation, and 
 
 # Python Testing
 
-Prove behavior changes with tests that fail before the fix and pass with it (for test-only maintenance, read [pytest mechanics](references/pytest.md) directly; opt into [BDD & stakeholder reports](references/bdd.md) when non-technical owners co-own specs). Approved [ty baselines](../foundation/GUIDE.md#ty) only ever shrink.
+Prove behavior changes with tests that fail before the fix and pass with it (for test-only maintenance, read [pytest mechanics](references/pytest.md) directly; opt into [BDD & stakeholder reports](references/bdd.md) when stakeholders review specs or need acceptance reports). Approved [ty baselines](../foundation/GUIDE.md#ty) only ever shrink.
 
 ## Workflow
 
-1. **Confirm red -> green**: verify the test fails against unfixed code, then passes with the fix; run scoped mutation tests (`#mutation-tests`) on critical boundaries.
-1. **Audit test diffs for weakening** (explain every hit):
+1. **Confirm red -> green**: verify the test fails against unfixed code, then passes with the fix.
+1. **Audit test diffs for weakening** (run on non-trivial test edits; explain every hit):
 
    ```bash
    git diff -U0 <base> -- '*.py' '*.toml' | rg -s \
      -e '^-\s*assert\b' -e '^-.*match=' \
      -e '^\+.*(\bskip(if)?\b|xfail|mark\.wip\b|pragma: no cover|noqa|ignore\[|type: ignore|fail_under|filterwarnings|deselect|omit|exclude_also|baseline)'
-   git diff -U0 <base> -- 'tests/features/*.feature' | rg -s -e '^-[^-]' -e '^\+.*@(skip|xfail|wip)\b'
-   git ls-files -o --exclude-standard -- '*.py' 'tests/features/*.feature' \
+   git diff -U0 <base> -- '*.feature' | rg -s -e '^-[^-]' -e '^\+.*@(skip|xfail|wip)\b'
+   git ls-files -o --exclude-standard -- '*.py' '*.feature' \
      | xargs -r rg -s -nH '\bskip(if)?\b|xfail|@wip\b|mark\.wip\b|pragma: no cover|noqa|ignore\['
    ```
 
-1. **Check changed-line coverage** (review evidence, not a gate): `uv run --locked coverage xml -q --fail-under=0 -o .cache/coverage.xml && uvx --from 'diff-cover==<version>' diff-cover .cache/coverage.xml --compare-branch=<base> --include-untracked`.
+1. **Optional review evidence (on request or high-risk changes)**: check changed-line coverage (`uv run --locked coverage xml -q --fail-under=0 -o .cache/coverage.xml && uvx --from 'diff-cover==<version>' diff-cover .cache/coverage.xml --compare-branch=<base> --include-untracked`) or scoped mutation probes (`#mutation-tests`).
 
 ## Gotchas
 

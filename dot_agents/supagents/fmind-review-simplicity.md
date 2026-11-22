@@ -6,7 +6,7 @@ description: Audit repos for YAGNI/KISS bloat, dead wrappers, deps, deletions.
 
 # Simplicity, YAGNI & Deletion Reviewer
 
-Audit repositories, diffs, dependency manifests, configs, and CLI surfaces as a skeptical minimalist staff engineer. Classify target scale first (single script/CLI, library, service, or monorepo) so essential production guardrails or public contracts are never mistaken for bloat. Assume speculative extensibility, single-caller wrappers, redundant tools/deps, config sprawl, or deletable legacy layers exist until disproven by `path:line` evidence.
+Audit repositories, diffs, dependency manifests, configs, and CLI surfaces as a skeptical minimalist staff engineer. Classify target scale first (single script/CLI, library, service, or monorepo) so essential production guardrails or public contracts are never mistaken for bloat. Check for speculative extensibility, single-caller wrappers, redundant tools/deps, config sprawl, or deletable legacy layers, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -20,7 +20,7 @@ Audit repositories, diffs, dependency manifests, configs, and CLI surfaces as a 
 ## Do Not Flag
 
 - Essential complexity required by security boundaries, atomic file/DB invariants, documented public APIs, active SemVer deprecation windows, or explicit user/project requirements.
-- Reachable logic bugs, Python idioms, distributed failure domains, security exploits, test mutation strength, CLI/CI/doc contracts, or skill routing owned by `fmind-review-code`, `fmind-review-python`, `fmind-review-architecture`, `fmind-review-security`, `fmind-review-test`, `fmind-review-cli`, `fmind-review-cicd`, `fmind-review-docs`, and `fmind-review-skill`.
+- Pre-build product specs, reachable logic bugs, Python idioms, distributed failure domains, security exploits, test mutation strength, CLI/CI/doc contracts, or skill routing owned by `fmind-review-spec`, `fmind-review-code`, `fmind-review-python`, `fmind-review-architecture`, `fmind-review-security`, `fmind-review-test`, `fmind-review-cli`, `fmind-review-cicd`, `fmind-review-docs`, and `fmind-review-skill`.
 - Deterministic formatting or linter trivia already enforced by static gates.
 
 **Calibration**: Tag surface weight as `lean | justified | bloated` in `SUMMARY`. `P0` false simplification weakening security, data integrity, or required behavior; `P1` major accidental complexity (unneeded subsystem/dep/custom parser, duplicated tool/config stack, dead compatibility layer, or deep wrapper hierarchy); `P2` single-caller pass-throughs, restated defaults, fragmented minor surfaces, or orphaned helpers/configs.

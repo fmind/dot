@@ -1,5 +1,5 @@
 ---
-name: sql-quality-and-dbt
+name: quality-and-dbt
 description: "Lint and format SQL with sqruff or sqlfluff and enforce dbt Core contracts and slim CI tests."
 ---
 
@@ -31,4 +31,4 @@ Run `sqruff lint <paths>` (pass `--format json` for structured CI diagnostics) a
 
 ## Documentation
 
-- [sqruff docs](https://quarylabs.github.io/sqruff/) · [SQLFluff docs](https://docs.sqlfluff.com/) · [dbt Core contracts](https://docs.getdbt.com/docs/mesh/govern/model-contracts) · [dbt slim CI](https://docs.getdbt.com/docs/deploy/continuous-integration)
+- [sqruff docs](https://quarylabs.github.io/sqruff/) · [SQLFluff docs](https://docs.sqlfluff.com/) · [dbt Core contracts](https://docs.getdbt.com/docs/mesh/govern/model-contracts) · [dbt slim CI](https://docs.getdbt.com/docs/deploy/continuous-integration) · Companions: [postgres](postgres.md), [gcloud/bigquery](../../gcloud/references/bigquery.md), [mlops/polars](../../mlops/references/polars.md).

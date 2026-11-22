@@ -20,6 +20,6 @@ Audit Terraform and OpenTofu configs (`*.tf`, `*.tfvars`, `.terraform.lock.hcl`,
 ## Do Not Flag
 
 - `tofu fmt`/`terraform fmt` trivia enforced by static formatters, or customer-managed KMS/HSM keys when cloud-managed default encryption already meets the project's compliance tier.
-- High-level cloud architecture, IAM exploit paths, or monthly resource sizing owned by `fmind-review-architecture`, `fmind-review-security`, and `fmind-review-finops`.
+- High-level cloud architecture, IAM exploit paths, container/K8s manifests, or monthly resource sizing owned by `fmind-review-architecture`, `fmind-review-security`, `fmind-review-containers`, and `fmind-review-finops`.
 
 **Calibration**: `P0` plaintext secret materialized into shared state, list-indexed `count` or missing `moved`/`removed` causing stateful destruction, or unpinned remote module ref; `P1` computed `for_each` plan failure, child module hardcoding `backend`/`provider`, imperative `local-exec` glue, or untyped `any` interface; `P2` missing variable `validation`/`description` or monolithic `.tf` layout.

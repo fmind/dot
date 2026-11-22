@@ -11,7 +11,7 @@ Where managed hosts load the persona, global skills (`~/.agents/skills`), and wo
 
 - **Antigravity manifests & CLI overrides**: scans one level deep by default; `skills.json`, `rules.json`, `agents.json`, and `plugins.json` (`entries`/`inherits`/`exclude`) register nested or shared paths (`.gemini/config.json` `personal_customization_dir` supports per-user repo folders). CLI also loads `~/.gemini/antigravity-cli/skills/` and `~/.gemini/skills/`, which override workspace/personal skills and ignore manifest `exclude`.
 - **`gh skill list`** (preview; `--agent`, `--scope`, `--json`) scans host directories on disk without proving runtime loading.
-- **External/client repo bridges**: when working in third-party repos using Claude Code or Cursor, bridge `.claude/skills` → `../.agents/skills` (Claude Code 2.1.277+ reads `AGENTS.md` natively when `CLAUDE.md` is absent) and see [Cursor skills](https://cursor.com/docs/skills) (cloud workers see only project or image-installed packages, not local `~` files).
+- **External/client repos**: preserve existing third-party host layouts (`AGENTS.md` + `.agents/skills` stay primary; cloud workers see only project or image-installed packages, not local `~` files).
 - **Listings prove discovery only**: captured model inputs prove prompt inclusion, and instrumented test cases prove behavioral compliance.
 
 ## Same-name resolution

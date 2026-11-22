@@ -57,4 +57,4 @@ See [genie](references/genie.md) for local `genie` CLI sandbox, profile, layout,
 
 - [Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli) · [DABs](https://docs.databricks.com/aws/en/dev-tools/bundles) · [Genie Code CLI](https://docs.databricks.com/aws/en/genie-code/genie-code-cli) · [Unity Catalog](https://docs.databricks.com/aws/en/data-governance/unity-catalog)
 - Releases: [Databricks CLI](https://github.com/databricks/cli/releases) · [Genie Code CLI](https://github.com/databricks/genie-code-cli/releases)
-- Companions: [duckdb](../../../duckdb/SKILL.md), [python](../../../python/SKILL.md).
+- Companions: [sql](../../../sql/SKILL.md), [python](../../../python/SKILL.md).

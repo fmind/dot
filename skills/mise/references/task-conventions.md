@@ -29,6 +29,7 @@ Split `<task>:<x>` only when parts run independently:
   - `check:typos`: spelling (`typos`).
   - `check:links`: Markdown/site links (`lychee --offline --no-progress` / `lychee`).
   - `check:shell`: shell lint/format (`shellcheck` + `shfmt`).
+  - `check:tasks`: task and hook definitions (`mise tasks validate`, plus `lefthook validate` when `lefthook.yml` exists).
   - `check:actions`: workflow lint/audit ([jactionlint](../../github/references/jactionlint.md)).
 
 ## Conventions
@@ -49,6 +50,6 @@ Set `[settings.task]` `quiet = true` to hide command echoes while preserving chi
 
 - **Set `run_auto_install = false`** under `[settings.task]` so missing tools fail fast in hooks.
 - **Never symlink project `mise.toml` into `~/.config/mise/conf.d/`**: mise treats `conf.d` files as global, breaking `mise lock` (`No tools configured to lock`) and leaking tasks.
-- **Pin `[task_config] dir = "{{config_root}}"`** when parent configs exist; test from root and subdirectories.
+- **Pin `[task_config] dir = "{{config_root}}"`** when parent configs exist; test from root and subdirectories. Once `mise.lock` is committed, add `[settings] locked = true` to enforce locked installs locally as well as in CI.
 - **Set `raw = true` for interactive tasks when redacting `.env`**: `_.file = { path = ".env", redact = true }` pipes output and nulls `stdin` once `.env` exists.
 - **Edit YAML safely with `yq` v4**: read env via `strenv(VAR)` (`yq -i '.key = strenv(VAL)' file.yml`) instead of shell interpolation; restrict `typos` `--no-follow`/exclusions to vendored tokens.

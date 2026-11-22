@@ -1,6 +1,6 @@
 ---
 name: diagrams-as-code
-description: "Create Typst, D2, Mermaid, SVG diagrams, VHS demos, visual variants."
+description: "Create Typst, D2, Mermaid, SVG diagrams, Altair/Matplotlib charts, VHS demos, visual variants."
 license: MIT
 metadata:
   kind: collection
@@ -16,13 +16,14 @@ Use diagrams for boundaries, flows, lifecycles, and comparisons (tables/lists wh
 
 ## Workflow
 
-1. **Pick a guide below**: `typst` (composed cards), `d2` (routed graphs), `mermaid` (GitHub/PR/Zensical fenced blocks), `svg` (logos/marks), `recording` (VHS demos), `variants` (open look or rejected draft).
+1. **Pick a guide below**: `typst` (composed cards), `d2` (routed graphs), `mermaid` (GitHub/PR/Zensical fenced blocks), `charts` (Altair/Matplotlib quantitative plots), `svg` (logos/marks), `recording` (VHS demos), `variants` (open look or rejected draft).
 1. **Render & inspect**: keep editable sources, inspect PNG/SVG (`>= 12px`, fonts, `>= 4.5:1` contrast, light/dark), and audit via `fmind-review-visuals` / `fmind-review-frontend` ([subagent](../subagent/SKILL.md)).
 
 ## Task guides
 
 <!-- guides:start -->
 
+- [charts](references/charts.md): Quantitative data charts with Altair/vl-convert and Matplotlib: honest scales, CVD palettes, direct labels, PNG/SVG export.
 - [d2](references/d2.md): D2 sources, standalone layouts, theming, and exports.
 - [mermaid](references/mermaid.md): Technical-doc diagrams in Markdown and GitHub: syntax, validation, and rendering.
 - [recording](references/recording/GUIDE.md): Record reproducible, isolated terminal demos with VHS, ttyd, and FFmpeg.

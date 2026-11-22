@@ -2,7 +2,7 @@
 # Docs: https://mise.jdx.dev/configuration.html
 
 # Fail early on a mise older than the one CI pins (keep equal to the workflow `version:`).
-min_version = "2026.11.9"
+min_version = "2026.11.12"
 
 [settings]
 lockfile = true
@@ -13,6 +13,14 @@ minimum_release_age = "0d"
 run_auto_install = false
 # Preserve plan and diagnostic output; MISE_TASK_QUIET=false restores command echoes.
 quiet = true
+
+[task_config]
+dir = "{{config_root}}"
+
+[env]
+# Keep CI and hook logs free of download bars, and ignore any global Trivy config.
+TRIVY_CONFIG = "trivy.yaml"
+TRIVY_NO_PROGRESS = "true"
 
 [tools]
 betterleaks = "latest"
@@ -52,7 +60,7 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no network (pre-commit)"
-depends = ["check:actions", "check:format", "check:leaks", "check:lint", "check:validate"]
+depends = ["check:actions", "check:format", "check:leaks", "check:lint", "check:tasks", "check:validate"]
 
 [tasks."check:actions"]
 alias = "ca"
@@ -91,6 +99,10 @@ run = "tflint --recursive"
 alias = "cn"
 description = "Scan IaC, dependencies, and licenses (trivy)"
 run = "trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars ."
+
+[tasks."check:tasks"]
+description = "Validate repository task and Git hook definitions"
+run = ["mise tasks validate", "lefthook validate"]
 
 [tasks."check:validate"]
 description = "Validate configuration syntax and internal consistency"

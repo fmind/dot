@@ -18,7 +18,7 @@ Both use YAML frontmatter + Markdown body (Antigravity also discovers `.agents/a
 
 ## Permission limits
 
-- **Shared `secret-deny-paths.tmpl`**: defines the shared credential paths (incl. `~/.local/share/atuin`, `~/.cache/huggingface/stored_tokens`, `.private.fish`) and secret globs (`*.env*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`) enforced by managed Antigravity configs. Copilot (`COPILOT_ALLOW_ALL=1`) enforces no secret-read denies globally or per agent.
+- **Shared `agy-secret-denies.tmpl`**: defines the credential paths (incl. `~/.local/share/atuin`, `~/.cache/huggingface/stored_tokens`, `.private.fish`, `.pgpass`) and secret globs (`*.env*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`) enforced by managed Antigravity configs. Copilot (`COPILOT_ALLOW_ALL=1`) enforces no secret-read denies globally or per agent.
 - **Antigravity (`agy`)**:
   - Set `subagent: true` (`mainAgent: false` if subagent-only), `excludeDefaultComponents: true`, `inheritMcp: false`, and `commandExecutionPolicy: "off"` for read-only reviewers.
   - Omitting `tools` leaves a minimal read/web/messaging set. An explicit list replaces it from `init.tools`: `view_file`, `list_dir`, `find_by_name`, `grep_search`, `finish`, plus `read_url_content`/`search_web` on `_reviewer_web`.

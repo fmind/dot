@@ -18,16 +18,16 @@ Keep producers dynamic (built-in subagents + skills); encode quality gates as st
 
 Active roles are injected by host subagent discovery (`/agents`). Each extends `_reviewer.md` (air-gapped read-only) or `_reviewer_web.md` (`factcheck` only), with zero shell/MCP/edit/delegation tools across five lenses:
 
-- **Software & Languages**: completeness, architecture, code, simplicity, Python, shell, tests, CLI, API.
+- **Software & Languages**: spec/PRD, completeness, architecture, code, simplicity, Python, shell, tests, CLI, API.
 - **Infra, Reliability, Security & FinOps**: Terraform/OpenTofu, containers, CI/CD, SRE, security, FinOps.
-- **Data, ML & AI**: data/SQL, MLOps, LLM agents/RAG/MCP, Agent Skills (plus repo-local `fmind-review-supagent`).
+- **Data, ML & AI**: data/SQL, analytics/experiments, MLOps, LLM agents/RAG/MCP, Agent Skills, reviewer supagents.
 - **Docs, Fact-Checking, Writing & Legal**: docs, live fact-checking, busy-reader prose (`human`), compliance.
 - **Visuals, Frontend & Proposals**: visuals/decks/charts, frontend/WCAG/CWV, commercial proposals/SOWs.
 
 ## Author, Compile & Run
 
-1. **Author/refresh** ([authoring](references/authoring.md)): 1 discipline = 1 supagent (no `references/`), pragmatic risk-scaled model-delta rules (`35`–`75` compiled lines, `< 7,000` chars; [template](templates/reviewer.md)), grounded in verified primary docs without inlining URL walls in compiled prompts. Build & check via `supagents build --strict --project && supagents clean --project && supagents check --strict --project`, then audit via `fmind-review-supagent` and [calibration](references/calibration.md).
-1. **Coordinator-as-critic loop**: run linters/tests/scanners/renders first (`0` tokens); capture frozen diffs, manifests, gate logs, `vale --output=JSON`, `--help`, and PNG/PDF/DOM renders to a temp dir (`agy` flags in [headless-review](../agent-harnesses/references/headless-review/GUIDE.md)); fan out `1`–`5` roles in parallel (isolate `fmind-review-factcheck` on secret-bearing repos per [cross-harness-agents](../agent-harnesses/references/cross-harness-agents.md#permission-limits)); verify `rule:`/`loc:`/`evidence:` and fix verified defects + `DELETIONS` (max `2` rounds) until `PASS`.
+1. **Author/refresh** ([authoring](references/authoring.md)): 1 discipline = 1 supagent (no `references/`), pragmatic risk-scaled model-delta rules (`~35`–`75` compiled lines, `< 7,000` chars; [template](templates/reviewer.md)), grounded in verified primary docs without inlining URL walls in compiled prompts. Build & check via `supagents build --strict --project && supagents clean --project && supagents check --strict --project`, then audit via `fmind-review-supagent` and [calibration](references/calibration.md).
+1. **Coordinator-as-critic loop**: run linters/tests/scanners/renders first (`0` tokens); capture frozen diffs, manifests, gate logs, `vale --output=JSON`, `--help`, and PNG/PDF/DOM renders to a temp dir (`agy` flags in [headless-review](../agent-harnesses/references/headless-review/GUIDE.md)); fan out `1`–`5` roles in parallel (isolate `fmind-review-factcheck` on secret-bearing repos per [cross-harness-agents](../agent-harnesses/references/cross-harness-agents.md#permission-limits)); verify `rule:`/`loc:`/`evidence:`, fix verified `P0`–`P1` defects (plus quick `P2`/`DELETIONS` in one pass), cap at `2` rounds, and stop once `P0`–`P1` reach `PASS` (never re-review for `P2` or `DELETIONS`).
 
 ## Gotchas
 

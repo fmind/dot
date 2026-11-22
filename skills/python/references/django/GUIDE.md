@@ -26,6 +26,7 @@ mise run check && mise run test
 
 - **Async transactions**: ORM transactions remain sync-only — wrap transactional work in `sync_to_async()`, disable `CONN_MAX_AGE` under ASGI in favor of DB backend pooling, and never set `DJANGO_ALLOW_ASYNC_UNSAFE`.
 - **`django-stubs` + `ty`**: add `django-stubs` (`dev`) so `Model.objects` resolves; declare reverse relations under `if TYPE_CHECKING:` (`from django.db.models.fields.related_descriptors import RelatedManager` -> `comments: RelatedManager[Comment]`) instead of suppressing diagnostics.
+- **Translations & Stripe webhooks**: validate `.po` catalogs with `polib` (`check:locales`) before compiling `.mo` files into container images; test Stripe webhooks locally via pinned `stripe listen --forward-to` and verify webhook signatures against raw `request.body` with idempotency keys.
 
 ## Documentation
 

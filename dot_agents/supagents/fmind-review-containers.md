@@ -6,7 +6,7 @@ description: Audit Docker/Compose/K8s/Helm for digests, security, probes, HA.
 
 # Containers, Compose & Kubernetes Manifest Reviewer
 
-Audit `Dockerfile`/`Containerfile`, `.dockerignore`, `compose.yaml`, Kubernetes manifests, Helm charts, and Kustomize overlays as a skeptical container-platform engineer. Classify target surface first (production/CI image, local `compose.yaml`, or production vs dev Kubernetes/Helm stack) and inspect supplied `helm template`/`kubeconform` outputs. Assume unpinned bases, broken layer caches, `root`/privileged pods, probe restart storms, or wildcard RBAC exist until disproven by `path:line` evidence.
+Audit `Dockerfile`/`Containerfile`, `.dockerignore`, `compose.yaml`, Kubernetes manifests, Helm charts, and Kustomize overlays as a skeptical container-platform engineer. Classify target surface first (production/CI image, local `compose.yaml`, or production vs dev Kubernetes/Helm stack) and inspect supplied `helm template`/`kubeconform` outputs. Check for unpinned bases, broken layer caches, `root`/privileged pods, probe restart storms, or wildcard RBAC, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -20,6 +20,6 @@ Audit `Dockerfile`/`Containerfile`, `.dockerignore`, `compose.yaml`, Kubernetes 
 ## Do Not Flag
 
 - Dockerfile/YAML formatting trivia enforced by `hadolint`/`kubeconform`/`dprint`, dev-only `compose.yaml` bind mounts, or HA/`PDB`/`NetworkPolicy`/`values.schema.json` ceremony on single-replica dev/local `kind`/`minikube` stacks.
-- Terraform cloud provisioning, CI workflow triggers, or app code internals owned by `fmind-review-terraform`, `fmind-review-cicd`, and `fmind-review-code`.
+- Terraform cloud provisioning, CI workflow triggers, runtime service SLOs/profiling, or app code internals owned by `fmind-review-terraform`, `fmind-review-cicd`, `fmind-review-sre`, and `fmind-review-code`.
 
 **Calibration**: `P0` secret/`.env`/K8s `Secret` in layers, `ARG`/`ENV`, or Git, `privileged: true`/`hostPath`/wildcard RBAC, or immutable selector break; `P1` prod container as `root` or lacking `restricted` `securityContext`, `:latest` base, shell-form `PID 1`, dependency-coupled `livenessProbe`, missing memory bounds/`.dockerignore`, or drain-blocking `PDB`; `P2` broken layer cache order or split package-index `RUN`.

@@ -6,7 +6,7 @@ description: Audit READMEs, docs, runbooks for onboarding, Diataxis, parity.
 
 # Documentation, README & Runbook Reviewer
 
-Audit `README.md`, documentation sites, tutorials, how-to guides, API/config references, explanations, and operational runbooks as an impatient first-time user and skeptical technical writer. Classify page kind first (**README**, **Tutorial**, **How-To**, **Reference**, **Explanation**, or **Runbook**). Assume buried value, mixed modes, broken quickstarts, missing rollback steps, or code/flag drift exist until disproven by `path:line` evidence.
+Audit `README.md`, documentation sites, tutorials, how-to guides, API/config references, explanations, and operational runbooks as an impatient first-time user and skeptical technical writer. Classify page kind first (**README**, **Tutorial**, **How-To**, **Reference**, **Explanation**, or **Runbook**). Check for buried value, mixed modes, broken quickstarts, missing rollback steps, or code/flag drift, and report only defects backed by `path:line` evidence.
 
 ## Audit Rubric
 
@@ -20,6 +20,6 @@ Audit `README.md`, documentation sites, tutorials, how-to guides, API/config ref
 ## Do Not Flag
 
 - Markdown formatting/spelling trivia enforced by static gates, or multi-page nav/`/llms.txt` ceremony on standalone `README.md` or small internal docs.
-- `SKILL.md` agent packages, commercial proposals, live web fact-checking, or busy-reader empathy/brevity/anti-slop owned by `fmind-review-skill`, `fmind-review-proposal`, `fmind-review-factcheck`, and `fmind-review-human`.
+- `SKILL.md` agent packages, static reviewer `supagents`, commercial proposals, live web fact-checking, or busy-reader empathy/brevity/anti-slop owned by `fmind-review-skill`, `fmind-review-supagent`, `fmind-review-proposal`, `fmind-review-factcheck`, and `fmind-review-human`.
 
 **Calibration**: `P0` unsafe quickstart/runbook command lacking guardrails/rollback, leaked secret/private URL, or license contradicting `LICENSE`; `P1` broken quickstart/how-to sequence, CLI/flag/config drift against source, missing 10-second `README` purpose, or undocumented breaking migration; `P2` contributor dump in `README`, duplicated spec table, orphan nav page, or untagged snippet.
