@@ -36,7 +36,7 @@ Split `<task>:<x>` only when parts run independently:
 
 - **Parallelize offline vs network checks**: `check` depends on `check:local` (`check:deps`, `check:format`, `check:leaks`, `check:lint`, `check:types`—`pre-commit`) and `check:network` (`check:vuln`, optional `check:scan`—`pre-push`) per [lefthook](../../github/references/lefthook.md). Use `wait_for` for ordering without forcing execution.
 - **Declare `sources` and `outputs`** on build tasks so unchanged inputs skip rebuilds.
-- **Forward file args cleanly**: without `usage`, mise appends CLI args to the last command (`format:dprint` takes `{staged_files}` directly). Multi-command formatters (`format:python`) or custom defaults declare `usage = 'arg "[files]..."'` (+ `default=`) and start with `eval "set -- $usage_files"` so one task serves hooks and `mise run format` without `:files` duplicates.
+- **Forward file args cleanly**: without `usage`, mise appends CLI args to the last command (`format:dprint` takes `{staged_files}` directly). Multi-command formatters (`format:python`) or custom defaults declare `usage = 'arg "[files]..."'` and start with `eval "set -- ${usage_files:-}"` (set multi-file defaults in `run` via `[ $# -gt 0 ] || set -- ...`—`default="a b"` quotes all words as one arg) so one task serves hooks and `mise run format` without `:files` duplicates.
 
 ## Concise Output
 
@@ -50,6 +50,6 @@ Set `[settings.task]` `quiet = true` to hide command echoes while preserving chi
 
 - **Set `run_auto_install = false`** under `[settings.task]` so missing tools fail fast in hooks.
 - **Never symlink project `mise.toml` into `~/.config/mise/conf.d/`**: mise treats `conf.d` files as global, breaking `mise lock` (`No tools configured to lock`) and leaking tasks.
-- **Pin `[task_config] dir = "{{config_root}}"`** when parent configs exist; test from root and subdirectories. Once `mise.lock` is committed, add `[settings] locked = true` to enforce locked installs locally as well as in CI.
+- **Pin `[task_config] dir = "{{config_root}}"`** when parent configs exist; test from root and subdirectories. Once `mise.lock` is committed, add `[tool_config] locked = true` (which overrides a global `locked_scopes = ["global"]`) to enforce locked installs locally as well as in CI.
 - **Set `raw = true` for interactive tasks when redacting `.env`**: `_.file = { path = ".env", redact = true }` pipes output and nulls `stdin` once `.env` exists.
 - **Edit YAML safely with `yq` v4**: read env via `strenv(VAR)` (`yq -i '.key = strenv(VAL)' file.yml`) instead of shell interpolation; restrict `typos` `--no-follow`/exclusions to vendored tokens.
