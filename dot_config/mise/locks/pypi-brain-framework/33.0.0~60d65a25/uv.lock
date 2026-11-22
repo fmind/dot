@@ -26,7 +26,7 @@ wheels = [
 
 [[package]]
 name = "brain-framework"
-version = "32.0.0"
+version = "33.0.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "croniter" },
@@ -35,9 +35,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "watchfiles" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/50/f244a6e4a1948534179af82eaaaafe8b5fe2b18a7702b4836bbcf4506777/brain_framework-32.0.0.tar.gz", hash = "sha256:3d3dc13e08c2c6b1bf498276e2b57f9ad40181ab98e61312b8cad8ae60c9ed1d", size = 108648, upload-time = "2026-11-22T12:32:54.153Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/89/b59816cba07bfb67b535c52a9f74c95c263286567f40c00e9e4a731b6f80/brain_framework-33.0.0.tar.gz", hash = "sha256:d5324cc5e7b18b9f5401778dd9caf5c309a0e28b6e165e749e2f773c12449bdb", size = 111650, upload-time = "2026-11-22T18:52:39.127Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/bd/c4ae165888de4fa2091e8e42e53b730c4bcaa36f5a9ec4a72b9ad305b887/brain_framework-32.0.0-py3-none-any.whl", hash = "sha256:a9bc52c00c988e29b0fdad4bc4936868394f288186d743716828824a047f05ea", size = 120227, upload-time = "2026-11-22T12:32:52.706Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/e2/8c6bd5090c1a2a2bb1ee7ed67517215a4a79e33e97f0a7cb7c81ac9bfd99/brain_framework-33.0.0-py3-none-any.whl", hash = "sha256:46900bde20c4908e5dc9512a6ac539dc3686789876e7c70db040e4576f1c3daf", size = 123241, upload-time = "2026-11-22T18:52:37.893Z" },
 ]
 
 [[package]]
@@ -106,7 +106,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brain-framework", specifier = "==32.0.0" }]
+requires-dist = [{ name = "brain-framework", specifier = "==33.0.0" }]
 
 [[package]]
 name = "python-dateutil"
