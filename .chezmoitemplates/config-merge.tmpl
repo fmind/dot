@@ -1,25 +1,21 @@
 {{- /*
-  Merge managed keys into a host-written config: seed missing `defaults`, keep host state,
-  enforce `managed` (unsetting `replace` top-level keys first so dropped subkeys disappear),
-  and return `stdin` unchanged on convergence so host formatting and comments survive.
-  Params: stdin, managed, defaults (opt), replace (opt), format (json|jsonc|toml).
+  Merge managed keys into a host-written JSON/JSONC config: seed missing `defaults`,
+  keep host state, enforce `managed`, and return `stdin` unchanged on convergence so
+  host formatting and comments survive.
+  Params: stdin, managed, defaults (opt), format (json|jsonc).
   Invariants: chezmoi `fromJson` (not sprig float64 `mustFromJson`) preserves integer types;
   `deepCopy` prevents `mergeOverwrite` from mutating `$current` before `deepEqual`.
 */ -}}
 {{- $format := get . "format" | default "json" -}}
-{{- if not (has $format (list "json" "jsonc" "toml")) }}{{ fail (printf "unsupported config format %q" $format) }}{{ end -}}
+{{- if not (has $format (list "json" "jsonc")) }}{{ fail (printf "unsupported config format %q" $format) }}{{ end -}}
 {{- $current := dict -}}
 {{- if ne (trim .stdin) "" -}}
-  {{- if eq $format "toml" }}{{ $current = fromToml .stdin }}{{ else if eq $format "jsonc" }}{{ $current = fromJsonc .stdin }}{{ else }}{{ $current = fromJson .stdin }}{{ end -}}
+  {{- if eq $format "jsonc" }}{{ $current = fromJsonc .stdin }}{{ else }}{{ $current = fromJson .stdin }}{{ end -}}
 {{- end -}}
 {{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
-{{- $host := deepCopy $current -}}
-{{- range $key := get . "replace" | default list }}{{ $_ := unset $host $key }}{{ end -}}
-{{- $desired := mergeOverwrite (deepCopy (get . "defaults" | default dict)) $host .managed -}}
+{{- $desired := mergeOverwrite (deepCopy (get . "defaults" | default dict)) (deepCopy $current) .managed -}}
 {{- if and (ne (trim .stdin) "") (deepEqual $current $desired) -}}
 {{ .stdin -}}
-{{- else if eq $format "toml" -}}
-{{ $desired | toToml -}}
 {{- else -}}
 {{ $desired | toPrettyJson }}
 {{- end -}}

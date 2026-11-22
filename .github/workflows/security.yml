@@ -31,7 +31,7 @@ jobs:
       - name: Scan complete Git history
         run: mise run check:leaks:full
       - name: Scan full checkout and audit locked dependencies
-        # Delegate to the task so this never drifts from the local pre-push gate (Trivy and uv audit).
+        # Delegate to the task so this never drifts from `mise run check:network` (Trivy and uv audit).
         run: mise run check:network
       - name: Audit workflows online
         # The CI gate stays offline for speed and determinism. This weekly pass adds

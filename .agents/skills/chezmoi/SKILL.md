@@ -1,13 +1,13 @@
 ---
 name: chezmoi
-description: "Manage chezmoi sources, templates, age secrets, diffs, and apply in fmind/dot."
+description: "Manage chezmoi sources, templates, age secrets, diffs, apply in fmind/dot."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/chezmoi
   created: "2026-07-12"
-  updated: "2026-11-17"
+  updated: "2026-11-22"
 ---
 
 # Chezmoi Source Standard

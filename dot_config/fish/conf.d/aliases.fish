@@ -11,8 +11,8 @@ if status is-interactive
     abbr -a c gcloud
     # d:docker
     abbr -a d docker
-    # e:lazydocker
-    abbr -a e lazydocker
+    # e:exit
+    abbr -a e exit
     # f:fmind
     abbr -a f fmind
     # g:git
@@ -20,15 +20,16 @@ if status is-interactive
     abbr -a gl lazygit
     # h:dot
     abbr -a h dot
-    abbr -a ha "dot stats"
     abbr -a hd "dot doctor"
     abbr -a hh "dot doctor --headroom"
     abbr -a hp "dot pull"
     abbr -a hs "dot status --fetch --needs-attention"
-    # i:fastfetch
-    abbr -a i fastfetch
+    # i:copilot
+    abbr -a i copilot
     # j:fd
     abbr -a j fd
+    # k:duckdb
+    abbr -a k duckdb
     # l:lsd
     alias ls="lsd"
     abbr -a l "lsd --long --all"
@@ -41,7 +42,7 @@ if status is-interactive
     # n:npm
     abbr -a n npm
     # o:open
-    if test (uname) = Darwin
+    if test (uname -s) = Darwin
         abbr -a o open
     else
         alias open=xdg-open
@@ -63,6 +64,8 @@ if status is-interactive
     abbr -a r rg
     # s:ssh
     abbr -a s ssh
+    # t:typst
+    abbr -a t typst
     # u:uv
     abbr -a u uv
     abbr -a uf "uv run --frozen"
@@ -78,4 +81,5 @@ if status is-interactive
     abbr -a x xh
     # y:yazi
     abbr -a y yazi
+    # z:zoxide (defined by zoxide init in plugins.fish)
 end

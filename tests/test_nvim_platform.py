@@ -323,3 +323,52 @@ end
 """,
         AUTOCMD_CONFIG=str(ROOT / "dot_config/nvim/lua/config/autocmds.lua"),
     )
+
+
+def test_lazy_bootstrap_pins_exact_commit_from_lazy_lock_and_fails_closed(tmp_path: Path) -> None:
+    nvim_cfg = tmp_path / "config" / "nvim"
+    nvim_cfg.mkdir(parents=True)
+    shutil.copyfile(ROOT / "dot_config/nvim/lazy-lock.json", nvim_cfg / "lazy-lock.json")
+    run_lua(
+        tmp_path,
+        """
+local calls = {}
+local orig_system = vim.fn.system
+vim.fn.system = function(cmd)
+  table.insert(calls, cmd)
+  return ""
+end
+package.preload.lazy = function() return { setup = function() end } end
+package.preload["config.theme"] = function() return "fmind" end
+dofile(vim.env.LAZY_CONFIG)
+vim.fn.system = orig_system
+assert(#calls == 2, "expected clone + detached checkout, got " .. tostring(#calls))
+assert(calls[1][1] == "git" and calls[1][2] == "clone" and calls[1][4] == "--no-checkout")
+assert(calls[2][1] == "git" and calls[2][4] == "checkout" and calls[2][5] == "--detach")
+assert(calls[2][6]:match("^[0-9a-f]+$") and #calls[2][6] == 40, "expected 40-char commit SHA")
+""",
+        LAZY_CONFIG=str(ROOT / "dot_config/nvim/lua/config/lazy.lua"),
+    )
+
+    bad_dir = tmp_path / "bad"
+    (bad_dir / "config" / "nvim").mkdir(parents=True)
+    (bad_dir / "config" / "nvim" / "lazy-lock.json").write_text('{"lazy.nvim": {"commit": "main"}}\n', encoding="utf-8")
+    nvim = shutil.which("nvim")
+    assert nvim
+    probe = bad_dir / "probe.lua"
+    probe.write_text("dofile(vim.env.LAZY_CONFIG)\n", encoding="utf-8")
+    res = subprocess.run(
+        [nvim, "--headless", "-u", "NONE", "-i", "NONE", "-l", str(probe)],
+        env={
+            **os.environ,
+            "XDG_CONFIG_HOME": str(bad_dir / "config"),
+            "XDG_DATA_HOME": str(bad_dir / "data"),
+            "LAZY_CONFIG": str(ROOT / "dot_config/nvim/lua/config/lazy.lua"),
+        },
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert res.returncode == 1
+    assert not (bad_dir / "data" / "nvim" / "lazy" / "lazy.nvim").exists()

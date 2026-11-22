@@ -5,7 +5,8 @@ message: "Drop AI cliché '%s'; state the concrete fact or outcome directly."
 level: error
 ignorecase: true
 tokens:
-  - delv(?:e[sd]?|ing)
+  - delve\s+(?:into|deeper|further)
+  - delv(?:e[sd]|ing)
   - embark(?:s|ed|ing)? on (?:a |this )?journey
   - ever[- ]evolving landscape
   - game[- ]chang(?:er|ers|ing)

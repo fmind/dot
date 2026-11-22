@@ -4,4 +4,4 @@ message: "Split long sentence (> 40 words) for easier scanning."
 level: warning
 scope: sentence
 max: 40
-token: \b\w+\b
+token: "[\\p{L}\\p{N}]+(?:['’.-][\\p{L}\\p{N}]+)*"

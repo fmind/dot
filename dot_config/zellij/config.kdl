@@ -12,6 +12,8 @@ show_release_notes false
 show_startup_tips false
 // Prevent mouse scrolling from implicitly entering and exiting Scroll mode.
 scroll_mode_sync false
+// Control nested SSH Zellij sessions automatically on focus without prompting.
+nested_session_handling "descend"
 
 // Forward pane OSC 9/777/99 notifications to the host terminal (Ghostty) for OS popups.
 host_notification_protocol "auto"

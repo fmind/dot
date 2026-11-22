@@ -24,6 +24,7 @@ TIMEOUT_SECONDS = 60
 class ToolCall(TypedDict):
     tool: str
     args: list[str]
+    ignored_mise: str | None
 
 
 FAKE_TOOL = """#!{python}
@@ -35,11 +36,12 @@ import sys
 tool = Path(sys.argv[0]).name
 args = sys.argv[1:]
 with Path(os.environ["BOOTSTRAP_LOG"]).open("a", encoding="utf-8") as stream:
-    stream.write(json.dumps({{"tool": tool, "args": args}}) + "\\n")
+    stream.write(json.dumps({{"tool": tool, "args": args, "ignored_mise": os.environ.get("MISE_IGNORED_CONFIG_PATHS")}}) + "\\n")
 
-if tool == "chezmoi" and "https://github.com/fmind/dot.git" in args:
-    source = Path(args[args.index("--source") + 1])
-    source.mkdir(parents=True)
+if tool == "git" and args[:2] == ["clone", "https://github.com/fmind/dot.git"]:
+    Path(args[2]).mkdir(parents=True)
+elif tool == "mise" and "which" in args and args[-1] == "chezmoi":
+    print(os.environ["FAKE_CHEZMOI_BIN"])
 elif tool == "curl" and "FAKE_MISE_STOCK" in os.environ:
     # Stand in for https://mise.run, including an interrupted transfer of valid shell.
     if os.environ.get("FAKE_MISE_TRUNCATED"):
@@ -65,7 +67,7 @@ def pinned_mise_version() -> str:
 
 
 class BootstrapFixture:
-    def __init__(self, root: Path, *, mise_installed: bool = True) -> None:
+    def __init__(self, root: Path, *, mise_installed: bool = True, chezmoi_installed: bool = True) -> None:
         self.home = root / "home"
         self.bin = root / "bin"
         self.log = root / "calls.jsonl"
@@ -74,7 +76,8 @@ class BootstrapFixture:
         stock = root / "stock"
         stock.mkdir()
         for name in ("chezmoi", "curl", "git", "mise"):
-            executable = (self.bin if mise_installed or name != "mise" else stock) / name
+            in_bin = (mise_installed or name != "mise") and (chezmoi_installed or name != "chezmoi")
+            executable = (self.bin if in_bin else stock) / name
             executable.write_text(FAKE_TOOL.format(python=sys.executable), encoding="utf-8")
             executable.chmod(0o755)
         self.environment = {
@@ -86,6 +89,8 @@ class BootstrapFixture:
         }
         if not mise_installed:
             self.environment["FAKE_MISE_STOCK"] = str(stock / "mise")
+        if not chezmoi_installed:
+            self.environment["FAKE_CHEZMOI_BIN"] = str(stock / "chezmoi")
 
     def run(self) -> subprocess.CompletedProcess[str]:
         bash = shutil.which("bash")
@@ -115,18 +120,49 @@ def test_first_install_and_rerun_use_the_bounded_task_sequence(tmp_path: Path) -
     assert second.returncode == 0, second.stdout + second.stderr
     source = str(fixture.source)
     expected = [
-        {
-            "tool": "chezmoi",
-            "args": ["init", "--force", "https://github.com/fmind/dot.git", "--source", source],
-        },
+        {"tool": "git", "args": ["clone", "https://github.com/fmind/dot.git", source]},
         {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
-        {"tool": "mise", "args": ["-C", source, "run", "install"]},
         {"tool": "chezmoi", "args": ["init", "--force", "--source", source]},
+        {"tool": "mise", "args": ["-C", source, "run", "install"]},
         {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"]},
+        {"tool": "chezmoi", "args": ["init", "--force", "--source", source]},
         {"tool": "mise", "args": ["-C", source, "run", "install"]},
     ]
-    assert fixture.calls() == expected
+    assert [(c["tool"], c["args"]) for c in fixture.calls()] == [(c["tool"], c["args"]) for c in expected]
     assert not (fixture.home / ".config" / "chezmoi" / "key.txt").exists()
+
+    # Rerun with SKIP_GIT_PULL unset fast-forwards the existing repository.
+    fixture.environment.pop("SKIP_GIT_PULL", None)
+    fixture.log.unlink()
+    third = fixture.run()
+    assert third.returncode == 0, third.stdout + third.stderr
+    assert [(c["tool"], c["args"]) for c in fixture.calls()] == [
+        ("git", ["-C", source, "pull", "--ff-only"]),
+        ("mise", ["trust", "-y", f"{source}/mise.toml"]),
+        ("chezmoi", ["init", "--force", "--source", source]),
+        ("mise", ["-C", source, "run", "install"]),
+    ]
+
+
+def test_missing_chezmoi_uses_locked_repository_install(tmp_path: Path) -> None:
+    fixture = BootstrapFixture(tmp_path, chezmoi_installed=False)
+    result = fixture.run()
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    source = str(fixture.source)
+    ignored = str(fixture.home / ".config" / "mise")
+    assert fixture.calls() == [
+        {"tool": "git", "args": ["clone", "https://github.com/fmind/dot.git", source], "ignored_mise": None},
+        {"tool": "mise", "args": ["trust", "-y", f"{source}/mise.toml"], "ignored_mise": None},
+        {
+            "tool": "mise",
+            "args": ["-C", source, "--locked", "install", "-y", "chezmoi"],
+            "ignored_mise": ignored,
+        },
+        {"tool": "mise", "args": ["-C", source, "which", "chezmoi"], "ignored_mise": ignored},
+        {"tool": "chezmoi", "args": ["init", "--force", "--source", source], "ignored_mise": None},
+        {"tool": "mise", "args": ["-C", source, "run", "install"], "ignored_mise": None},
+    ]
 
 
 def test_missing_mise_is_installed_at_the_tested_version(tmp_path: Path) -> None:
@@ -136,7 +172,7 @@ def test_missing_mise_is_installed_at_the_tested_version(tmp_path: Path) -> None
     assert result.returncode == 0, result.stdout + result.stderr
     requested = Path(f"{fixture.log}.requested").read_text(encoding="utf-8")
     assert requested == f"v{pinned_mise_version()}"
-    assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "chezmoi"]
+    assert [call["tool"] for call in fixture.calls()[:2]] == ["curl", "git"]
 
 
 def test_interrupted_mise_download_is_never_executed(tmp_path: Path) -> None:
@@ -164,9 +200,9 @@ def test_every_copy_of_the_mise_version_agrees() -> None:
                     relative = path.relative_to(ROOT)
                     copies[f"{relative}:{name}:{index}"] = str(step.get("with", {}).get("version"))
     for template in (
-        "skills/python-stack/references/foundation/templates",
+        "skills/python/references/foundation/templates",
         "skills/infra-as-code/templates",
-        "skills/documentation-site/templates",
+        "skills/docs/references/site/templates",
     ):
         config = tomllib.loads((ROOT / template / "mise.toml").read_text(encoding="utf-8"))
         copies[f"{template}/mise.toml"] = str(config.get("min_version"))
@@ -194,7 +230,7 @@ def test_dprint_template_plugins_and_dockerfile_pins_match_repo_locks() -> None:
     lock = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))["tools"]
     python_version = lock["python"][0]["version"]
     uv_version = lock["uv"][0]["version"]
-    dockerfile = (ROOT / "skills/docker/references/containerize/templates/Dockerfile").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "skills/containers/references/containerize/templates/Dockerfile").read_text(encoding="utf-8")
     assert f"FROM python:{python_version}-slim@sha256:" in dockerfile
     assert f"COPY --from=ghcr.io/astral-sh/uv:{uv_version}@sha256:" in dockerfile
 

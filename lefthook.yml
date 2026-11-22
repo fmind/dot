@@ -2,39 +2,33 @@
 # Docs: https://lefthook.dev/configuration/
 
 glob_matcher: doublestar
-# Jobs run in list order: formatters fix and restage only the staged files, then checks
-# validate the tree. format:dprint explains why generated skill indexes are not refreshed here.
+# Jobs run in list order: formatters fix and restage only the staged files, then fast
+# safety checks guard secrets, privacy, and Python lint. CI (`mise run all`) owns the full gate.
 pre-commit:
   jobs:
     - name: format docs and config
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
-      run: mise run format:dprint {staged_files}
+      run: mise run format:dprint -- {staged_files}
       stage_fixed: true
     - name: format Lua
       glob: "**/*.lua"
-      run: mise run format:lua {staged_files}
+      run: mise run format:lua -- {staged_files}
       stage_fixed: true
     # ruff.toml's extend-exclude and force-exclude own the template exclusions.
     - name: format Python
       glob: "**/*.py"
-      run: mise run format:python {staged_files}
+      run: mise run format:python -- {staged_files}
       stage_fixed: true
     - name: format shell scripts
       glob: "{install.sh,run_*.sh,dot_local/bin/executable_*}"
-      run: mise run format:shell {staged_files}
+      run: mise run format:shell -- {staged_files}
       stage_fixed: true
     - name: format supagents
-      glob: "{dot_agents/supagents/*.md,supagents.yaml}"
-      run: mise run format:supagents && git add -A private_dot_gemini/private_config/agents private_dot_claude/agents private_dot_copilot/agents dot_config/private_opencode/agents
-    - name: check
-      run: mise run check:local
-pre-push:
-  parallel: true
-  jobs:
-    # Vulnerability databases need the network; CI runs the same tasks through `check`.
-    - name: scan vulnerabilities
-      run: mise run check:network
-    - name: test
-      run: mise run test
-    - name: check completions
-      run: mise run check:completions
+      glob: "{dot_agents/supagents/*.md,.agents/supagents/*.md,supagents.yaml}"
+      run: mise run format:supagents && git add -A private_dot_gemini/private_config/agents private_dot_copilot/agents .agents/agents .github/agents
+    - name: check leaks
+      run: mise run check:leaks
+    - name: check privacy
+      run: uv run --frozen --directory dot python -m dot_tasks.privacy_checks
+    - name: check Python lint
+      run: mise run check:python:lint

@@ -1,12 +1,23 @@
 -- Docs: https://www.lazyvim.org/configuration/lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.uv.fs_stat(lazypath) then
+  local lockpath = vim.fn.stdpath("config") .. "/lazy-lock.json"
+  local ok_read, lock_lines = pcall(vim.fn.readfile, lockpath)
+  local ok_json, lock = pcall(vim.json.decode, ok_read and table.concat(lock_lines, "\n") or "")
+  local commit = ok_json and type(lock) == "table" and type(lock["lazy.nvim"]) == "table" and lock["lazy.nvim"].commit
+  if type(commit) ~= "string" or not commit:match("^[0-9a-f]+$") or #commit ~= 40 then
+    vim.api.nvim_echo({ { "Invalid or missing lazy.nvim commit pin in " .. lockpath, "ErrorMsg" } }, true, {})
+    os.exit(1)
+  end
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
-  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--no-checkout", lazyrepo, lazypath })
+  if vim.v.shell_error == 0 then
+    out = vim.fn.system({ "git", "-C", lazypath, "checkout", "--detach", commit })
+  end
   if vim.v.shell_error ~= 0 then
     -- A partial clone would satisfy the check above on the next start.
     vim.fn.delete(lazypath, "rf")
-    vim.api.nvim_echo({ { "Failed to clone lazy.nvim:\n" .. out, "ErrorMsg" } }, true, {})
+    vim.api.nvim_echo({ { "Failed to clone pinned lazy.nvim:\n" .. out, "ErrorMsg" } }, true, {})
     os.exit(1)
   end
 end

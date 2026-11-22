@@ -1,15 +1,36 @@
 """Exercise interactive aliases without loading private shell configuration."""
 
 import os
+import pty
 import re
+import select
 import subprocess
 import sys
+import time
 import tomllib
 from pathlib import Path
 
 import pytest
 
 from repo_helpers import native_binary
+
+_GUARDED_ENV_VARS = frozenset(
+    {
+        "ANTIGRAVITY_AGENT",
+        "CI",
+        "CLAUDECODE",
+        "NVIM",
+        "SSH_CLIENT",
+        "SSH_CONNECTION",
+        "SSH_TTY",
+        "TERM",
+        "TERM_PROGRAM",
+        "TMUX",
+        "XDG_CACHE_HOME",
+        "XDG_CONFIG_HOME",
+        "ZELLIJ",
+    }
+)
 
 SHELL_ONLY_ENV = frozenset(
     {
@@ -23,6 +44,7 @@ SHELL_ONLY_ENV = frozenset(
         "PAGER",
         "PUPPETEER_EXECUTABLE_PATH",
         "SHELL",
+        "SSH_AUTH_SOCK",
         "VISUAL",
         "XDG_CONFIG_HOME",
     }
@@ -43,9 +65,13 @@ def test_fish_aliases_load_without_errors() -> None:
             "--command",
             # abbr --query succeeds when any name exists, so check each one.
             (
-                "source dot_config/fish/conf.d/aliases.fish; "
-                "for name in a ac ai ap f h ha hd hh hp hs i j ux vd vi; "
-                "abbr --query $name; or echo missing $name >&2; end"
+                "source dot_config/fish/conf.d/aliases.fish; or exit 1; "
+                "for name in a b c d e f g h i j k l m n o p q r s t u v w x y "
+                "ac ai ap gl hd hh hp hs la ll lt mr uf ur ux vd vi; "
+                "abbr --query $name; or echo missing $name >&2; end; "
+                "for name in ss z; "
+                "abbr --query $name; and echo unexpected $name >&2; end; "
+                "true"
             ),
         ],
         cwd=root,
@@ -86,36 +112,296 @@ def test_fish_paths_keep_homebrew_ahead_of_usr_local(tmp_path: Path) -> None:
     assert paths.index(homebrew) < paths.index(usr_local), paths
 
 
-@pytest.mark.parametrize("exit_status", [0, 1])
-def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_status: int) -> None:
-    root = Path(__file__).resolve().parents[1]
+def _clean_fish_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
+    env = {key: value for key, value in os.environ.items() if key not in _GUARDED_ENV_VARS}
+    env.update(HOME=str(tmp_path), TERM="xterm-256color")
+    env.update(overrides)
+    return env
+
+
+def _run_fish_pty(
+    command: str,
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    timeout: float = 30.0,
+) -> tuple[int, str, str]:
+    master, slave = pty.openpty()
+    proc: subprocess.Popen[bytes] | None = None
+    chunks: list[bytes] = []
+    stderr_chunks: list[bytes] = []
+    try:
+        proc = subprocess.Popen(
+            [_fish(), "--no-config", "--interactive", "--command", command],
+            cwd=cwd,
+            env=env,
+            stdin=slave,
+            stdout=slave,
+            stderr=subprocess.PIPE,
+            close_fds=True,
+        )
+    finally:
+        os.close(slave)
+    try:
+        assert proc.stderr is not None
+        stderr_fd = proc.stderr.fileno()
+        deadline = time.monotonic() + timeout
+        open_fds = [master, stderr_fd]
+        while open_fds:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                proc.kill()
+                raise TimeoutError(f"Fish PTY timed out after {timeout}s")
+            readable, _, _ = select.select(open_fds, [], [], min(0.2, remaining))
+            if not readable:
+                continue
+            for fd in readable:
+                try:
+                    data = os.read(fd, 4096)
+                except OSError:
+                    data = b""
+                if not data:
+                    open_fds.remove(fd)
+                elif fd == master:
+                    chunks.append(data)
+                else:
+                    stderr_chunks.append(data)
+        returncode = proc.wait(timeout=5)
+        stdout = b"".join(chunks).decode("utf-8").replace("\r\n", "\n")
+        stderr = b"".join(stderr_chunks).decode("utf-8")
+        return returncode, stdout, stderr
+    finally:
+        os.close(master)
+        if proc is not None:
+            if proc.stderr is not None:
+                proc.stderr.close()
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
+
+
+def _install_auto_zellij_stubs(tmp_path: Path) -> tuple[Path, Path]:
     bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
+    bin_dir.mkdir(exist_ok=True)
     # Avoid starting real shell integrations or touching their caches.
     for name in ("mise", "fzf", "atuin", "starship", "zoxide"):
         executable = bin_dir / name
         executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         executable.chmod(0o755)
+    calls = tmp_path / "calls"
     zellij = bin_dir / "zellij"
     zellij.write_text(
         '#!/bin/sh\nprintf "%s\\n" "$*" >> "$ZELLIJ_TEST_CALLS"\nexit "$ZELLIJ_TEST_STATUS"\n',
         encoding="utf-8",
     )
     zellij.chmod(0o755)
-    calls = tmp_path / "calls"
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if key not in {"ZELLIJ", "TMUX", "NVIM", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY"}
-    }
-    env.update(
-        HOME=str(tmp_path),
+    return bin_dir, calls
+
+
+@pytest.mark.parametrize("exit_status", [0, 1])
+def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_status: int) -> None:
+    root = Path(__file__).resolve().parents[1]
+    bin_dir, calls = _install_auto_zellij_stubs(tmp_path)
+    env = _clean_fish_env(
+        tmp_path,
         XDG_CACHE_HOME=str(tmp_path / "cache"),
-        ZELLIJ_TEST_BIN=str(bin_dir),
         ZELLIJ_TEST_CALLS=str(calls),
         ZELLIJ_TEST_STATUS=str(exit_status),
         TERM_PROGRAM="ghostty",
     )
+    returncode, stdout, stderr = _run_fish_pty(
+        (
+            f'set -gx PATH "{bin_dir}" $PATH; '
+            "source dot_config/fish/conf.d/plugins.fish; "
+            "emit fish_prompt; echo shell-survived; emit fish_prompt; echo second-prompt"
+        ),
+        cwd=root,
+        env=env,
+    )
+    assert returncode == 0, stderr
+    assert stderr == "", stderr
+    assert stdout.splitlines() == ["shell-survived", "second-prompt"]
+    assert calls.read_text(encoding="utf-8").splitlines() == ["attach --create main"]
+
+
+@pytest.mark.parametrize(
+    "blocked_env",
+    [
+        {"ANTIGRAVITY_AGENT": "1"},
+        {"CI": "true"},
+        {"CLAUDECODE": "1"},
+        {"TERM_PROGRAM": "agy"},
+        {"TERM_PROGRAM": "vscode"},
+        {"TERM": "dumb"},
+        {"ZELLIJ": "0"},
+        {"TMUX": "tmux-session"},
+        {"NVIM": "nvim-server"},
+        {"SSH_CONNECTION": "1.2.3.4 1 5.6.7.8 22"},
+        {"SSH_CLIENT": "1.2.3.4 1 22"},
+        {"SSH_TTY": "/dev/pts/0"},
+    ],
+)
+def test_auto_zellij_skips_agent_ci_ssh_and_nested_pty_shells(tmp_path: Path, blocked_env: dict[str, str]) -> None:
+    root = Path(__file__).resolve().parents[1]
+    bin_dir, calls = _install_auto_zellij_stubs(tmp_path)
+    env = _clean_fish_env(
+        tmp_path,
+        XDG_CACHE_HOME=str(tmp_path / "cache"),
+        ZELLIJ_TEST_CALLS=str(calls),
+        ZELLIJ_TEST_STATUS="0",
+        TERM_PROGRAM="ghostty",
+    )
+    env.update(blocked_env)
+    returncode, stdout, stderr = _run_fish_pty(
+        f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo survived',
+        cwd=root,
+        env=env,
+    )
+    assert returncode == 0, stderr
+    assert stderr == "", stderr
+    assert stdout.splitlines() == ["survived"]
+    assert not calls.exists()
+
+
+def test_auto_zellij_skips_non_tty_and_attaches_when_term_program_unset_on_pty(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    bin_dir, calls = _install_auto_zellij_stubs(tmp_path)
+    env = _clean_fish_env(
+        tmp_path,
+        XDG_CACHE_HOME=str(tmp_path / "cache"),
+        ZELLIJ_TEST_CALLS=str(calls),
+        ZELLIJ_TEST_STATUS="0",
+    )
+    non_tty = subprocess.run(
+        [
+            _fish(),
+            "--no-config",
+            "--interactive",
+            "--command",
+            f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo ok',
+        ],
+        cwd=root,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert non_tty.returncode == 0, non_tty.stderr
+    assert non_tty.stderr == "", non_tty.stderr
+    assert non_tty.stdout.splitlines() == ["ok"]
+    assert not calls.exists()
+
+    # Unset TERM_PROGRAM on a real TTY must still attach once.
+    assert "TERM_PROGRAM" not in env
+    returncode, stdout, stderr = _run_fish_pty(
+        f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo attached',
+        cwd=root,
+        env=env,
+    )
+    assert returncode == 0, stderr
+    assert stderr == "", stderr
+    assert stdout.splitlines() == ["attached"]
+    assert calls.read_text(encoding="utf-8").splitlines() == ["attach --create main"]
+
+
+def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls"
+    for name in ("mise", "fzf", "atuin", "starship", "zoxide"):
+        executable = bin_dir / name
+        executable.write_text(
+            f'#!/bin/sh\nprintf "%s %s\\n" "{name}" "$*" >> "$PLUGIN_TEST_CALLS"\nprintf "set -g stub_{name} live\\n"\n',
+            encoding="utf-8",
+        )
+        executable.chmod(0o755)
+    env = _clean_fish_env(tmp_path, PLUGIN_TEST_CALLS=str(calls), ZELLIJ="0")
+    cmd = (
+        f'set -gx PATH "{bin_dir}" $PATH; '
+        "source dot_config/fish/conf.d/plugins.fish; "
+        'printf "mise=%s atuin=%s fzf=%s starship=%s zoxide=%s\\n" '
+        '"$stub_mise" "$stub_atuin" "$stub_fzf" "$stub_starship" "$stub_zoxide"'
+    )
+    result = subprocess.run(
+        [_fish(), "--no-config", "--interactive", "--command", cmd],
+        cwd=root,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == "", result.stderr
+    assert result.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
+    assert calls.read_text(encoding="utf-8").splitlines() == [
+        "mise activate fish",
+        "fzf --fish",
+        "atuin init fish --disable-ai",
+        "starship init fish --print-full-init",
+        "zoxide init fish",
+    ]
+
+
+def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    base_cmd = "source dot_config/fish/config.fish"
+    env = _clean_fish_env(tmp_path, ZELLIJ="0", TERM_PROGRAM="ghostty")
+
+    # Non-regular or unreadable or symlinked ~/.private.fish is skipped cleanly without stderr errors.
+    private_fish = tmp_path / ".private.fish"
+    private_target = tmp_path / "private-target.fish"
+    private_target.write_text("set -gx SYM_PRIVATE_SOURCED 1\n", encoding="utf-8")
+    private_fish.symlink_to(private_target)
+    rc_sym, stdout_sym, stderr_sym = _run_fish_pty(
+        f'{base_cmd}; if set -q SYM_PRIVATE_SOURCED; echo "SYM=1"; else; echo "SYM=0"; end',
+        cwd=root,
+        env=env,
+    )
+    assert rc_sym == 0
+    assert stderr_sym == "", stderr_sym
+    assert stdout_sym.splitlines() == ["SYM=0"]
+    private_fish.unlink()
+    private_target.unlink()
+
+    private_fish.mkdir()
+    rc_dir, _stdout_dir, stderr_dir = _run_fish_pty(base_cmd, cwd=root, env=env)
+    assert rc_dir == 0
+    assert stderr_dir == "", stderr_dir
+    private_fish.rmdir()
+    if os.geteuid() != 0:
+        private_fish.write_text("set -gx SECRET_STUFF 1\n", encoding="utf-8")
+        private_fish.chmod(0o000)
+        try:
+            rc_perm, _stdout_perm, stderr_perm = _run_fish_pty(base_cmd, cwd=root, env=env)
+            assert rc_perm == 0
+            assert stderr_perm == "", stderr_perm
+        finally:
+            private_fish.chmod(0o600)
+            private_fish.unlink()
+
+
+def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    themes_dir = tmp_path / ".config/fish/themes"
+    themes_dir.mkdir(parents=True)
+    theme_file = themes_dir / "fmind.theme"
+    theme_file.write_text(
+        "# comment\n"
+        "\n"
+        "fish_color_command 174ea6\n"
+        "fish_color_keyword 174ea6 --bold\n"
+        "fish_color_valid_path --underline\n"
+        "fish_pager_color_background --background=ffffff\n",
+        encoding="utf-8",
+    )
+    env = _clean_fish_env(tmp_path, XDG_CONFIG_HOME=str(tmp_path / ".config"))
     result = subprocess.run(
         [
             _fish(),
@@ -123,9 +409,10 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
             "--interactive",
             "--command",
             (
-                'set -gx PATH "$ZELLIJ_TEST_BIN" $PATH; '
-                "source dot_config/fish/conf.d/plugins.fish; "
-                "emit fish_prompt; echo shell-survived; emit fish_prompt; echo second-prompt"
+                "source dot_config/fish/conf.d/theme.fish; "
+                'printf "cmd=%s\\nkw=%s\\n" '
+                "(string join , -- $fish_color_command) "
+                "(string join , -- $fish_color_keyword)"
             ),
         ],
         cwd=root,
@@ -134,13 +421,48 @@ def test_zellij_exit_returns_to_shell_without_reattaching(tmp_path: Path, exit_s
         capture_output=True,
         text=True,
         encoding="utf-8",
-        timeout=30,
+        timeout=15,
         check=False,
     )
     assert result.returncode == 0, result.stderr
     assert result.stderr == "", result.stderr
-    assert result.stdout.splitlines() == ["shell-survived", "second-prompt"]
-    assert calls.read_text(encoding="utf-8").splitlines() == ["attach --create main"]
+    assert result.stdout.splitlines() == ["cmd=174ea6,--theme=fmind", "kw=174ea6,--bold,--theme=fmind"]
+
+    # Missing or unreadable fmind.theme is skipped cleanly without stderr errors.
+    theme_file.unlink()
+    missing_run = subprocess.run(
+        [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
+        cwd=root,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        check=False,
+    )
+    assert missing_run.returncode == 0, missing_run.stderr
+    assert missing_run.stderr == "", missing_run.stderr
+
+    if os.geteuid() != 0:
+        theme_file.write_text("fish_color_command 174ea6\n", encoding="utf-8")
+        theme_file.chmod(0o000)
+        try:
+            perm_run = subprocess.run(
+                [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
+                cwd=root,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=15,
+                check=False,
+            )
+            assert perm_run.returncode == 0, perm_run.stderr
+            assert perm_run.stderr == "", perm_run.stderr
+        finally:
+            theme_file.chmod(0o600)
 
 
 def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:

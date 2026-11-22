@@ -23,11 +23,15 @@ minimum_release_age = "0d"
 self_update.auto = "24h"
 slsa = false
 
+[settings.task]
+# Hide command echoes; keep task output, failure diagnostics, and task-name prefixes.
+# MISE_TASK_QUIET=false restores mise's execution messages for debugging.
+quiet = true
+
 [tool_alias]
 fish = "aqua:fish-shell/fish-shell"
 # The registry default (vfox) locks release URLs without digests; aqua locks checksums.
 neovim = "aqua:neovim/neovim"
-sqruff = "aqua:quarylabs/sqruff"
 
 [env]
 # agents-cli 1.9.0 turned usage telemetry on by default; keep pypi:google-agents-cli out of global
@@ -36,6 +40,7 @@ AGENTS_CLI_TELEMETRY = "0"
 # The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
 # vendor skills go through the vendor-skill policy instead.
 AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
+BRAIN_LOCATION = "{{env.HOME}}/fmind/brain"
 CF_SEND_TELEMETRY = "0"
 # Also covers ad-hoc chrome-devtools-mcp runs that omit --no-usage-statistics.
 CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS = "1"
@@ -49,67 +54,39 @@ COPILOT_TELEMETRY_DISABLED = "true"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Skip hf's PyPI/extension update checks, /api/agent-harnesses fetch, and hf-cli skill hint.
 HF_HUB_DISABLE_UPDATE_CHECK = "1"
-# ~/.claude/skills links to ~/.agents/skills, which OpenCode already reads natively.
-OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
-# mise locks Pi: skip its pi.dev latest-version request and its install/update ping
-# (PI_TELEMETRY also drops Pi's attribution headers on provider requests).
-PI_SKIP_VERSION_CHECK = "1"
-PI_TELEMETRY = "0"
 RIPGREP_CONFIG_PATH = "{{env.HOME}}/.config/ripgrep/config"
 # Keep sonarqube-cli off the macOS Keychain (whose partition ACL blocks background probes and prompts repeatedly).
 # Its file store writes with default permissions, so chezmoi seeds a private tokens.json it then keeps.
 SONARQUBE_CLI_KEYCHAIN_FILE = "{{env.HOME}}/.sonar/sonarqube-cli/tokens.json"
 TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
-# Never set DO_NOT_TRACK or DISABLE_TELEMETRY globally: Claude Code reads either as
-# "feature flags off", which disables Remote Control; scope them to single commands.
 
-# Selection rule: "Global tools and generated locks" in fmind/dot's AGENTS.md; a project tool kept global says why in its comment.
+# Selection rule: "Global tools" in fmind/dot's AGENTS.md; a project tool kept global says why in its comment.
 [tools]
 "conda:file" = "latest"
 # macOS ships both natively (mandoc renders man pages there).
 "conda:groff" = { version = "latest", os = ["linux"] }
 "conda:unzip" = { version = "latest", os = ["linux"] }
-"github:DataDog/pup" = "latest"
 # github, not aqua: aqua names the binary docker-cli-plugin-docker-buildx, which Docker does not
 # discover; Docker plugins must be named docker-<name>. See colima below.
 "github:docker/buildx" = { version = "latest", os = ["macos"], bin = "docker-buildx" }
-# fastfetch 2.70.0 replaced macos-aarch64 with macos-universal, breaking aqua's src path.
-"github:fastfetch-cli/fastfetch" = "latest"
-# OpenCode 2.x ships through npm (the mise registry moved here from aqua). mise skips its postinstall, which links
-# the locked platform binary that fits this CPU into bin/; run it offline so it never fetches an unlocked package.
-"npm:@opencode/cli" = { version = "latest", postinstall = 'cd "$MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli" && npm_config_offline=true node postinstall.mjs' }
-# Pre-release upstream (1.0.0-beta.N / 1.0.0-rc.N): a deliberate exception to latest-stable until 1.0.0.
-"npm:cf" = "latest"
-"npm:skills" = "latest"
 # Bind pypi tools to the global Python minor so project python pins neither re-hash them nor hit missing 3.15 wheels.
 "pypi:brain-framework" = { version = "latest", python = "3.14" }
 "pypi:fmind" = { version = "latest", python = "3.14" }
-# Let google-colab-cli select its compatible jupyter-kernel-client version;
-# an additional `with` pin can conflict with its exact upstream requirement.
-"pypi:google-colab-cli" = { version = "latest", python = "3.14" }
 "pypi:huggingface_hub" = { version = "latest", python = "3.14" }
-"pypi:marimo" = { version = "latest", python = "3.14" } # Ad-hoc reactive Python notebooks outside projects; projects pin their own
-# Keep `with`: pgcli needs psycopg's binary extra for a bundled libpq.
-"pypi:pgcli" = { version = "latest", python = "3.14", with = ["psycopg[binary]"] }
 "pypi:supagents" = { version = "latest", python = "3.14" } # Cross-harness subagent compiler across projects
-"pypi:vulture" = { version = "latest", python = "3.14" } # Python dead-code scanner for full-review sweeps outside projects; projects pin their own
 acli = "latest"
 age = "latest"
-ast-grep = "latest"
 atuin = "latest"
-awscli = "latest"
 bat = "latest"
 betterleaks = "latest"
-bitwarden = "latest"
+# Upstream cli-v2026.11.0 renamed release assets from bw-* to bw-bit-*/bw-oss-*; unpin once mise's registry catches up.
+bitwarden = "2026.10.1"
 chezmoi = "latest"
-claude = "latest"
 # macOS container runtime (Linux uses native Docker Engine); ~/.docker/config.json resolves Compose/Buildx via shims.
 colima = { version = "latest", os = ["macos"] }
 copilot = "latest"
-cosign = "latest" # Keyless Sigstore OCI signing/verification outside projects; projects pin their own
 databricks-cli = "latest"
 delta = "latest"
-difftastic = "latest" # AST-aware structural diffs via git dft across repositories
 docker-cli = { version = "latest", os = ["macos"] }
 docker-compose = { version = "latest", os = ["macos"] }
 doggo = "latest"
@@ -121,43 +98,27 @@ fish = "latest"
 fzf = "latest"
 gcloud = "latest"
 gh = "latest"
-git-cliff = "latest"
 git-lfs = "latest"
-hurl = "latest" # Declarative HTTP smoke assertions outside projects; projects pin their own
-hyperfine = "latest"
 imagemagick = "latest" # snacks.nvim non-PNG image previews in Neovim
-jactionlint = "latest"
 jq = "latest"
-lazydocker = "latest"
 lazygit = "latest"
-lefthook = "latest"
 lima = { version = "latest", os = ["macos"] }
 lsd = "latest"
-lychee = "latest"
 neovim = "latest"
 node = "lts" # Runtime for third-party npm CLIs only; active project authoring is Python
-opentofu = "latest" # Neovim Terraform formatting/validation outside projects; projects pin their own
-pi = "latest"
 python = "3.14" # Required tool wheels are not ready for 3.15
 ripgrep = "latest"
 ruff = "latest"
-shellcheck = "latest"
-shfmt = "latest"
-sonarqube-cli = "latest"
 sqlite = "latest"
-sqruff = "latest" # Fast Rust SQL linter/formatter and LSP outside projects; projects pin their own
 starship = "latest"
 stylua = "latest" # Lua formatter LazyVim uses outside this repository
-tflint = "latest" # Terraform linter LazyVim uses outside projects; projects pin their own
 tree-sitter = "latest" # Parser CLI backing nvim-treesitter (Linux binary requires glibc 2.39+)
 trivy = "latest"
 ty = "latest"
-typos = "latest"
 typst = "latest" # Composed diagrams and standalone PDFs outside projects; projects pin their own
 usage = "latest" # Powers mise CLI completions
 uv = "latest"
 vale = "latest" # Deterministic anti-slop prose linter across projects and drafts
-vault = "latest"
 xh = "latest"
 yazi = "latest"
 yq = "latest"

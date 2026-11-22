@@ -1,6 +1,0 @@
-# Docs: https://vale.sh/docs/topics/styles/#script
-extends: script
-message: "Drop prose backticks; reserve monospace strictly for literal commands or code to run."
-level: warning
-scope: raw
-script: ProseBackticks.tengo

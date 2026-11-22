@@ -4,33 +4,14 @@ if status is-interactive
     if command -q mise
         mise activate fish | source
     end
-    set -l fish_cache_dir "$HOME/.cache/fish"
-    if test -n "$XDG_CACHE_HOME"
-        set fish_cache_dir "$XDG_CACHE_HOME/fish"
-    end
     if command -q fzf
         fzf --fish | source
     end
     if command -q atuin
-        # Atuin's UUID helper is expensive; use the OS UUID source before loading
-        # the cached integration, while preserving its one-session-per-shell rule.
-        if not set -q ATUIN_SESSION; or test "$ATUIN_SHLVL" != "$SHLVL"
-            if test -r /proc/sys/kernel/random/uuid
-                set -gx ATUIN_SESSION (string trim </proc/sys/kernel/random/uuid)
-            else
-                set -gx ATUIN_SESSION (command -q uuidgen; and uuidgen | string lower; or atuin uuid)
-            end
-            set -gx ATUIN_SHLVL $SHLVL
-        end
-        set -l atuin_init "$fish_cache_dir/atuin-init.fish"
-        if test -r "$atuin_init"
-            source "$atuin_init"
-        else
-            atuin init fish --disable-ai | source
-        end
+        atuin init fish --disable-ai | source
     end
     if command -q starship
-        starship init fish | source
+        starship init fish --print-full-init | source
     end
     if command -q zoxide
         zoxide init fish | source
@@ -38,7 +19,21 @@ if status is-interactive
     # Start once after shell initialization; keep Fish available if Zellij exits.
     function auto_zellij --on-event fish_prompt
         functions -e auto_zellij
-        if command -q zellij; and not set -q ZELLIJ; and not set -q TMUX; and test "$TERM_PROGRAM" != vscode; and not set -q NVIM; and not set -q SSH_CONNECTION; and not set -q SSH_CLIENT; and not set -q SSH_TTY
+        if status is-interactive
+            and test -t 0 -a -t 1
+            and command -q zellij
+            and not set -q ZELLIJ
+            and not set -q TMUX
+            and not set -q NVIM
+            and not set -q SSH_CONNECTION
+            and not set -q SSH_CLIENT
+            and not set -q SSH_TTY
+            and not set -q CI
+            and not set -q CLAUDECODE
+            and not set -q ANTIGRAVITY_AGENT
+            and test "$TERM_PROGRAM" != vscode
+            and test "$TERM_PROGRAM" != agy
+            and test "$TERM" != dumb
             command zellij attach --create main
         end
     end

@@ -2,12 +2,6 @@
 
 set -g fish_greeting ''
 
-if test -e ~/.private.fish
+if test -f ~/.private.fish -a ! -L ~/.private.fish -a -O ~/.private.fish -a -r ~/.private.fish
     source ~/.private.fish
-end
-
-if status is-interactive; and command -q fastfetch
-    if set -q ZELLIJ; or set -q SSH_TTY
-        fastfetch
-    end
 end

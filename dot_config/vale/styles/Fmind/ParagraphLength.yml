@@ -4,4 +4,4 @@ message: "Keep prose paragraphs scannable (<= 65 words); split or use bullets."
 level: warning
 scope: paragraph
 max: 65
-token: \b\w+\b
+token: "[\\p{L}\\p{N}]+(?:['’.-][\\p{L}\\p{N}]+)*"

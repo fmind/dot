@@ -1,10 +1,9 @@
 # Docs: https://vale.sh/docs/topics/styles/
+# Require same-line prose context so standalone table placeholders (`| — |`, `<td>—</td>`) pass.
 extends: existence
-message: "Avoid em dashes ('%s') in human copy; use a period, colon, comma, or parentheses."
+message: "Avoid em dashes in human copy; use a period, colon, comma, or parentheses."
 level: error
 nonword: true
 tokens:
-  - "—"
-  - "&mdash;"
-  - "&#8212;"
-  - "&#x2014;"
+  - '[^\s—][ \t]*(?:—|&mdash;|&#8212;|&#x2014;)'
+  - '(?:—|&mdash;|&#8212;|&#x2014;)[ \t]*[^\s—]'

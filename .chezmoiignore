@@ -36,11 +36,6 @@ tests
 .zprofile
 {{- end }}
 
-# An existing Kaggle legacy/OAuth login must not acquire a higher-priority personal token.
-{{- if or (stat (joinPath .chezmoi.destDir ".kaggle/kaggle.json")) (stat (joinPath .chezmoi.destDir ".kaggle/credentials.json")) }}
-.kaggle/access_token
-{{- end }}
-
 {{- if ne .chezmoi.os "linux" }}
 .config/systemd
 systemd-user-reload.sh
@@ -48,8 +43,6 @@ systemd-user-reload.sh
 
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
 .cache/huggingface/token
-.kaggle/access_token
-.local/share/opencode/auth.json
 .config/bf/credentials
 .config/dot/secrets
 {{- end }}

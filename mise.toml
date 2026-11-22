@@ -19,7 +19,7 @@ quiet = true
 
 [vars]
 # Skill templates scaffold other repositories' workflows; the workflow linters skip them unless named.
-workflow_templates = "skills/github-actions/references/ci-cd/templates/*.yml skills/cloud-run/templates/deploy.yml skills/documentation-site/templates/docs.yml skills/infra-as-code/templates/tofu.yml skills/code-security/templates/codeql.yml"
+workflow_templates = "skills/github/references/ci-cd/templates/*.yml skills/gcloud/references/cloud-run/templates/deploy.yml skills/docs/references/site/templates/docs.yml skills/infra-as-code/templates/tofu.yml skills/code-security/templates/codeql.yml"
 # Plain shell scripts that shfmt formats; chezmoi shell templates are rendered and linted only.
 shell_scripts = "install.sh run_*.sh dot_local/bin/executable_*"
 # uv installs the dot entry point here; the absolute path avoids Graphviz's dot on PATH.
@@ -84,7 +84,7 @@ description = "Run all static checks in parallel"
 depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
-description = "Run the static checks that need no remote database (pre-commit)"
+description = "Run the static checks that need no remote database"
 depends = [
   "check:actions",
   "check:chezmoi",
@@ -103,7 +103,7 @@ depends = [
 ]
 
 [tasks."check:network"]
-description = "Run the checks that download vulnerability data (pre-push)"
+description = "Run the checks that download vulnerability data"
 depends = ["check:scan", "check:vuln"]
 
 [tasks."check:actions"]
@@ -124,9 +124,18 @@ run = [
 [tasks."check:chezmoi"]
 description = "Validate rendered chezmoi source in an isolated destination"
 run = """
+set -eu
+render_config=""
+render_destination=""
+cleanup() {
+  if [ -n "$render_destination" ]; then rm -rf -- "$render_destination"; fi
+  if [ -n "$render_config" ]; then rm -rf -- "$render_config"; fi
+}
+trap cleanup EXIT
+trap 'cleanup; trap - INT; kill -INT $$' INT
+trap 'cleanup; trap - TERM; kill -TERM $$' TERM
 render_config="$(mktemp -d)"
 render_destination="$(mktemp -d)"
-trap 'rm -rf "$render_destination" "$render_config"' EXIT
 # Separate state also prevents parallel validation from locking the live workstation.
 chezmoi init --source "$PWD" --config-path "$render_config/chezmoi.toml" --persistent-state "$render_config/state.boltdb" --promptDefaults
 chezmoi apply --dry-run --force --source "$PWD" --destination "$render_destination" --config "$render_config/chezmoi.toml" --persistent-state "$render_config/state.boltdb" --exclude=encrypted
@@ -139,14 +148,18 @@ run = "dprint check"
 [tasks."check:fish"]
 description = "Validate Fish syntax without loading user configuration (behavior tests run in test)"
 run = """
+set -eu
+rc=0
 for file in dot_config/fish/*.fish dot_config/fish/conf.d/*.fish dot_config/fish/completions/*.fish dot_config/fish/functions/*.fish; do
-  fish --no-config --no-execute "$file"
+  [ -f "$file" ] || continue
+  fish --no-config --no-execute -- "$file" || rc=1
 done
+exit "$rc"
 """
 
 [tasks."check:leaks"]
 description = "Scan working-tree files, including untracked files, for leaked secrets"
-# The pre-commit hook runs this through check:local; check:leaks:full covers the history weekly.
+# The pre-commit hook runs this directly; check:leaks:full covers the history weekly.
 # betterleaks 1.10+ loads .betterleaks.toml only when named, so pass it explicitly.
 run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
@@ -160,16 +173,44 @@ run = "stylua --check dot_config/nvim"
 
 [tasks."check:python"]
 description = "Lint, format-check, type-check, and validate Python packaging and dependencies"
-# ruff.toml scopes Ruff.
-run = [
-  "uv run --frozen --project dot ruff check .",
-  "uv run --frozen --project dot ruff format --check .",
-  "uv run --frozen --project dot ty check --project dot --extra-search-path tests --extra-search-path skills/draft-typst-deck/scripts --extra-search-path skills/draft-doc/scripts --extra-search-path skills/draft-mail/scripts dot tests skills --exclude 'skills/*/references/*/templates' --exclude 'skills/python-mlops/templates' --exclude 'skills/draft-typst-deck/templates/editable_deck.py'",
-  "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py",
-  "uv run --frozen --directory dot deptry .",
-  "uv run --frozen --project dot validate-pyproject dot/pyproject.toml",
-  "uv lock --check --project dot",
+depends = [
+  "check:python:deptry",
+  "check:python:format",
+  "check:python:lint",
+  "check:python:lock",
+  "check:python:pyproject",
+  "check:python:types",
+  "check:python:types-display",
 ]
+
+[tasks."check:python:lint"]
+hide = true
+# ruff.toml scopes Ruff.
+run = "uv run --frozen --project dot ruff check ."
+
+[tasks."check:python:format"]
+hide = true
+run = "uv run --frozen --project dot ruff format --check ."
+
+[tasks."check:python:types"]
+hide = true
+run = "uv run --frozen --project dot ty check --project dot --extra-search-path tests --extra-search-path skills/gws/scripts --extra-search-path skills/draft/references/typst-deck/scripts --extra-search-path skills/draft/references/mail/scripts dot tests skills --exclude 'skills/*/templates' --exclude 'skills/*/references/*/templates'"
+
+[tasks."check:python:types-display"]
+hide = true
+run = "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py"
+
+[tasks."check:python:deptry"]
+hide = true
+run = "uv run --frozen --directory dot deptry ."
+
+[tasks."check:python:pyproject"]
+hide = true
+run = "uv run --frozen --project dot validate-pyproject dot/pyproject.toml"
+
+[tasks."check:python:lock"]
+hide = true
+run = "uv lock --check --project dot"
 
 [tasks."check:scan"]
 description = "Scan dependencies, including mise tool locks, and IaC (Trivy)"
@@ -180,8 +221,15 @@ run = "trivy --config dot_config/trivy/trivy.yaml fs --tf-vars skills/infra-as-c
 description = "Lint shell scripts and rendered chezmoi shell templates; format-check install.sh and plain run scripts"
 # Render {{ }} templates against empty stdin for shellcheck; shfmt formats plain scripts only.
 run = """
+set -eu
+rendered=""
+cleanup() {
+  if [ -n "$rendered" ]; then rm -rf -- "$rendered"; fi
+}
+trap cleanup EXIT
+trap 'cleanup; trap - INT; kill -INT $$' INT
+trap 'cleanup; trap - TERM; kill -TERM $$' TERM
 rendered="$(mktemp -d)"
-trap 'rm -rf "$rendered"' EXIT
 for template in run_*.sh.tmpl modify_dot_*; do
   chezmoi execute-template --source "$PWD" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
 done
@@ -192,17 +240,28 @@ shfmt -d -i 2 -s {{vars.shell_scripts}}
 
 [tasks."check:skills"]
 description = "Validate first-party Agent Skill packages, context budgets, and documentation links"
-run = [
-  "gh skill publish --dry-run skills",
-  "uv run --frozen --directory dot python -m dot_tasks.skill_contracts",
-  # Generated-project templates link relative to their future repository.
-  "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md'",
-]
+depends = ["check:skills:contracts", "check:skills:links", "check:skills:publish"]
+
+[tasks."check:skills:publish"]
+hide = true
+run = "gh skill publish --dry-run skills"
+
+[tasks."check:skills:contracts"]
+hide = true
+run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts"
+
+[tasks."check:skills:links"]
+hide = true
+# Generated-project templates link relative to their future repository.
+run = "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md .github/SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md' '.agents/supagents/*.md'"
 
 [tasks."check:supagents"]
 description = "Validate cross-harness subagent sources and generated configurations"
 wait_for = ["format:supagents"]
-run = "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml"
+run = [
+  "uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
+  "uv run --frozen --project dot supagents check --strict --project --source-dir .agents/supagents --target AGY --target COPILOT",
+]
 
 [tasks."check:tasks"]
 description = "Validate repository task definitions"
@@ -218,7 +277,14 @@ run = "typos --config .typos.toml"
 
 [tasks."check:vale"]
 description = "Check external documentation and templates for AI slop and prose style (vale)"
-run = "vale --no-global --config .vale.ini --output=line README.md skills/humanize/templates/ skills/repository-docs/templates/README.md skills/infra-as-code/templates/README.md skills/documentation-site/templates/ skills/python-stack/references/foundation/templates/docs-index.md"
+# Fail on any alert (errors or warnings) to match test_vale_accepts_external_starter_markdown_templates.
+run = '''
+set -u
+rc=0
+out="$(vale --no-global --config .vale.ini --output=line README.md skills/humanize/templates/ skills/docs/references/repository/templates/README.md skills/infra-as-code/templates/README.md skills/docs/references/site/templates/ skills/python/references/foundation/templates/docs-index.md)" || rc=$?
+[ -z "$out" ] || printf '%s\n' "$out"
+[ "$rc" -eq 0 ] && [ -z "$out" ]
+'''
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"
@@ -241,8 +307,8 @@ depends = ["format:dprint", "format:lua", "format:python", "format:shell", "form
 [tasks."format:dprint"]
 description = "Format JSON, Markdown, TOML, and YAML"
 # Order after the index generator without depending on it: pre-commit formats only
-# staged files, and check:skills then rejects a stale index instead of this task
-# regenerating SKILL.md files that the commit would not include.
+# staged files, and `mise run check:skills` / CI then rejects a stale index instead of
+# this task regenerating SKILL.md files that the commit would not include.
 wait_for = ["format:skills"]
 run = "dprint fmt --allow-no-files"
 
@@ -256,6 +322,8 @@ wait_for = ["format:dprint"]
 run = [
   "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
   "uv run --frozen --project dot supagents clean --project --source-dir dot_agents/supagents --config supagents.yaml",
+  "uv run --frozen --project dot supagents build --strict --project --source-dir .agents/supagents --target AGY --target COPILOT",
+  "uv run --frozen --project dot supagents clean --project --source-dir .agents/supagents --target AGY --target COPILOT",
 ]
 
 # Lefthook passes staged files to these formatters; mise hands variadic arguments
@@ -263,24 +331,30 @@ run = [
 [tasks."format:lua"]
 description = "Format Neovim Lua sources, or only the given files"
 usage = 'arg "[files]..." default="dot_config/nvim"'
-run = 'eval "set -- $usage_files" && stylua "$@"'
+run = '''
+set -eu
+eval "set -- ${usage_files:-}"
+stylua -- "$@"
+'''
 
 [tasks."format:python"]
 description = "Apply safe lint fixes and format Python sources, or only the given files"
 usage = 'arg "[files]..." default="."'
 run = '''
-eval "set -- $usage_files"
-uv run --frozen --project dot ruff check --fix-only "$@"
-uv run --frozen --project dot ruff format "$@"
+set -eu
+eval "set -- ${usage_files:-}"
+uv run --frozen --project dot ruff check --fix-only -- "$@"
+uv run --frozen --project dot ruff format -- "$@"
 '''
 
 [tasks."format:shell"]
 description = "Format plain shell scripts, or only the given files (templates stay lint-only)"
 usage = 'arg "[files]..."'
 run = '''
-eval "set -- $usage_files"
+set -eu
+eval "set -- ${usage_files:-}"
 [ "$#" -gt 0 ] || set -- {{vars.shell_scripts}}
-shfmt -w -i 2 -s "$@"
+shfmt -w -i 2 -s -- "$@"
 '''
 
 [tasks.install]
@@ -296,13 +370,13 @@ run = [
 [tasks.test]
 alias = "t"
 description = "Run the Python CLI and repository contract tests"
-# Archive tests are fsync-bound; 8 workers overlap syncs without risking OOM.
+# Cap xdist workers at 8 to bound memory and subprocess fan-out.
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
 run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
-description = "Materialize and execute Python, MCP, ML, script, docs, OpenTofu, Copier, and deck starter contracts"
+description = "Materialize and execute Python, MCP, ML, script, docs, OpenTofu, and deck starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
 run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q --force-enable-socket --timeout=600 tests/test_python_starter.py"
 
@@ -356,7 +430,8 @@ description = "Lock the latest release of only the named global tools; keep ever
 usage = 'arg "<tools>..." help="[tools] keys from dot_config/mise/config.toml, such as pypi:brain-framework"'
 # Right after an upstream release, `mise cache clear` first if `mise latest TOOL` is stale.
 run = '''
-eval "set -- $usage_tools"
+set -eu
+eval "set -- ${usage_tools:-}"
 uv run --frozen --directory dot python -m dot_tasks.mise_refresh --tool "$@"
 '''
 

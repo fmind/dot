@@ -5,3 +5,4 @@
 *@fmind.dev namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDx3EALu5/7DMy92GDKIXuzgR2umI/RU3KKk++QME5/N git-signing@fmind.dev
 *@fmind.dev namespaces="git",valid-before="20261105" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILuNby8wMUEfeSRP8ssdn1s3GyTw0xFNGir52uVjok+x git-signing@fmind.dev
 *@fmind.dev namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHF6Do6SbxRSZZSFd9mCR86sQtEbhX2pd3jgQwEySRk2 git-signing@fmind.dev
+*@fmind.dev namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKgbte4rQM5KwsrpmzdgRXpxezhHKfAW1p1tz1gbMXor git-signing@fmind.dev

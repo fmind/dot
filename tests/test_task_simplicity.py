@@ -16,11 +16,11 @@ pytestmark = pytest.mark.real_home
 
 ROOT = Path(__file__).resolve().parents[1]
 STARTERS = {
-    "python-stack": "skills/python-stack/references/foundation/templates/mise.toml",
+    "python": "skills/python/references/foundation/templates/mise.toml",
     "terraform": "skills/infra-as-code/templates/mise.toml",
-    "documentation-site": "skills/documentation-site/templates/mise.toml",
+    "docs": "skills/docs/references/site/templates/mise.toml",
 }
-DOCS_STARTERS = ("skills/documentation-site/templates/mise.toml",)
+DOCS_STARTERS = ("skills/docs/references/site/templates/mise.toml",)
 # A hung task must fail its own test instead of consuming the CI job limit.
 TIMEOUT_SECONDS = 120
 
@@ -101,14 +101,14 @@ def test_secret_scan_covers_untracked_files(tmp_path: Path, starter: str) -> Non
 
 
 def test_python_staged_formatters_preserve_file_arguments(tmp_path: Path) -> None:
-    env = materialize(tmp_path, "python-stack")
+    env = materialize(tmp_path, "python")
     _route_uv_to_ruff(tmp_path, env)
     selected = tmp_path / "chosen space ' ; $(touch injected).py"
     unrelated = tmp_path / "unrelated.py"
     text = "import sys\nimport os\nx=1\n"
     selected.write_text(text)
     unrelated.write_text(text)
-    hooks = yaml.safe_load((ROOT / "skills/python-stack/references/foundation/templates/lefthook.yml").read_text())[
+    hooks = yaml.safe_load((ROOT / "skills/python/references/foundation/templates/lefthook.yml").read_text())[
         "pre-commit"
     ]["jobs"]
     formatters = [hook for hook in hooks if "**/*.py" in hook.get("glob", "")]
