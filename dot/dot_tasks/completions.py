@@ -12,7 +12,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from fmind_dot.command import FISH_COMPLETION
-from fmind_dot.config import expand_path, policy
+from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 from fmind_dot.process import CommandResult, run_parallel
@@ -22,18 +22,30 @@ _COMPLETION_TIMEOUT_SECONDS = 60.0
 _PROBE_CONCURRENCY = 8
 COMPLETIONS_PATH = "~/.config/fish/completions"
 
-_comp = policy()["completions"]
-_COMPLETION_PACKAGES: dict[str, str] = dict(_comp["packages"])
-_COMPLETION_ENV: dict[str, str] = dict(_comp["env"])
-_cmds = _comp["commands"]
+_PLAIN_COMPLETIONS = ("betterleaks", "chezmoi", "copilot", "databricks", "dot", "genie", "mise", "trivy")
+_COMPLETION_PACKAGES: dict[str, str] = {"lsd": "lsd", "ya": "yazi", "yazi": "yazi", "zoxide": "zoxide"}
+_COMPLETION_ENV: dict[str, str] = {"hf": "_HF_COMPLETE=fish_source"}
 _COMPLETION_COMMANDS: dict[str, tuple[str, ...]] = (
-    {t: (t, "completions", "fish") for t in _cmds["completions_fish"]}
-    | {t: (t, "generate-shell-completion", "fish") for t in _cmds["generate_shell_completion_fish"]}
-    | {t: (t, "--generate", "complete-fish") for t in _cmds["generate_complete_fish"]}
-    | {k: tuple(v) for k, v in _cmds["custom"].items()}
+    {t: (t, "completions", "fish") for t in ("doggo", "dprint", "starship", "typst")}
+    | {t: (t, "generate-shell-completion", "fish") for t in ("ruff", "ty", "uv")}
+    | {t: (t, "--generate", "complete-fish") for t in ("rg", "xh")}
+    | {
+        "atuin": ("atuin", "gen-completions", "--shell", "fish"),
+        "bat": ("bat", "--completion", "fish"),
+        "delta": ("delta", "--generate-completion", "fish"),
+        "fd": ("fd", "--gen-completions", "fish"),
+        "gh": ("gh", "completion", "-s", "fish"),
+        "git-lfs": ("git", "lfs", "completion", "fish"),
+        "lazygit": ("lazygit", "completion", "fish"),
+        "tree-sitter": ("tree-sitter", "complete", "--shell", "fish"),
+        "usage": ("usage", "--completions", "fish"),
+        "uvx": ("uvx", "--generate-shell-completion", "fish"),
+        "yq": ("yq", "shell-completion", "fish"),
+        "zellij": ("zellij", "setup", "--generate-completion", "fish"),
+    }
 )
 COMPLETION_TOOLS: frozenset[str] = (
-    frozenset(_comp["plain"]) | _COMPLETION_PACKAGES.keys() | _COMPLETION_ENV.keys() | _COMPLETION_COMMANDS.keys()
+    frozenset(_PLAIN_COMPLETIONS) | _COMPLETION_PACKAGES.keys() | _COMPLETION_ENV.keys() | _COMPLETION_COMMANDS.keys()
 )
 
 

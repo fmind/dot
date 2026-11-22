@@ -27,7 +27,6 @@ from fmind_dot.auth_probes import execute as _execute
 from fmind_dot.auth_probes import reject_env as _reject_env
 from fmind_dot.auth_probes import require_tty as _require_tty
 from fmind_dot.auth_probes import warn_plaintext as _warn_plaintext
-from fmind_dot.command import Parser
 from fmind_dot.config import (
     GITHUB_FORBIDDEN_SCOPES,
     GITHUB_REMOVE_SCOPES,
@@ -45,10 +44,6 @@ from fmind_dot.errors import DotError, UsageError
 from fmind_dot.process import run_parallel
 from fmind_dot.state import State, require_tools
 
-_LOGIN_EPILOG = (
-    "Exit 0 when ready; 1 with --check when a login is needed or the state is unknown, or on failure; 2 on conflicting flags.\n\n"
-    "Examples: dot login --check · dot login gcp --dry-run · dot login workspace --grant analytics.readonly"
-)
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace")
 _GOOGLE_OAUTH_URL_RE = re.compile(r"https://accounts\.google\.com/o/oauth2/[^\s<>\"'`()\[\]{}\x00-\x1f\x7f]+")
 
@@ -336,15 +331,8 @@ def login_machine(state: State, *, force: bool, dry_run: bool, check: bool) -> N
         _run_provider(state, provider, force=force, dry_run=dry_run, **kw)
 
 
-def _add_login_options(parser: Parser, prefix: str = "") -> None:
-    chk = "Only probe readiness and exit 1 when a login is needed; never opens a login flow"
-    opts = (
-        (("-f", "--force"), f"{prefix}force", "Run authentication even when already ready or status is unknown"),
-        (("--dry-run",), f"{prefix}dry_run", "Show possible commands without running probes or making changes"),
-        (("--check",), f"{prefix}check", chk),
-    )
-    for flags, dest, help_text in opts:
-        parser.add_argument(*flags, dest=dest, action="store_true", help=help_text)
+def _login_all(state: State, args: argparse.Namespace) -> None:
+    login_machine(state, force=args.all_force, dry_run=args.all_dry_run, check=args.all_check)
 
 
 def _login_provider(state: State, args: argparse.Namespace) -> None:
@@ -369,37 +357,3 @@ def _login_provider(state: State, args: argparse.Namespace) -> None:
         project=project,
         setup=setup,
     )
-
-
-def register_login(commands: Parser) -> None:
-    desc = "Log in where needed to this machine's providers (auth.login), or to one named provider"
-    group = commands.group(
-        "login",
-        desc,
-        handler=lambda s, a: login_machine(s, force=a.all_force, dry_run=a.all_dry_run, check=a.all_check),
-        config=True,
-        epilog=_LOGIN_EPILOG,
-    )
-    _add_login_options(group, prefix="all_")
-    grant_epilogs = {
-        "workspace": "A --grant scope lasts until dot login workspace --force restores defaults.",
-        "github": "A --grant scope skips --remove-scopes removal for that run; dot login github reconciles defaults again.",
-    }
-    summaries = {
-        "gcp": "Ensure Google Cloud and ADC both have usable credentials",
-        "github": "Ensure GitHub OAuth authentication and requested scopes",
-        "workspace": "Authenticate Workspace OAuth and configure project APIs/OAuth when needed",
-    }
-    for provider, summary in summaries.items():
-        ep = grant_epilogs.get(provider)
-        cmd = group.command(provider, summary, _login_provider, epilog=f"{ep} {_LOGIN_EPILOG}" if ep else _LOGIN_EPILOG)
-        cmd.set_defaults(provider=provider)
-        _add_login_options(cmd)
-        if ep:
-            h = "Also request this one-off scope; repeat for several"
-            cmd.add_argument("--grant", action="append", default=[], metavar="SCOPE", help=h)
-        if provider == "workspace":
-            h = "Google Cloud project ID for API/OAuth setup [env: GWS_PROJECT]"
-            cmd.add_argument("-p", "--project", default=None, metavar="ID", help=h)
-            s = "Enable Workspace APIs and reconcile OAuth client configuration on the target project"
-            cmd.add_argument("-s", "--setup", action="store_true", help=s)

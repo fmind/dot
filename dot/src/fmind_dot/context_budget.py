@@ -10,7 +10,6 @@ from typing import IO, Any, Literal
 
 import yaml
 
-from fmind_dot.command import Parser, add_json, add_quiet
 from fmind_dot.errors import DotError, UsageError
 from fmind_dot.reporting import display_path, write_json, write_report_line
 from fmind_dot.state import State
@@ -389,28 +388,3 @@ def _context(state: State, args: argparse.Namespace) -> None:
         _print_report(state.stdout, report, details=args.details)
     if args.check and not report["passed"]:
         raise SystemExit(1)
-
-
-def register(commands: Parser) -> None:
-    desc = (
-        "Measure global, project, and combined AGENTS.md, skill, and subagent discovery costs; report duplicate names"
-    )
-    epilog = (
-        "Exit codes: 0 report or passing --check; 1 failed --check or invalid/unreadable input; "
-        "2 usage error (including --quiet with --details).\n\n"
-        "Examples: dot context --check · dot context --source . --project . --details · dot context --check --json"
-    )
-    c = commands.command("context", desc, _context, config=False, epilog=epilog)
-    proj_help = "Project root (only its own instructions, skills, and subagents) [default: .]"
-    c.add_argument("-p", "--project", type=Path, default=Path(), metavar="PATH", help=proj_help)
-    src_help = "Measure a dot source checkout instead of installed global files"
-    c.add_argument("--source", type=Path, metavar="PATH", help=src_help)
-    chk_help = (
-        f"Exit 1 at {CONTEXT_TOKEN_LIMIT:,} instruction + skill or {SUBAGENT_TOKEN_LIMIT:,} subagent tokens per scope, "
-        "or on duplicate names"
-    )
-    c.add_argument("--check", action="store_true", help=chk_help)
-    det_help = "Include source paths, on-demand file costs, and coverage in text output"
-    c.add_argument("--details", action="store_true", help=det_help)
-    add_json(c)
-    add_quiet(c)

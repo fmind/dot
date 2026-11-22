@@ -26,6 +26,7 @@ def test_parser_tree_help_and_version(tmp_path: Path, monkeypatch: pytest.Monkey
         "context",
         "doctor",
         "login",
+        "privacy",
         "pull",
         "status",
         "trust",
@@ -113,7 +114,7 @@ def test_reporting_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 def test_command_candidates_cover_commands_flags_values_and_double_dash() -> None:
     parser = build_parser()
     top = {v for v, _ in candidates(parser, [""])}
-    assert top == {"context", "doctor", "login", "pull", "status", "trust"}
+    assert top == {"context", "doctor", "login", "privacy", "pull", "status", "trust"}
     flags = {v for v, _ in candidates(parser, ["status", "--"])}
     assert {"--json", "--fetch", "--needs-attention"} <= flags
     eq_vals = [v for v, _ in candidates(parser, ["login", "gcp", "--config="])]
@@ -121,7 +122,7 @@ def test_command_candidates_cover_commands_flags_values_and_double_dash() -> Non
     assert {"gcp", "github", "workspace"} == {v for v, _ in candidates(parser, ["login", ""])}
     assert {"gcp", "github", "workspace"} == {v for v, _ in candidates(parser, ["login", "--check", ""])}
     assert candidates(parser, ["status", "--", "a"]) == []
-    for cmd in ("doctor", "context"):
+    for cmd in ("doctor", "context", "privacy"):
         short_flags = {v for v, _ in candidates(parser, [cmd, "-"])}
         assert {"-q", "--quiet"} <= short_flags
         quiet_line = parser.children[cmd].format_help().split("--quiet", 1)[1].splitlines()[0]

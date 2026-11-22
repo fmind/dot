@@ -9,7 +9,6 @@ import stat
 import sys
 import unicodedata
 from collections.abc import Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -18,7 +17,6 @@ from markdown_it import MarkdownIt
 
 import fmind_dot.context_budget as cb
 from dot_tasks import ROOT
-from dot_tasks.privacy_checks import privacy_findings as _privacy_findings
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
 
@@ -328,47 +326,32 @@ def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
     return findings
 
 
-def privacy_findings(root: Path, home: Path | None = None) -> list[str]:
-    """Scan non-encrypted repo files and local Git commits for emails, SSH comments, and local tokens."""
-    return _privacy_findings(root, home=home, repo_root=ROOT)
-
-
 def _repository_check(root: Path) -> tuple[list[str], int]:
     root = root.resolve()
-    executor = ThreadPoolExecutor(max_workers=1) if root == ROOT else None
-    privacy_future = executor.submit(privacy_findings, root) if executor is not None else None
+    discovered, findings = _discover_skills(root)
+    for name, path in sorted(discovered):
+        findings.extend(_skill_findings(root, name, path))
     try:
-        discovered, findings = _discover_skills(root)
-        for name, path in sorted(discovered):
-            findings.extend(_skill_findings(root, name, path))
-        try:
-            context = cb.context_report(root, source=root)
-            for scope, b in context["budgets"].items():
-                if not b["passed"]:
-                    head = f"{scope} AGENTS.md + skill discovery contains {b['estimated_tokens']} estimated tokens"
-                    findings.append(f"{head}; must be below {cb.CONTEXT_TOKEN_LIMIT}; {_BUDGET_HINT}")
-            for scope, b in context["subagent_budgets"].items():
-                if not b["passed"]:
-                    head = f"{scope} subagent discovery contains {b['estimated_tokens']} estimated tokens"
-                    findings.append(f"{head}; must be below {cb.SUBAGENT_TOKEN_LIMIT}; {_BUDGET_HINT}")
-            for item in context["duplicates"]:
-                paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
-                findings.append(
-                    f"agent context: duplicate skill name {item['name']!r} in {paths}; {cb.DUPLICATE_GUIDANCE}"
-                )
-            for item in context["duplicate_subagents"]:
-                paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
-                findings.append(
-                    f"agent context: duplicate subagent name {item['name']!r} in {paths}; {cb.DUPLICATE_SUBAGENT_GUIDANCE}"
-                )
-        except DotError as error:
-            findings.append(f"agent context: {error}")
-        if privacy_future is not None:
-            findings.extend(privacy_future.result())
-        return sorted(set(findings)), len(discovered)
-    finally:
-        if executor is not None:
-            executor.shutdown(wait=True)
+        context = cb.context_report(root, source=root)
+        for scope, b in context["budgets"].items():
+            if not b["passed"]:
+                head = f"{scope} AGENTS.md + skill discovery contains {b['estimated_tokens']} estimated tokens"
+                findings.append(f"{head}; must be below {cb.CONTEXT_TOKEN_LIMIT}; {_BUDGET_HINT}")
+        for scope, b in context["subagent_budgets"].items():
+            if not b["passed"]:
+                head = f"{scope} subagent discovery contains {b['estimated_tokens']} estimated tokens"
+                findings.append(f"{head}; must be below {cb.SUBAGENT_TOKEN_LIMIT}; {_BUDGET_HINT}")
+        for item in context["duplicates"]:
+            paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
+            findings.append(f"agent context: duplicate skill name {item['name']!r} in {paths}; {cb.DUPLICATE_GUIDANCE}")
+        for item in context["duplicate_subagents"]:
+            paths = ", ".join(_relative(root, Path(p)) for p in item["paths"])
+            findings.append(
+                f"agent context: duplicate subagent name {item['name']!r} in {paths}; {cb.DUPLICATE_SUBAGENT_GUIDANCE}"
+            )
+    except DotError as error:
+        findings.append(f"agent context: {error}")
+    return sorted(set(findings)), len(discovered)
 
 
 def repository_findings(root: Path) -> list[str]:

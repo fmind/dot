@@ -86,7 +86,7 @@ class ConfigValidationError(ValueError):
 
 @functools.cache
 def policy() -> dict[str, Any]:
-    """Return the bundled static tool, scope, API, and completion catalogs."""
+    """Return the bundled static tool, scope, and API catalogs."""
     loaded = yaml.safe_load(Path(__file__).with_name("policy.yaml").read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         raise ValueError("invalid bundled policy catalog")

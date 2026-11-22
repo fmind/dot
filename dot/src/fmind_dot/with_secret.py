@@ -11,7 +11,6 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Never
 
-from fmind_dot import __version__
 from fmind_dot.errors import suppress_broken_pipe_stdout
 
 _NAME_RE = re.compile(r"^[A-Z_][A-Z0-9_]*$")
@@ -98,6 +97,8 @@ def main(
             "Examples: with-secret OPENROUTER_MANAGEMENT_KEY -- <command> · with-secret MY_KEY env\n"
         )
     if args and args[0] in {"-V", "--version"}:
+        from fmind_dot import __version__
+
         _write_stdout(f"with-secret version {__version__}\n")
     if len(args) < 2:
         _fail("usage: with-secret [-h] [-V] NAME [--] COMMAND [ARGS...]", 2)

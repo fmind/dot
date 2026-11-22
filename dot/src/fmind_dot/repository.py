@@ -1,12 +1,12 @@
 """Bounded multi-repository synchronization and status."""
 
+import argparse
 import stat
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import monotonic
 
-from fmind_dot.command import Parser, add_json
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.process import CommandResult, diagnostic_line, run_parallel
@@ -302,35 +302,15 @@ def run_status(
     return status
 
 
-def register_pull(commands: Parser) -> None:
-    msg = (
-        "Skips dirty worktrees and branches without an upstream, and reports diverged branches without changing them. "
-        "Exit 1 when any repository fails or diverged.\n\n"
-        "Examples: dot pull · dot pull ~/fmind/dot --json"
-    )
-    p = commands.command(
-        "pull",
-        "Fast-forward configured repositories; never merges, rebases, or touches dirty checkouts",
-        lambda state, args: run_pull(state, paths=args.paths, as_json=args.as_json),
-        epilog=msg,
-    )
-    p.add_argument("paths", nargs="*", type=Path, help="Repositories to update; defaults to configured workspaces")
-    add_json(p)
+def _pull(state: State, args: argparse.Namespace) -> None:
+    run_pull(state, paths=args.paths, as_json=args.as_json)
 
 
-def register_status(commands: Parser) -> None:
-    s = commands.command(
-        "status",
-        "Show repository status using cached upstream refs (--fetch refreshes them)",
-        lambda state, args: run_status(
-            state, as_json=args.as_json, paths=args.paths, needs_attention=args.needs_attention, fetch=args.fetch
-        ),
-        epilog=(
-            "Exit 1 when any repository cannot be inspected; --json still prints every result.\n\n"
-            "Examples: dot status --needs-attention · dot status --fetch --json"
-        ),
+def _status(state: State, args: argparse.Namespace) -> None:
+    run_status(
+        state,
+        as_json=args.as_json,
+        paths=args.paths,
+        needs_attention=args.needs_attention,
+        fetch=args.fetch,
     )
-    s.add_argument("paths", nargs="*", type=Path, help="Repositories to inspect; defaults to configured workspaces")
-    add_json(s)
-    s.add_argument("--needs-attention", action="store_true", help="Only report repositories needing attention")
-    s.add_argument("-f", "--fetch", action="store_true", help="Fetch remotes first so ahead/behind are current")

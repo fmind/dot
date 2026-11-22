@@ -9,8 +9,8 @@ from fmind_dot.config import Config, PullConfig, TrustConfig
 from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult
 from fmind_dot.trust import (
+    agy_installed,
     github_owner,
-    installed_harnesses,
     register_agy_projects,
     run_trust,
     trust_folders,
@@ -33,8 +33,8 @@ def test_trust_folders_agy_and_idempotency(tmp_path: Path) -> None:
     notes.mkdir()
 
     changed = trust_folders([repo, notes], home=tmp_path)
-    assert changed == {repo: ["agy"], notes: ["agy"]}
-    assert trust_folders([repo, notes], home=tmp_path) == {repo: [], notes: []}
+    assert changed == [repo, notes]
+    assert trust_folders([repo, notes], home=tmp_path) == []
 
     assert json.loads((tmp_path / ".gemini/antigravity-cli/settings.json").read_text())["trustedWorkspaces"] == [
         str(repo),
@@ -68,6 +68,21 @@ def test_register_agy_projects(tmp_path: Path) -> None:
         ("ssh://git@github.com:22/fmind/dot", "fmind"),
         ("git@github.com:fmind/dot", "fmind"),
         ("https://gitlab.com/fmind/dot", None),
+        ("https://evil.example?@github.com/fmind/dot", None),
+        ("https://evil.example#@github.com/fmind/dot", None),
+        ("https://evil.example\\@github.com/fmind/dot", None),
+        ("ssh://evil.example?@github.com/fmind/dot", None),
+        ("https://user:" + "fixture@github.com/fmind/dot", None),
+        ("https://github.com:8443/fmind/dot", None),
+        ("https://github.com:bad/fmind/dot", None),
+        ("https://[bad/fmind/dot", None),
+        ("https://github.com/fmind/dot?ref=main", None),
+        ("evil?@github.com:fmind/dot", None),
+        ("https://attacker.example@extra@github.com/fmind/dot", None),
+        ("ssh://user@attacker.example@github.com/fmind/dot", None),
+        ("https://@github.com/fmind/dot", None),
+        ("https://github.com:/fmind/dot", None),
+        ("https://github.com:0443/fmind/dot", None),
     ],
 )
 def test_github_owner_parses_urls(origin: str, expected: str | None) -> None:
@@ -108,7 +123,6 @@ def test_run_trust_explicit_all_and_empty_state(tmp_path: Path, monkeypatch: pyt
     assert f"+ {ws}: trusted in" not in out
     assert f"+ {owned}: trusted in" in out
     assert f"- {foreign}: skipped" in out
-    assert "Copilot" not in out
     agy = json.loads((home / ".gemini/antigravity-cli/settings.json").read_text())
     assert str(ws) not in agy["trustedWorkspaces"]
     assert str(owned) in agy["trustedWorkspaces"]
@@ -134,7 +148,7 @@ def test_trust_rejects_home_ancestors_symlinks_and_corrupt_json(
 
     (home / ".gemini").symlink_to(outside, target_is_directory=True)
     with pytest.raises(DotError, match="refusing symlinked"):
-        installed_harnesses(home)
+        agy_installed(home)
     (home / ".gemini").unlink()
 
     agy_dir = home / ".gemini/antigravity-cli"

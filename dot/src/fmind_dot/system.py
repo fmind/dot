@@ -22,7 +22,6 @@ from fmind_dot.auth_probes import (
     github_token_plaintext,
     workspace_ready,
 )
-from fmind_dot.command import Parser, add_json, add_quiet
 from fmind_dot.config import expand_path, policy
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
 from fmind_dot.process import CommandResult, run_parallel
@@ -53,8 +52,8 @@ _DOCTOR_GROUPS = (
     ("install", "Install Freshness"),
     ("agents", "Agent Harnesses"),
 )
-DOCTOR_TOOLS: tuple[str, ...] = tuple(policy()["doctor_tools"])
 PACKAGE_DIRECTORY = Path(__file__).resolve().parent
+DOCTOR_TOOLS: tuple[str, ...] = tuple(policy()["doctor_tools"])
 
 
 @dataclass(frozen=True)
@@ -366,19 +365,3 @@ def _doctor(state: State, args: argparse.Namespace) -> None:
             _write_workstation_text(state, results, quiet=args.quiet)
     if any(i.status == "fail" for i in results):
         raise SystemExit(1)
-
-
-def register_doctor(commands: Parser) -> None:
-    epilog = (
-        f"Exit 1 on any failed check, including disk below {_DISK_FAIL_GIB} GiB free (warns below {_DISK_WARN_GIB}). "
-        f"--headroom also fails below {_MEMORY_FAIL_GIB} GiB available memory; exit 2 when --headroom is combined with --fix or --deep.\n\n"
-        "Examples: dot doctor --deep · dot doctor --headroom · dot doctor -q --json"
-    )
-    summary = "Check local workstation health; --deep also probes provider authentication"
-    d = commands.command("doctor", summary, _doctor, config=False, epilog=epilog)
-    add_json(d)
-    add_quiet(d)
-    d.add_argument("--fix", action="store_true", help="Repair local secret-file permissions")
-    d.add_argument("--deep", action="store_true", help="Also probe provider authentication")
-    headroom_help = f"Only check disk (≥{_DISK_FAIL_GIB} GiB) and memory (≥{_MEMORY_FAIL_GIB} GiB) headroom before large downloads or builds; prints one line"
-    d.add_argument("--headroom", action="store_true", help=headroom_help)

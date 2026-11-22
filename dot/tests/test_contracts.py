@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from dot_tasks import privacy_checks
 from dot_tasks import skill_contracts as checker
 from dot_tasks.mise_refresh import validate
+from fmind_dot import privacy
 from repo_helpers import ROOT, chezmoi
 
 
@@ -376,13 +376,13 @@ def test_age_sources_encrypted_and_ignored_without_key(tmp_path: Path) -> None:
 )
 def test_email_pattern_delimiters(template: str, expected: str | None) -> None:
     dom = ".".join(("corp", "io"))
-    m = privacy_checks.EMAIL_PATTERN.search(template.format(f"alice@{dom}"))
+    m = privacy.EMAIL_PATTERN.search(template.format(f"alice@{dom}"))
     assert (m.group(1) if m else None) == (f"{expected}@{dom}" if expected else None)
 
 
 @pytest.mark.real_home
 def test_repository_privacy_contracts() -> None:
-    assert checker.privacy_findings(ROOT) == []
+    assert privacy.privacy_findings(ROOT) == []
 
 
 def test_privacy_findings_and_fail_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -408,18 +408,18 @@ def test_privacy_findings_and_fail_closed(tmp_path: Path, monkeypatch: pytest.Mo
         check=True,
         timeout=30,
     )
-    assert checker.privacy_findings(repo, home=home) == []
+    assert privacy.privacy_findings(repo, home=home) == []
 
     (repo / "sample.py").write_text(f'BAD = "{bad_peer}"\nPROJ = "fmind-internal-9999"\n')
-    findings = checker.privacy_findings(repo, home=home)
+    findings = privacy.privacy_findings(repo, home=home)
     assert any("unapproved email domain 'corp-domain.io'" in f for f in findings)
     assert any("local workstation identifier 'fmind-internal-9999'" in f for f in findings)
     (repo / "sample.py").write_text('OK = "alice@example.com"\n')
     (repo / "valid.age").write_bytes(b"-----BEGIN AGE ENCRYPTED FILE-----\nabc\n")
-    assert checker.privacy_findings(repo, home=home) == []
+    assert privacy.privacy_findings(repo, home=home) == []
     (repo / "plain.age").write_text("SECRET=plaintext\n", encoding="utf-8")
     (repo / "link.age").symlink_to(repo / "valid.age")
-    age_findings = checker.privacy_findings(repo, home=home)
+    age_findings = privacy.privacy_findings(repo, home=home)
     assert any("plain.age: .age source is not age-encrypted ciphertext" in f for f in age_findings)
     assert any("link.age: encrypted .age source must not be a symlink" in f for f in age_findings)
     (repo / "plain.age").unlink()
@@ -432,15 +432,15 @@ def test_privacy_findings_and_fail_closed(tmp_path: Path, monkeypatch: pytest.Mo
         check=True,
         timeout=30,
     )
-    assert any(f"unapproved author email {bad_work!r}" in f for f in checker.privacy_findings(repo, home=home))
+    assert any(f"unapproved author email {bad_work!r}" in f for f in privacy.privacy_findings(repo, home=home))
 
     (home / ".config/git/config.acmecorp").unlink()
-    monkeypatch.setattr(privacy_checks.socket, "gethostname", lambda: "workbench.example.test")
+    monkeypatch.setattr(privacy.socket, "gethostname", lambda: "workbench.example.test")
     (home / ".config/dot.yaml").write_text(
         "trust:\n  github_owners: [acme-corp]\nprivacy:\n  allowed_tokens: [WorkBench]\n"
     )
     (home / ".config/dot.work.yaml").write_text("pull:\n  directories: [~/work/secondary-org]\n")
-    assert privacy_checks._workstation_tokens(home, include_hostname=True) == {"acme-corp", "secondary-org"}
+    assert privacy._workstation_tokens(home, include_hostname=True) == {"acme-corp", "secondary-org"}
 
 
 @pytest.mark.parametrize(
@@ -455,19 +455,19 @@ def test_privacy_invalid_configs_and_ssh_comments(
     (home / ".config/git").mkdir(parents=True)
     (repo / "sample.py").write_text('OK = "alice@example.com"\n')
     (home / ".config/dot.yaml").write_bytes(payload)
-    findings = checker.privacy_findings(repo, home=home)
+    findings = privacy.privacy_findings(repo, home=home)
     assert len(findings) == 1
     assert "cannot load local privacy tokens" in findings[0]
     assert "secret-corp-token" not in findings[0]
 
     (home / ".config/dot.yaml").unlink()
     (home / ".config/git/config.work").write_bytes(b"\xff\xfe")
-    assert any("config.work: cannot load local privacy tokens" in f for f in checker.privacy_findings(repo, home=home))
+    assert any("config.work: cannot load local privacy tokens" in f for f in privacy.privacy_findings(repo, home=home))
     (home / ".config/git/config.work").unlink()
 
     ed, rsa = "ssh-ed25519", "ssh-rsa"
     (repo / "allowed_signers").write_text(f"{ed} AAAA git-signing@fmind.dev\n{ed} AAAA fmind@studio\n{rsa} AAAA= box\n")
-    assert [f.split(" may ")[0] for f in checker.privacy_findings(repo, home=home)] == [
+    assert [f.split(" may ")[0] for f in privacy.privacy_findings(repo, home=home)] == [
         "allowed_signers: SSH key comment 'box'",
         "allowed_signers: SSH key comment 'fmind@studio'",
     ]
@@ -480,4 +480,7 @@ def test_privacy_invalid_configs_and_ssh_comments(
     (repo / "sample.py").write_text('LEAK = "custom-org-99"\n')
     monkeypatch.setenv("HOME", str(linked))
     monkeypatch.setenv("DOT_CONFIG_PATH", str(override))
-    assert any("local workstation identifier 'custom-org-99'" in f for f in checker.privacy_findings(repo))
+    assert any(
+        "local workstation identifier 'custom-org-99'" in f
+        for f in privacy.privacy_findings(repo, include_hostname=False)
+    )

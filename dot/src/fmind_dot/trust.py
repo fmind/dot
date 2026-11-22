@@ -1,5 +1,6 @@
 """Pre-accept coding-harness folder trust for repositories the owner works in."""
 
+import argparse
 import hashlib
 import json
 import os
@@ -8,9 +9,8 @@ import stat
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse, urlsplit
 
-from fmind_dot.command import Parser
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError, NotGitWorkTreeError
 from fmind_dot.private_files import write_atomic_file
@@ -18,11 +18,8 @@ from fmind_dot.process import run_parallel
 from fmind_dot.repository import find_git_repositories
 from fmind_dot.state import State
 
-_GITHUB_ORIGIN = re.compile(
-    r"^(?:https://(?:[^@/]+@)?github\.com(?::443)?/|ssh://(?:[^@/]+@)?github\.com(?::22)?/|[^@/:]+@github\.com:)"
-    r"(?P<owner>[A-Za-z0-9-]+)/[^/]+?/?$",
-    re.IGNORECASE,
-)
+_GITHUB_REPO_PATH = re.compile(r"^(?P<owner>[A-Za-z0-9-]+)/[^/]+/?$")
+_GITHUB_SCP_ORIGIN = re.compile(r"^[^@/:]+@github\.com:(?P<path>.+)$", re.IGNORECASE)
 _ORIGIN_TIMEOUT_SECONDS = 10
 _ORIGIN_CONCURRENCY = 8
 _AGY_SETTINGS_REL = Path(".gemini/antigravity-cli/settings.json")
@@ -99,21 +96,20 @@ def _update_trusted_workspaces(path: Path, folders: list[str], *, home: Path | N
     return changed
 
 
-def installed_harnesses(home: Path | None = None) -> list[str]:
+def agy_installed(home: Path | None = None) -> bool:
     resolved_home = (home or Path.home()).resolve()
     state_dir = (resolved_home / _AGY_SETTINGS_REL).parent
     _reject_symlink_path(state_dir, resolved_home, "harness directory")
-    return ["agy"] if state_dir.is_dir() else []
+    return state_dir.is_dir()
 
 
-def trust_folders(folders: list[Path], *, home: Path | None = None) -> dict[Path, list[str]]:
+def trust_folders(folders: list[Path], *, home: Path | None = None) -> list[Path]:
     resolved_home = (home or Path.home()).resolve()
+    if not agy_installed(resolved_home):
+        return []
     selected = {str(f): f for f in folders}
-    changed: dict[Path, list[str]] = {f: [] for f in selected.values()}
-    if installed_harnesses(resolved_home):
-        for folder in _update_trusted_workspaces(resolved_home / _AGY_SETTINGS_REL, list(selected), home=resolved_home):
-            changed[selected[folder]].append("agy")
-    return changed
+    changed = _update_trusted_workspaces(resolved_home / _AGY_SETTINGS_REL, list(selected), home=resolved_home)
+    return [selected[folder] for folder in changed]
 
 
 def _agy_project_folders(path: Path, text: str) -> set[str]:
@@ -165,7 +161,36 @@ def register_agy_projects(folders: list[Path], include: Sequence[str], *, home: 
 
 
 def github_owner(origin: str) -> str | None:
-    match = _GITHUB_ORIGIN.fullmatch(origin.strip())
+    cleaned = origin.strip()
+    if (
+        not cleaned
+        or any(ch in cleaned for ch in "?#\\")
+        or any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in cleaned)
+    ):
+        return None
+    if "://" in cleaned:
+        try:
+            parsed = urlsplit(cleaned)
+            _ = parsed.port
+        except ValueError:
+            return None
+        if parsed.scheme not in {"https", "ssh"} or (parsed.hostname or "").lower() != "github.com":
+            return None
+        if parsed.netloc.count("@") > 1 or parsed.username == "" or parsed.password is not None:
+            return None
+        default_port = 443 if parsed.scheme == "https" else 22
+        host_port = parsed.netloc.rsplit("@", 1)[-1].lower()
+        if host_port not in {"github.com", f"github.com:{default_port}"}:
+            return None
+        if not parsed.path.startswith("/"):
+            return None
+        repo_path = parsed.path[1:]
+    else:
+        scp = _GITHUB_SCP_ORIGIN.fullmatch(cleaned)
+        if scp is None:
+            return None
+        repo_path = scp.group("path")
+    match = _GITHUB_REPO_PATH.fullmatch(repo_path)
     return match.group("owner") if match else None
 
 
@@ -212,33 +237,19 @@ def run_trust(state: State, targets: Sequence[str] = (".",)) -> None:
     for root in folders:
         if root in forbidden:
             raise DotError(f"refusing to trust {root}: it contains the home directory")
-    if not installed_harnesses(home):
+    if not agy_installed(home):
         state.stdout.write("○ No agent harness state found; nothing to trust yet.\n")
         return
     projects = register_agy_projects(folders, state.config.trust.agy_projects, home=home)
-    changes = trust_folders(folders, home=home)
-    lines = []
-    for folder in folders:
-        changed = changes[folder]
-        detail = f"trusted in {', '.join(changed)}" if changed else "already trusted"
-        lines.append(f"{'✓' if not changed else '+'} {folder}: {detail}\n")
+    added = set(trust_folders(folders, home=home))
+    lines = [
+        f"{'+' if folder in added else '✓'} {folder}: {'trusted in agy' if folder in added else 'already trusted'}\n"
+        for folder in folders
+    ]
     lines.extend(f"+ {f}: added to agy Remote Control projects\n" for f in projects)
     lines.extend(f"- {f}: skipped (origin is not a github.com repository of trust.github_owners)\n" for f in skipped)
     state.stdout.writelines(lines)
 
 
-def register(commands: Parser) -> None:
-    t = commands.command(
-        "trust",
-        "Pre-accept folder trust in agy and add trusted repositories to agy Remote Control projects",
-        lambda state, args: run_trust(state, args.targets or ["."]),
-        epilog=(
-            "The target 'all' covers trust.github_owners repositories under pull.directories.\n\n"
-            "Examples: dot trust . · dot trust all"
-        ),
-    )
-    t.add_argument(
-        "targets",
-        nargs="*",
-        help="Folders or repositories to trust, or 'all' for the configured workspaces [default: .]",
-    )
+def _trust(state: State, args: argparse.Namespace) -> None:
+    run_trust(state, args.targets or ["."])
