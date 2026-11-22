@@ -12,11 +12,14 @@ This is a personal project maintained on a best-effort basis; there is no respon
 
 ## Scope
 
-In scope: `install.sh`, the chezmoi source tree, the `dot` CLI, the GitHub workflows, and the agent configurations and skills shipped here ([trust model](../install.sh), [mise trade-offs](../dot_config/mise/config.toml)).
+In scope: [`install.sh`](../install.sh), the chezmoi source tree, the `dot` CLI, the GitHub workflows, SHA-256 checksum/pin integrity for externals, and the agent configurations and skills shipped here (see [installation & trust boundaries](../README.md#installation), [folder trust](../skills/dot-cli/references/daily-workflows.md#folder-trust), and [mise settings](../dot_config/mise/config.toml)).
 
-Out of scope and upstream boundaries:
+Accepted workstation trade-offs (known behavior, not vulnerabilities):
 
-- **Third-party installers**: setup invokes external installer scripts (`mise.run` and the Antigravity vendor installer during apply) before locked verification applies.
-- **Workstation vs repository tool verification**: workstation tools skip aqua/GitHub signature and attestation checks while keeping npm provenance and packslip signatures active; repository tools keep mise defaults.
-- **Theme and font pins**: theme files pin to an immutable upstream commit and fonts pin to release versions, both verified via SHA-256 checksums.
-- **Upstream vulnerabilities**: report vulnerabilities in mise, chezmoi, agent harnesses, or installed tools directly to their upstream projects.
+- **Workstation vs repository verification:** repository tools ([`mise.toml`](../mise.toml)) keep mise's default signature and provenance verification enabled for CI. Global workstation tools ([`dot_config/mise/config.toml`](../dot_config/mise/config.toml)) disable optional cosign/minisign/SLSA/GitHub attestation checks while keeping npm provenance, packslip signatures, and SHA-256 download digests active, and enable background `mise` self-updates every 24h (`self_update.auto = "24h"`).
+- **Autonomous single-user agents:** shipped Antigravity and Copilot settings intentionally grant autonomous permissions on trusted local workspaces (Antigravity adds credential-store path denies; Copilot runs unrestricted without path denies). Keep untrusted repositories outside trusted paths or inside isolated containers/VMs.
+
+Out of scope:
+
+- **Third-party installers:** initial setup invokes external installer scripts (`mise.run` and the Antigravity vendor installer) before locked verification applies.
+- **Upstream vulnerabilities:** report flaws in upstream tools, theme/font repositories, mise, chezmoi, or agent harnesses directly to their upstream maintainers (pin or checksum bypasses in this repository remain in scope).

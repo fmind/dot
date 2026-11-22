@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="404" viewBox="0 0 960 404" role="img" aria-labelledby="title desc">
-<title id="title">One agent layer for five harnesses</title>
-<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog, and host folders such as private_dot_gemini/ and private_dot_claude/ hold per-host settings, hooks and links. chezmoi deploys the persona to ~/.agents/AGENTS.md and links the skills into ~/.agents/skills/; host settings are merged in place. Antigravity, Claude Code, GitHub Copilot, OpenCode and Pi all receive them. dot context enforces the 5,000-token discovery budget, and dot stats incrementally archives agy, Claude and Pi sessions and turns them into usage reports with tokens, API value and actual costs.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="350" viewBox="0 0 960 350" role="img" aria-labelledby="title desc">
+<title id="title">One agent layer for Antigravity and Copilot</title>
+<desc id="desc">The repository is written once: dot_agents/AGENTS.md is the persona every harness loads, skills/ is one shared skill catalog and dot_agents/supagents/ holds read-only reviewer roles compiled via supagents, and private_dot_gemini/ and private_dot_copilot/ hold per-host settings and compiled agents. chezmoi deploys the persona to ~/.agents/AGENTS.md, deploys skills to ~/.agents/skills/ and supagent sources to ~/.agents/supagents/, merges host settings in place, and deploys compiled agents. Antigravity and GitHub Copilot share them, and dot context enforces the 5,000-token context and 2,000-token subagent per-scope discovery budgets.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0 0 L10 5 L0 10 Z"/></marker>
 <style>
@@ -13,46 +13,37 @@ text { font-family: "Google Sans", "Google Sans Text", Roboto, "Segoe UI", Helve
 .muted { font-size: 12.5px; fill: #595D62; }
 .box { fill: #FFFFFF; stroke: #174EA6; stroke-width: 2; }
 .tile { fill: #D2E3FC; }
-.tile-title { font-size: 14px; font-weight: 700; fill: #174EA6; }
+.tile-title { font-size: 13.5px; font-weight: 700; fill: #174EA6; }
 .flow { fill: none; stroke: #174EA6; stroke-width: 2; }
 .arrowhead { fill: #174EA6; }
 </style>
 </defs>
-<rect class="card" x="1" y="1" width="958" height="402" rx="16"/>
+<rect class="card" x="1" y="1" width="958" height="348" rx="16"/>
 
 <!-- Written once -->
-<text class="label" x="212" y="44" text-anchor="middle">This repository · written once</text>
+<text class="label" x="214" y="44" text-anchor="middle">This repository · written once</text>
 <g text-anchor="middle">
-<rect class="tile" x="32" y="64" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="89">dot_agents/AGENTS.md</text><text class="muted" x="212" y="109">one persona every harness loads</text>
-<rect class="tile" x="32" y="138" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="163">skills/</text><text class="muted" x="212" y="183">one shared skill catalog</text>
-<rect class="tile" x="32" y="212" width="360" height="60" rx="10"/><text class="code tile-title" x="212" y="237">private_dot_gemini/ · …</text><text class="muted" x="212" y="257">per-host settings, hooks and links</text>
+<rect class="tile" x="32" y="64" width="364" height="60" rx="10"/><text class="code tile-title" x="214" y="89">dot_agents/AGENTS.md</text><text class="muted" x="214" y="109">one persona every harness loads</text>
+<rect class="tile" x="32" y="144" width="364" height="60" rx="10"/><text class="code tile-title" x="214" y="169">skills/ · dot_agents/supagents/</text><text class="muted" x="214" y="189">shared skill catalog and reviewer roles</text>
+<rect class="tile" x="32" y="224" width="364" height="60" rx="10"/><text class="code tile-title" x="214" y="249">private_dot_gemini/ · private_dot_copilot/</text><text class="muted" x="214" y="269">per-host settings and compiled agents</text>
 </g>
 
 <!-- Deployment -->
-<text class="label" x="496" y="44" text-anchor="middle">Deployed by chezmoi</text>
+<text class="label" x="498" y="44" text-anchor="middle">Deployed by chezmoi</text>
 <g text-anchor="middle">
-<line class="flow" x1="396" y1="94" x2="596" y2="94" marker-end="url(#arrow)"/><text class="code muted" x="496" y="84">~/.agents/AGENTS.md</text>
-<line class="flow" x1="396" y1="168" x2="596" y2="168" marker-end="url(#arrow)"/><text class="code muted" x="496" y="158">~/.agents/skills/</text>
-<line class="flow" x1="396" y1="242" x2="596" y2="242" marker-end="url(#arrow)"/><text class="muted" x="496" y="232">merged in place</text>
+<line class="flow" x1="400" y1="94" x2="596" y2="94" marker-end="url(#arrow)"/><text class="code muted" x="498" y="84">~/.agents/AGENTS.md</text>
+<line class="flow" x1="400" y1="174" x2="596" y2="174" marker-end="url(#arrow)"/><text class="code muted" x="498" y="164">~/.agents/skills/</text><text class="code muted" x="498" y="193">~/.agents/supagents/</text>
+<line class="flow" x1="400" y1="254" x2="596" y2="254" marker-end="url(#arrow)"/><text class="muted" x="498" y="244">settings merged</text><text class="muted" x="498" y="273">agents deployed</text>
 </g>
 
 <!-- Harnesses -->
-<text class="label" x="764" y="44" text-anchor="middle">Five harnesses</text>
-<rect class="box" x="600" y="60" width="328" height="216" rx="14"/>
+<text class="label" x="764" y="44" text-anchor="middle">Two harnesses</text>
+<rect class="box" x="600" y="60" width="328" height="236" rx="14"/>
 <g text-anchor="middle">
-<rect class="chip" x="620" y="76" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="96">Antigravity</text>
-<rect class="chip" x="620" y="114" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="134">Claude Code</text>
-<rect class="chip" x="620" y="152" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="172">GitHub Copilot</text>
-<rect class="chip" x="620" y="190" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="210">OpenCode</text>
-<rect class="chip" x="620" y="228" width="288" height="30" rx="15"/><text class="chip-text" x="764" y="248">Pi</text>
-</g>
-
-<!-- Sessions to reports -->
-<line class="flow" x1="764" y1="280" x2="764" y2="316" marker-end="url(#arrow)"/>
-<text class="muted" x="776" y="303">agy · Claude · Pi</text>
-<g text-anchor="middle">
-<rect class="tile" x="600" y="320" width="328" height="56" rx="10"/><text class="code tile-title" x="764" y="344">~/.agents/sessions/v3/</text><text class="muted" x="764" y="364">incremental local session archive</text>
-<line class="flow" x1="596" y1="348" x2="396" y2="348" marker-end="url(#arrow)"/><text class="code muted" x="496" y="338">dot stats</text>
-<rect class="tile" x="32" y="320" width="360" height="56" rx="10"/><text class="tile-title" x="212" y="344">Usage reports</text><text class="muted" x="212" y="364">tokens · API value · actual costs</text>
+<rect class="chip" x="620" y="84" width="288" height="44" rx="22"/><text class="chip-text" x="764" y="111">Antigravity (primary)</text>
+<rect class="chip" x="620" y="144" width="288" height="44" rx="22"/><text class="chip-text" x="764" y="171">GitHub Copilot</text>
+<text class="code muted" x="764" y="226">dot context --check</text>
+<text class="muted" x="764" y="248">5,000-tok context · 2,000-tok subagent</text>
+<text class="muted" x="764" y="266">per-scope discovery budgets</text>
 </g>
 </svg>
