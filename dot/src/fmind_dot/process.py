@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 from urllib.parse import urlsplit
 
 from fmind_dot.errors import CommandTimeoutError, DotError
@@ -43,6 +43,13 @@ class CommandResult:
     returncode: int
 
 
+@dataclass(frozen=True)
+class BytesResult:
+    stdout: bytes
+    stderr: bytes
+    returncode: int
+
+
 def _redact(text: str) -> str:
     redacted, position = [], 0
     for path in _PATH.finditer(text):
@@ -61,7 +68,7 @@ def diagnostic_line(text: str, limit: int = 160) -> str:
     return redacted if len(redacted) <= limit else redacted[: limit - 1].rstrip() + "…"
 
 
-def _signal(process: subprocess.Popen[str], signum: signal.Signals, *, group: bool = True) -> None:
+def _signal(process: subprocess.Popen[Any], signum: signal.Signals, *, group: bool = True) -> None:
     if group:
         with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signum)
@@ -70,7 +77,7 @@ def _signal(process: subprocess.Popen[str], signum: signal.Signals, *, group: bo
         process.send_signal(signum)
 
 
-def _terminate(process: subprocess.Popen[str], *, group: bool = True) -> None:
+def _terminate(process: subprocess.Popen[Any], *, group: bool = True) -> None:
     try:
         _signal(process, signal.SIGTERM, group=group)
         with suppress(subprocess.TimeoutExpired):
@@ -175,7 +182,7 @@ class Runner:
     def __init__(self) -> None:
         self._cancelled = threading.Event()
         self._process_lock = threading.Lock()
-        self._processes: set[subprocess.Popen[str]] = set()
+        self._processes: set[subprocess.Popen[Any]] = set()
 
     def cancel(self) -> None:
         self._cancelled.set()
@@ -192,39 +199,39 @@ class Runner:
     def which(self, command: str) -> Path | None:
         return Path(resolved) if (resolved := shutil.which(command)) else None
 
-    def run(
+    def _run_raw(
         self,
         args: Sequence[str],
         *,
         cwd: Path | None = None,
-        input_text: str | None = None,
+        input_data: str | bytes | None = None,
         env: Mapping[str, str] | None = None,
         timeout: float | None = None,
-        check: bool = True,
-    ) -> CommandResult:
+        binary: bool = False,
+    ) -> tuple[Any, Any, int]:
         if not args:
             raise DotError("cannot run an empty command")
         if self._cancelled.is_set():
             raise DotError("operation cancelled")
-        process: subprocess.Popen[str] | None = None
+        process: subprocess.Popen[Any] | None = None
         try:
             with _deferred_launch_interrupts():
+                kwargs: dict[str, Any] = {} if binary else {"encoding": "utf-8", "errors": "replace"}
                 process = subprocess.Popen(  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
                     list(args),
                     cwd=cwd,
                     env={**os.environ, **env} if env else None,
-                    stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
+                    stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    encoding="utf-8",
-                    errors="replace",
                     start_new_session=True,
+                    **kwargs,
                 )
                 with self._process_lock:
                     self._processes.add(process)
             if self._cancelled.is_set():
                 raise DotError("operation cancelled")
-            stdout, stderr = process.communicate(input_text, timeout=timeout)
+            stdout, stderr = process.communicate(input_data, timeout=timeout)
         except subprocess.TimeoutExpired as error:
             if process is not None:
                 _terminate(process)
@@ -237,9 +244,37 @@ class Runner:
             if process is not None:
                 with self._process_lock:
                     self._processes.discard(process)
-        if check and process.returncode != 0:
-            raise DotError(f"command failed ({process.returncode}): {args[0]}")
-        return CommandResult(stdout=stdout, stderr=stderr, returncode=process.returncode)
+        return stdout, stderr, process.returncode
+
+    def run(
+        self,
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        input_text: str | None = None,
+        env: Mapping[str, str] | None = None,
+        timeout: float | None = None,
+        check: bool = True,
+    ) -> CommandResult:
+        stdout, stderr, returncode = self._run_raw(
+            args, cwd=cwd, input_data=input_text, env=env, timeout=timeout, binary=False
+        )
+        if check and returncode != 0:
+            raise DotError(f"command failed ({returncode}): {args[0]}")
+        return CommandResult(stdout=stdout, stderr=stderr, returncode=returncode)
+
+    def run_bytes(
+        self,
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        timeout: float | None = None,
+        check: bool = True,
+    ) -> BytesResult:
+        stdout, stderr, returncode = self._run_raw(args, cwd=cwd, timeout=timeout, binary=True)
+        if check and returncode != 0:
+            raise DotError(f"command failed ({returncode}): {args[0]}")
+        return BytesResult(stdout=stdout, stderr=stderr, returncode=returncode)
 
     def interactive(
         self,

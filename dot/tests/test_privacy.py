@@ -212,3 +212,106 @@ def test_privacy_git_subdir_nested_git_errors_and_unreadable_files(
         finally:
             unreadable.chmod(0o600)
             unreadable.unlink()
+
+
+def test_privacy_staged_scans_index_blobs_and_rejects_non_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("DOT_CONFIG_PATH", raising=False)
+
+    non_git = tmp_path / "plain"
+    non_git.mkdir()
+    non_git_res = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(non_git)])
+    assert non_git_res.exit_code == 1
+    assert any(
+        "--staged requires a Git repository" in f for f in json.loads(non_git_res.stdout)["targets"][0]["findings"]
+    )
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, timeout=30)
+    bad_email = "@".join(("alice", "staged-leak.io"))
+    sample = repo / "notes.md"
+    # Stage a leak, then fix only the working tree: --staged must still catch the staged blob.
+    sample.write_text(f"Contact {bad_email}\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "notes.md"], check=True, timeout=30)
+    sample.write_text("Contact alice@example.com\n", encoding="utf-8")
+
+    staged_leak = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(repo)])
+    assert staged_leak.exit_code == 1
+    assert any("staged-leak.io" in f for f in json.loads(staged_leak.stdout)["targets"][0]["findings"])
+
+    # Stage the clean version, then add an unstaged leak: --staged must pass.
+    subprocess.run(["git", "-C", str(repo), "add", "notes.md"], check=True, timeout=30)
+    sample.write_text(f"Unstaged {bad_email}\n", encoding="utf-8")
+    (repo / "binary.bin").write_bytes(b"\x00\x01" + bad_email.encode("utf-8"))
+    subprocess.run(["git", "-C", str(repo), "add", "binary.bin"], check=True, timeout=30)
+    staged_clean = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(repo)])
+    assert staged_clean.exit_code == 0, staged_clean.stdout + staged_clean.stderr
+
+    # Staged plaintext .age and symlinked .age are both rejected.
+    valid_age = repo / "valid.age"
+    valid_age.write_bytes(b"-----BEGIN AGE ENCRYPTED FILE-----\nabc\n")
+    plain_age = repo / "plain.age"
+    plain_age.write_text("SECRET=plain\n", encoding="utf-8")
+    link_age = repo / "link.age"
+    link_age.symlink_to(valid_age)
+    subprocess.run(["git", "-C", str(repo), "add", "valid.age", "plain.age", "link.age"], check=True, timeout=30)
+    age_res = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(repo)])
+    assert age_res.exit_code == 1
+    age_findings = json.loads(age_res.stdout)["targets"][0]["findings"]
+    assert any("plain.age: .age source is not age-encrypted ciphertext" in f for f in age_findings)
+    assert any("link.age: encrypted .age source must not be a symlink" in f for f in age_findings)
+    assert not any("valid.age" in f for f in age_findings)
+
+    # CRLF-corrupted .age blob is rejected (raw bytes, no universal-newline coercion),
+    # while non-UTF-8 binary blobs without NUL bytes are skipped cleanly.
+    subprocess.run(
+        ["git", "-C", str(repo), "rm", "-q", "-f", "--cached", "plain.age", "link.age"], check=True, timeout=30
+    )
+    (repo / "crlf.age").write_bytes(b"age-encryption.org/v1\r\nbody\n")
+    (repo / "raw.dat").write_bytes(b"\xff\xfe" + bad_email.encode("utf-8"))
+    subprocess.run(["git", "-C", str(repo), "add", "crlf.age", "raw.dat"], check=True, timeout=30)
+    crlf_res = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(repo)])
+    assert crlf_res.exit_code == 1
+    assert json.loads(crlf_res.stdout)["targets"][0]["findings"] == [
+        "crlf.age: .age source is not age-encrypted ciphertext"
+    ]
+
+    # Post-commit typechanges (T): symlink->file leak and regular .age->symlink must both be caught.
+    subprocess.run(
+        ["git", "-C", str(repo), "rm", "-q", "-f", "--cached", "crlf.age", "raw.dat", "binary.bin"],
+        check=True,
+        timeout=30,
+    )
+    (repo / "target.txt").write_text("clean\n", encoding="utf-8")
+    (repo / "swap.txt").symlink_to("target.txt")
+    subprocess.run(["git", "-C", str(repo), "add", "target.txt", "swap.txt", "valid.age"], check=True, timeout=30)
+    git_env = {
+        "GIT_AUTHOR_NAME": "Fmind",
+        "GIT_AUTHOR_EMAIL": "dev@fmind.dev",
+        "GIT_COMMITTER_NAME": "Fmind",
+        "GIT_COMMITTER_EMAIL": "dev@fmind.dev",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+    }
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "init"], env=git_env, check=True, timeout=30)
+    (repo / "swap.txt").unlink()
+    (repo / "swap.txt").write_text(f"Leaked {bad_email}\n", encoding="utf-8")
+    (repo / "valid.age").unlink()
+    (repo / "valid.age").symlink_to("target.txt")
+    subprocess.run(["git", "-C", str(repo), "add", "swap.txt", "valid.age"], check=True, timeout=30)
+    typechange_res = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(repo)])
+    assert typechange_res.exit_code == 1
+    tc_findings = json.loads(typechange_res.stdout)["targets"][0]["findings"]
+    assert any("swap.txt: unapproved email domain 'staged-leak.io'" in f for f in tc_findings)
+    assert any("valid.age: encrypted .age source must not be a symlink" in f for f in tc_findings)
+
+    # Subdirectory staged scan respects root-relative lockfile skips via --relative.
+    sub = repo / "sub"
+    sub.mkdir()
+    (sub / "uv.lock").write_text(f'email = "{bad_email}"\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "sub/uv.lock"], check=True, timeout=30)
+    sub_res = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(sub)])
+    assert sub_res.exit_code == 0, sub_res.stdout + sub_res.stderr

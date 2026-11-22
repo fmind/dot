@@ -117,6 +117,8 @@ def test_command_candidates_cover_commands_flags_values_and_double_dash() -> Non
     assert top == {"context", "doctor", "login", "privacy", "pull", "status", "trust"}
     flags = {v for v, _ in candidates(parser, ["status", "--"])}
     assert {"--json", "--fetch", "--needs-attention"} <= flags
+    privacy_flags = {v for v, _ in candidates(parser, ["privacy", "--"])}
+    assert {"--json", "--quiet", "--staged"} <= privacy_flags
     eq_vals = [v for v, _ in candidates(parser, ["login", "gcp", "--config="])]
     assert eq_vals == []
     assert {"gcp", "github", "workspace"} == {v for v, _ in candidates(parser, ["login", ""])}

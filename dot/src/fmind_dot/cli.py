@@ -153,10 +153,11 @@ def _register_privacy(commands: Parser) -> None:
     epilog = (
         "Reads untracked ~/.config/dot*.yaml and ~/.config/git/config.* to catch private tokens before publishing. "
         "Exit 0 when clean; 1 when any finding or missing directory is reported.\n\n"
-        "Examples: dot privacy · dot privacy ~/fmind/www --json · dot privacy -q ."
+        "Examples: dot privacy · dot privacy --staged -q · dot privacy ~/fmind/www --json"
     )
     p = commands.command("privacy", desc, _lazy("privacy", "_privacy"), config=False, epilog=epilog)
     p.add_argument("paths", nargs="*", type=Path, help="Directories or repositories to scan [default: .]")
+    p.add_argument("--staged", action="store_true", help="Scan staged Git index blobs instead of working-tree files")
     add_json(p)
     add_quiet(p)
 

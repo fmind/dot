@@ -29,10 +29,11 @@ In `fmind/dot`, `mise run doctor` chains `dot doctor`, `chezmoi doctor`, and `mi
 dot status . --needs-attention
 dot status --fetch --json              # fetch-only ref refresh before counting
 dot privacy .                          # scan files and commits for private emails, SSH comments, or host tokens
+dot privacy --staged -q                # scan staged Git index blobs and commits (for pre-commit hooks)
 dot pull .                             # authorized: fast-forward clean repo
 ```
 
-Explicit paths bypass workspace discovery. `status` inspects cached refs unless `--fetch` runs `git fetch --prune` (no Git LFS); inspection failures set `complete: false` and exit `1`. `privacy [PATH...]` scans working files and Git commit emails against allowed public domains (`fmind.dev`, `fmind.ai`, `github.com`, RFC 2606) plus dynamic workstation/client tokens loaded from untracked `~/.config/dot*.yaml` and `~/.config/git/config.*` (`--json` emits `dot.privacy/v1`; `-q` suppresses clean targets). Keep `dot privacy` workstation-local; other repositories must not depend on `dot`. `pull` skips dirty repos and branches without an upstream, fast-forwards only (never merging or rebasing), disables credential prompts, and exits `1` on any fetch failure or diverged branch.
+Explicit paths bypass workspace discovery. `status` inspects cached refs unless `--fetch` runs `git fetch --prune` (no Git LFS); inspection failures set `complete: false` and exit `1`. `privacy [PATH...]` scans working files (or staged index blobs with `--staged`) and Git commit emails against allowed public domains (`fmind.dev`, `fmind.ai`, `github.com`, RFC 2606) plus dynamic workstation/client tokens loaded from untracked `~/.config/dot*.yaml` and `~/.config/git/config.*` (`--json` emits `dot.privacy/v1`; `-q` suppresses clean targets). Keep `dot privacy` workstation-local; other repositories must not depend on `dot`. `pull` skips dirty repos and branches without an upstream, fast-forwards only (never merging or rebasing), disables credential prompts, and exits `1` on any fetch failure or diverged branch.
 
 ## Folder trust
 

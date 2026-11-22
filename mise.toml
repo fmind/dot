@@ -180,6 +180,10 @@ run = "stylua --check dot_config/nvim"
 description = "Scan non-encrypted sources and local commits for unapproved emails, SSH comments, and workstation tokens"
 run = "uv run --frozen --project dot dot privacy -q ."
 
+[tasks."check:privacy:staged"]
+description = "Scan staged Git index blobs and local commits for unapproved emails, SSH comments, and workstation tokens"
+run = "uv run --frozen --project dot dot privacy --staged -q ."
+
 [tasks."check:python"]
 description = "Lint, format-check, type-check, and validate Python packaging and dependencies"
 depends = [

@@ -34,7 +34,7 @@ pre-commit:
           - name: check leaks
             run: mise run check:leaks
           - name: check privacy
-            run: mise run check:privacy
+            run: mise run check:privacy:staged
           - name: check Python lint
             run: mise run check:python:lint
 

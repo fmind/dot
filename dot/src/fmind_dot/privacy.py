@@ -333,18 +333,123 @@ def _compile_token_pattern(
     return re.compile(rf"(?<![A-Za-z0-9])(?:{escaped})(?![A-Za-z0-9])", re.IGNORECASE), []
 
 
+_AGE_HEADERS_BYTES = (b"-----BEGIN AGE ENCRYPTED FILE-----\n", b"age-encryption.org/v1\n")
+
+
+def _scan_text(rel: str, text: str, token_pat: re.Pattern[str] | None) -> list[str]:
+    findings: list[str] = []
+    bad = [m for m in EMAIL_PATTERN.finditer(text) if not _is_allowed_email_domain(m.group(2))]
+    findings.extend(f"{rel}: unapproved email domain {m.group(2)!r} in {m.group(1)!r}; {_EMAIL_HINT}" for m in bad)
+    for m in SSH_KEY_COMMENT_PATTERN.finditer(text):
+        local, _, dom = (comment := m.group(1)).rpartition("@")
+        if not (local and _is_allowed_email_domain(dom)):
+            findings.append(f"{rel}: SSH key comment {comment!r} {_SSH_HINT}")
+    if token_pat is not None and (hit := token_pat.search(text)) is not None:
+        findings.append(f"{rel}: contains local workstation identifier {hit.group(0)!r} {_HOST_HINT}")
+    return findings
+
+
+def _scan_staged_blob(runner: Runner, root: Path, rel: str, sha: str, token_pat: re.Pattern[str] | None) -> list[str]:
+    try:
+        blob = runner.run_bytes(
+            ["git", "-C", str(root), "cat-file", "blob", sha], timeout=_GIT_TIMEOUT_SECONDS, check=False
+        )
+    except (DotError, OSError) as error:
+        return [f"{rel}: unreadable staged blob ({error.__class__.__name__})"]
+    if blob.returncode != 0:
+        detail = diagnostic_line(blob.stderr.decode("utf-8", errors="replace")) or f"exit {blob.returncode}"
+        return [f"{rel}: unreadable staged blob ({detail})"]
+    if rel.endswith(".age"):
+        if not blob.stdout[:64].startswith(_AGE_HEADERS_BYTES):
+            return [f"{rel}: .age source is not age-encrypted ciphertext"]
+        return []
+    if b"\x00" in blob.stdout[:8192]:
+        return []
+    try:
+        text = blob.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return []
+    return _scan_text(rel, text, token_pat)
+
+
+def _scan_staged_files(runner: Runner, root: Path, token_pat: re.Pattern[str] | None) -> list[str]:
+    try:
+        diff = _run_git(
+            runner,
+            root,
+            "diff",
+            "--cached",
+            "--raw",
+            "--no-abbrev",
+            "--no-renames",
+            "--relative",
+            "--diff-filter=AMT",
+            "-z",
+            "--",
+            ".",
+        )
+    except (DotError, OSError) as error:
+        return [_git_error("diff --cached", error.__class__.__name__)]
+    if diff.returncode != 0:
+        return [_git_error("diff --cached", _git_detail(diff))]
+    if not diff.stdout:
+        return []
+    tokens = diff.stdout.split("\0")
+    if not diff.stdout.endswith("\0") or len(tokens) % 2 != 1:
+        return [_git_error("diff --cached", "unexpected raw diff output")]
+    findings: list[str] = []
+    blobs: list[tuple[str, str]] = []
+    for idx in range(0, len(tokens) - 1, 2):
+        meta, rel = tokens[idx], tokens[idx + 1]
+        fields = meta[1:].split() if meta.startswith(":") else []
+        if not rel or len(fields) != 5 or fields[4] not in {"A", "M", "T"}:
+            return [_git_error("diff --cached", "unexpected raw diff output")]
+        new_mode, new_sha = fields[1], fields[3]
+        if rel in PRIVACY_SKIP_PATHS or rel.startswith(PRIVACY_SKIP_PREFIXES):
+            continue
+        if new_mode == "120000":
+            if rel.endswith(".age"):
+                findings.append(f"{rel}: encrypted .age source must not be a symlink")
+            continue
+        if new_mode not in {"100644", "100755"}:
+            if rel.endswith(".age"):
+                findings.append(f"{rel}: encrypted .age source must be a regular file")
+            continue
+        blobs.append((rel, new_sha))
+    for blob_findings in run_parallel(
+        runner,
+        lambda item: _scan_staged_blob(runner, root, item[0], item[1], token_pat),
+        sorted(blobs),
+        _PRIVACY_CONCURRENCY,
+    ):
+        findings.extend(blob_findings)
+    return findings
+
+
 def _scan_root(
     root: Path,
     *,
     token_pat: re.Pattern[str] | None,
     token_errors: list[str],
     runner: Runner,
+    staged: bool = False,
 ) -> list[str]:
     findings = list(token_errors)
+    if staged:
+        has_git, git_err = _detect_git_worktree(runner, root)
+        if git_err is not None:
+            findings.append(git_err)
+            return sorted(set(findings))
+        if not has_git:
+            findings.append(f"{display_path(str(root))}: --staged requires a Git repository")
+            return sorted(set(findings))
+        findings.extend(_scan_staged_files(runner, root, token_pat))
+        findings.extend(_scan_git_commits(runner, root, token_pat))
+        return sorted(set(findings))
+
     has_git, relatives, list_errors = _list_target_files(runner, root)
     findings.extend(list_errors)
 
-    _age_headers = (b"-----BEGIN AGE ENCRYPTED FILE-----\n", b"age-encryption.org/v1\n")
     for rel in sorted(relatives):
         if rel in PRIVACY_SKIP_PATHS or rel.startswith(PRIVACY_SKIP_PREFIXES):
             continue
@@ -369,7 +474,7 @@ def _scan_root(
             except OSError as error:
                 findings.append(f"{rel}: unreadable .age source ({error.__class__.__name__})")
                 continue
-            if not header.startswith(_age_headers):
+            if not header.startswith(_AGE_HEADERS_BYTES):
                 findings.append(f"{rel}: .age source is not age-encrypted ciphertext")
             continue
         try:
@@ -388,14 +493,7 @@ def _scan_root(
         except OSError as error:
             findings.append(f"{rel}: unreadable file ({error.__class__.__name__})")
             continue
-        bad = [m for m in EMAIL_PATTERN.finditer(text) if not _is_allowed_email_domain(m.group(2))]
-        findings.extend(f"{rel}: unapproved email domain {m.group(2)!r} in {m.group(1)!r}; {_EMAIL_HINT}" for m in bad)
-        for m in SSH_KEY_COMMENT_PATTERN.finditer(text):
-            local, _, dom = (comment := m.group(1)).rpartition("@")
-            if not (local and _is_allowed_email_domain(dom)):
-                findings.append(f"{rel}: SSH key comment {comment!r} {_SSH_HINT}")
-        if token_pat is not None and (hit := token_pat.search(text)) is not None:
-            findings.append(f"{rel}: contains local workstation identifier {hit.group(0)!r} {_HOST_HINT}")
+        findings.extend(_scan_text(rel, text, token_pat))
 
     if has_git:
         findings.extend(_scan_git_commits(runner, root, token_pat))
@@ -409,6 +507,7 @@ def privacy_findings(
     include_hostname: bool | None = None,
     config_path: Path | None = None,
     runner: Runner | None = None,
+    staged: bool = False,
 ) -> list[str]:
     """Scan non-encrypted repo files and local Git commits for emails, SSH comments, and local tokens."""
     resolved_home = (Path.home() if home is None else home).resolve()
@@ -418,7 +517,7 @@ def privacy_findings(
         include_hostname=use_hostname,
         config_path=config_path,
     )
-    return _scan_root(root, token_pat=token_pat, token_errors=token_errors, runner=runner or Runner())
+    return _scan_root(root, token_pat=token_pat, token_errors=token_errors, runner=runner or Runner(), staged=staged)
 
 
 def _scan_target(
@@ -427,6 +526,7 @@ def _scan_target(
     token_pat: re.Pattern[str] | None,
     token_errors: list[str],
     runner: Runner,
+    staged: bool = False,
 ) -> dict[str, Any]:
     try:
         resolved = raw.expanduser().resolve()
@@ -436,7 +536,7 @@ def _scan_target(
     label = str(resolved)
     if not resolved.is_dir():
         return {"path": label, "passed": False, "findings": [f"{display_path(label)}: directory not found"]}
-    findings = _scan_root(resolved, token_pat=token_pat, token_errors=token_errors, runner=runner)
+    findings = _scan_root(resolved, token_pat=token_pat, token_errors=token_errors, runner=runner, staged=staged)
     return {"path": label, "passed": not findings, "findings": findings}
 
 
@@ -451,7 +551,9 @@ def _privacy(state: State, args: argparse.Namespace) -> None:
     )
     results = run_parallel(
         state.runner,
-        lambda target: _scan_target(target, token_pat=token_pat, token_errors=token_errors, runner=state.runner),
+        lambda target: _scan_target(
+            target, token_pat=token_pat, token_errors=token_errors, runner=state.runner, staged=args.staged
+        ),
         targets,
         _PRIVACY_CONCURRENCY,
     )
