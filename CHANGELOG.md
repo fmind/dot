@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.0.0] - 2026-11-22
+
+### 🚀 Features
+
+- _(dot)_ Split SQLite parsers with per-session stamps and harden OAuth
+- _(agents)_ Enforce 2-tier zero-shell reviewers and credential denies
+- _(config)_ Optimize Fish, pin Neovim and bootstrap, refresh locks and Vale rules
+
+### 🐛 Bug Fixes
+
+- _(git)_ Widen retired signing key valid-before for v17.3.0
+- _(env)_ Scope gws file keyring backend to macOS
+- _(skills)_ Unify Typst escaping scanner and Vale config resolution
+
+### ♻️ Refactor
+
+- _(dot)_ [**breaking**] Drop session archive, harden OAuth, trust, privacy, and release gates
+- _(agents)_ [**breaking**] Consolidate harnesses on Antigravity and Copilot, refresh skills and supagents
+
+### 📚 Documentation
+
+- Sync README, AGENTS, SECURITY, and architecture diagrams
+
+### 🧹 Miscellaneous
+
+- _(tools)_ Bump global brain-framework lock to 29.0.1
+
 ## [17.5.0] - 2026-11-19
 
 ### 🚀 Features
