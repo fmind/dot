@@ -1,6 +1,6 @@
 # Google Chat content and threads
 
-Apply [humanize](../../humanize/SKILL.md) (80 words or fewer, one headline, up to three bold-lead bullets, zero prose backticks) and scan outbound payloads via `betterleaks stdin --redact`. Replace Markdown headings with bold labels, tables with bullets or links, and language-tagged fences with bare ` ``` ` fences. Pick one syntax per message:
+Delegate audience framing, brevity, prose craft, and the `fmind-review-human` pre-send gate to [humanize](../../humanize/SKILL.md), and scan outbound payloads via `betterleaks stdin --redact`. For Chat rendering plumbing, replace Markdown headings with bold labels, tables with bullets or links, and language-tagged fences with bare ` ``` ` fences. Pick one syntax per message:
 
 | Element     | Native Chat (default)          | Markdown mode                  |
 | ----------- | ------------------------------ | ------------------------------ |

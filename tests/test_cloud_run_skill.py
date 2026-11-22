@@ -17,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _workflow_steps() -> list[dict[str, object]]:
-    workflow = yaml.safe_load((ROOT / "skills/cloud-run/templates/deploy.yml").read_text(encoding="utf-8"))
+    workflow = yaml.safe_load(
+        (ROOT / "skills/gcloud/references/cloud-run/templates/deploy.yml").read_text(encoding="utf-8")
+    )
     steps = workflow["jobs"]["deploy-cloud-run"]["steps"]
     assert isinstance(steps, list)
     return steps
@@ -47,7 +49,7 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
     # One source of truth: the project's mise.toml and lock pin the image tools, not the workflow.
     assert "tool_versions" not in setup_inputs
 
-    deployment = (ROOT / "skills/cloud-run/references/deployment.md").read_text(encoding="utf-8")
+    deployment = (ROOT / "skills/gcloud/references/cloud-run/references/deployment.md").read_text(encoding="utf-8")
     # --pin writes exact versions, so the project's mise.toml stays the one source of truth.
     assert deployment.index("mise use --pin cosign trivy") < deployment.index("mise install --locked cosign trivy")
     assert deployment.index("mise install --locked cosign trivy") < deployment.index("--push")
@@ -69,7 +71,7 @@ def test_cloud_run_installs_exact_image_tools_before_push() -> None:
 def test_secret_seed_validates_before_starting_writer(
     tmp_path: Path, api_key: str | None, expected: bytes | None
 ) -> None:
-    deployment = (ROOT / "skills/cloud-run/references/deployment.md").read_text(encoding="utf-8")
+    deployment = (ROOT / "skills/gcloud/references/cloud-run/references/deployment.md").read_text(encoding="utf-8")
     section = deployment.split("**Seed a runtime secret when authorized**", 1)[1]
     match = re.search(r"```bash\n(.*?)\n\s*```", section, re.DOTALL)
     assert match is not None
@@ -251,7 +253,7 @@ else:
     }
     scripts = tmp_path / ".github/scripts"
     scripts.mkdir(parents=True)
-    helper = ROOT / "skills/cloud-run/templates/verify-private.py"
+    helper = ROOT / "skills/gcloud/references/cloud-run/templates/verify-private.py"
     source = helper.read_text(encoding="utf-8")
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source
@@ -270,7 +272,7 @@ else:
 
 
 def _load_probe_module() -> ModuleType:
-    helper = ROOT / "skills/cloud-run/templates/probe-candidate.py"
+    helper = ROOT / "skills/gcloud/references/cloud-run/templates/probe-candidate.py"
     source = helper.read_text(encoding="utf-8")
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source

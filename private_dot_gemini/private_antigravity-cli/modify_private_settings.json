@@ -2,7 +2,7 @@
 {{- /* Docs: https://antigravity.google/docs/settings?tab=cli
        Host owns account/model choices after setup; `dot trust` owns trustedWorkspaces.
        Native notifications emit OSC 9 alerts forwarded by Zellij to Ghostty for OS popups. */ -}}
-{{- $defaults := dict "pickerGrouping" "grouped" -}}
+{{- $defaults := dict "pickerGrouping" "grouped" "verbosity" "medium" -}}
 {{- $managedConfig := fromJson `
 {
   "$schema": "https://antigravity.google/schemas/v1/settings.json",
@@ -14,8 +14,10 @@
   "showFeedbackSurvey": false,
   "showTips": false,
   "toolPermission": "always-proceed",
-  "verbosity": "high",
-  "vimInsertFirst": true
+  "vimInsertFirst": true,
+  "voice": {
+    "voiceMode": "dictation"
+  }
 }
 ` -}}
 {{- /* State-only renderers: exec replaces sh -c so 300ms cancellation closes pipes; -I -S skips site startup. */ -}}
@@ -27,17 +29,17 @@
 {{- $_ := set $managedConfig "gcp" (dict "project" $gcp_project "location" (env "ANTIGRAVITY_CLOUD_LOCATION" | default "global")) -}}
 {{- end -}}
 {{- /* Preserve host-owned permissions while unioning managed workstation credential-store read_file denies
-       (Deny > Ask > Allow in Antigravity's permission engine; absolute paths avoid tilde-expansion ambiguity). */ -}}
+       (Deny > Ask > Allow in Antigravity's permission engine; absolute paths avoid tilde-expansion ambiguity,
+       and `read_file(<dir>)` matches contained files and folders recursively per Antigravity permissions docs). */ -}}
 {{- $current := dict -}}
 {{- if ne (trim .chezmoi.stdin) "" }}{{ $current = fromJson .chezmoi.stdin }}{{ end -}}
 {{- if not (kindIs "map" $current) }}{{ fail "existing configuration must be an object" }}{{ end -}}
-{{- $currentPerms := get $current "permissions" | default dict -}}
+{{- $currentPerms := dict -}}
+{{- if and (hasKey $current "permissions") (ne (get $current "permissions") nil) }}{{ $currentPerms = get $current "permissions" }}{{ end -}}
 {{- if not (kindIs "map" $currentPerms) }}{{ fail "permissions must be an object" }}{{ end -}}
-{{- $currentDeny := get $currentPerms "deny" | default list -}}
+{{- $currentDeny := list -}}
+{{- if and (hasKey $currentPerms "deny") (ne (get $currentPerms "deny") nil) }}{{ $currentDeny = get $currentPerms "deny" }}{{ end -}}
 {{- if not (kindIs "slice" $currentDeny) }}{{ fail "permissions.deny must be an array" }}{{ end -}}
-{{- $managedDeny := list -}}
-{{- range $entry := get (fromJson (includeTemplate "secret-deny-paths.tmpl" .)) "paths" -}}
-{{-   $managedDeny = append $managedDeny (printf "read_file(%s)" (joinPath $.chezmoi.homeDir $entry.path)) -}}
-{{- end -}}
+{{- $managedDeny := fromJson (includeTemplate "agy-secret-denies.tmpl" .) -}}
 {{- $_ := set $managedConfig "permissions" (dict "deny" (concat $currentDeny $managedDeny | uniq)) -}}
 {{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "defaults" $defaults "managed" $managedConfig) -}}

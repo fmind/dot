@@ -41,4 +41,4 @@ Audit third-party skill packages statically from an immutable commit snapshot—
 
 - [Agent Skills specification](https://agentskills.io/specification) · [OWASP Agentic Skills Top 10 at `d6f7d7d`](https://github.com/OWASP/www-project-agentic-skills-top-10/tree/d6f7d7d0de314f52a83a85d1828e06ab096e595c) (CC BY-SA 4.0; no text copied)
 - Adapted from [NVIDIA SkillSpector `v2.12.0`](https://github.com/NVIDIA/SkillSpector/blob/c7958a3268d9498644b22edb75d0f051bbc8cbfc/README.md) and [Waza scanner `fb4e1d3`](https://github.com/tw93/Waza/blob/fb4e1d3118bb0addce65e05b43c1739aa7294cad/plugins/waza/skills/health/scripts/scan_skill_security.py).
-- Companion skills: [vendor-skill policy](../../../agent-project/references/vendor-skills.md), [code-review](../code-review/GUIDE.md), [threat-model](../threat-model.md).
+- Companion skills: [vendor-skill policy](../../../agent-harnesses/references/vendor-skills.md), [code-review](../code-review/GUIDE.md), [threat-model](../threat-model.md).

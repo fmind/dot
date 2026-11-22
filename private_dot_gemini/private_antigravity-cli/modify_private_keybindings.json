@@ -1,0 +1,12 @@
+# chezmoi:modify-template
+{{- /* Docs: https://antigravity.google/docs/settings?tab=cli#keybindings-configuration
+       Add Zellij-safe aliases (Alt+E, Alt+Q, Alt+W) for shortcuts Zellij intercepts
+       (Ctrl+G Locked, Alt+M Move, Alt+J MoveFocus) while keeping stock fallbacks outside Zellij. */ -}}
+{{- $managed := fromJson `
+{
+  "edit.open_editor": ["alt+e", "ctrl+g"],
+  "prompt.submit_alternate": ["alt+q", "alt+m"],
+  "subagent.jump_to_waiting": ["alt+w", "alt+j"]
+}
+` -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}

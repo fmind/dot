@@ -5,7 +5,7 @@ description: "Lint and format SQL with sqruff or sqlfluff and enforce dbt Core c
 
 # SQL Quality (`sqruff` / `sqlfluff`) & `dbt`
 
-Use `sqruff` (globally installed, Rust-fast) for raw ANSI, PostgreSQL, BigQuery, and DuckDB `.sql` files; use project-pinned `sqlfluff` only when Jinja/dbt template compilation is required.
+Pin `sqruff` per project (`mise use --pin sqruff`, Rust-fast) for raw ANSI, PostgreSQL, BigQuery, and DuckDB `.sql` files; use project-pinned `sqlfluff` only when Jinja/dbt template compilation is required.
 
 ## `sqruff` (`0.44+`, Default for `.sql`)
 

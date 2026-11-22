@@ -1,6 +1,6 @@
 ---
 name: sonarqube
-description: "Inspect SonarQube quality gates and issues, run local scans, and gate server-side AI actions with sonar."
+description: "SonarQube quality gates, issues, local scans, and server AI gates via sonar."
 ---
 
 # SonarQube CLI (`sonar`)
@@ -39,7 +39,7 @@ Inspect quality gates, triage code and dependency findings, and run local diff s
 ## Hard Boundaries
 
 - **Gate server-side AI commands**: `sonar analyze agentic` uploads source to server-side Vortex analysis, and `sonar remediate` triggers SonarQube Cloud AI code edits—both require explicit user approval and customer data-residency clearance.
-- **Never run `sonar integrate`**: `fmind/dot` manages Claude, Antigravity, Copilot, OpenCode, Pi, and Git hooks centrally; `sonar integrate` rewrites host settings and hooks.
+- **Never run `sonar integrate`**: `fmind/dot` manages Antigravity, Copilot, and Git hooks centrally; `sonar integrate` rewrites host settings and hooks.
 - **Treat secret findings as incidents**: never silence a real credential with `sonar allowlist secrets`; contain and rotate per [betterleaks](betterleaks.md).
 
 ## Documentation

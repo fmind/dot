@@ -1,4 +1,4 @@
-"""Count observed skill loads from synthetic agy, Claude, and Pi transcripts."""
+"""Count observed skill loads from synthetic agy transcripts."""
 
 import json
 import os
@@ -6,6 +6,7 @@ import sqlite3
 import subprocess
 import sys
 from contextlib import closing
+from datetime import UTC, datetime
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "skills/skillify/scripts/skill_loads.py"
@@ -37,7 +38,6 @@ def _home(tmp_path: Path) -> Path:
         (tmp_path / ".agents/skills" / name).mkdir(parents=True)
         (tmp_path / ".agents/skills" / name / "SKILL.md").write_text(f"---\nname: {name}\n---\n")
     agy = tmp_path / ".gemini/antigravity-cli/brain"
-    # A task that read one skill twice, and quoted another without reading it.
     _jsonl(
         agy / "task/.system_generated/logs/transcript_full.jsonl",
         [
@@ -47,115 +47,54 @@ def _home(tmp_path: Path) -> Path:
             {"tool_calls": [{"name": "run_command", "args": {"CommandLine": f"cat {_skill(tmp_path, 'beta')}"}}]},
         ],
     )
-    # A catalog review reads everything: it is no evidence that a task needed any of them.
     _jsonl(
         agy / "audit/.system_generated/logs/transcript.jsonl",
         [{"tool_calls": [{"name": "read_file", "args": {"AbsolutePath": _skill(tmp_path, name)}}]} for name in CATALOG],
     )
-    claude = tmp_path / ".claude/projects/-work-project"
-    tools = [
-        {"type": "tool_use", "name": "Skill", "input": {"skill": "beta"}},
-        {"type": "tool_use", "name": "Read", "input": {"file_path": _skill(tmp_path, "alpha")}},
-        {"type": "tool_use", "name": "Skill", "input": {"skill": "not-in-catalog"}},
-    ]
-    _jsonl(claude / "session.jsonl", [{"type": "assistant", "message": {"content": tools}}, {"type": "user"}])
-    _jsonl(claude / "session/subagents/agent-1.jsonl", [{"type": "assistant", "message": {"content": tools}}])
-    (claude / "broken.jsonl").write_text('{"message": {"content": [{"type": "tool_use"\n', encoding="utf-8")
-    call = {"type": "toolCall", "id": "c1", "name": "read", "arguments": {"path": "skills/beta/SKILL.md"}}
-    _jsonl(
-        tmp_path / ".pi/agent/sessions/--work-project--/2026-11-09T20-57-49-274Z_pi-id.jsonl",
-        [{"type": "message", "message": {"role": "assistant", "content": [call]}}],
-    )
-    (tmp_path / ".pi/agent/sessions/--work-project--/dangling.jsonl").symlink_to(tmp_path / "missing.jsonl")
     return tmp_path
 
 
-def test_counts_tool_loads_per_harness_and_excludes_audits(tmp_path: Path) -> None:
-    result = _run(_home(tmp_path), "--json")
+def test_counts_agy_loads_excludes_audits_and_keeps_transcript_private(tmp_path: Path) -> None:
+    home = _home(tmp_path)
+    res_json = _run(home, "--json")
+    assert res_json.returncode == 0, res_json.stderr
+    assert res_json.stderr == ""
+    report = json.loads(res_json.stdout)
+    assert report["schema"] == "skillify.skill-loads/v2"
+    assert report["sessions"] == 2
+    assert report["audit_sessions_excluded"] == 1
+    assert report["skills"][0] == {"skill": "alpha", "loads": 1}
+    assert all(row["loads"] == 0 for row in report["skills"][1:])
 
-    assert result.returncode == 0, result.stderr
-    assert result.stderr == ""
-    report = json.loads(result.stdout)
-    assert report["schema"] == "skillify.skill-loads/v1"
-    # The subagent transcript is not a session; the malformed one is, and loads nothing.
-    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
-    assert report["audit_sessions_excluded"] == {"agy": 1, "claude": 0, "pi": 0}
-    assert report["skills"][:2] == [
-        {"skill": "alpha", "agy": 1, "claude": 1, "pi": 0, "total": 2},
-        {"skill": "beta", "agy": 0, "claude": 1, "pi": 1, "total": 2},
-    ]
-    assert all(row["total"] == 0 for row in report["skills"][2:])
-
-
-def test_text_report_names_unloaded_skills_and_no_transcript_content(tmp_path: Path) -> None:
-    result = _run(_home(tmp_path))
-
-    assert result.returncode == 0, result.stderr
-    lines = result.stdout.splitlines()
-    assert lines[0] == "Skill loads over 30 days · sessions: agy=2 claude=2 pi=1 · audits excluded: agy=1 claude=0 pi=0"
-    assert lines[1:3] == ["alpha  agy=1 claude=1 pi=0", "beta   agy=0 claude=1 pi=1"]
-    assert lines[3] == "No observed load (8): " + " ".join(f"bulk-{index}" for index in range(8))
-    assert "private prompt" not in result.stdout
+    res_text = _run(home)
+    assert res_text.returncode == 0, res_text.stderr
+    lines = res_text.stdout.splitlines()
+    assert lines[0] == "Skill loads over 30 days · sessions: 2 · audits excluded: 1"
+    assert lines[1] == "alpha  1"
+    assert lines[2] == "No observed load (9): beta " + " ".join(f"bulk-{index}" for index in range(8))
+    assert "private prompt" not in res_text.stdout
 
 
-def test_window_excludes_older_sessions_and_bad_arguments_exit_two(tmp_path: Path) -> None:
+def test_window_and_bad_arguments(tmp_path: Path) -> None:
     home = _home(tmp_path)
     for path in home.rglob("*.jsonl"):
-        if path.exists():
-            os.utime(path, (0, 0))
-
+        os.utime(path, (0, 0))
     aged = json.loads(_run(home, "--json", "--days", "7").stdout)
-
-    assert aged["sessions"] == {"agy": 0, "claude": 0, "pi": 0}
+    assert aged["sessions"] == 0
     assert _run(home, "--days", "0").returncode == 2
     missing = _run(home, "--skills", str(tmp_path / "missing"))
     assert missing.returncode == 2
     assert "no skills found" in missing.stderr
 
 
-def test_claude_subagent_and_slash_skill_loads_roll_into_parent_session(tmp_path: Path) -> None:
-    home = _home(tmp_path)
-    claude = home / ".claude/projects/-work-project"
-    _jsonl(
-        claude / "session/subagents/agent-2.jsonl",
-        [
-            {
-                "type": "assistant",
-                "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "/bulk-0"}}]},
-            }
-        ],
-    )
-    _jsonl(
-        claude / "session/subagents/nested/agent-3.jsonl",
-        [
-            {
-                "type": "assistant",
-                "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "bulk-2"}}]},
-            }
-        ],
-    )
-    _jsonl(
-        claude / "session/subagents/nested/memory.jsonl",
-        [
-            {
-                "type": "assistant",
-                "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "bulk-3"}}]},
-            }
-        ],
-    )
-
-    report = json.loads(_run(home, "--json").stdout)
-    by_skill = {row["skill"]: row for row in report["skills"]}
-
-    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
-    assert by_skill["bulk-0"] == {"skill": "bulk-0", "agy": 0, "claude": 1, "pi": 0, "total": 1}
-    assert by_skill["bulk-2"] == {"skill": "bulk-2", "agy": 0, "claude": 1, "pi": 0, "total": 1}
-    assert by_skill["bulk-3"]["total"] == 0
-
-
-def test_agy_subagent_loads_roll_into_root_conversation(tmp_path: Path) -> None:
+def test_subagent_rollups_compact_preference_and_resource_reads(tmp_path: Path) -> None:
     home = _home(tmp_path)
     app_dir = home / ".gemini/antigravity-cli"
+    today = datetime.now(tz=UTC).date().isoformat()
+    (home / ".agents/skills/bulk-6/SKILL.md").write_text(
+        f'---\nname: bulk-6\nmetadata:\n  created: "{today}"\n---\n', encoding="utf-8"
+    )
+    # Child subagent rolls into root `task` (including cycle guard in DB).
     _jsonl(
         app_dir / "brain/child/.system_generated/logs/transcript.jsonl",
         [{"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "beta")}}]}],
@@ -166,170 +105,63 @@ def test_agy_subagent_loads_roll_into_root_conversation(tmp_path: Path) -> None:
             "INSERT INTO conversation_summaries VALUES (?, ?)",
             [("task", ""), ("child", "task"), ("cycle-a", "cycle-b"), ("cycle-b", "cycle-a")],
         )
-
-    report = json.loads(_run(home, "--json").stdout)
-    by_skill = {row["skill"]: row for row in report["skills"]}
-
-    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 1}
-    assert by_skill["alpha"] == {"skill": "alpha", "agy": 1, "claude": 1, "pi": 0, "total": 2}
-    assert by_skill["beta"] == {"skill": "beta", "agy": 1, "claude": 1, "pi": 1, "total": 3}
-
-
-def test_direct_reference_guide_reads_count_as_skill_loads_without_double_counting(tmp_path: Path) -> None:
-    home = _home(tmp_path)
-    alpha_guide = str(home / ".agents/skills/alpha/references/guide.md")
-    bulk_guide = str(home / ".agents/skills/bulk-1/references/nested/GUIDE.md")
+    # Compact transcript takes precedence over transcript_full; scripts/references/assets count without double-counting.
+    both_logs = app_dir / "brain/both/.system_generated/logs"
     _jsonl(
-        home / ".gemini/antigravity-cli/brain/guide-task/.system_generated/logs/transcript.jsonl",
+        both_logs / "transcript.jsonl",
         [
-            {"type": "USER_INPUT", "content": f"quoted path {home / '.agents/skills/bulk-2/references/guide.md'}"},
-            {"tool_calls": [{"name": "read_file", "args": {"Path": alpha_guide}}]},
-            {"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "alpha")}}]},
-            {"tool_calls": [{"name": "read_file", "args": {"Path": bulk_guide}}]},
-            {"tool_calls": [{"name": "run_command", "args": {"CommandLine": f"cat {bulk_guide}"}}]},
-        ],
-    )
-    _jsonl(
-        home / ".claude/projects/-work-project/guide-session.jsonl",
-        [
+            {"tool_calls": [{"name": "read_file", "args": {"Path": json.dumps(_skill(home, "bulk-4"))}}]},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": str(home / ".agents/skills/bulk-1/scripts/x.py")}}]},
+            {"tool_calls": [{"name": "read_file", "args": {"Path": str(home / ".agents/skills/bulk-1/assets/a.svg")}}]},
             {
-                "type": "assistant",
-                "message": {"content": [{"type": "tool_use", "name": "Read", "input": {"file_path": bulk_guide}}]},
-            }
-        ],
-    )
-    _jsonl(
-        home / ".pi/agent/sessions/--work-project--/2026-11-10T10-00-00-000Z_pi-guide.jsonl",
-        [
-            {
-                "type": "message",
-                "message": {
-                    "role": "assistant",
-                    "content": [
-                        {
-                            "type": "toolCall",
-                            "id": "c2",
-                            "name": "read",
-                            "arguments": {"path": "skills/bulk-1/references/guide.md"},
-                        }
-                    ],
-                },
-            }
-        ],
-    )
-
-    report = json.loads(_run(home, "--json").stdout)
-    by_skill = {row["skill"]: row for row in report["skills"]}
-
-    assert report["sessions"] == {"agy": 3, "claude": 3, "pi": 2}
-    assert by_skill["alpha"] == {"skill": "alpha", "agy": 2, "claude": 1, "pi": 0, "total": 3}
-    assert by_skill["bulk-1"] == {"skill": "bulk-1", "agy": 1, "claude": 1, "pi": 1, "total": 3}
-    assert by_skill["bulk-2"]["total"] == 0
-
-
-def test_claude_non_session_files_and_pi_pre_fork_loads_are_excluded(tmp_path: Path) -> None:
-    home = _home(tmp_path)
-    claude = home / ".claude/projects/-work-project"
-    for name in ("memory.jsonl", "journal.jsonl"):
-        _jsonl(
-            claude / name,
-            [
-                {
-                    "type": "assistant",
-                    "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "bulk-3"}}]},
-                }
-            ],
-        )
-    _jsonl(
-        home / ".pi/agent/sessions/--work-project--/2026-11-10T12-00-00-000Z_pi-fork.jsonl",
-        [
-            {
-                "type": "session",
-                "id": "pi-fork",
-                "timestamp": "2026-11-10T12:00:00.000Z",
-                "parentSession": "/work/parent.jsonl",
-            },
-            {
-                "type": "message",
-                "timestamp": "2026-11-10T11:59:59.000Z",
-                "message": {
-                    "role": "assistant",
-                    "content": [
-                        {
-                            "type": "toolCall",
-                            "id": "copied",
-                            "name": "read",
-                            "arguments": {"path": "skills/bulk-4/SKILL.md"},
-                        }
-                    ],
-                },
-            },
-            {
-                "type": "message",
-                "timestamp": "2026-11-10T12:00:01.000Z",
-                "message": {
-                    "role": "assistant",
-                    "content": [
-                        {
-                            "type": "toolCall",
-                            "id": "fresh",
-                            "name": "read",
-                            "arguments": {"path": "skills/bulk-5/SKILL.md"},
-                        }
-                    ],
-                },
+                "tool_calls": [
+                    {"name": "read_file", "args": {"Path": str(home / ".agents/skills/bulk-2/references/g.md")}}
+                ]
             },
         ],
     )
+    _jsonl(
+        both_logs / "transcript_full.jsonl",
+        [{"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "bulk-5")}}]}],
+    )
 
     report = json.loads(_run(home, "--json").stdout)
-    by_skill = {row["skill"]: row for row in report["skills"]}
+    by_skill = {row["skill"]: row["loads"] for row in report["skills"]}
+    assert report["sessions"] == 3
+    assert by_skill["alpha"] == 1
+    assert by_skill["beta"] == 1
+    assert by_skill["bulk-1"] == 1
+    assert by_skill["bulk-2"] == 1
+    assert by_skill["bulk-4"] == 1
+    assert by_skill["bulk-5"] == 0
+    assert f"bulk-6(new:{today})" in _run(home).stdout
 
-    assert report["sessions"] == {"agy": 2, "claude": 2, "pi": 2}
-    assert by_skill["bulk-3"]["total"] == 0
-    assert by_skill["bulk-4"]["total"] == 0
-    assert by_skill["bulk-5"] == {"skill": "bulk-5", "agy": 0, "claude": 0, "pi": 1, "total": 1}
 
-
-def test_scripts_and_templates_reads_count_and_recent_unloaded_skills_are_flagged(tmp_path: Path) -> None:
-    from datetime import UTC, datetime
-
+def test_invalid_utf8_empty_and_unreadable_skills_are_handled_safely(tmp_path: Path) -> None:
     home = _home(tmp_path)
-    today = datetime.now(tz=UTC).date().isoformat()
-    (home / ".agents/skills/bulk-6/SKILL.md").write_text(
-        f'---\nname: bulk-6\nmetadata:\n  created: "{today}"\n---\n',
-        encoding="utf-8",
-    )
-    script_path = str(home / ".agents/skills/bulk-2/scripts/run.py")
-    tmpl_path = str(home / ".agents/skills/bulk-3/templates/card.typ")
-    asset_path = str(home / ".agents/skills/bulk-1/assets/diagram.svg")
-    _jsonl(
-        home / ".gemini/antigravity-cli/brain/asset-task/.system_generated/logs/transcript.jsonl",
-        [
-            {"tool_calls": [{"name": "read_file", "args": {"Path": script_path}}]},
-            {"tool_calls": [{"name": "read_file", "args": {"Path": asset_path}}]},
-            {"tool_calls": [{"name": "read_file", "args": {"Path": _skill(home, "bulk-2")}}]},
-        ],
-    )
-    _jsonl(
-        home / ".pi/agent/sessions/--work-project--/2026-11-12T10-00-00-000Z_pi-tmpl.jsonl",
-        [
-            {
-                "type": "message",
-                "message": {
-                    "role": "assistant",
-                    "content": [{"type": "toolCall", "id": "t1", "name": "read", "arguments": {"path": tmpl_path}}],
-                },
-            }
-        ],
-    )
+    agy = home / ".gemini/antigravity-cli/brain"
+    bad_log = agy / "utf8/.system_generated/logs/transcript.jsonl"
+    bad_log.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps({"tool_calls": [{"name": "view_file", "args": {"Path": _skill(home, "bulk-7")}}]}).encode()
+    bad_log.write_bytes(line[:-1] + b',"raw":"\xff"}\n{"broken":\n')
+    empty_log = agy / "empty/.system_generated/logs/transcript.jsonl"
+    empty_log.parent.mkdir(parents=True, exist_ok=True)
+    empty_log.write_bytes(b"")
 
-    report = json.loads(_run(home, "--json").stdout)
-    by_skill = {row["skill"]: row for row in report["skills"]}
-    assert by_skill["bulk-1"] == {"skill": "bulk-1", "agy": 1, "claude": 0, "pi": 0, "total": 1}
-    assert by_skill["bulk-2"] == {"skill": "bulk-2", "agy": 1, "claude": 0, "pi": 0, "total": 1}
-    assert by_skill["bulk-3"] == {"skill": "bulk-3", "agy": 0, "claude": 0, "pi": 1, "total": 1}
-    assert by_skill["bulk-6"]["total"] == 0
-
-    text_out = _run(home).stdout
-    assert f"bulk-6(new:{today})" in text_out
+    skills_dir = home / ".agents/skills"
+    (skills_dir / "broken-dir/SKILL.md").mkdir(parents=True)
+    unreadable = skills_dir / "unreadable-skill/SKILL.md"
+    unreadable.parent.mkdir(parents=True)
+    unreadable.write_text("---\nname: unreadable-skill\n---\n", encoding="utf-8")
+    is_non_root = os.geteuid() != 0
+    if is_non_root:
+        unreadable.chmod(0o000)
+    try:
+        report = json.loads(_run(home, "--json").stdout)
+        by_skill = {row["skill"]: row["loads"] for row in report["skills"]}
+        assert by_skill["bulk-7"] == 1
+        assert "broken-dir" not in by_skill
+        assert "unreadable-skill" in by_skill
+    finally:
+        if is_non_root:
+            unreadable.chmod(0o644)

@@ -5,7 +5,7 @@ description: "Find Google developer docs and vendor skills (google/skills) acros
 
 # Google Developer Catalog
 
-Discover vendor skills in [google/skills](https://github.com/google/skills); local owners stay authoritative: [gcloud](../SKILL.md), [cloud-run](../../cloud-run/SKILL.md), [infra-as-code](../../infra-as-code/SKILL.md), [gws](../../gws/SKILL.md), [agy](../../agy/SKILL.md), [model-providers](../../model-providers/SKILL.md), [agent-frameworks](../../agent-frameworks/SKILL.md), [colab](../../colab/SKILL.md), and [orchestration-and-competitions](../../python-mlops/references/orchestration-and-competitions.md).
+Discover vendor skills in [google/skills](https://github.com/google/skills); local owners stay authoritative: [gcloud](../SKILL.md), [cloud-run](cloud-run/GUIDE.md), [infra-as-code](../../infra-as-code/SKILL.md), [gws](../../gws/SKILL.md), [agent-harnesses](../../agent-harnesses/SKILL.md), [agent-frameworks](../../agent-frameworks/SKILL.md), and [orchestration-and-competitions](../../mlops/references/orchestration-and-competitions.md).
 
 ## Workflow
 
@@ -16,7 +16,7 @@ Discover vendor skills in [google/skills](https://github.com/google/skills); loc
      | jq -r '.skills[] | select((.name + " " + .description) | test("bigquery"; "i")) | .name'
    ```
 
-1. **Audit before installing**: review an immutable snapshot and install project-scoped skills only per [vendor-skill policy](../../agent-project/references/vendor-skills.md) (preview—never install—its colliding `gcloud` guardrail skill per [name collisions](../../agent-project/references/vendor-skills.md#name-collisions)), then cross-check official docs.
+1. **Audit before installing**: review an immutable snapshot and install project-scoped skills only per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md) (preview—never install—its colliding `gcloud` guardrail skill per [name collisions](../../agent-harnesses/references/vendor-skills.md#name-collisions)), then cross-check official docs.
 
 | Task                                         | Catalog group and selection                              |
 | -------------------------------------------- | -------------------------------------------------------- |

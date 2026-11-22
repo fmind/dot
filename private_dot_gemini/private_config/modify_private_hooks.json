@@ -1,5 +1,0 @@
-# chezmoi:modify-template
-{{- /* Docs: https://antigravity.google/docs/hooks/
-       `/hooks` and host-installed hooks (such as `brain-context`) share this file; retire the
-       legacy `notify` entry while keeping host hooks untouched. */ -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" dict "replace" (list "notify")) -}}

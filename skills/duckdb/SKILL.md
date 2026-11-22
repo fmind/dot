@@ -1,16 +1,16 @@
 ---
 name: duckdb
-description: "Query and export CSV, Parquet, JSON, SQLite, and PostgreSQL data with DuckDB and pgcli."
+description: "Query/export CSV, Parquet, JSON, and SQLite with DuckDB and sqlite3; SQL quality and dbt contracts."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/duckdb
   created: "2026-09-02"
-  updated: "2026-11-17"
+  updated: "2026-11-22"
 ---
 
-# DuckDB, SQLite, and PostgreSQL
+# DuckDB and SQLite
 
 Use DuckDB for local analytics across CSV, Parquet, JSON, and attached SQLite files; keep SQLite for embedded application state.
 
@@ -23,23 +23,12 @@ sqlite3 -init /dev/null -batch -bail -readonly app.sqlite '.schema'
 sqlite3 -init /dev/null -batch -bail -noheader -list -readonly app.sqlite 'PRAGMA integrity_check'
 ```
 
-Always pass `duckdb -no-init -light-mode -batch -bail` and `sqlite3 -init /dev/null -batch -bail` (skipping DuckDB 2.0's 5s OSC 11 terminal probe when `-no-init` bypasses `~/.duckdbrc`). Pass explicit `-json`, `-csv`, `-markdown`, or `-no-agent` when parsing output (`PRAGMA integrity_check` must literally print `ok`).
-
-## PostgreSQL (`pgcli`)
-
-Use `pgcli` non-interactively with explicit bounds and credentials outside `argv`:
-
-```bash
-pgcli --less-chatty -w --row-limit 0 --timeout 10 --single-connection -t -D analytics -c "SELECT id, status FROM events ORDER BY id DESC LIMIT 20"
-```
-
-- Pass `--less-chatty -w --row-limit 0 --timeout 10` to suppress banners/prompts cleanly (`-t` for unframed rows; `--single-connection` on pooled PgBouncer/Cloud SQL endpoints); `psycopg[binary]` is bundled via mise (`vi = True` recommended in `~/.config/pgcli/config`).
-- Authenticate via `.pgpass`, `PGPASSFILE`, `PGSERVICE`, or alias (`-D`), never inline DSN passwords (`postgresql://user:pass@...`), never pass `--log-file` on sensitive queries, and require explicit user approval before `-y` (`--yes`) or writes.
+Keep the non-interactive flags above on every call (`-light-mode` skips DuckDB 2.0's 5s OSC 11 probe). Pass `-json`, `-csv`, `-markdown`, or `-no-agent` when parsing output (`PRAGMA integrity_check` must print `ok`).
 
 ## Workflow
 
-1. **Inspect, bound, and isolate**: start with `DESCRIBE` / `SUMMARIZE` (pin CSV types cleanly), guard scans with `SET max_execution_time=<ms>`, report `LIMIT` previews as partial, persist derived datasets as Parquet (commit `.sql`, never `.duckdb`; open existing DBs `-readonly`), and match output flags to consumers.
-1. **Reconcile grain and nulls**: verify key uniqueness, pre/post-join row counts (catching silent `1:N` fan-out), `NULL`-safe predicates (`IS NOT DISTINCT FROM`), and `NaN` vs `NULL` aggregates before reporting numbers; lint/audit non-trivial SQL and dbt models via [sql-quality-and-dbt](references/sql-quality-and-dbt.md) and `fmind-review-sql` / `fmind-review-data` ([subagent](../subagent/SKILL.md)).
+1. **Inspect, bound, isolate**: run `DESCRIBE`/`SUMMARIZE` (pin CSV types), guard scans with `SET max_execution_time=<ms>`, mark `LIMIT` previews partial, export Parquet (commit `.sql`, not `.duckdb`; open DBs `-readonly`), and match output flags.
+1. **Reconcile grain and nulls**: check key uniqueness, pre/post-join counts (`1:N` fan-out), `IS NOT DISTINCT FROM`, and `NaN` vs `NULL` aggregates before reporting; audit SQL/dbt via [sql-quality-and-dbt](references/sql-quality-and-dbt.md) and `fmind-review-data` ([subagent](../subagent/SKILL.md)).
 
 ## Gotchas
 
@@ -59,10 +48,10 @@ pgcli --less-chatty -w --row-limit 0 --timeout 10 --single-connection -t -D anal
 
 ## Official Skills
 
-Upstream: `duckdb/duckdb-skills`, with separate selections for querying, file formats, attached databases, spatial, S3, and documentation lookup. Follow the shared [vendor-skill policy](../agent-project/references/vendor-skills.md).
+Upstream: `duckdb/duckdb-skills`, with separate selections for querying, file formats, attached databases, spatial, S3, and documentation lookup. Follow the shared [vendor-skill policy](../agent-harnesses/references/vendor-skills.md).
 
 ## Documentation
 
-- [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview) · [agent mode](https://duckdb.org/docs/stable/clients/cli/agent_mode) · [SQLite CLI](https://sqlite.org/cli.html) · [pgcli docs](https://www.pgcli.com/docs)
+- [DuckDB CLI](https://duckdb.org/docs/stable/clients/cli/overview) · [agent mode](https://duckdb.org/docs/stable/clients/cli/agent_mode) · [SQLite CLI](https://sqlite.org/cli.html)
 - Releases: [DuckDB](https://github.com/duckdb/duckdb/releases) · [SQLite changes](https://sqlite.org/changes.html)
-- Companion skills: [python-script](../python-stack/references/python-script/GUIDE.md) (a one-file pipeline when SQL is not enough), [python-stack](../python-stack/references/foundation/GUIDE.md) (typed application data access and embedded SQLite).
+- Companion skills: [python/script](../python/references/script/GUIDE.md) (a one-file pipeline when SQL is not enough), [python/foundation](../python/references/foundation/GUIDE.md) (typed application data access and embedded SQLite).

@@ -13,7 +13,7 @@ Exercise every exposed repo task and CLI entry point, reporting a matrix (runs i
    mise tasks ls --no-global --json --hidden | jq -r '.[] | [.name, ((.run // []) | join(" && "))] | @tsv'
    ```
 
-1. **Gate side effects**: run external tasks (deploy, release, publish, push, upgrade, login, prune) only with approval and `--dry-run` (else mark skipped + reason); run mutating tasks (format, fix, lock, generate) in a snapshot; probe service tasks (serve, dev, watch) under a short timeout with `hurl --test` ([xh](../../xh/SKILL.md)) and kill only processes you spawned.
+1. **Gate side effects**: run external tasks (deploy, release, publish, push, upgrade, login, prune) only with approval and `--dry-run` (else mark skipped + reason); run mutating tasks (format, fix, lock, generate) in a snapshot; probe service tasks (serve, dev, watch) under a short timeout with `xh` or project-pinned `hurl --test` ([http-probing](http-probing.md)) and kill only processes you spawned.
 1. **Run tasks** (aggregate gate first, then each isolated with closed stdin and timeout), scanning logs even on exit 0 for `warning`, `deprecat`, `Traceback`, pytest warning summaries, and skipped tests:
 
    ```bash

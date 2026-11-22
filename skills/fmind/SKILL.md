@@ -1,12 +1,12 @@
 ---
 name: fmind
-description: "Query Fmind's public website and portfolio (fmind.dev) via fmind: bio, articles, papers, projects, daily news, and consulting availability."
+description: "Query fmind.dev via fmind: bio, articles, papers, projects, news, consulting."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind
   created: "2026-11-14"
-  updated: "2026-11-17"
+  updated: "2026-11-20"
   kind: connector
 ---
 

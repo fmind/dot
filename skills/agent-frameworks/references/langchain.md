@@ -1,6 +1,6 @@
 ---
 name: langchain
-description: "LangChain create_agent, middleware, MCP tools, and structured output for LangGraph."
+description: "Use LangChain create_agent, middleware, and MCP tools in LangGraph."
 ---
 
 # LangChain
@@ -23,11 +23,11 @@ Use LangChain only as [langgraph](langgraph.md) building blocks: `create_agent` 
 
 ## Official Skills
 
-Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`ecosystem-primer`, `langchain-fundamentals`, `langchain-middleware`, `langchain-rag`, `langchain-dependencies`); vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md).
+Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`ecosystem-primer`, `langchain-fundamentals`, `langchain-middleware`, `langchain-rag`, `langchain-dependencies`); vet per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md).
 
 ## Documentation
 
 - [Agents](https://docs.langchain.com/oss/python/langchain/agents) · [Middleware](https://docs.langchain.com/oss/python/langchain/middleware/overview) · [Structured output](https://docs.langchain.com/oss/python/langchain/structured-output) · [MCP](https://docs.langchain.com/oss/python/langchain/mcp) · [Unit testing](https://docs.langchain.com/oss/python/langchain/test/unit-testing)
 - Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langchain/releases) · [v1 migration](https://docs.langchain.com/oss/python/migrate/langchain-v1)
 - Live docs MCP: `https://docs.langchain.com/mcp`.
-- Companion skills: [evaluation](evaluation/GUIDE.md), [pydantic](../../python-stack/references/pydantic.md), [observability](../../python-stack/references/observability.md).
+- Companion skills: [evaluation](evaluation/GUIDE.md), [pydantic](../../python/references/pydantic.md), [observability](../../python/references/observability.md).

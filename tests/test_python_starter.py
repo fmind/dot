@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import sys
 import tomllib
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -16,7 +15,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _render(name: str, replacements: dict[str, str], *, owner: str = "python-stack", guide: str = "foundation") -> str:
+def _render(name: str, replacements: dict[str, str], *, owner: str = "python", guide: str = "foundation") -> str:
     base = ROOT / "skills" / owner / ("references/" + guide if guide else "") / "templates"
     content = (base / name).read_text(encoding="utf-8")
     for placeholder, value in replacements.items():
@@ -74,7 +73,7 @@ def _materialize_shared_layer(
     _write(
         project,
         "LICENSE",
-        _render(license_template, replacements, owner="project-scaffolding", guide="project-license"),
+        _render(license_template, replacements, owner="github", guide="project-license"),
     )
     _write(project, ".gitignore", _render("gitignore", replacements))
     _write(project, ".ignore", _render("ignore", replacements))
@@ -84,9 +83,9 @@ def _materialize_shared_layer(
     _write(project, "dprint.json", _render("dprint.json", replacements, owner="mise", guide=""))
     _write(project, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
     for wf in ("ci.yml", "security.yml"):
-        _write(project, f".github/workflows/{wf}", _render(wf, replacements, owner="github-actions", guide="ci-cd"))
+        _write(project, f".github/workflows/{wf}", _render(wf, replacements, owner="github", guide="ci-cd"))
     for gh_cfg in ("dependabot.yml", "jactionlint.yaml"):
-        _write(project, f".github/{gh_cfg}", _render(gh_cfg, replacements, owner="github-actions", guide=""))
+        _write(project, f".github/{gh_cfg}", _render(gh_cfg, replacements, owner="github", guide=""))
 
 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
@@ -151,11 +150,11 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         _write(
             project,
             "src/starter_py/__init__.py",
-            _render("init-api.py", replacements, owner="python-web", guide="litestar"),
+            _render("init-api.py", replacements, owner="python", guide="litestar"),
         )
         _write(project, "src/starter_py/telemetry.py", _render("telemetry.py", replacements))
         _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
-        _write(project, "tests/test_api.py", _render("test_api.py", replacements, owner="python-web", guide="litestar"))
+        _write(project, "tests/test_api.py", _render("test_api.py", replacements, owner="python", guide="litestar"))
     elif profile == "web":
         _run(
             project,
@@ -175,14 +174,14 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         _write(
             project,
             "src/starter_py/__init__.py",
-            _render("init.py", replacements, owner="python-web", guide="litestar"),
+            _render("init.py", replacements, owner="python", guide="litestar"),
         )
         _write(project, "src/starter_py/telemetry.py", _render("telemetry.py", replacements))
         _write(project, "src/starter_py/__main__.py", _render("main.py", replacements, guide="argparse"))
         for name in ("test_web.py", "test_integration.py"):
-            _write(project, f"tests/{name}", _render(name, replacements, owner="python-web", guide="litestar"))
-        _write(project, "tests/conftest.py", _render("conftest.py", replacements, owner="python-web", guide="litestar"))
-        _write(project, ".env.example", _render("env.example", replacements, owner="python-web", guide="litestar"))
+            _write(project, f"tests/{name}", _render(name, replacements, owner="python", guide="litestar"))
+        _write(project, "tests/conftest.py", _render("conftest.py", replacements, owner="python", guide="litestar"))
+        _write(project, ".env.example", _render("env.example", replacements, owner="python", guide="litestar"))
         # Developer `.env` files must never leak into unit tests that instantiate Settings().
         _write(
             project,
@@ -200,12 +199,12 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         _write(
             project,
             "src/starter_py/server.py",
-            _render("server.py", replacements, owner="agent-protocols", guide="mcp"),
+            _render("server.py", replacements, owner="agent-frameworks", guide="mcp"),
         )
         _write(
             project,
             "tests/test_protocol.py",
-            _render("test_protocol.py", replacements, owner="agent-protocols", guide="mcp"),
+            _render("test_protocol.py", replacements, owner="agent-frameworks", guide="mcp"),
         )
     else:
         _run(
@@ -219,11 +218,11 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
             "pydantic>=2.14.3",
         )
         for mod in ("settings.py", "pipeline.py"):
-            _write(project, f"src/starter_py/{mod}", _render(mod, replacements, owner="python-mlops", guide=""))
+            _write(project, f"src/starter_py/{mod}", _render(mod, replacements, owner="mlops", guide=""))
         _write(
             project,
             "tests/test_pipeline.py",
-            _render("test_pipeline.py", replacements, owner="python-mlops", guide=""),
+            _render("test_pipeline.py", replacements, owner="mlops", guide=""),
         )
 
     _run(project, "uv", "lock")
@@ -299,7 +298,7 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
 def test_pep723_script_starter_lock_audit_and_typecheck(tmp_path: Path) -> None:
     script = tmp_path / "script.py"
     script.write_text(
-        (ROOT / "skills/python-stack/references/python-script/templates/script.py").read_text(encoding="utf-8"),
+        (ROOT / "skills/python/references/script/templates/script.py").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     _run(tmp_path, "uv", "lock", "--script", str(script))
@@ -438,7 +437,7 @@ def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> Non
         "<achieve an outcome>": "ship verified documentation",
         "<expected output>": "0.1.0",
     }
-    tpl_dir = ROOT / "skills/documentation-site/templates"
+    tpl_dir = ROOT / "skills/docs/references/site/templates"
     _write(
         site,
         "pyproject.toml",
@@ -446,8 +445,8 @@ def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> Non
         '[dependency-groups]\ndev = ["zensical>=0.1.1,<0.2"]\n',
     )
     _write(site, ".python-version", "3.14\n")
-    _write(site, "zensical.toml", _render("zensical.toml", replacements, owner="documentation-site", guide=""))
-    _write(site, "docs/index.md", _render("index.md", replacements, owner="documentation-site", guide=""))
+    _write(site, "zensical.toml", _render("zensical.toml", replacements, owner="docs", guide="site"))
+    _write(site, "docs/index.md", _render("index.md", replacements, owner="docs", guide="site"))
     _write(site, "docs/guides/lesson.md", (tpl_dir / "lesson.md").read_text(encoding="utf-8"))
     _write(site, "includes/abbreviations.md", (tpl_dir / "abbreviations.md").read_text(encoding="utf-8"))
     _write(site, "docs/stylesheets/fmind.css", ":root { --md-primary-fg-color: #174ea6; }\n")
@@ -467,7 +466,7 @@ def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> Non
 
 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
-def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
+def test_opentofu_starter_validates(tmp_path: Path) -> None:
     iac = tmp_path / "iac"
     iac.mkdir()
     _run(iac, "git", "init", "-q", "-b", "main")
@@ -505,7 +504,7 @@ def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
     _write(
         iac,
         ".github/jactionlint.yaml",
-        (ROOT / "skills/github-actions/templates/jactionlint.yaml").read_text(encoding="utf-8"),
+        (ROOT / "skills/github/templates/jactionlint.yaml").read_text(encoding="utf-8"),
     )
 
     _run(iac, "tofu", "fmt", "-check", "-recursive")
@@ -532,66 +531,20 @@ def test_opentofu_and_copier_starters_validate(tmp_path: Path) -> None:
     _run(iac, "tflint", "--recursive")
     _run(iac, "tofu", "test")
 
-    tpl = tmp_path / "copier-tpl"
-    tpl.mkdir()
-    _run(tpl, "git", "init", "-q", "-b", "main")
-    _write(tpl, "copier.yml", (ROOT / "skills/project-scaffolding/templates/copier.yml").read_text(encoding="utf-8"))
-    _write(tpl, ".github/workflows/ci.yml", "name: Template CI\n")
-    _write(tpl, "template/README.md.jinja", "# {{ slug }} ({{ package }}) by {{ holder }}\n{{ description }}\n")
-    _write(tpl, "template/{{ _copier_conf.answers_file }}.jinja", "{{ _copier_answers | to_nice_yaml }}\n")
-    _run(tpl, "git", "add", ".")
-    _run(tpl, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-qm", "init")
-
-    out = tmp_path / "copier-out"
-    _run(
-        tmp_path,
-        "uvx",
-        "--from",
-        "copier>=9.19.1",
-        "copier",
-        "copy",
-        "--defaults",
-        "--data",
-        "slug=demo-app",
-        "--data",
-        "holder=Example",
-        "--data",
-        "description=Demo",
-        str(tpl),
-        str(out),
-    )
-    assert "demo-app (demo_app) by Example" in (out / "README.md").read_text(encoding="utf-8")
-    assert (out / ".copier-answers.yml").is_file()
-    assert not (out / ".github").exists()
-
 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
-def test_editable_pptx_script_builds_valid_deck(tmp_path: Path) -> None:
-    templates_dir = ROOT / "skills" / "draft-typst-deck" / "templates"
-    script = templates_dir / "editable_deck.py"
-    out = tmp_path / "editable.pptx"
-    _run(tmp_path, "uv", "run", "--script", str(script), "-o", str(out))
-    assert out.is_file()
-
-    helper_path = ROOT / "skills" / "draft-typst-deck" / "scripts" / "build_typst_deck.py"
+def test_typst_deck_figure_card_renders_png(tmp_path: Path) -> None:
+    templates_dir = ROOT / "skills" / "draft" / "references" / "typst-deck" / "templates"
+    helper_path = ROOT / "skills" / "draft" / "references" / "typst-deck" / "scripts" / "build_typst_deck.py"
     spec = importlib.util.spec_from_file_location("build_typst_deck", helper_path)
     assert spec
     assert spec.loader
     helper = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(helper)
-    assert helper.inspect_pptx_metadata(out) == (3, "Architecture Decision Briefing")
 
-    with zipfile.ZipFile(out, "r") as zf:
-        notes1 = zf.read("ppt/notesSlides/notesSlide1.xml").decode()
-        assert "approve Provider B" in notes1
-
-    # Also verify rendering a standalone figure-card PNG and embedding it via --figure.
     for name in ("fmind.typ", "fmind-slides.typ", "figure-card.typ"):
         shutil.copy2(templates_dir / name, tmp_path / name)
     card_png = tmp_path / "card.png"
     assert helper.main(["render", str(tmp_path / "figure-card.typ"), "-o", str(card_png), "--allow-font-warnings"]) == 0
-    out_with_fig = tmp_path / "editable-fig.pptx"
-    _run(tmp_path, "uv", "run", "--script", str(script), "-o", str(out_with_fig), "--figure", str(card_png))
-    assert helper.inspect_pptx_metadata(out_with_fig) == (3, "Architecture Decision Briefing")
-    with zipfile.ZipFile(out_with_fig, "r") as zf:
-        assert "ppt/media/image1.png" in zf.namelist()
+    assert card_png.is_file()
+    assert card_png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")

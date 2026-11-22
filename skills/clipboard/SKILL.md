@@ -1,13 +1,13 @@
 ---
 name: clipboard
-description: "Copy the last requested output to the system clipboard."
+description: "Copy last requested output to system clipboard."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/clipboard
   created: "2026-10-03"
-  updated: "2026-11-17"
+  updated: "2026-11-22"
 ---
 
 # Clipboard
@@ -25,7 +25,7 @@ metadata:
    CLIPBOARD_PAYLOAD
    ```
 
-1. **Confirm without repeating the payload**: `copy.py` verifies the clipboard byte-for-byte (`pbcopy`/`pbpaste` with `LC_CTYPE=UTF-8` on macOS; `wl-copy`/`wl-paste` on `WAYLAND_DISPLAY`, else `xclip` on `DISPLAY`—forwarded as OSC 52 by `ttyd-clipboard.service` on Android AVF `ttyd` VMs; 5s timeout per command). On failure, report the native diagnostic without retrying or claiming success.
+1. **Confirm without repeating the payload**: `copy.py` verifies the clipboard byte-for-byte across macOS (`pbcopy`) and Linux (`wl-copy`/`xclip`, 5s timeout). On failure, report the native diagnostic without retrying or claiming success.
 
 ## Boundaries
 
@@ -36,4 +36,4 @@ metadata:
 ## Documentation
 
 - [xclip](https://github.com/astrand/xclip) · [wl-clipboard](https://github.com/bugaevc/wl-clipboard) · Releases: [xclip](https://github.com/astrand/xclip/releases), [wl-clipboard](https://github.com/bugaevc/wl-clipboard/releases)
-- Companions: [task-prompts](../task-prompts/SKILL.md), [draft-mail](../draft-mail/SKILL.md).
+- Companions: [task-prompts](../agent-harnesses/references/task-prompts/GUIDE.md), [draft/mail](../draft/references/mail/GUIDE.md).

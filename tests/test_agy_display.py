@@ -29,8 +29,8 @@ def state() -> dict[str, object]:
         "context_window": {"used_percentage": 24.3, "context_window_size": 1048576},
         "task_count": 2,
         "quota": {
-            "weekly": {"remaining_fraction": 0.75, "reset_in_seconds": 60},
-            "other": {"remaining_fraction": 0.6, "reset_in_seconds": 7500},
+            "gemini-5h": {"remaining_fraction": 0.25, "reset_in_seconds": 60},
+            "gemini-weekly": {"remaining_fraction": 0.6, "reset_in_seconds": 7500},
         },
         "model": {"display_name": "Flash High"},
         "terminal_width": 140,
@@ -97,7 +97,7 @@ def test_untrusted_strings_cannot_emit_terminal_controls() -> None:
 
 @pytest.mark.parametrize("bad", [None, True, "20", -1, float("nan"), float("inf"), 10**1000])
 def test_invalid_metrics_are_omitted(bad: object) -> None:
-    payload = {"context_window": {"used_percentage": bad}, "quota": {"weekly": {"remaining_fraction": bad}}}
+    payload = {"context_window": {"used_percentage": bad}, "quota": {"gemini-weekly": {"remaining_fraction": bad}}}
     assert render(payload, "statusline") == "\uf07b agy \ue0b1 \uf110 starting"
 
 
@@ -146,23 +146,45 @@ def test_narrow_display_keeps_activity_and_drops_optional_details() -> None:
 def test_wide_display_preserves_full_labels_and_additional_state() -> None:
     payload = state()
     payload.update(
-        terminal_width=220,
+        terminal_width=240,
         model={"display_name": "Gemini 3.8 Flash (High)"},
-        execution_mode="planning",
+        agent={"name": "fmind-review-code"},
+        cycle_mode="plan",
+        subagents=[
+            {"name": "a", "role": "Researcher", "status": "running"},
+            {"name": "b", "role": "Verifier", "status": "completed"},
+            "ignored",
+        ],
         artifact_count=3,
     )
     text = render(payload, "statusline")
     assert "Gemini 3.8 Flash (High)" in text
-    assert "planning" in text
+    assert "\uf007 fmind-review-code" in text
+    assert "\uf013 plan" in text
+    assert "\uf0c0 1 subagent" in text
     assert "3 artifacts" in text
     assert "context 24%" in text
     assert "quota 60% left" in text
     assert "\ue62b INSERT" in text
+    # Legacy execution_mode remains a fallback when cycle_mode is absent.
+    legacy = {**state(), "terminal_width": 220, "execution_mode": "planning"}
+    assert "\uf013 planning" in render(legacy, "statusline")
+    # Multiple running subagents pluralize and control characters in agent/mode are stripped.
+    payload.update(
+        agent={"name": "custom\x1b[31m-agent\x07"},
+        cycle_mode="auto\x1b]52;c;leak\x07",
+        subagents=[{"status": "running"}, {"status": "running"}],
+    )
+    sanitized = render(payload, "statusline")
+    assert "\uf007 custom-agent" in sanitized
+    assert "\uf013 auto" in sanitized
+    assert "\uf0c0 2 subagents" in sanitized
+    assert "leak" not in sanitized
     payload.update(terminal_width=40, tool_confirmation_pending=True)
     narrow = render(payload, "statusline")
     assert "needs input" in narrow
     assert "artifacts" not in narrow
-    assert "planning" not in narrow
+    assert "\uf013 auto" not in narrow
 
 
 @pytest.mark.parametrize("environment", [{"NO_COLOR": "1"}, {"TERM": "dumb"}])
@@ -222,14 +244,14 @@ def test_reset_durations_round_up(seconds: float, expected: str) -> None:
     assert display["duration"](seconds) == expected
 
 
-def test_quota_matches_active_model_family_and_skips_disabled_buckets() -> None:
+def test_quota_reports_only_enabled_gemini_weekly_bucket() -> None:
     payload = state()
     payload.update(
         model={"id": "Gemini 4 Argon (High)", "display_name": "Gemini 4 Argon (High)"},
         quota={
-            "3p-5h": {"remaining_fraction": 1.0, "reset_in_seconds": 16_000, "disabled": True},
+            "3p-5h": {"remaining_fraction": 0.05, "reset_in_seconds": 16_000},
             "3p-weekly": {"remaining_fraction": 0.0, "reset_in_seconds": 213_000},
-            "gemini-5h": {"remaining_fraction": 0.8, "reset_in_seconds": 7_500},
+            "gemini-5h": {"remaining_fraction": 0.15, "reset_in_seconds": 7_500},
             "gemini-weekly": {"remaining_fraction": 0.62, "reset_in_seconds": 480_000},
         },
         terminal_width=200,
@@ -239,8 +261,24 @@ def test_quota_matches_active_model_family_and_skips_disabled_buckets() -> None:
         {"id": "Orchestrator", "display_name": "Orchestrator"},
         {"id": "gemini-pro-orchestrator", "display_name": "Orchestrator"},
         {"id": "Gemini 4 Hydrogen (XHigh)", "display_name": "Gemini 4 Hydrogen (XHigh)"},
+        {"id": "Claude Opus 5.5 (High)", "display_name": "Claude Opus 5.5 (High)"},
     ):
         payload.update(model=candidate)
         assert "quota 62% left ↻ 5d13h" in render(payload, "statusline")
-    payload.update(model={"id": "Claude Opus 5.5 (High)", "display_name": "Claude Opus 5.5 (High)"})
-    assert "quota 0% left ↻ 2d11h" in render(payload, "statusline")
+    payload.update(quota={"Gemini-Weekly": {"remaining_fraction": 0.0, "reset_in_seconds": 213_000}})
+    assert "\x1b[31m\uf244 quota 0% left ↻ 2d11h\x1b[0m" in render(payload, "statusline", color=True)
+    payload.update(
+        quota={
+            "gemini-5h": {"remaining_fraction": 0.4, "reset_in_seconds": 7_500},
+            "3p-weekly": {"remaining_fraction": 0.5, "reset_in_seconds": 213_000},
+            "gemini-weekly": {"remaining_fraction": 0.62, "reset_in_seconds": 480_000, "disabled": True},
+        }
+    )
+    assert "quota" not in render(payload, "statusline")
+    payload.update(
+        quota={
+            "gemini-5h": {"remaining_fraction": 0.4, "reset_in_seconds": 7_500},
+            "3p-weekly": {"remaining_fraction": 0.5, "reset_in_seconds": 213_000},
+        }
+    )
+    assert "quota" not in render(payload, "statusline")

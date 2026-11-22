@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATES = ROOT / "skills/python-stack/references/argparse/templates"
-SCRIPT = ROOT / "skills/python-stack/references/python-script/templates/script.py"
+TEMPLATES = ROOT / "skills/python/references/argparse/templates"
+SCRIPT = ROOT / "skills/python/references/script/templates/script.py"
 # The packaged template reads its version from installed metadata; unpackaged runs borrow pytest's.
 INSTALLED_DISTRIBUTION = "pytest"
 
@@ -104,15 +104,16 @@ def test_concrete_python_templates_pass_repo_ruff_checks() -> None:
     assert ruff.is_file()
     targets = [
         "skills/agent-frameworks/references/evaluation/templates/eval_runner.py",
-        "skills/python-stack/references/foundation/templates/telemetry.py",
-        "skills/python-stack/references/python-script/templates/script.py",
-        "skills/python-mlops/templates/settings.py",
-        "skills/python-mlops/templates/pipeline.py",
-        "skills/agy/references/antigravity-sdk/templates/orchestrator.py",
-        "skills/github-actions/references/ci-cd/templates/image-platforms.py",
-        "skills/draft-typst-deck/templates/editable_deck.py",
-        "skills/cloud-run/templates/verify-private.py",
-        "skills/cloud-run/templates/probe-candidate.py",
+        "skills/python/references/foundation/templates/telemetry.py",
+        "skills/python/references/script/templates/script.py",
+        "skills/mlops/templates/settings.py",
+        "skills/mlops/templates/pipeline.py",
+        "skills/agent-harnesses/references/antigravity-sdk/templates/orchestrator.py",
+        "skills/github/references/ci-cd/templates/image-platforms.py",
+        "skills/draft/references/slides/templates/draft_slides.py",
+        "skills/draft/references/sheets/templates/draft_sheets.py",
+        "skills/gcloud/references/cloud-run/templates/verify-private.py",
+        "skills/gcloud/references/cloud-run/templates/probe-candidate.py",
     ]
     for subcommand in (["check"], ["format", "--check"]):
         result = subprocess.run(

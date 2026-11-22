@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/draft-mail/scripts/draft_email.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "skills/draft/references/mail/scripts/draft_email.py"
 
 SAMPLE_SEND_AS: dict[str, Any] = {
     "sendAsEmail": "github@fmind.dev",
@@ -650,7 +650,7 @@ def test_cli_vale_blocks_errors_and_surfaces_advisory_warnings(
     (tmp_path / ".vale.ini").write_text(
         f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
         "MinAlertLevel = warning\nIgnoredScopes = code, tt\nSkippedScopes = script, style, pre, figure\n"
-        "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n[*.html]\nFmind.ProseBackticks = NO\n",
+        "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
         encoding="utf-8",
     )
 

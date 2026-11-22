@@ -1,0 +1,48 @@
+---
+name: acli
+description: "Search, update Jira and Confluence with acli."
+---
+
+# Atlassian CLI
+
+Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, so this connector owns auth, bounded reads, and write authority.
+
+## Workflow
+
+1. **Resolve the account**: `acli auth status`, `login`, and `switch` manage OAuth. API tokens are per-service (`acli jira auth` / `acli confluence auth`); always pipe tokens on stdin, never in argv:
+
+   ```bash
+   acli jira auth login --site <site>.atlassian.net --email <email> --token < token.txt
+   acli confluence auth login --site <site>.atlassian.net --email <email> --token < token.txt
+   ```
+
+1. **Bound every read**: pass JQL limits, explicit `--fields`, and `--json`:
+
+   ```bash
+   acli jira workitem search --jql 'project = TEAM AND status != Done' --fields key,summary,status --limit 50 --json
+   acli jira workitem view TEAM-123 --fields summary,status --json
+   acli confluence page view --id <page-id> --body-format storage --json
+   ```
+
+1. **Expand selectively**: fetch `description` or `comment` only when needed. Treat results hitting `--limit` as partial: check `--count`, then tighten JQL or pass `--paginate` before claiming completeness.
+1. **Write cleanly with authority**: apply [humanize](../../humanize/SKILL.md) (reader-calibrated inline code, native [ADF panels & tables](../../humanize/references/primitives.md#channel-primitives)) and check outbound text with `betterleaks stdin --redact` before posting. Reuse user authority for the target scope (ask when missing), use `--generate-json` / `--from-json` when sending rich ADF payloads (`--description-file` / `--body-file` send plain text; `--edit-last` updates the latest comment):
+
+   ```bash
+   acli jira workitem create --project TEAM --type Task --summary "<summary>" --description-file description.txt --json
+   acli jira workitem transition --key TEAM-123 --status "In Progress"
+   acli jira workitem comment create --key TEAM-123 --body-file comment.txt
+   ```
+
+1. **Verify by reading back**: run `view --fields summary,status,description,comment --json` (omitting `comment` from `--fields` hides posted comments) after every write and check the updated fields.
+
+## Gotchas
+
+- **Bulk flags hit every match**: `--jql` and `--filter` on `transition`, `edit`, or `comment` mutate all matches; `--yes` skips prompts, never authority.
+- **Confluence pages are read-only in `acli` 1.3.40**: no Confluence search, and `confluence page` supports only `view` (blogs/spaces support create); use Rovo MCP under the same authority to search or edit pages.
+- **Rovo Dev & MCP**: `acli rovodev` reads `~/.agents/skills`; configure `atlassian/atlassian-mcp-server` via [mcp-setup](../../agent-harnesses/references/mcp-setup.md) (`--list` before any write tool).
+
+## Documentation
+
+- [acli reference](https://developer.atlassian.com/cloud/acli/reference/commands/)
+- Releases: [acli changelog](https://developer.atlassian.com/cloud/acli/changelog/)
+- Companion skills: [issues](../../github/references/issues/GUIDE.md) (same authority rules for GitHub), [gws](../../gws/SKILL.md) (Google Workspace), [mcp-setup](../../agent-harnesses/references/mcp-setup.md).

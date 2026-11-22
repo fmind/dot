@@ -12,11 +12,18 @@ gws drive files list --params '{"pageSize":20,"q":"trashed = false","fields":"ne
 python3 -I ~/.agents/skills/gws/scripts/pages.py pages.ndjson --items files
 ```
 
-Verify `gws` exit 0 before running `pages.py`, and keep `nextPageToken`/`incompleteSearch` in `fields` (`--items` uses `messages` for Gmail/Chat, `spaces` for Chat spaces, `items` for Calendar; `gmail.users.messages.list` returns IDs only—use `messages.get` or `+read` for bodies). Export Google-native files with `drive.files.export --output <file>`; download binaries/Markdown via `drive.files.get` (`alt=media --output <file>`). On `files.create --upload <path>`, metadata `mimeType` sets target type while `--upload-content-type` describes source bytes; uploads inherit folder sharing unless `permissions` is called.
+Verify `gws` exit 0 before running `pages.py`, and keep `nextPageToken`/`incompleteSearch` in `fields` (`--items` uses `messages` for Gmail/Chat, `spaces` for Chat spaces, `items` for Calendar; `gmail.users.messages.list` returns IDs only—use `messages.get` or `+read` for bodies). Export Google-native files with `drive.files.export --output <file>`; download binaries/Markdown via `drive.files.get` (`alt=media --output <file>`). For isolated Drive uploads/upserts with read-back verification (`.gdoc`, `.md`, `.pdf`, `.pptx`, Slides, Sheets), use [`drive_upload.py`](../scripts/drive_upload.py):
+
+```bash
+python3 -I ~/.agents/skills/gws/scripts/drive_upload.py report.html \
+  --drive-folder FOLDER_ID --target-mime application/vnd.google-apps.document --dry-run --json
+```
+
+Uploads inherit folder sharing unless `permissions` is called.
 
 ## Docs
 
-Choose standard `.gdoc` vs native `.md` per user preference and [draft-doc](../../draft-doc/SKILL.md#format-choice); extract `.gdoc` text across all tabs (including child tabs, tables, headers, footers, footnotes) with `docs_text.py`:
+Choose standard `.gdoc` vs native `.md` per user preference and [draft/doc](../../draft/references/doc/GUIDE.md#format-choice); extract `.gdoc` text across all tabs (including child tabs, tables, headers, footers, footnotes) with `docs_text.py`:
 
 ```bash
 gws docs documents get --params '{"documentId":"DOC_ID","includeTabsContent":true}' > document.json
@@ -27,14 +34,14 @@ Legacy `body` covers only tab 1, and extracted text is not an edit offset map—
 
 ## Sheets
 
-Read bounded A1 ranges via `spreadsheets.values.get` (quoting sheet names; setting `FORMATTED_VALUE`, `UNFORMATTED_VALUE`, or `FORMULA`; expecting ragged rows with trailing blanks omitted). Update via `values.update` (`spreadsheetId`, `range`, and `valueInputOption` in `--params`, rectangular `values` in `--json`—default `RAW` over formula-evaluating `USER_ENTERED`), `values.batchUpdate`, or structural `spreadsheets.batchUpdate`. Read back the range; never retry `append` blindly after an uncertain response.
+Read bounded A1 ranges via `spreadsheets.values.get` (quoting sheet names; setting `FORMATTED_VALUE`, `UNFORMATTED_VALUE`, or `FORMULA`; expecting ragged rows with trailing blanks omitted). Update via `values.update` (`spreadsheetId`, `range`, and `valueInputOption` in `--params`, rectangular `values` in `--json`—default `RAW` over formula-evaluating `USER_ENTERED`), `values.batchUpdate`, or structural `spreadsheets.batchUpdate` (see [draft/sheets](../../draft/references/sheets/GUIDE.md)). Read back the range; never retry `append` blindly after an uncertain response.
 
 ## Gmail
 
-Read decoded messages via `gws gmail +read --id MESSAGE_ID --headers --format json` (`--html` for HTML). Create or update drafts and replies exclusively with [draft-mail](../../draft-mail/SKILL.md)—`gws gmail +send`/`+reply`/`+reply-all`/`+forward` send immediately unless `--draft` is passed and omit `multipart/alternative` and `sendAs` signatures.
+Read decoded messages via `gws gmail +read --id MESSAGE_ID --headers --format json` (`--html` for HTML). Create or update drafts and replies exclusively with [draft/mail](../../draft/references/mail/GUIDE.md)—`gws gmail +send`/`+reply`/`+reply-all`/`+forward` send immediately unless `--draft` is passed and omit `multipart/alternative` and `sendAs` signatures.
 
 ## Calendar and Slides
 
-Bound Calendar reads by `calendarId` and time window (`singleEvents=true` + ordering for expanded recurrences). Distinguish exclusive-end all-day `date` from RFC 3339 `dateTime` + IANA timezone, series vs instance IDs, and `sendUpdates` invitation side effects. Build new decks and Slides imports via [draft-typst-deck](../../draft-typst-deck/SKILL.md); use `gws slides presentations get` and `batchUpdate` (`replaceAllText`) only to fill existing client Slides templates. Other Workspace APIs follow help → schema → bounded read → dry-run → authorized write → read-back.
+Bound Calendar reads by `calendarId` and time window (`singleEvents=true` + ordering for expanded recurrences). Distinguish exclusive-end all-day `date` from RFC 3339 `dateTime` + IANA timezone, series vs instance IDs, and `sendUpdates` invitation side effects. Build Typst PDF/Retina decks via [draft/typst-deck](../../draft/references/typst-deck/GUIDE.md) and native editable Google Slides or client template fills via [draft/slides](../../draft/references/slides/GUIDE.md). Other Workspace APIs follow help → schema → bounded read → dry-run → authorized write → read-back.
 
 Sources: [Drive downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Docs tabs](https://developers.google.com/workspace/docs/api/how-tos/tabs), [Docs structure](https://developers.google.com/workspace/docs/api/concepts/structure), [Sheets values](https://developers.google.com/workspace/sheets/api/guides/values), [Gmail listing](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list), [Gmail sending](https://developers.google.com/workspace/gmail/api/guides/sending), [Calendar events](https://developers.google.com/workspace/calendar/api/v3/reference/events), [Slides requests](https://developers.google.com/workspace/slides/api/guides/batch).

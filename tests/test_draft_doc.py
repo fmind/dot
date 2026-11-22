@@ -1,908 +1,185 @@
-"""Exercise the Google Docs native Markdown (.md) and figure compiler."""
+"""Contract tests for lean draft-* starter scripts (draft_slides, draft_sheets)."""
 
 from __future__ import annotations
 
 import importlib.util
 import json
-import shutil
-from collections.abc import Callable
+import subprocess
+import sys
 from pathlib import Path
-from types import ModuleType
+from typing import Any
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills/draft-doc/scripts/compile_markdown_doc.py"
-
-VALID_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 220" role="img" aria-labelledby="title desc">
-  <title id="title">Figure 1 — Summary Card</title>
-  <desc id="desc">Summary card showing 3 metrics on a 600x220 canvas.</desc>
-  <rect width="600" height="220" rx="16" fill="#FFFFFF"/>
-  <text x="32" y="48" font-size="18" fill="#202124">Summary Card</text>
-  <text x="32" y="80" font-size="12" fill="#595D62">Subtitle text</text>
-</svg>
-"""
+ROOT = Path(__file__).resolve().parents[1]
+DRAFT_SLIDES = ROOT / "skills/draft/references/slides/templates/draft_slides.py"
+DRAFT_SHEETS = ROOT / "skills/draft/references/sheets/templates/draft_sheets.py"
 
 
-@pytest.fixture
-def mod() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("compile_markdown_doc", SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def test_check_markdown_dialect_accepts_clean_doc(mod: ModuleType) -> None:
-    md = (
-        "# Nightly Batch Architecture Review\n\n"
-        "Type: Decision memo\\\n"
-        "Status: Draft\n\n"
-        "> **Important — Decision needed by 2026-11-15:** Approve Option 2.\n\n"
-        "## Executive summary\n\n"
-        "**Moving nightly batch jobs to spot virtual machines reduces compute spend by 60%.**\n\n"
-        "---\n\n"
-        "- [x] Validate retry backoff (`<details>` and `> [!IMPORTANT]` inside inline code are ignored)\n"
-        "- [ ] Deploy policy gate\n\n"
-        "![Figure 1 — Summary Card][fig-1]\n\n"
-        "```python\n"
-        "def verify() -> bool:\n"
-        '    return "<details>" != ""\n'
-        "```\n\n"
-        "[fig-1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==>\n"
-    )
-    assert mod.check_markdown_dialect(md) == []
-
-
-@pytest.mark.parametrize(
-    ("snippet", "expected"),
-    [
-        ("---\ntitle: Doc\n---\n\n# Heading\n", "YAML frontmatter"),
-        ("# Heading\n\nParagraph without blank line\n---\n", "Setext heading underline"),
-        ("# Heading\n\n**Bold lead-in**\n---\n", "Setext heading underline"),
-        ("# Heading\n\nTitle\n===\n", "Setext heading underline"),
-        ("# Heading\n\nBefore\n\n<!-- note -->\n", "Raw HTML tag"),
-        ("# Heading\n\n> [!IMPORTANT]\n> Act now.\n", "GitHub Alert syntax"),
-        ("# Heading\n\n<details><summary>More</summary>Text</details>\n", "Raw HTML tag"),
-        ("# Heading\n\nLine one<br>Line two\n", "Raw HTML tag"),
-        ("# Heading\n\n```mermaid\nflowchart LR\n  A --> B\n```\n", "Uncompiled ```mermaid block"),
-        ("# Heading\n\n![Card](card.svg)\n", "Uncompiled .svg image link"),
-        ("# Heading\n\n![Card](card.typ)\n", "Uncompiled .typ image link"),
-        ("# Heading\n\n- Step\n\n  ```mermaid\n  flowchart LR\n    A --> B\n  ```\n", "Indented ```mermaid block"),
-        ("# Heading\n\n1. Step\n\n   ~~~ Mermaid\n   flowchart LR\n   ~~~\n", "Indented ```mermaid block"),
-        ("# Heading\n\n![Card](https://example.com/card.svg)\n", "remote SVG images are unsupported"),
-        ("# Heading\n\n![Card](https://example.com/card.typ)\n", "remote Typst sources are unsupported"),
-    ],
-)
-def test_check_markdown_dialect_rejects_unsupported_constructs(
-    mod: ModuleType,
-    snippet: str,
-    expected: str,
-) -> None:
-    problems = mod.check_markdown_dialect(snippet)
-    assert any(expected in p for p in problems), problems
-
-
-@pytest.mark.parametrize("snippet", ["1. item\n---\n", "- item\n  more\n---\n", "> quote\n---\n", "***\n---\n"])
-def test_check_markdown_dialect_allows_thematic_break_after_blocks(mod: ModuleType, snippet: str) -> None:
-    # CommonMark: a setext underline is never a lazy continuation line, so `---` here is a horizontal rule.
-    assert mod.check_markdown_dialect(f"# Heading\n\n{snippet}") == []
-
-
-def test_check_svg_validates_contract(mod: ModuleType, tmp_path: Path) -> None:
-    svg_file = tmp_path / "valid.svg"
-    svg_file.write_text(VALID_SVG, encoding="utf-8")
-    assert mod.check_svg(svg_file) == []
-
-    bad_svg = tmp_path / "bad.svg"
-    bad_svg.write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200"><text font-size="9">tiny</text><script>alert(1)</script></svg>',
-        encoding="utf-8",
-    )
-    problems = mod.check_svg(bad_svg)
-    assert any("expected 600" in p for p in problems)
-    assert any('role="img"' in p for p in problems)
-    assert any("below 12px" in p for p in problems)
-    assert any("<script> is ignored or unsafe" in p for p in problems)
-    assert mod.check_svg(tmp_path / "missing.svg") == [f"{tmp_path / 'missing.svg'}: SVG file not found"]
-
-
-def test_compile_markdown_replaces_mermaid_and_svg_with_base64_refs(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    svg_file = tmp_path / "card.svg"
-    svg_file.write_text(VALID_SVG, encoding="utf-8")
-
-    def fake_mermaid(_code: str, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> None:
-        assert (scale, max_width_px) == (2, 600)
-        out_png.write_bytes(b"FAKE_MERMAID_PNG")
-
-    def fake_svg(_svg_path: Path, out_png: Path, scale: float = 2, max_width_px: int | None = None) -> tuple[int, int]:
-        assert (scale, max_width_px) == (2, 600)
-        out_png.write_bytes(b"FAKE_SVG_PNG")
-        return (1920, 440)
-
-    monkeypatch.setattr(mod, "render_mermaid_png", fake_mermaid)
-    monkeypatch.setattr(mod, "render_svg_png", fake_svg)
-
-    source_md = (
-        "# Architecture Proposal\n\n"
-        "```mermaid\n"
-        "%% alt: Figure 1 — Request Pipeline\n"
-        "flowchart LR\n"
-        "  A --> B\n"
-        "```\n\n"
-        "![Figure 2 — KPI Summary Card](card.svg)\n\n"
-        "Inline code `![ignored](other.svg)` stays untouched.\n"
+def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-I", str(script), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
     )
 
-    assets_dir = tmp_path / "assets"
-    compiled, figures = mod.compile_markdown(source_md, tmp_path, assets_dir=assets_dir)
-    assert "```mermaid" not in compiled
-    assert "(card.svg)" not in compiled
-    assert "`![ignored](other.svg)`" in compiled
-    assert "![Figure 1 — Request Pipeline][fig-1]" in compiled
-    assert "![Figure 2 — KPI Summary Card][fig-2]" in compiled
-    assert "[fig-1]: <data:image/png;base64,RkFLRV9NRVJNQUlEX1BORw==>" in compiled
-    assert "[fig-2]: <data:image/png;base64,RkFLRV9TVkdfUE5H>" in compiled
-    assert len(figures) == 2
-    assert figures[0]["kind"] == "mermaid"
-    assert Path(figures[0]["source_asset"]).read_text(encoding="utf-8").startswith("%% alt:")
-    assert Path(figures[0]["png_asset"]).read_bytes() == b"FAKE_MERMAID_PNG"
-    assert figures[1]["kind"] == "svg"
-    assert Path(figures[1]["source_asset"]).name == "card.svg"
-    assert Path(figures[1]["png_asset"]).read_bytes() == b"FAKE_SVG_PNG"
+
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec
+    assert spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def test_cli_json_check_and_compile(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+def test_draft_slides_starter_builds_unique_ids_and_write_control(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    svg_file = tmp_path / "card.svg"
-    svg_file.write_text(VALID_SVG, encoding="utf-8")
-
-    def fake_render_svg(_svg_path: Path, out: Path, *, scale: float = 2, **_kwargs: object) -> tuple[int, int]:
-        out.write_bytes(b"PNG")
-        return (round(600 * scale), round(220 * scale))
-
-    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
-
-    out_png = tmp_path / "card.png"
-    assert mod.main([str(svg_file), "-o", str(out_png), "--json"]) == 0
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["status"] == "ok"
-    assert payload["dimensions_px"] == [1200, 440]
-
-    src_md = tmp_path / "memo.src.md"
-    src_md.write_text("# Memo\n\n![Card](card.svg)\n", encoding="utf-8")
-    out_md = tmp_path / "memo.md"
-    bundle_dir = tmp_path / "bundle"
-    assert mod.main([str(src_md), "-o", str(out_md), "--assets-dir", str(bundle_dir), "--json"]) == 0
-    md_payload = json.loads(capsys.readouterr().out)
-    assert md_payload["assets_dir"] == str(bundle_dir)
-    assert str(bundle_dir / "memo.src.md") in md_payload["assets"]
-    assert str(bundle_dir / "card.svg") in md_payload["assets"]
-    assert str(bundle_dir / "fig-1.png") in md_payload["assets"]
-
-    bad_md = tmp_path / "bad.md"
-    bad_md.write_text("---\ntitle: Bad\n---\n# Title\n", encoding="utf-8")
-    assert mod.main([str(bad_md), "--check-only", "--json"]) == 1
-    err_payload = json.loads(capsys.readouterr().err)
-    assert "YAML frontmatter" in err_payload["error"]
-
-
-def _assert_upload_runs_beside_file(args: list[str], cwd: Path | None) -> None:
-    """gws rejects --upload paths outside its working directory: pass a bare name and run from its folder."""
-    if "--upload" in args:
-        name = args[args.index("--upload") + 1]
-        assert cwd is not None
-        assert "/" not in name
-        assert (cwd / name).is_file()
-
-
-def test_cli_drive_upload_creates_assets_subfolder_and_upserts(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    svg_file = tmp_path / "card.svg"
-    svg_file.write_text(VALID_SVG, encoding="utf-8")
-    src_md = tmp_path / "memo.src.md"
-    src_md.write_text("# Memo\n\n![Card](card.svg)\n", encoding="utf-8")
-
-    def fake_render_svg(_svg_path: Path, out: Path, *, scale: float = 2, **_kwargs: object) -> tuple[int, int]:
-        out.write_bytes(b"PNG")
-        return (round(600 * scale), round(220 * scale))
-
-    gws_calls: list[list[str]] = []
-
-    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        _assert_upload_runs_beside_file(args, cwd)
-        gws_calls.append(args)
-        if args[:3] == ["drive", "files", "list"]:
-            params = json.loads(args[args.index("--params") + 1])
-            q = params["q"]
-            if "name = 'assets'" in q:
-                return {"files": [{"id": "folder_assets_1", "name": "assets"}]}
-            if "name = 'memo'" in q:
-                return {"files": []}
-            if "'folder_memo_assets_2' in parents" in q:
-                return {"files": [{"id": "existing_svg_9", "name": "card.svg"}]}
-            return {"files": []}
-        if args[:3] == ["drive", "files", "create"]:
-            body = json.loads(args[args.index("--json") + 1])
-            if body.get("mimeType") == "application/vnd.google-apps.folder":
-                return {"id": "folder_memo_assets_2", "name": body["name"]}
-            return {
-                "id": f"new_{body['name']}",
-                "name": body["name"],
-                "mimeType": body["mimeType"],
-                "webViewLink": f"https://drive.google.com/file/d/new_{body['name']}/view",
+    spec_file = tmp_path / "deck.json"
+    spec_file.write_text(
+        json.dumps(
+            {
+                "title": "Q4 Architecture Review",
+                "slides": [
+                    {"title": "Option B cuts latency 40%", "body": "Measured over n=1,000 requests."},
+                    {"title": "Next step: migrate staging", "body": "Target date: 2026-12-01."},
+                ],
             }
-        if args[:3] == ["drive", "files", "update"]:
-            params = json.loads(args[args.index("--params") + 1])
-            assert "--json" not in args, "asset updates must not rename"
-            return {"id": params["fileId"], "name": "card.svg", "mimeType": "image/svg+xml"}
-        msg = f"Unexpected gws call: {args}"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
-    monkeypatch.setattr(mod, "run_gws", fake_run_gws)
-
-    assert (
-        mod.main(
-            [
-                str(src_md),
-                "--drive-folder",
-                "parent_folder_123",
-                "--doc-name",
-                "Memo.md",
-                "--doc-slug",
-                "memo",
-                "--json",
-            ]
-        )
-        == 0
-    )
-    payload = json.loads(capsys.readouterr().out)
-    drive = payload["drive"]
-    assert drive["file_id"] == "new_Memo.md"
-    assert drive["docs_url"] == "https://docs.google.com/document/d/new_Memo.md/edit"
-    assert drive["assets_folder_id"] == "folder_memo_assets_2"
-    assert drive["assets_folder_path"] == "assets/memo"
-    uploaded_by_name = {item["name"]: item["id"] for item in drive["uploaded_assets"]}
-    assert uploaded_by_name == {
-        "memo.src.md": "new_memo.src.md",
-        "card.svg": "existing_svg_9",
-        "fig-1.png": "new_fig-1.png",
-    }
-
-    with pytest.raises(ValueError, match="Invalid folder ID"):
-        mod.upload_to_drive(tmp_path / "memo.md", [], gws_dir=tmp_path, drive_folder="bad id with spaces'; DROP")
-
-
-def _png(width: int, height: int = 10) -> bytes:
-    """Return a PNG signature and IHDR header, enough for png_size."""
-    return b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big")
-
-
-def _fake_drive(calls: list[list[str]], *, doc_name: str = "Quarterly Review.md") -> Callable[..., dict[str, object]]:
-    """Fake gws for an existing document in folder_parent_1 whose assets folders are created on demand."""
-
-    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        _assert_upload_runs_beside_file(args, cwd)
-        calls.append(args)
-        params = json.loads(args[args.index("--params") + 1])
-        if args[:3] == ["drive", "files", "get"]:
-            return {"id": params["fileId"], "name": doc_name, "parents": ["folder_parent_1"]}
-        if args[:3] == ["drive", "files", "list"]:
-            return {"files": []}
-        if args[:3] == ["drive", "files", "create"]:
-            body = json.loads(args[args.index("--json") + 1])
-            return {"id": f"new_{body['name']}", "name": body["name"], "mimeType": body["mimeType"]}
-        if args[:3] == ["drive", "files", "update"]:
-            body = json.loads(args[args.index("--json") + 1]) if "--json" in args else {}
-            return {"id": params["fileId"], "name": body.get("name", doc_name), "mimeType": "text/markdown"}
-        msg = f"Unexpected gws call: {args}"
-        raise AssertionError(msg)
-
-    return fake_run_gws
-
-
-def test_cli_update_by_file_id_keeps_drive_name_and_asset_slug(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
-    src_md = tmp_path / "report.src.md"
-    src_md.write_text("# Report\n\n![Card](card.svg)\n", encoding="utf-8")
-
-    def fake_render_svg(_svg: Path, out: Path, **_kwargs: object) -> tuple[int, int]:
-        out.write_bytes(_png(600))
-        return (600, 138)
-
-    calls: list[list[str]] = []
-    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
-    monkeypatch.setattr(mod, "run_gws", _fake_drive(calls))
-
-    out_md = tmp_path / "report.md"
-    assert mod.main([str(src_md), "-o", str(out_md), "--file-id", "doc_file_42", "--json"]) == 0
-    drive = json.loads(capsys.readouterr().out)["drive"]
-    assert drive["name"] == "Quarterly Review.md"
-    assert drive["assets_folder_path"] == "assets/Quarterly-Review"
-    assert (tmp_path / "assets" / "Quarterly-Review" / "card.svg").is_file()
-    doc_update = next(c for c in calls if c[:3] == ["drive", "files", "update"])
-    assert "--json" not in doc_update, "updating by --file-id without --doc-name must not rename the document"
-    folders = [json.loads(c[c.index("--json") + 1])["name"] for c in calls if c[:3] == ["drive", "files", "create"]]
-    assert folders[:2] == ["assets", "Quarterly-Review"]
-
-
-def test_upload_by_file_id_renames_only_with_doc_name(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    compiled = tmp_path / "report.md"
-    compiled.write_text("# Report\n", encoding="utf-8")
-    calls: list[list[str]] = []
-    monkeypatch.setattr(mod, "run_gws", _fake_drive(calls))
-
-    gws_dir = tmp_path / "gws"
-    gws_dir.mkdir()
-    result = mod.upload_to_drive(compiled, [], gws_dir=gws_dir, file_id="doc_file_42", doc_name="Final Report")
-    update = next(c for c in calls if c[:3] == ["drive", "files", "update"])
-    assert json.loads(update[update.index("--json") + 1]) == {"name": "Final Report.md"}
-    assert result["name"] == "Final Report.md"
-
-
-def test_upload_finds_existing_document_on_a_later_page(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    compiled = tmp_path / "Memo.md"
-    compiled.write_text("# Memo\n", encoding="utf-8")
-    pages: dict[str | None, dict[str, object]] = {
-        None: {"files": [{"id": "other_1", "name": "Other.md"}], "nextPageToken": "page2"},
-        "page2": {"files": [{"id": "memo_2", "name": "Memo.md"}]},
-    }
-    calls: list[list[str]] = []
-
-    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        _assert_upload_runs_beside_file(args, cwd)
-        calls.append(args)
-        params = json.loads(args[args.index("--params") + 1])
-        if args[:3] == ["drive", "files", "list"]:
-            assert "nextPageToken" in params["fields"]
-            return pages[params.get("pageToken")]
-        if args[:3] == ["drive", "files", "update"]:
-            return {"id": params["fileId"], "name": "Memo.md"}
-        msg = f"Unexpected gws call: {args}"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(mod, "run_gws", fake_run_gws)
-    gws_dir = tmp_path / "gws"
-    gws_dir.mkdir()
-    assert mod.upload_to_drive(compiled, [], gws_dir=gws_dir, drive_folder="parent_folder_123")["file_id"] == "memo_2"
-    assert [c[2] for c in calls] == ["list", "list", "update"]
-
-
-@pytest.mark.parametrize("value", ["0", "-1", "5", "2.5", "big"])
-def test_cli_rejects_invalid_scale(mod: ModuleType, tmp_path: Path, value: str) -> None:
-    with pytest.raises(SystemExit) as excinfo:
-        mod.main([str(tmp_path / "doc.md"), "--scale", value])
-    assert excinfo.value.code == 2
-
-
-def test_compile_markdown_rerun_reuses_svg_asset_name(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
-
-    def fake_svg(_svg: Path, out_png: Path, **_kwargs: object) -> tuple[int, int]:
-        out_png.write_bytes(b"PNG")
-        return (600, 138)
-
-    monkeypatch.setattr(mod, "render_svg_png", fake_svg)
-    assets_dir = tmp_path / "assets"
-    for _ in range(2):
-        _, figures = mod.compile_markdown("# Doc\n\n![Card](card.svg)\n", tmp_path, assets_dir=assets_dir)
-        assert Path(figures[0]["source_asset"]).name == "card.svg"
-    assert sorted(path.name for path in assets_dir.iterdir()) == ["card.svg", "fig-1.png"]
-
-
-def test_render_mermaid_runs_pinned_cli_through_mise_and_caps_width(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    commands: list[list[str]] = []
-
-    def fake_run(command: list[str], **_kwargs: object) -> object:
-        commands.append(command)
-        scale = float(command[command.index("-s") + 1])
-        Path(command[command.index("-o") + 1]).write_bytes(_png(round(360 * scale)))
-        return mod.subprocess.CompletedProcess(command, 0, "", "")
-
-    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(mod.subprocess, "run", fake_run)
-    monkeypatch.setenv("PUPPETEER_EXECUTABLE_PATH", "/bin/chrome")
-    out_png = tmp_path / "fig.png"
-    mod.render_mermaid_png("flowchart LR\n  A --> B\n", out_png, scale=2, max_width_px=600)
-
-    assert commands[0][:6] == ["/bin/mise", "exec", "--quiet", mod.MERMAID_CLI, "--", "mmdc"]
-    assert "@mermaid-js/mermaid-cli" in mod.MERMAID_CLI
-    assert [c[c.index("-s") + 1] for c in commands] == ["2", "1.66667"]
-    assert mod.png_size(out_png) == (600, 10)
-
-
-def test_render_mermaid_fails_when_rescaling_cannot_meet_the_width_cap(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def fake_run(command: list[str], **_kwargs: object) -> object:
-        Path(command[command.index("-o") + 1]).write_bytes(_png(800))  # ignores the scale
-        return mod.subprocess.CompletedProcess(command, 0, "", "")
-
-    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(mod.subprocess, "run", fake_run)
-    monkeypatch.setenv("PUPPETEER_EXECUTABLE_PATH", "/bin/chrome")
-    with pytest.raises(RuntimeError, match="stayed 800px wide"):
-        mod.render_mermaid_png("flowchart LR\n  A --> B\n", tmp_path / "fig.png", scale=2, max_width_px=600)
-
-
-def test_render_svg_png_delegates_to_shared_checker_and_run_gws_skips_keyring_banner(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    svg_file = tmp_path / "wide.svg"
-    svg_file.write_text(VALID_SVG.replace("0 0 600 220", "0 0 1200 440"), encoding="utf-8")
-    out_png = tmp_path / "wide.png"
-    calls: list[tuple[int, int, float]] = []
-
-    def fake_screenshot(source: Path, out: Path, width: int, height: int, *, scale: float = 1) -> Path:
-        assert source == svg_file
-        calls.append((width, height, scale))
-        out.write_bytes(_png(round(width * scale), round(height * scale)))
-        return out
-
-    monkeypatch.setattr(mod.svg_checker(), "screenshot", fake_screenshot)
-    assert mod.render_svg_png(svg_file, out_png, scale=2, max_width_px=600) == (600, 220)
-    assert calls == [(1200, 440, 0.5)]
-
-    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(
-        mod.subprocess,
-        "run",
-        lambda cmd, **_kw: mod.subprocess.CompletedProcess(cmd, 0, 'Using keyring backend: keyring\n{"id": "1"}\n', ""),
-    )
-    assert mod.run_gws(["drive", "files", "get"]) == {"id": "1"}
-
-
-def test_check_markdown_dialect_scopes_the_mermaid_and_svg_rejections(mod: ModuleType) -> None:
-    # A remote SVG cannot be compiled, so its message must not send the author back to the compiler.
-    remote = mod.check_markdown_dialect("# Doc\n\n![Card](https://example.com/card.svg)\n")
-    assert len(remote) == 1
-    assert "download the file next to the document" in remote[0]
-    assert "compile_markdown_doc.py" not in remote[0]
-    assert "example.com" not in remote[0]
-    # An indented fence inside a column-0 code block is an example, and an indented non-mermaid fence is plain code.
-    example = "# Doc\n\n````markdown\n- Step\n\n  ```mermaid\n  flowchart LR\n  ```\n````\n"
-    assert mod.check_markdown_dialect(example) == []
-    assert mod.check_markdown_dialect("# Doc\n\n- Step\n\n  ```python\n  pass\n  ```\n") == []
-
-
-def test_compile_markdown_rejects_indented_mermaid_and_remote_svg(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def no_render(*_args: object, **_kwargs: object) -> None:
-        msg = "nothing here can be rendered"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(mod, "render_mermaid_png", no_render)
-    monkeypatch.setattr(mod, "render_svg_png", no_render)
-    with pytest.raises(ValueError, match="unindent its opening and closing fence lines"):
-        mod.compile_markdown("# Doc\n\n- Step\n\n  ```mermaid\n  flowchart LR\n    A --> B\n  ```\n", tmp_path)
-    with pytest.raises(ValueError, match="remote SVG images are unsupported"):
-        mod.compile_markdown("# Doc\n\n![Card](https://example.com/card.svg)\n", tmp_path)
-
-
-def _record_gws_dirs(
-    calls: list[list[str]], dirs: list[Path | None], *, parents: list[str]
-) -> Callable[..., dict[str, object]]:
-    """Fake gws for an existing document; record the working directory of every call."""
-    drive = _fake_drive(calls)
-
-    def fake_run_gws(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        dirs.append(cwd)
-        result = drive(args, cwd=cwd)
-        if args[:3] == ["drive", "files", "get"]:
-            result["parents"] = parents
-        return result
-
-    return fake_run_gws
-
-
-def test_cli_runs_every_gws_call_from_one_private_directory(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    # gws loads a `.env` from its working directory upward: one directory keeps one account for the whole run.
-    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
-    src_md = tmp_path / "report.src.md"
-    src_md.write_text("# Report\n\n![Card](card.svg)\n", encoding="utf-8")
-
-    def fake_render_svg(_svg: Path, out: Path, **_kwargs: object) -> tuple[int, int]:
-        out.write_bytes(_png(600))
-        return (600, 138)
-
-    calls: list[list[str]] = []
-    dirs: list[Path | None] = []
-    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
-    monkeypatch.setattr(mod, "run_gws", _record_gws_dirs(calls, dirs, parents=["folder_parent_1"]))
-
-    out_md = tmp_path / "out" / "report.md"
-    out_md.parent.mkdir()
-    bundle = tmp_path / "bundle"
-    args = [str(src_md), "-o", str(out_md), "--assets-dir", str(bundle), "--file-id", "doc_file_42", "--json"]
-    assert mod.main(args) == 0
-    captured = capsys.readouterr()
-    assert json.loads(captured.out)["drive"]["warning"] is None
-    assert captured.err == ""
-    # The metadata read, folder lookups and creations, the document update, and three asset uploads.
-    assert {tuple(call[:3]) for call in calls} == {
-        ("drive", "files", "get"),
-        ("drive", "files", "list"),
-        ("drive", "files", "create"),
-        ("drive", "files", "update"),
-    }
-    assert sum("--upload" in call for call in calls) == 4
-    assert len(set(dirs)) == 1
-    (directory,) = set(dirs)
-    assert directory is not None
-    assert not directory.resolve().is_relative_to(tmp_path.resolve())
-    assert not directory.exists(), "the private gws directory is removed after the run"
-
-
-def test_cli_warns_when_drive_returns_no_parent_for_assets(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    (tmp_path / "card.svg").write_text(VALID_SVG, encoding="utf-8")
-    src_md = tmp_path / "report.src.md"
-    src_md.write_text("# Report\n\nPRIVATE-TEXT\n\n![Card](card.svg)\n", encoding="utf-8")
-
-    def fake_render_svg(_svg: Path, out: Path, **_kwargs: object) -> tuple[int, int]:
-        out.write_bytes(_png(600))
-        return (600, 138)
-
-    calls: list[list[str]] = []
-    monkeypatch.setattr(mod, "render_svg_png", fake_render_svg)
-    monkeypatch.setattr(mod, "run_gws", _record_gws_dirs(calls, [], parents=[]))
-
-    assert mod.main([str(src_md), "-o", str(tmp_path / "report.md"), "--file-id", "doc_file_42", "--json"]) == 0
-    captured = capsys.readouterr()
-    payload = json.loads(captured.out)
-    warning = payload["drive"]["warning"]
-    assert payload["drive"]["uploaded_assets"] == []
-    assert "Skipped 3 asset upload(s) (report.src.md, card.svg, fig-1.png)" in warning
-    assert "Drive returned no parent folder for file doc_file_42" in warning
-    assert "--drive-folder" in warning
-    assert json.loads(captured.err) == {"warning": warning}
-    assert "PRIVATE-TEXT" not in captured.err
-    assert [call[2] for call in calls] == ["get", "update"], "only the document itself is written"
-
-
-def test_compile_markdown_rejects_svg_outside_document_directory(mod: ModuleType, tmp_path: Path) -> None:
-    outside = tmp_path / "outside.svg"
-    outside.write_text(VALID_SVG, encoding="utf-8")
-    doc_dir = tmp_path / "docs"
-    doc_dir.mkdir()
-    for ref in ("../outside.svg", str(outside)):
-        with pytest.raises(ValueError, match="SVG path escapes document directory"):
-            mod.compile_markdown(f"# Doc\n\n![Card]({ref})\n", doc_dir)
-
-
-def test_cli_rejects_output_path_equal_to_source(
-    mod: ModuleType,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    src_md = tmp_path / "report.md"
-    src_md.write_text("# Report\n\nKeep source intact.\n", encoding="utf-8")
-    assert mod.main([str(src_md), "-o", str(src_md)]) == 1
-    assert "Output path must differ from source" in capsys.readouterr().err
-    assert src_md.read_text(encoding="utf-8") == "# Report\n\nKeep source intact.\n"
-
-    src_typ = tmp_path / "card.typ"
-    src_typ.write_text("#box[Keep Typst source intact.]\n", encoding="utf-8")
-    assert mod.main([str(src_typ), "-o", str(src_typ)]) == 1
-    assert "Output path must differ from source" in capsys.readouterr().err
-    assert src_typ.read_text(encoding="utf-8") == "#box[Keep Typst source intact.]\n"
-
-    src_svg = tmp_path / "card.svg"
-    src_svg.write_text(VALID_SVG, encoding="utf-8")
-    assert mod.main([str(src_svg), "-o", str(src_svg)]) == 1
-    assert "Output path must differ from source" in capsys.readouterr().err
-    assert src_svg.read_text(encoding="utf-8") == VALID_SVG
-
-
-def test_compile_handles_crlf_fences_bracketed_captions_and_nested_output_dir(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(mod, "render_mermaid_png", lambda _code, out, **_kw: out.write_bytes(b"PNG"))
-    src_md = tmp_path / "crlf.src.md"
-    src_md.write_bytes(
-        b"# Report\r\n\r\n```mermaid\r\nflowchart LR\r\n  A --> B\r\n```\r\n"
-        b"*Figure 1 [p95] ([source](https://example.com))*\r\n"
-    )
-    out_md = tmp_path / "nested" / "dir" / "crlf.md"
-    assert mod.main([str(src_md), "-o", str(out_md)]) == 0
-    compiled = out_md.read_text(encoding="utf-8")
-    assert "![Figure 1 (p95) (source)][fig-1]" in compiled
-
-
-def test_typst_figure_compilation_width_cap_warnings_and_companion_assets(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    (tmp_path / "fmind.typ").write_text("#let card(body) = box(body)\n", encoding="utf-8")
-    typ_file = tmp_path / "card.typ"
-    typ_file.write_text('#import "fmind.typ": *\n#card[Summary]\n', encoding="utf-8")
-
-    commands: list[list[str]] = []
-
-    def fake_run(command: list[str], **_kwargs: object) -> object:
-        commands.append(command)
-        ppi = float(command[command.index("--ppi") + 1])
-        Path(command[-1]).write_bytes(_png(round(400 * ppi / 96.0), 120))
-        return mod.subprocess.CompletedProcess(command, 0, "", "")
-
-    monkeypatch.setattr(mod.shutil, "which", lambda name: "/bin/typst" if name == "typst" else None)
-    monkeypatch.setattr(mod.subprocess, "run", fake_run)
-
-    src_md = tmp_path / "memo.src.md"
-    src_md.write_text("# Memo\n\n![Figure 1 — Typst Card](card.typ)\n", encoding="utf-8")
-    out_md = tmp_path / "memo.md"
-    bundle_dir = tmp_path / "bundle"
-    assert mod.main([str(src_md), "-o", str(out_md), "--assets-dir", str(bundle_dir), "--json"]) == 0
-    payload = json.loads(capsys.readouterr().out)
-    assert [c[c.index("--ppi") + 1] for c in commands] == ["192", "144"]
-    assert payload["figures"][0]["kind"] == "typst"
-    assert set(payload["assets"]) == {
-        str(bundle_dir / "memo.src.md"),
-        str(bundle_dir / "fmind.typ"),
-        str(bundle_dir / "card.typ"),
-        str(bundle_dir / "fig-1.png"),
-    }
-    assert "![Figure 1 — Typst Card][fig-1]" in out_md.read_text(encoding="utf-8")
-
-    # Single .typ CLI modes (bare validate, --check-only with -o, and -o) + fail-closed on warnings.
-    assert mod.main([str(typ_file), "--json"]) == 0
-    bare_payload = json.loads(capsys.readouterr().out)
-    assert bare_payload["output"] is None
-    assert bare_payload["dimensions_px"] == [800, 120]
-
-    ignored_out = tmp_path / "unused.png"
-    assert mod.main([str(typ_file), "--check-only", "-o", str(ignored_out), "--json"]) == 0
-    check_payload = json.loads(capsys.readouterr().out)
-    assert check_payload["output"] is None
-    assert not ignored_out.exists()
-
-    monkeypatch.setattr(
-        mod.subprocess,
-        "run",
-        lambda cmd, **_kw: (
-            Path(cmd[-1]).write_bytes(_png(400, 100)),
-            mod.subprocess.CompletedProcess(cmd, 0, "", "warning: unknown font family: foo\n"),
-        )[1],
-    )
-    assert mod.main([str(typ_file)]) == 1
-    assert "typst emitted warnings" in capsys.readouterr().err
-
-    # Width-cap exhaustion and _typst_command fallbacks.
-    monkeypatch.setattr(
-        mod.subprocess,
-        "run",
-        lambda cmd, **_kw: (Path(cmd[-1]).write_bytes(_png(900, 100)), mod.subprocess.CompletedProcess(cmd, 0, "", ""))[
-            1
-        ],
-    )
-    with pytest.raises(RuntimeError, match="stayed 900px wide after rescaling"):
-        mod.render_typst_png(typ_file, tmp_path / "wide.png", max_width_px=600)
-
-    monkeypatch.setattr(mod.shutil, "which", lambda name: "/bin/mise" if name == "mise" else None)
-    mise_cmds: list[list[str]] = []
-    monkeypatch.setattr(
-        mod.subprocess,
-        "run",
-        lambda cmd, **_kw: (
-            mise_cmds.append(cmd),
-            Path(cmd[-1]).write_bytes(_png(400, 100)),
-            mod.subprocess.CompletedProcess(cmd, 0, "", ""),
-        )[2],
-    )
-    assert mod.render_typst_png(typ_file, tmp_path / "mise.png") == (400, 100)
-    assert mise_cmds[0][:5] == ["/bin/mise", "exec", "--quiet", "typst", "--"]
-
-    monkeypatch.setattr(mod.shutil, "which", lambda _name: None)
-    with pytest.raises(RuntimeError, match="Neither `typst` nor `mise`"):
-        mod.render_typst_png(typ_file, tmp_path / "missing.png")
-
-    # Path traversal outside document directory (including symlinked companion fmind.typ) is rejected.
-    outside = tmp_path / "outside.typ"
-    outside.write_text("SECRET_OUTSIDE\n", encoding="utf-8")
-    sub = tmp_path / "sub"
-    sub.mkdir()
-    with pytest.raises(ValueError, match="Typst path escapes document directory"):
-        mod.compile_markdown("# Doc\n\n![Card](../outside.typ)\n", sub)
-
-    (sub / "fmind.typ").symlink_to(outside)
-    (sub / "local.typ").write_text("// mentions fmind.typ in a comment only\n#box[Safe]\n", encoding="utf-8")
-    monkeypatch.setattr(mod.shutil, "which", lambda name: "/bin/typst" if name == "typst" else None)
-    monkeypatch.setattr(
-        mod.subprocess,
-        "run",
-        lambda cmd, **_kw: (Path(cmd[-1]).write_bytes(_png(400, 100)), mod.subprocess.CompletedProcess(cmd, 0, "", ""))[
-            1
-        ],
-    )
-    sub_assets = sub / "assets"
-    _, sub_figs = mod.compile_markdown("# Doc\n\n![Card](local.typ)\n", sub, assets_dir=sub_assets)
-    assert "companion_assets" not in sub_figs[0]
-    assert not (sub_assets / "fmind.typ").exists()
-
-    # Truncated PNG headers and unsafe --doc-slug values fail cleanly before calling gws.
-    truncated = tmp_path / "truncated.png"
-    truncated.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
-    with pytest.raises(ValueError, match="not a PNG file"):
-        mod.png_size(truncated)
-
-    src_ok = tmp_path / "clean.md"
-    src_ok.write_text("# Doc\n\nBody.\n", encoding="utf-8")
-    monkeypatch.setattr(mod, "run_gws", lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("gws called")))
-    for bad_slug in ("../escape", "a/b", ".hidden", ""):
-        assert mod.main([str(src_ok), "--drive-folder", "folder_1", "--doc-slug", bad_slug]) == 1
-        assert "Invalid doc slug" in capsys.readouterr().err
-
-    for bad_name in ("../escape", "a/b", "-flag.md", "   ", ""):
-        assert mod.main([str(src_ok), "--drive-folder", "folder_1", f"--doc-name={bad_name}"]) == 1
-        assert "Invalid doc name" in capsys.readouterr().err
-
-
-def test_upload_fails_closed_on_duplicate_drive_targets_and_api_errors(
-    mod: ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(mod.shutil, "which", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(
-        mod.subprocess,
-        "run",
-        lambda cmd, **_kw: mod.subprocess.CompletedProcess(
-            cmd, 0, json.dumps({"error": {"code": 403, "message": "Forbidden"}}), ""
         ),
-    )
-    with pytest.raises(RuntimeError, match="Google API error"):
-        mod.run_gws(["drive", "files", "get"])
-
-    for bad_stdout in ("", "[]", "Error [503]", '{"error": {"code": 403}', '{"error": {\n{"code": 403}'):
-        monkeypatch.setattr(
-            mod.subprocess,
-            "run",
-            lambda cmd, payload=bad_stdout, **_kw: mod.subprocess.CompletedProcess(cmd, 0, payload, ""),
-        )
-        with pytest.raises(RuntimeError, match=r"expected (?:valid )?JSON object"):
-            mod.run_gws(["drive", "files", "get"])
-
-    compiled = tmp_path / "Memo.md"
-    compiled.write_text("# Memo\n", encoding="utf-8")
-    gws_dir = tmp_path / "gws"
-    gws_dir.mkdir()
-
-    # Duplicate unrelated files do not block updating unique Memo.md; duplicate Memo.md fails closed.
-    def fake_dup_files(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        _assert_upload_runs_beside_file(args, cwd)
-        if args[:3] == ["drive", "files", "list"]:
-            return {
-                "files": [
-                    {"id": "dup_other_1", "name": "Unrelated.md"},
-                    {"id": "dup_other_2", "name": "Unrelated.md"},
-                    {"id": "memo_1", "name": "Memo.md"},
-                    {"id": "memo_2", "name": "Memo.md"},
-                ]
-            }
-        raise AssertionError(f"Unexpected call: {args}")
-
-    monkeypatch.setattr(mod, "run_gws", fake_dup_files)
-    with pytest.raises(RuntimeError, match="pass --file-id explicitly"):
-        mod.upload_to_drive(compiled, [], gws_dir=gws_dir, drive_folder="parent_1")
-
-    def fake_unique_memo_with_unrelated_dups(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        _assert_upload_runs_beside_file(args, cwd)
-        if args[:3] == ["drive", "files", "list"]:
-            return {
-                "files": [
-                    {"id": "dup_other_1", "name": "Unrelated.md"},
-                    {"id": "dup_other_2", "name": "Unrelated.md"},
-                    {"id": "memo_1", "name": "Memo.md"},
-                ]
-            }
-        if args[:3] == ["drive", "files", "update"]:
-            return {"id": "memo_1", "name": "Memo.md"}
-        raise AssertionError(f"Unexpected call: {args}")
-
-    monkeypatch.setattr(mod, "run_gws", fake_unique_memo_with_unrelated_dups)
-    assert mod.upload_to_drive(compiled, [], gws_dir=gws_dir, drive_folder="parent_1")["file_id"] == "memo_1"
-
-    # Duplicate asset folders fail closed instead of picking the first match silently.
-    asset = tmp_path / "card.svg"
-    asset.write_text(VALID_SVG, encoding="utf-8")
-
-    def fake_dup_folders(args: list[str], *, cwd: Path | None = None) -> dict[str, object]:
-        _assert_upload_runs_beside_file(args, cwd)
-        if args[:3] == ["drive", "files", "list"]:
-            q = json.loads(args[args.index("--params") + 1])["q"]
-            if "name = 'assets'" in q:
-                return {"files": [{"id": "assets_1", "name": "assets"}, {"id": "assets_2", "name": "assets"}]}
-            return {"files": [{"id": "memo_1", "name": "Memo.md"}]}
-        if args[:3] == ["drive", "files", "update"]:
-            return {"id": "memo_1", "name": "Memo.md"}
-        raise AssertionError(f"Unexpected call: {args}")
-
-    monkeypatch.setattr(mod, "run_gws", fake_dup_folders)
-    with pytest.raises(RuntimeError, match="Multiple non-trashed Drive folders named 'assets'"):
-        mod.upload_to_drive(compiled, [asset], gws_dir=gws_dir, drive_folder="parent_1")
-
-
-def test_cli_vale_blocks_errors_and_surfaces_advisory_warnings(
-    mod: ModuleType,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    if shutil.which("vale") is None:
-        pytest.skip("Vale binary is required for compile_markdown_doc prose gate verification")
-
-    (tmp_path / ".vale.ini").write_text(
-        f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
-        "MinAlertLevel = warning\nIgnoredScopes = code, tt\nSkippedScopes = script, style, pre, figure\n"
-        "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
         encoding="utf-8",
     )
+    res = _run(DRAFT_SLIDES, str(spec_file), "--dry-run")
+    assert res.returncode == 0, res.stderr
+    plan = json.loads(res.stdout)
+    assert plan["ok"] is True
+    assert plan["dry_run"] is True
+    assert plan["title"] == "Q4 Architecture Review"
+    assert len(plan["requests"]) == 6
+    assert plan["requests"][0]["createSlide"]["objectId"].startswith("s_")
+    assert plan["requests"][0]["createSlide"]["objectId"].endswith("_01")
 
-    bad_md = tmp_path / "slop.src.md"
-    bad_md.write_text("# Update\n\nWe delve into updates — ready now.\n", encoding="utf-8")
-    assert mod.main([str(bad_md), "--check-only", "--json"]) == 1
-    err = json.loads(capsys.readouterr().err)["error"]
-    assert "Fmind.SlopWords" in err
-    assert "Fmind.EmDash" in err
+    # Appending to an existing presentation passes writeControl.requiredRevisionId.
+    mod = _load("draft_slides", DRAFT_SLIDES)
+    batch_payloads: list[dict[str, object]] = []
 
-    warn_md = tmp_path / "warn.src.md"
-    warn_md.write_text("# Update\n\nWe leverage seamless failover in order to stay online.\n", encoding="utf-8")
-    assert mod.main([str(warn_md), "--check-only", "--json"]) == 0
-    captured = capsys.readouterr()
-    payload = json.loads(captured.out)
-    assert any("Fmind.SlopStyle" in item for item in payload["proseWarnings"])
-    assert any("Fmind.Wordiness" in item for item in payload["proseWarnings"])
-    assert "Fmind.SlopStyle" in captured.err
+    def fake_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        assert cwd.is_dir()
+        if args[:3] == ["slides", "presentations", "get"]:
+            params = json.loads(args[args.index("--params") + 1])
+            if "revisionId" in params["fields"]:
+                return {"presentationId": "pres_1", "revisionId": "rev_42"}
+            return {"presentationId": "pres_1", "title": "Existing Deck", "slides": [{"objectId": "p1"}]}
+        if args[:3] == ["slides", "presentations", "batchUpdate"]:
+            batch_payloads.append(json.loads(args[args.index("--json") + 1]))
+            return {"presentationId": "pres_1"}
+        raise AssertionError(f"Unexpected call: {args}")
+
+    monkeypatch.setattr(mod, "_run_gws", fake_gws)
+    assert mod.main([str(spec_file), "--presentation-id", "pres_1"]) == 0
+    assert batch_payloads[0]["writeControl"] == {"requiredRevisionId": "rev_42"}
+
+    # Empty slide title fails closed.
+    bad_spec = tmp_path / "bad.json"
+    bad_spec.write_text(json.dumps({"title": "Deck", "slides": [{"title": "  "}]}), encoding="utf-8")
+    assert _run(DRAFT_SLIDES, str(bad_spec), "--dry-run").returncode == 1
+
+
+def test_draft_sheets_starter_validates_rows_splits_formulas_and_resolves_sheet_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec_file = tmp_path / "budget.json"
+    spec_file.write_text(
+        json.dumps(
+            {
+                "title": "Cloud Cost Model",
+                "sheet": "2026 Summary",
+                "rows": [
+                    ["Service", "Monthly USD"],
+                    ["Cloud Run", 420],
+                    ["BigQuery", 180],
+                ],
+                "formulas": [{"range": "'2026 Summary'!B4", "values": [["=SUM(B2:B3)"]]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    res = _run(DRAFT_SHEETS, str(spec_file), "--dry-run")
+    assert res.returncode == 0, res.stderr
+    plan = json.loads(res.stdout)
+    assert plan["ok"] is True
+    assert plan["range"] == "'2026 Summary'!A1:B3"
+    assert plan["data_value_input"] == "RAW"
+    assert plan["formula_ranges"] == 1
+
+    # Ragged rows fail closed.
+    ragged = tmp_path / "ragged.json"
+    ragged.write_text(json.dumps({"title": "Bad", "sheet": "S", "rows": [["A", "B"], ["only-one"]]}), encoding="utf-8")
+    assert _run(DRAFT_SHEETS, str(ragged), "--dry-run").returncode == 1
+
+    mod = _load("draft_sheets", DRAFT_SHEETS)
+    assert mod.col_label(1) == "A"
+    assert mod.col_label(26) == "Z"
+    assert mod.col_label(27) == "AA"
+    assert mod.find_formula_errors([["Total", "600"]]) == []
+    assert mod.find_formula_errors([["Total", "#REF!"], ["Ratio", "#DIV/0!"]]) == ["R1C2:#REF!", "R2C2:#DIV/0!"]
+
+    # Updating an existing spreadsheet resolves the target tab's real sheetId instead of hardcoding 0.
+    seen_formats: list[dict[str, Any]] = []
+    seen_value_modes: list[str] = []
+
+    def fake_sheets_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        assert cwd.is_dir()
+        if args[:3] == ["sheets", "spreadsheets", "get"]:
+            return {
+                "sheets": [
+                    {"properties": {"sheetId": 10, "title": "Other"}},
+                    {"properties": {"sheetId": 99, "title": "2026 Summary"}},
+                ]
+            }
+        if args[:4] == ["sheets", "spreadsheets", "values", "batchUpdate"]:
+            body = json.loads(args[args.index("--json") + 1])
+            seen_value_modes.append(body["valueInputOption"])
+            return {"totalUpdatedCells": 6}
+        if args[:3] == ["sheets", "spreadsheets", "batchUpdate"]:
+            seen_formats.append(json.loads(args[args.index("--json") + 1]))
+            return {}
+        if args[:4] == ["sheets", "spreadsheets", "values", "batchGet"]:
+            params = json.loads(args[args.index("--params") + 1])
+            assert params["ranges"] == ["'2026 Summary'!A1:B3", "'2026 Summary'!B4"]
+            return {
+                "valueRanges": [
+                    {"values": [["Service", "Monthly USD"], ["Cloud Run", "420"], ["BigQuery", "180"]]},
+                    {"values": [["600"]]},
+                ]
+            }
+        raise AssertionError(f"Unexpected call: {args}")
+
+    monkeypatch.setattr(mod, "_run_gws", fake_sheets_gws)
+    assert mod.main([str(spec_file), "--spreadsheet-id", "sheet_abc123"]) == 0
+    assert seen_value_modes == ["RAW", "USER_ENTERED"]
+    assert seen_formats[0]["requests"][0]["updateSheetProperties"]["properties"]["sheetId"] == 99
+
+    # Formula errors outside the RAW data range must still fail read-back verification.
+    def bad_formula_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        if args[:4] == ["sheets", "spreadsheets", "values", "batchGet"]:
+            return {
+                "valueRanges": [
+                    {"values": [["Service", "Monthly USD"], ["Cloud Run", "420"], ["BigQuery", "180"]]},
+                    {"values": [["#REF!"]]},
+                ]
+            }
+        return fake_sheets_gws(args, cwd=cwd)
+
+    monkeypatch.setattr(mod, "_run_gws", bad_formula_gws)
+    assert mod.main([str(spec_file), "--spreadsheet-id", "sheet_abc123"]) == 1
+
+    # Malformed formulas entries fail closed before calling gws.
+    bad_formulas = tmp_path / "bad_formulas.json"
+    bad_formulas.write_text(
+        json.dumps({"title": "Bad", "sheet": "S", "rows": [["A"]], "formulas": [{"range": "", "values": []}]}),
+        encoding="utf-8",
+    )
+    assert _run(DRAFT_SHEETS, str(bad_formulas), "--dry-run").returncode == 1

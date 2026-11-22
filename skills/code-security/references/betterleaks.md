@@ -17,11 +17,11 @@ betterleaks git --config .betterleaks.toml --redact=100 --report-format sarif --
 betterleaks stdin --redact < <file> # outgoing text: PR bodies, prompts and diffs for another AI command; fail closed
 ```
 
-Since 1.10, `.betterleaks.toml` loads only with explicit `--config .betterleaks.toml` (preferred whenever `.betterleaks.toml` exists) or `--unsafe-auto-load-config` (trusted checkouts lacking `.betterleaks.toml` only, never untrusted targets—it also auto-loads legacy `.gitleaks.toml`). Keep `--verbose --redact=100 --no-banner` and never pass `--validation` in hooks/CI so candidate secrets stay local. Commands target Betterleaks 1.x (locked 1.10.1; 2.0.0-rc.7 shipped 2026-11-04—on 2.0.0 final, migrate flags together across this guide, [Python](../../python-stack/references/foundation/templates/mise.toml) and [OpenTofu](../../infra-as-code/templates/mise.toml) starters, [scanners](skill-security-review/references/scanners.md), and repo `check:leaks` tasks).
+Since 1.10, `.betterleaks.toml` loads only with explicit `--config .betterleaks.toml` (preferred whenever `.betterleaks.toml` exists) or `--unsafe-auto-load-config` (trusted checkouts lacking `.betterleaks.toml` only, never untrusted targets—it also auto-loads legacy `.gitleaks.toml`). Keep `--verbose --redact=100 --no-banner` and never pass `--validation` in hooks/CI so candidate secrets stay local. Commands target Betterleaks 1.x (locked 1.10.1; 2.0.0-rc.7 shipped 2026-11-04—on 2.0.0 final, migrate flags together across this guide, [Python](../../python/references/foundation/templates/mise.toml) and [OpenTofu](../../infra-as-code/templates/mise.toml) starters, [scanners](skill-security-review/references/scanners.md), and repo `check:leaks` tasks).
 
 ## Mise Task
 
-Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.betterleaks.toml`; scans working tree including untracked/gitignored `.env` unless allowlisted in `.betterleaks.toml`, run pre-commit via [lefthook](../../github-actions/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
+Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.betterleaks.toml`; scans working tree including untracked/gitignored `.env` unless allowlisted in `.betterleaks.toml`, run pre-commit via [lefthook](../../github/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
 
 ## When a Secret Is Found
 
@@ -31,10 +31,10 @@ Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.
 ## Gotchas
 
 - **Audit suppressions**: inspect `.betterleaks.toml`, ignore files, and `betterleaks:allow` / `gitleaks:allow` comments; scan untrusted code from outside with trusted `--config`, `--gitleaks-ignore-path`, and `--ignore-gitleaks-allow`.
-- **Full history needs `fetch-depth: 0`** in `security.yml` ([github-actions](../../github-actions/references/ci-cd/GUIDE.md)) and a fresh `check:leaks:full` after `--no-verify` or foreign history imports.
+- **Full history needs `fetch-depth: 0`** in `security.yml` ([github/ci-cd](../../github/references/ci-cd/GUIDE.md)) and a fresh `check:leaks:full` after `--no-verify` or foreign history imports.
 - **Always `--redact`** CI logs and shared reports.
 
 ## Documentation
 
 - [betterleaks](https://github.com/betterleaks/betterleaks) · [releases](https://github.com/betterleaks/betterleaks/releases)
-- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github-actions/references/lefthook.md), [trivy](trivy/GUIDE.md) (keep Trivy's `secret` scanner disabled).
+- Companion skills: [code-review](code-review/GUIDE.md), [lefthook](../../github/references/lefthook.md), [trivy](trivy/GUIDE.md) (keep Trivy's `secret` scanner disabled).

@@ -54,7 +54,10 @@ def test_workflow_runners_are_fixed() -> None:
 
 @pytest.mark.parametrize(
     "relative",
-    ["skills/github-actions/references/ci-cd/templates/cd.yml", "skills/cloud-run/templates/deploy.yml"],
+    [
+        "skills/github/references/ci-cd/templates/cd.yml",
+        "skills/gcloud/references/cloud-run/templates/deploy.yml",
+    ],
 )
 def test_release_templates_gate_publishers_on_the_tagged_revision(relative: str) -> None:
     workflow = yaml.safe_load((ROOT / relative).read_text(encoding="utf-8"))
@@ -76,7 +79,7 @@ def test_release_templates_gate_publishers_on_the_tagged_revision(relative: str)
 
 
 def test_container_release_promotes_only_after_digest_verification() -> None:
-    path = ROOT / "skills/github-actions/references/ci-cd/templates/cd.yml"
+    path = ROOT / "skills/github/references/ci-cd/templates/cd.yml"
     steps = yaml.safe_load(path.read_text())["jobs"]["deploy-python-container"]["steps"]
     build = next(step for step in steps if step.get("uses", "").startswith("docker/build-push-action@"))
     assert build["with"]["tags"].endswith(":candidate-${{ github.sha }}")
@@ -90,7 +93,7 @@ def test_container_release_promotes_only_after_digest_verification() -> None:
 
 @pytest.mark.parametrize("release_tag", ["v1.2.3", "v1.2.3\nINJECTED=value", "v1/invalid", "-invalid"])
 def test_registry_promotion_preserves_digest_and_rejects_invalid_tags(tmp_path: Path, release_tag: str) -> None:
-    path = ROOT / "skills/github-actions/references/ci-cd/templates/cd.yml"
+    path = ROOT / "skills/github/references/ci-cd/templates/cd.yml"
     steps = yaml.safe_load(path.read_text())["jobs"]["deploy-python-container"]["steps"]
     promotion = next(step for step in steps if step.get("name") == "Promote verified image")
     executable = tmp_path / "docker"
@@ -149,7 +152,7 @@ def test_registry_promotion_preserves_digest_and_rejects_invalid_tags(tmp_path: 
 )
 def test_every_platform_is_verified_before_index_promotion(tmp_path: Path, problem: str) -> None:
     """Run the shipped shell/Python steps against fake registry/signing boundaries."""
-    workflow = yaml.safe_load((ROOT / "skills/github-actions/references/ci-cd/templates/cd.yml").read_text())
+    workflow = yaml.safe_load((ROOT / "skills/github/references/ci-cd/templates/cd.yml").read_text())
     job = workflow["jobs"]["deploy-python-container"]
     amd64, arm64, index = ["sha256:" + character * 64 for character in "abc"]
     manifests = [
@@ -215,7 +218,7 @@ if name == "cosign" and args[0] == "verify-attestation" and args[-1].endswith(os
     start = next(i for i, step in enumerate(steps) if step.get("name") == "Resolve platform digests")
     scripts = tmp_path / ".github/scripts"
     scripts.mkdir(parents=True)
-    helper = ROOT / "skills/github-actions/references/ci-cd/templates/image-platforms.py"
+    helper = ROOT / "skills/github/references/ci-cd/templates/image-platforms.py"
     source = helper.read_text(encoding="utf-8")
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source

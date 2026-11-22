@@ -1,6 +1,6 @@
 ---
 name: rag-and-vectors
-description: "Build hybrid pgvector/DuckDB retrieval with tenant ACL pushdown, Gemini embeddings, and native multimodal inputs."
+description: "Build pgvector/DuckDB hybrid RAG, tenant ACLs, and Gemini embeddings."
 ---
 
 # Retrieval & Vector Search
@@ -9,7 +9,7 @@ Use native Gemini 4 multimodal understanding before adding chunking/vector infra
 
 ## Prefer Native Multimodal Before RAG
 
-- **Skip unnecessary chunking**: Gemini 4 accepts PDFs, audio, video, Office (`.docx`, `.pptx`, `.xlsx`), and OpenDocument files natively inside 1M-token windows; pair with durable implicit prefix caching (`>= 4,096` tokens) when querying fixed document sets repeatedly ([gcp-agent-platform](../../model-providers/references/gcp-agent-platform.md)).
+- **Skip unnecessary chunking**: Gemini 4 accepts PDFs, audio, video, Office (`.docx`, `.pptx`, `.xlsx`), and OpenDocument files natively inside 1M-token windows; pair with durable implicit prefix caching (`>= 4,096` tokens) when querying fixed document sets repeatedly ([gcp-agent-platform](gcp-agent-platform.md)).
 
 ## Hybrid Retrieval (`pgvector>=0.8.0` + PyPI `pgvector>=0.5.1` + FTS + RRF)
 

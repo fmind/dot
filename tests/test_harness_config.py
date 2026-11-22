@@ -6,7 +6,6 @@ import shlex
 import shutil
 import subprocess
 import tempfile
-import tomllib
 import unittest
 from pathlib import Path
 
@@ -37,21 +36,10 @@ class HarnessConfigTests(unittest.TestCase):
         for name in ("ANTIGRAVITY_CLOUD_PROJECT", "ANTIGRAVITY_CLOUD_LOCATION"):
             environment.pop(name, None)
         environment.update(overrides or {})
-        # apply consumes the modify-template directive before rendering; execute-template
-        # is lower level, so remove that directive to exercise the same template bytes.
         template_path = self.home / "input.tmpl"
         template_path.write_text((ROOT / template).read_text().removeprefix("# chezmoi:modify-template\n"))
         arguments = ("execute-template", "--with-stdin", "--file", str(template_path))
         return chezmoi(self.source, *arguments, config=self.config, stdin=content, env=environment)
-
-    def test_toml_merge_preserves_unmanaged_settings_and_is_repeatable(self):
-        original = 'custom = "preserved"\n\n[server.custom]\ncommand = "/synthetic/tool"\n'
-        template = "dot_config/marimo/modify_private_marimo.toml"
-        rendered = self.render(template, original)
-        data = tomllib.loads(rendered)
-        assert data["custom"] == "preserved"
-        assert data["server"]["custom"]["command"] == "/synthetic/tool"
-        assert self.render(template, rendered) == rendered
 
     def test_git_identity_preserves_quotes_backslashes_and_comment_characters(self):
         name = 'Ada "Lovelace" # tools \\ engineering'
@@ -113,210 +101,6 @@ class HarnessConfigTests(unittest.TestCase):
         named = self.render("dot_config/git/personal.gitconfig.tmpl", "")
         assert 'name = "Ada (Personal)"' in named
 
-    def test_claude_preserves_host_session_start_hooks_while_retiring_notifications(self):
-        template = "private_dot_claude/modify_private_settings.json"
-        fresh = json.loads(self.render(template, ""))
-        assert "hooks" not in fresh
-        assert fresh["agentPushNotifEnabled"] is True
-        assert fresh["inputNeededNotifEnabled"] is True
-        host_session = [{"hooks": [{"type": "command", "command": "/synthetic/host", "timeout": 30}]}]
-        stale_notify = [{"hooks": [{"type": "command", "command": "old"}]}]
-        only_notify = json.loads(self.render(template, json.dumps({"hooks": {"Notification": stale_notify}})))
-        assert "hooks" not in only_notify
-        rendered = self.render(
-            template,
-            json.dumps({"hooks": {"SessionStart": host_session, "Notification": stale_notify}}),
-        )
-        hooks = json.loads(rendered)["hooks"]
-        assert hooks == {"SessionStart": host_session}
-        assert self.render(template, rendered) == rendered
-
-    def test_agy_retires_legacy_notify_hook_while_preserving_host_hooks(self):
-        template = "private_dot_gemini/private_config/modify_private_hooks.json"
-        assert json.loads(self.render(template, "")) == {}
-        host = {
-            "brain-context": {"SessionStart": [{"type": "command", "command": "/synthetic/brain", "timeout": 30}]},
-            "notify": {"Stop": [], "PreToolUse": []},
-            "custom": {"Stop": []},
-        }
-        rendered = self.render(template, json.dumps(host))
-        upgraded = json.loads(rendered)
-        assert upgraded == {"brain-context": host["brain-context"], "custom": {"Stop": []}}
-        assert self.render(template, rendered) == rendered
-
-    def test_claude_merge_preserves_host_environment_and_permissions(self):
-        template = "private_dot_claude/modify_private_settings.json"
-        original = {
-            "advisorModel": "opus",
-            "teammateDefaultModel": "sonnet",
-            "autoDreamEnabled": True,
-            "autoInstallIdeExtension": True,
-            "disableDeepLinkRegistration": "default",
-            "fastModePerSessionOptIn": False,
-            "spinnerTipsEnabled": True,
-            "skillListingMaxDescChars": 3000,
-            "env": {
-                "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-                "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE": "0",
-                "CUSTOM_SETTING": "preserved",
-            },
-            "permissions": {"deny": ["Read(./private)"], "additionalDirectories": ["/synthetic/host-root"]},
-            "model": "host-model[1m]",
-            "effortLevel": "xhigh",
-            "remoteControlAtStartup": False,
-        }
-        rendered = self.render(template, json.dumps(original))
-        data = json.loads(rendered)
-        assert {"advisorModel", "teammateDefaultModel", "autoDreamEnabled", "skillListingMaxDescChars"} <= data.keys()
-        assert data["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] == "1"
-        assert data["env"]["CUSTOM_SETTING"] == "preserved"
-        assert data["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
-        secret_paths = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())["paths"]
-        expected_claude_denies = [
-            f"Read(~/{entry['path']}/**)" if entry["dir"] else f"Read(~/{entry['path']})" for entry in secret_paths
-        ]
-        assert data["permissions"]["deny"] == ["Read(./private)", *expected_claude_denies]
-        assert data["env"]["DISABLE_UPDATES"] == "1"
-        assert data["env"]["DISABLE_ERROR_REPORTING"] == "1"
-        assert data["permissions"]["defaultMode"] == "bypassPermissions"
-        assert data["syncClaudeAiSkills"] is False
-        assert data["syncClaudeAiPlugins"] is False
-        assert data["disableClaudeAiConnectors"] is True
-        assert data["autoInstallIdeExtension"] is False
-        assert data["disableDeepLinkRegistration"] == "disable"
-        assert data["fastModePerSessionOptIn"] is True
-        assert data["spinnerTipsEnabled"] is False
-        assert data["model"] == "host-model[1m]"
-        assert data["effortLevel"] == "xhigh"
-        assert data["remoteControlAtStartup"] is False
-        assert data["permissions"]["additionalDirectories"] == ["/synthetic/host-root"]
-        assert self.render(template, rendered) == rendered
-        fresh = json.loads(self.render(template, ""))
-        assert fresh["env"]["CLAUDE_CODE_FORCE_SESSION_PERSISTENCE"] == "1"
-        assert fresh["model"] == "fable"
-        assert fresh["remoteControlAtStartup"] is True
-        assert fresh["autoInstallIdeExtension"] is False
-        assert fresh["disableDeepLinkRegistration"] == "disable"
-        assert fresh["fastModePerSessionOptIn"] is True
-        assert fresh["spinnerTipsEnabled"] is False
-        # Opus 5.5 ignores the top-level effortLevel, so effort is seeded per model.
-        assert "effortLevel" not in fresh
-        assert fresh["modelSettings"]["claude-opus-5-5"] == {"effortLevel": "high"}
-        seeded = json.loads(self.render(template, '{"modelSettings": {"claude-opus-5-5": {"effortLevel": "medium"}}}'))
-        assert seeded["modelSettings"] == {
-            "claude-opus-5-5": {"effortLevel": "medium"},
-            "claude-fable-5-1": {"effortLevel": "high"},
-            "claude-fable-5-2": {"effortLevel": "high"},
-        }
-        # dot trust owns permissions.additionalDirectories; managed credential-store Read denies seed fresh configs.
-        assert fresh["permissions"] == {"defaultMode": "bypassPermissions", "deny": expected_claude_denies}
-
-    def test_opencode_merge_preserves_custom_agents_and_provider_options(self):
-        template = "dot_config/private_opencode/modify_private_opencode.json"
-        original = {
-            "agent": {"build": {"steps": 100, "prompt": "Host build instructions"}, "reviewer": {"steps": 20}},
-            "autoupdate": True,
-            "compaction": {"reserved": 300000, "protect": ["skill"]},
-            "experimental": {"batch_tool": True, "continue_loop_on_deny": True, "mcp_timeout": 120000},
-            "model": "google-vertex/gemini-3.8-flash",
-            "permission": "allow",
-            "permissions": [{"action": "shell", "resource": "git push *", "effect": "ask"}],
-            "provider": {
-                "google-vertex": {"options": {"timeout": 90000}},
-                "openrouter": {"options": {"timeout": 60000}},
-            },
-            "update": "notify",
-        }
-        rendered = self.render(template, json.dumps(original))
-        data = json.loads(rendered)
-        assert data["model"] == "google-vertex/gemini-3.8-flash"
-        assert data["small_model"] == "openrouter/google/gemini-4-hydrogen"
-        assert data["share"] == "disabled"
-        assert "autoupdate" not in data
-        assert data["update"] == "disable"
-        assert data["provider"]["openrouter"]["options"] == {"timeout": 60000}
-        # Legacy 1.x `permission: "allow"` overrode built-in plan/explore denies in 2.x; retire it while keeping 2.x `permissions`.
-        assert "permission" not in data
-        assert data["permissions"] == original["permissions"]
-        assert data["agent"] == original["agent"]
-        # 2.x dropped compaction.prune; replacing compaction retires it from deployed files.
-        assert data["compaction"] == {"auto": True}
-        assert data["formatter"] is True
-        # OpenCode 2.x runs no language servers, so the repository no longer manages lsp.
-        assert not {"instructions", "skills", "default_agent", "snapshot", "lsp"} & data.keys()
-        assert data["experimental"] == original["experimental"]
-        assert data["provider"]["google-vertex"]["options"]["timeout"] == 90000
-        assert "policies" not in data
-        assert self.render(template, rendered) == rendered
-        fresh = json.loads(self.render(template, ""))
-        assert fresh == {
-            "$schema": "https://opencode.ai/config.json",
-            "compaction": {"auto": True},
-            "formatter": True,
-            "model": "openrouter/google/gemini-4-hydrogen",
-            "share": "disabled",
-            "small_model": "openrouter/google/gemini-4-hydrogen",
-            "update": "disable",
-        }
-        legacy_map = json.loads(self.render(template, json.dumps({"permission": {"*": "allow", "bash": "ask"}})))
-        assert "permission" not in legacy_map
-        assert "permissions" not in legacy_map
-
-    def test_opencode_keeps_credentials_out_of_rendered_config(self):
-        data = json.loads(
-            self.render(
-                "dot_config/private_opencode/modify_private_opencode.json",
-                "{}",
-                {"OPENROUTER_API_KEY": "synthetic-private-value", "GOOGLE_CLOUD_PROJECT": "unrelated"},
-            )
-        )
-        assert "provider" not in data
-        assert "synthetic-private-value" not in json.dumps(data)
-
-    def test_opencode_cli_merge_preserves_client_preferences(self):
-        template = "dot_config/private_opencode/modify_cli.json"
-        original = {
-            "animations": True,
-            "highlights": True,
-            "keybinds": {"leader": "ctrl+a"},
-            "theme": {"mode": "dark"},
-            "scroll": {"speed": 2},
-        }
-        rendered = self.render(template, json.dumps(original))
-        data = json.loads(rendered)
-        assert data["$schema"] == "https://opencode.ai/v2/cli.json"
-        assert data["animations"] is False
-        assert data["highlights"] is False
-        assert data["theme"] == {"name": "fmind", "mode": "dark"}
-        assert data["attention"] == {"notifications": True, "sound": False}
-        assert data["keybinds"] == original["keybinds"]
-        assert data["scroll"] == original["scroll"]
-        assert self.render(template, rendered) == rendered
-        fresh = json.loads(self.render(template, ""))
-        assert fresh == {
-            "$schema": "https://opencode.ai/v2/cli.json",
-            "animations": False,
-            "attention": {"notifications": True, "sound": False},
-            "highlights": False,
-            "theme": {"name": "fmind"},
-        }
-
-    def test_json_merge_preserves_mcp_and_unmanaged_hook_events(self):
-        for template in [
-            "private_dot_claude/modify_private_settings.json",
-            "dot_config/private_opencode/modify_private_opencode.json",
-        ]:
-            with self.subTest(template=template):
-                original = {
-                    "mcp": {"custom-team": {"command": ["/synthetic/tool"]}},
-                    "hooks": {"SessionStart": [{"command": "synthetic-context"}]},
-                }
-                rendered = self.render(template, json.dumps(original))
-                data = json.loads(rendered)
-                assert data["mcp"] == original["mcp"]
-                assert data["hooks"]["SessionStart"] == original["hooks"]["SessionStart"]
-                assert self.render(template, rendered) == rendered
-
     def test_copilot_merge_preserves_preferences_and_enforces_policy(self):
         template = "private_dot_copilot/modify_private_settings.json"
         original = {
@@ -358,7 +142,6 @@ class HarnessConfigTests(unittest.TestCase):
         assert fresh["customAgents"] == {"defaultLocalOnly": True}
         assert fresh["ide"] == {"autoConnect": False}
         assert fresh["memory"] is False
-        # Base-16 terminal colors follow the Ghostty palette.
         assert fresh["theme"] == "default"
 
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
@@ -369,14 +152,34 @@ class HarnessConfigTests(unittest.TestCase):
             "permissions": {"allow": ["command(git)"], "ask": ["read_url(example.com)"], "deny": ["command(rm -rf)"]},
             "trustedWorkspaces": [],
             "pickerGrouping": "none",
+            "verbosity": "low",
             "runningLightSpeed": "slow",
             "colorScheme": "dark",
             "showFeedbackSurvey": True,
             "showTips": True,
             "accountOption": False,
         }
-        secret_paths = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())["paths"]
-        expected_agy_denies = [f"read_file({self.home / entry['path']})" for entry in secret_paths]
+        secret_spec = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())
+        expected_agy_denies = [
+            *(f"read_file({self.home / rel})" for rel in secret_spec["paths"]),
+            *(f"read_file({glob})" for glob in secret_spec["globs"]),
+        ]
+        assert {
+            f"read_file({self.home / '.private.fish'})",
+            f"read_file({self.home / '.local/share/atuin'})",
+            f"read_file({self.home / '.cache/huggingface/stored_tokens'})",
+            f"read_file({self.home / '.claude/projects'})",
+            f"read_file({self.home / '.databrickscfg'})",
+            f"read_file({self.home / '.databricks'})",
+            f"read_file({self.home / '.genie'})",
+            f"read_file({self.home / '.config/acli'})",
+            f"read_file({self.home / '.config/cf'})",
+            f"read_file({self.home / '.gemini/config/mcp_config.json'})",
+            f"read_file({self.home / '.copilot/mcp-config.json'})",
+            f"read_file({self.home / '.vault-token'})",
+        } <= set(expected_agy_denies)
+        assert {"read_file(*.env*)", "read_file(*.pem)", "read_file(*.key)"} <= set(expected_agy_denies)
+        assert "read_file(*.age)" not in expected_agy_denies
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         for key, value in original.items():
@@ -392,18 +195,22 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["editorMode"] == "vim"
         assert data["notifications"] is True
         assert data["queuedMessages"] == "send-immediately"
-        assert data["verbosity"] == "high"
+        assert data["verbosity"] == "low"
+        assert data["voice"] == {"voiceMode": "dictation"}
         display = str(self.home / ".gemini/antigravity-cli/display.py")
         for field, mode in [("statusLine", "statusline"), ("title", "title")]:
             assert data[field]["enabled"] is True
             assert shlex.split(data[field]["command"]) == ["exec", "python3", "-I", "-S", display, mode]
         assert self.render(template, rendered) == rendered
+        existing_without_verbosity = json.loads(self.render(template, json.dumps({"model": "account-model"})))
+        assert existing_without_verbosity["verbosity"] == "medium"
         fresh = json.loads(self.render(template, ""))
         assert fresh["pickerGrouping"] == "grouped"
         assert fresh["queuedMessages"] == "send-immediately"
         assert fresh["showFeedbackSurvey"] is False
         assert fresh["showTips"] is False
-        assert fresh["verbosity"] == "high"
+        assert fresh["verbosity"] == "medium"
+        assert fresh["voice"] == {"voiceMode": "dictation"}
         assert fresh["permissions"] == {"deny": expected_agy_denies}
         for key in ("model", "runningLightSpeed", "colorScheme"):
             assert key not in fresh
@@ -411,8 +218,27 @@ class HarnessConfigTests(unittest.TestCase):
 
     def test_remote_settings_preserve_host_identity_grants_and_projects(self):
         template = "private_dot_gemini/private_config/modify_private_config.json"
-        secret_paths = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())["paths"]
-        expected_agy_denies = [f"read_file({self.home / entry['path']})" for entry in secret_paths]
+        secret_spec = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())
+        expected_agy_denies = [
+            *(f"read_file({self.home / rel})" for rel in secret_spec["paths"]),
+            *(f"read_file({glob})" for glob in secret_spec["globs"]),
+        ]
+        assert {
+            f"read_file({self.home / '.private.fish'})",
+            f"read_file({self.home / '.local/share/atuin'})",
+            f"read_file({self.home / '.cache/huggingface/stored_tokens'})",
+            f"read_file({self.home / '.claude/projects'})",
+            f"read_file({self.home / '.databrickscfg'})",
+            f"read_file({self.home / '.databricks'})",
+            f"read_file({self.home / '.genie'})",
+            f"read_file({self.home / '.config/acli'})",
+            f"read_file({self.home / '.config/cf'})",
+            f"read_file({self.home / '.gemini/config/mcp_config.json'})",
+            f"read_file({self.home / '.copilot/mcp-config.json'})",
+            f"read_file({self.home / '.vault-token'})",
+        } <= set(expected_agy_denies)
+        assert {"read_file(*.env*)", "read_file(*.pem)", "read_file(*.key)"} <= set(expected_agy_denies)
+        assert "read_file(*.age)" not in expected_agy_denies
         original = {
             "userSettings": {
                 "cliRemoteControlHostname": "fixture-host",
@@ -479,16 +305,31 @@ class HarnessConfigTests(unittest.TestCase):
         assert data["ty"]["fileExtensions"][".py"] == "python"
         assert self.render(template, rendered) == rendered
 
+    def test_antigravity_keybindings_merge_adds_zellij_safe_aliases_and_preserves_host_keys(self):
+        template = "private_dot_gemini/private_antigravity-cli/modify_private_keybindings.json"
+        original = {"voice.start_dictation": ["f8"], "edit.open_editor": ["ctrl+g"]}
+        rendered = self.render(template, json.dumps(original))
+        data = json.loads(rendered)
+        assert data == {
+            "voice.start_dictation": ["f8"],
+            "edit.open_editor": ["alt+e", "ctrl+g"],
+            "prompt.submit_alternate": ["alt+q", "alt+m"],
+            "subagent.jump_to_waiting": ["alt+w", "alt+j"],
+        }
+        assert self.render(template, rendered) == rendered
+        fresh = json.loads(self.render(template, ""))
+        assert fresh == {
+            "edit.open_editor": ["alt+e", "ctrl+g"],
+            "prompt.submit_alternate": ["alt+q", "alt+m"],
+            "subagent.jump_to_waiting": ["alt+w", "alt+j"],
+        }
+
     def test_json_merge_rejects_malformed_or_non_object_host_state(self):
         templates = (
-            "private_dot_claude/modify_private_settings.json",
             "private_dot_copilot/modify_private_settings.json",
             "private_dot_gemini/private_antigravity-cli/modify_private_settings.json",
+            "private_dot_gemini/private_antigravity-cli/modify_private_keybindings.json",
             "private_dot_gemini/private_config/modify_private_config.json",
-            "private_dot_gemini/private_config/modify_private_hooks.json",
-            "dot_config/private_opencode/modify_private_opencode.json",
-            "dot_config/private_opencode/modify_cli.json",
-            "private_dot_pi/private_agent/modify_private_settings.json",
         )
         for template in templates:
             for content in ['{"unfinished":', "[]", "null", '"string"']:
@@ -498,9 +339,73 @@ class HarnessConfigTests(unittest.TestCase):
                 ):
                     self.render(template, content)
 
+    def test_json_merge_rejects_falsy_invalid_types_and_defaults_null(self):
+        secret_spec = json.loads((ROOT / ".chezmoitemplates/secret-deny-paths.tmpl").read_text())
+        agy_secret_count = len(secret_spec["paths"]) + len(secret_spec["globs"])
+        invalid_cases = [
+            (
+                "private_dot_gemini/private_antigravity-cli/modify_private_settings.json",
+                [{"permissions": value} for value in ([], False, 0, "")],
+                r"(?s)chezmoi failed \(exit 1\).*permissions must be an object",
+            ),
+            (
+                "private_dot_gemini/private_antigravity-cli/modify_private_settings.json",
+                [{"permissions": {"deny": value}} for value in ({}, False, 0, "")],
+                r"(?s)chezmoi failed \(exit 1\).*permissions\.deny must be an array",
+            ),
+            (
+                "private_dot_gemini/private_config/modify_private_config.json",
+                [{"userSettings": value} for value in ([], False, 0, "")],
+                r"(?s)chezmoi failed \(exit 1\).*userSettings must be an object",
+            ),
+            (
+                "private_dot_gemini/private_config/modify_private_config.json",
+                [{"userSettings": {"globalPermissionGrants": value}} for value in ([], False, 0, "")],
+                r"(?s)chezmoi failed \(exit 1\).*globalPermissionGrants must be an object",
+            ),
+            (
+                "private_dot_gemini/private_config/modify_private_config.json",
+                [{"userSettings": {"globalPermissionGrants": {"allow": value}}} for value in ({}, False, 0, "")],
+                r"(?s)chezmoi failed \(exit 1\).*globalPermissionGrants\.allow must be an array",
+            ),
+            (
+                "private_dot_gemini/private_config/modify_private_config.json",
+                [{"userSettings": {"globalPermissionGrants": {"deny": value}}} for value in ({}, False, 0, "")],
+                r"(?s)chezmoi failed \(exit 1\).*globalPermissionGrants\.deny must be an array",
+            ),
+        ]
+        for template, payloads, pattern in invalid_cases:
+            for payload in payloads:
+                content = json.dumps(payload)
+                with (
+                    self.subTest(template=template, content=content),
+                    pytest.raises(RuntimeError, match=pattern),
+                ):
+                    self.render(template, content)
+
+        for payload in ({"permissions": None}, {"permissions": {"deny": None}}, {"permissions": {"deny": []}}):
+            data = json.loads(
+                self.render(
+                    "private_dot_gemini/private_antigravity-cli/modify_private_settings.json", json.dumps(payload)
+                )
+            )
+            assert len(data["permissions"]["deny"]) == agy_secret_count
+
+        for payload in (
+            {"userSettings": None},
+            {"userSettings": {"globalPermissionGrants": None}},
+            {"userSettings": {"globalPermissionGrants": {"allow": None, "deny": None}}},
+            {"userSettings": {"globalPermissionGrants": {"allow": [], "deny": []}}},
+        ):
+            data = json.loads(
+                self.render("private_dot_gemini/private_config/modify_private_config.json", json.dumps(payload))
+            )
+            grants = data["userSettings"]["globalPermissionGrants"]
+            assert len(grants["allow"]) == 6
+            assert len(grants["deny"]) == agy_secret_count
+
     def test_json_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
-        # Hook timeouts, feedbackSurveyRate, and Copilot's version are managed integers.
-        template = "private_dot_claude/modify_private_settings.json"
+        template = "private_dot_gemini/private_antigravity-cli/modify_private_settings.json"
         converged = json.loads(self.render(template, ""))
         converged["hostCounter"] = 9007199254740993
         host = json.dumps(dict(reversed(converged.items())), indent=4)
@@ -510,99 +415,20 @@ class HarnessConfigTests(unittest.TestCase):
         assert drifted["editorMode"] == "vim"
 
     def test_native_jsonc_merges_preserve_comments_when_converged_and_keep_host_values(self):
-        templates = [
-            "private_dot_copilot/modify_private_settings.json",
-            "dot_config/private_opencode/modify_private_opencode.json",
-            "dot_config/private_opencode/modify_cli.json",
-        ]
-        assert json.loads(self.render(templates[0], ""))["connectors"] is False
+        template = "private_dot_copilot/modify_private_settings.json"
+        assert json.loads(self.render(template, ""))["connectors"] is False
         original = '{/* host preference */ "hostCounter":9007199254740993,"hostUrl":"https://example.com/a//b",}'
-        for template in templates:
-            with self.subTest(template=template):
-                rendered = self.render(template, original)
-                data = json.loads(rendered)
-                assert data["hostCounter"] == 9007199254740993
-                assert data["hostUrl"] == "https://example.com/a//b"
-                commented = "// host notes\n" + rendered.rstrip()[:-1].rstrip() + ",\n}\n"
-                assert self.render(template, commented) == commented
-                with pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
-                    self.render(template, '{"incomplete": /* unfinished')
+        rendered = self.render(template, original)
+        data = json.loads(rendered)
+        assert data["hostCounter"] == 9007199254740993
+        assert data["hostUrl"] == "https://example.com/a//b"
+        commented = "// host notes\n" + rendered.rstrip()[:-1].rstrip() + ",\n}\n"
+        assert self.render(template, commented) == commented
+        with pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
+            self.render(template, '{"incomplete": /* unfinished')
         # JSONC support belongs to native formats that support it, not every JSON caller.
         with pytest.raises(RuntimeError, match=r"chezmoi failed \(exit 1\)"):
             self.render("private_dot_copilot/modify_lsp-config.json", original)
-
-    def test_opencode_native_parser_accepts_jsonc_before_and_after_managed_merge(self):
-        opencode = native_binary("opencode")
-        if opencode is None:
-            pytest.skip("OpenCode native validation requires the workstation tool")
-        target = self.home / ".config/opencode/opencode.json"
-        target.parent.mkdir(parents=True)
-        original = """{
-          // Host-owned provider timeout, in OpenCode's supported JSONC format.
-          "autoupdate": true,
-          "model": "openrouter/google/gemini-4-hydrogen",
-          "permission": "allow",
-          "provider": {"openrouter": {"options": {"timeout": 65432}}},
-        }"""
-        environment = {
-            "HOME": str(self.home),
-            "XDG_CONFIG_HOME": str(self.home / ".config"),
-            "XDG_DATA_HOME": str(self.home / ".local/share"),
-            "XDG_CACHE_HOME": str(self.home / ".cache"),
-            "XDG_STATE_HOME": str(self.home / ".local/state"),
-            "PATH": os.defpath,
-            "LANG": "C.UTF-8",
-        }
-        # OpenCode 2.x answers through a server; --standalone runs a private one that exits with
-        # the command, so the test never touches the workstation's background service.
-        merged = self.render("dot_config/private_opencode/modify_private_opencode.json", original)
-        for label, content in (("original", original), ("merged", merged)):
-            target.write_text(content)
-            result = subprocess.run(
-                [opencode, "debug", "config", "--standalone"],
-                env=environment,
-                cwd=self.home,
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                timeout=20,
-                check=True,
-            )
-            # 2.x lists config sources and normalizes 1.x keys (provider.options -> providers.settings).
-            [config] = [source["info"] for source in json.loads(result.stdout) if source.get("path") == str(target)]
-            assert config["providers"]["openrouter"]["settings"]["timeout"] == 65432
-            assert config["model"] == {"providerID": "openrouter", "model": "google/gemini-4-hydrogen"}
-            if label == "original":
-                assert config.get("permissions") == [{"action": "*", "resource": "*", "effect": "allow"}]
-            else:
-                assert "permissions" not in config
-                assert config.get("update") == "disable"
-                assert "autoupdate" not in config
-
-        agents_run = subprocess.run(
-            [opencode, "debug", "agents", "--standalone"],
-            env=environment,
-            cwd=self.home,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=True,
-        )
-        agents = {item.get("id") or item["name"]: item["permissions"] for item in json.loads(agents_run.stdout)}
-        for (agent_name, action), expected_effect in (
-            (("build", "edit"), "allow"),
-            (("build", "shell"), "allow"),
-            (("plan", "read"), "allow"),
-            (("plan", "edit"), "deny"),
-            (("explore", "read"), "allow"),
-            (("explore", "edit"), "deny"),
-            (("explore", "subagent"), "deny"),
-        ):
-            matching = [
-                r["effect"] for r in agents[agent_name] if r["action"] in ("*", action) and r["resource"] == "*"
-            ]
-            assert matching[-1] == expected_effect, f"{agent_name}.{action}: got {matching!r}"
 
     def test_trust_hook_passes_source_path_literally_during_apply(self):
         executable = self.home / ".local/bin/dot"
@@ -618,33 +444,7 @@ class HarnessConfigTests(unittest.TestCase):
                 log.write_text("")
                 environment = {"HOME": str(self.home), "PATH": os.defpath, "CALL_LOG": str(log)}
                 chezmoi(source, "apply", "--force", config=self.config, env=environment)
-                # One call trusts the workspaces and this source directory, its path passed verbatim.
                 assert log.read_text().splitlines() == ["trust", "all", str(source)]
-
-    def test_toml_merge_returns_converged_host_bytes_and_keeps_large_integers(self):
-        template = "dot_config/marimo/modify_private_marimo.toml"
-        host = "# host comment\nhost_counter = 9007199254740993\n" + self.render(template, "")
-        assert self.render(template, host) == host
-
-    def test_marimo_vim_merge_preserves_host_settings_and_is_repeatable(self):
-        template = "dot_config/marimo/modify_private_marimo.toml"
-        original = '[keymap]\npreset = "default"\n[keymap.overrides]\ncustom = "Ctrl-Shift-K"\n[ai]\nmode = "manual"\n'
-        for content in ["", original]:
-            with self.subTest(content=content):
-                rendered = self.render(template, content)
-                data = tomllib.loads(rendered)
-                assert data["keymap"]["preset"] == "vim"
-                if content:
-                    assert data["keymap"]["overrides"] == {"custom": "Ctrl-Shift-K"}
-                    assert data["ai"] == {"mode": "manual"}
-                assert self.render(template, rendered) == rendered
-
-    def test_pi_extension_sets_google_vertex_location_without_notify_hooks(self):
-        extension = (ROOT / "private_dot_pi/private_agent/extensions/google-vertex.ts").read_text(encoding="utf-8")
-        assert 'pi.on("session_start"' in extension
-        assert 'process.env.GOOGLE_CLOUD_LOCATION = "global"' in extension
-        assert "agent_settled" not in extension
-        assert "node:child_process" not in extension
 
     def test_zellij_config_uses_attention_mode_with_notifications_and_validates_natively(self):
         config_path = ROOT / "dot_config/zellij/config.kdl"
@@ -669,198 +469,6 @@ class HarnessConfigTests(unittest.TestCase):
         )
         assert "[CONFIG FILE]: Well defined." in result.stdout
 
-    def test_pi_dynamic_google_cloud_project_resolves_vertex_without_static_project(self):
-        pi = native_binary("pi")
-        if pi is None:
-            pytest.skip("Pi native validation requires the workstation tool")
-        agent_dir = self.home / ".pi/agent"
-        (agent_dir / "extensions").mkdir(parents=True)
-        (agent_dir / "settings.json").write_text(
-            self.render("private_dot_pi/private_agent/modify_private_settings.json", '{"retry": {"enabled": false}}')
-        )
-        shutil.copyfile(
-            ROOT / "private_dot_pi/private_agent/extensions/google-vertex.ts",
-            agent_dir / "extensions/google-vertex.ts",
-        )
-        adc = self.home / "adc.json"
-        adc.write_text("{}")
-        base_env = {
-            "HOME": str(self.home),
-            "PATH": os.defpath,
-            "LANG": "C.UTF-8",
-            "PI_CODING_AGENT_DIR": str(agent_dir),
-            "PI_OFFLINE": "1",
-            "GOOGLE_APPLICATION_CREDENTIALS": str(adc),
-            "HTTPS_PROXY": "http://127.0.0.1:1",
-        }
-        without_project = subprocess.run(
-            [pi, "--mode", "json", "--no-session", "--no-tools", "-p", "hi"],
-            env=base_env,
-            cwd=self.home,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        assert "No API key found" in without_project.stderr
-
-        with_project = subprocess.run(
-            [pi, "--mode", "json", "--no-session", "--no-tools", "-p", "hi"],
-            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project"},
-            cwd=self.home,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        events = [json.loads(line) for line in with_project.stdout.splitlines() if line.startswith("{")]
-        [reply] = [
-            event["message"]
-            for event in events
-            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
-        ]
-        assert (reply["provider"], reply["model"], reply["thinkingLevel"]) == (
-            "google-vertex",
-            "gemini-4-argon",
-            "high",
-        )
-
-        # A secondary provider's API key must not hijack defaultProvider or downgrade thinkingLevel.
-        with_secondary = subprocess.run(
-            [pi, "--mode", "json", "--no-session", "--no-tools", "-p", "hi"],
-            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project", "OPENAI_API_KEY": "sk-synthetic"},
-            cwd=self.home,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        secondary_events = [json.loads(line) for line in with_secondary.stdout.splitlines() if line.startswith("{")]
-        [secondary_reply] = [
-            event["message"]
-            for event in secondary_events
-            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
-        ]
-        assert (secondary_reply["provider"], secondary_reply["model"], secondary_reply["thinkingLevel"]) == (
-            "google-vertex",
-            "gemini-4-argon",
-            "high",
-        )
-
-        # Resumed sessions keep their saved Vertex model and thinking level instead of resetting to defaults.
-        saved_session = self.home / "resumed.jsonl"
-        saved_session.write_text(
-            "\n".join(
-                json.dumps(entry)
-                for entry in (
-                    {
-                        "type": "session",
-                        "version": 3,
-                        "id": "s1",
-                        "timestamp": "2026-01-01T00:00:00.000Z",
-                        "cwd": str(self.home),
-                    },
-                    {
-                        "type": "model_change",
-                        "id": "m1",
-                        "parentId": None,
-                        "timestamp": "2026-01-01T00:00:00.000Z",
-                        "provider": "google-vertex",
-                        "modelId": "gemini-3.8-flash",
-                    },
-                    {
-                        "type": "thinking_level_change",
-                        "id": "t1",
-                        "parentId": "m1",
-                        "timestamp": "2026-01-01T00:00:00.000Z",
-                        "thinkingLevel": "low",
-                    },
-                    {
-                        "type": "message",
-                        "id": "u1",
-                        "parentId": "t1",
-                        "timestamp": "2026-01-01T00:00:01.000Z",
-                        "message": {"role": "user", "content": "hi", "timestamp": 1767225601000},
-                    },
-                )
-            )
-            + "\n"
-        )
-        resumed = subprocess.run(
-            [pi, "--mode", "json", "--session", str(saved_session), "--no-tools", "-p", "hi"],
-            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project", "OPENAI_API_KEY": "sk-synthetic"},
-            cwd=self.home,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        resumed_events = [json.loads(line) for line in resumed.stdout.splitlines() if line.startswith("{")]
-        [resumed_reply] = [
-            event["message"]
-            for event in resumed_events
-            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
-        ]
-        assert (resumed_reply["provider"], resumed_reply["model"], resumed_reply["thinkingLevel"]) == (
-            "google-vertex",
-            "gemini-3.8-flash",
-            "low",
-        )
-
-        # Explicit --model flags take precedence over the configured defaultModel.
-        explicit_model = subprocess.run(
-            [pi, "--mode", "json", "--no-session", "--no-tools", "--model", "openai/gpt-4o", "-p", "hi"],
-            env={**base_env, "GOOGLE_CLOUD_PROJECT": "dynamic-fixture-project", "OPENAI_API_KEY": "sk-synthetic"},
-            cwd=self.home,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        explicit_events = [json.loads(line) for line in explicit_model.stdout.splitlines() if line.startswith("{")]
-        [explicit_reply] = [
-            event["message"]
-            for event in explicit_events
-            if event.get("type") == "message_end" and event.get("message", {}).get("role") == "assistant"
-        ]
-        assert (explicit_reply["provider"], explicit_reply["model"]) == ("openai", "gpt-4o")
-
-    def test_pi_settings_seed_the_model_once_and_keep_host_state(self):
-        template = "private_dot_pi/private_agent/modify_private_settings.json"
-        fresh = json.loads(self.render(template, ""))
-        assert fresh == {
-            "$schema": "https://pi.dev/schemas/settings.schema.json",
-            "collapseChangelog": True,
-            "defaultModel": "gemini-4-argon",
-            "defaultProvider": "google-vertex",
-            "defaultThinkingLevel": "high",
-            "enableAnalytics": False,
-            "enableInstallTelemetry": False,
-        }
-        # Pi rewrites this file on /model and after an upgrade: its choices and bookkeeping survive apply.
-        host = {
-            "defaultProvider": "anthropic",
-            "defaultModel": "host-model",
-            "enableInstallTelemetry": True,
-            "lastChangelogVersion": "1.5.0",
-            "packages": ["npm:synthetic-package"],
-        }
-        merged = json.loads(self.render(template, json.dumps(host)))
-        assert (merged["defaultProvider"], merged["defaultModel"], merged["defaultThinkingLevel"]) == (
-            "anthropic",
-            "host-model",
-            "high",
-        )
-        assert merged["enableInstallTelemetry"] is False
-        assert (merged["lastChangelogVersion"], merged["packages"]) == ("1.5.0", ["npm:synthetic-package"])
-        rendered = self.render(template, json.dumps(merged, indent=2) + "\n")
-        assert rendered == json.dumps(merged, indent=2) + "\n"
-
     def test_docker_merge_preserves_auths_and_contexts_while_managing_plugin_dirs(self):
         template = "private_dot_docker/modify_private_config.json"
         original = {"auths": {"https://index.docker.io/v1/": {}}, "currentContext": "colima"}
@@ -872,7 +480,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert self.render(template, rendered) == rendered
 
 
-@pytest.mark.parametrize("login", [None, "kaggle.json", "credentials.json", "no-age-key"])
+@pytest.mark.parametrize("login", [None, "no-age-key"])
 def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login: str | None) -> None:
     source = tmp_path / "source"
     home = tmp_path / "home"
@@ -885,16 +493,9 @@ def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login:
         key = home / ".config/chezmoi/key.txt"
         key.parent.mkdir(parents=True)
         key.touch()  # Only the existence check is used: all fixture sources are synthetic plaintext.
-    if login in {"kaggle.json", "credentials.json"}:
-        existing = home / ".kaggle" / login
-        existing.parent.mkdir(parents=True)
-        existing.write_text("{}")
     targets = {
         "dot_cache/private_huggingface/create_encrypted_private_token.age": ".cache/huggingface/token",
-        "private_dot_kaggle/create_encrypted_private_access_token.age": ".kaggle/access_token",
-        "dot_local/share/private_opencode/create_encrypted_private_auth.json.age": ".local/share/opencode/auth.json",
     }
-    # Keep the real deployment names/attributes but substitute synthetic plaintext for ciphertext.
     for relative in targets:
         assert (ROOT / relative).is_file()
         path = source / relative.replace("encrypted_", "").removesuffix(".age")
@@ -905,9 +506,6 @@ def test_native_seeds_preserve_subsequent_customer_logins(tmp_path: Path, login:
     if login == "no-age-key":
         assert all(not (home / relative).exists() for relative in targets.values())
         return
-    if login in {"kaggle.json", "credentials.json"}:
-        assert not (home / ".kaggle/access_token").exists()
-        targets = {key: value for key, value in targets.items() if value != ".kaggle/access_token"}
     for relative in targets.values():
         path = home / relative
         assert path.read_text() == "synthetic-personal\n"

@@ -1,15 +1,12 @@
 # Visual Primitives and Rewrites
 
-Select only primitives supported by the target renderer. Never paste raw HTML into Slack, GitHub alerts into Zensical, or raw Markdown tables into Gmail plain text.
+Pick only primitives supported by the target renderer. Never paste raw HTML into Slack, GitHub alerts into Zensical, or raw Markdown tables into plain-text Gmail.
 
 ## Before and after
 
-<details>
-<summary>Executive incident memo: timeline wall vs table + badge</summary>
+Before (executive incident memo wall):
 
-Before:
-
-> At 09:12 UTC `checkout-api` returned `502 Bad Gateway` for `eu-west1` users because `pg_pool_max` (`20`) saturated under promo traffic spikes while `read_replica_enabled` was `false`. Mitigation scaled instances from `2` to `6`, raised `pg_pool_max` to `60`, and enabled `read_replica_enabled=true` at 09:27 UTC. Total impact was 15 minutes (`~1.8%` failed checkouts).
+> At 09:12 UTC `checkout-api` returned `502` for `eu-west1` (`pg_pool_max=20`, `read_replica_enabled=false`). Scaled instances `2`->`6`, set `pg_pool_max=60`, enabled replica at 09:27 UTC; 15 min impact (`~1.8%` failed checkouts).
 
 After:
 
@@ -22,12 +19,10 @@ After:
 > | Database connections | Saturated at 20     | **60 active slots** | Alert at 75% load    |
 > | Read traffic         | Single primary node | **Replica enabled** | Add load test Friday |
 
-</details>
-
 ## Channel primitives
 
-- **Gmail HTML (`draft-mail`)**:
-  - _Default (routine emails, replies, scheduling, admin)_: plain `<p>`, `<strong>`, `<ul>`/`<ol>`, and `<a href="...">` so the message matches native Gmail compose and `.gmail_signature` without newsletter chrome:
+- **Gmail HTML ([draft/mail](../../draft/references/mail/GUIDE.md))**:
+  - _Default (routine mail, replies)_: plain `<p>`, `<strong>`, `<ul>`/`<ol>`, and `<a href="...">` matching `.gmail_signature` without newsletter chrome:
 
     ```html
     <p>Hi Alice,</p>
@@ -39,7 +34,7 @@ After:
     <p>Best,<br>Médéric</p>
     ```
 
-  - _Executive/incident briefs only (skip on routine mail; pick at most one accent, never stack a banner with `<mark>`)_: Gmail strips `<style>`, so inline Fmind tokens (`#202124` ink, `#174EA6` accent, `#F1F3F4` neutral panel, `#D2E3FC` selection, `#0D652D`/`#CEEAD6` ok, `#934900`/`#FEEFC3` risk, `#A50E0E`/`#FAD2CF` blocker):
+  - _Executive/incident briefs only (skip on routine mail; max 1 accent, never stack banner + `<mark>`)_: inline Fmind tokens (`#202124` ink, `#174EA6` accent, `#F1F3F4` neutral, `#D2E3FC` selection, `#0D652D`/`#CEEAD6` ok, `#934900`/`#FEEFC3` risk, `#A50E0E`/`#FAD2CF` blocker):
 
     ```html
     <p style="margin: 0 0 12px; padding: 10px 14px; background: #F1F3F4; border-left: 3px solid #174EA6; border-radius: 6px;">
@@ -47,46 +42,39 @@ After:
     </p>
     ```
 
-- **Google Docs (`draft-doc`)**: let the user choose standard `.gdoc` vs Markdown `.md` ([format choice](../../draft-doc/SKILL.md#format-choice)):
-  - _Standard `.gdoc`_ (high customization for polished reports): inline-styled HTML import (`<mark>`, 1-cell tinted callout tables, shaded table rows, Base64 Typst PNGs) or `documents.batchUpdate` (`draft-doc/references/gdoc.md`).
-  - _Markdown `.md`_ (version-controlled Markdown + compiled `≤440pt` Typst/SVG figures): `---` rules, 3–4 column tables, bold lead-ins, bold-label blockquotes, and Base64-compiled PNG cards (`diagrams-as-code`, `draft-doc/references/dialect.md`); raw HTML tags render literally.
+- **Google Docs ([draft/doc](../../draft/references/doc/GUIDE.md))**: confirm `.gdoc` vs `.md` ([format choice](../../draft/references/doc/GUIDE.md#format-choice)):
+  - _Standard `.gdoc`_: inline-styled HTML (`<mark>`, 1-cell callout tables, shaded rows, Base64 PNGs) or `documents.batchUpdate` ([gdoc](../../draft/references/doc/references/gdoc.md)).
+  - _Markdown `.md`_: `---` rules, 3–4 column tables, bold lead-ins/blockquotes, and `<=440pt` compiled PNGs (`diagrams-as-code`, [dialect](../../draft/references/doc/references/dialect.md)); raw HTML renders literally.
 
-- **GitHub PRs, issues, & READMEs (`gh`, `repository-docs`)**: pair GFM alerts, bold status pills, short tables, and `<details>` for logs:
+- **GitHub ([github](../../github/SKILL.md), [docs/repository](../../docs/references/repository/GUIDE.md))**: GFM alerts, status pills, short tables, and `<details>`:
 
 ```markdown
 > [!IMPORTANT]
-> **Approve before 17:00 UTC:** switches storage backend to cut monthly spend by 40%.
+> **Approve before 17:00 UTC:** switches storage to cut spend 40%.
 
-**Status:** Passed · **Scope:** 3 service modules
+**Status:** Passed · **Scope:** 3 modules
 
 <details>
-<summary>Verification details (optional reading)</summary>
+<summary>Verification</summary>
 
-Suite ran against staging snapshot at 14:20 UTC with zero regressions.
+Staging snapshot passed at 14:20 UTC with zero regressions.
 
 </details>
 ```
 
-- **Zensical (`documentation-site`)**: Material/PyMdown syntax (not `[!IMPORTANT]`); indent bodies 4 spaces under headers:
+- **Zensical ([docs/site](../../docs/references/site/GUIDE.md))**: Material/PyMdown syntax (not `[!IMPORTANT]`); indent bodies 4 spaces:
 
 ```text
 Spend drops ==38% this quarter== after consolidating the cluster.
 
 !!! success "Decision ready"
-    Approve the cutover window before Thursday 17:00 CET.
+    Approve cutover before Thu 17:00 CET.
 
-??? info "Detailed benchmarks"
-    Median latency stayed at 42 ms across 10,000 requests.
+??? info "Benchmarks"
+    Median latency stayed at 42 ms across 10k requests.
 ```
 
-- **Jira & Confluence (`acli`)**: author native ADF panels (`info`, `note`, `warning`, `success`, `error`), status lozenges, tables, and expand macros rather than raw Markdown strings.
-
-- **Slides (`draft-typst-deck`)**: target one visual focal point and ~30 visible words per slide (up to ~45 on label-rich comparative charts with units and sample sizes) using `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-card(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, `#step-card(...)`, and `#flow-arrow(...)` (reserve `#show: brand-card.with(...)` for standalone PNG/SVG visual cards); move extended context and caveats into `#speaker-note("...")`.
-
-- **Chat & Slack (`gws` Chat)**: target `<= 60–80` words (`3–5` lines) for the root message: lead with a bold one-line ask or outcome, separate points into 2–3 short plain bullets, and post sources, caveats, and long query links in a thread reply.
-
-## Framing, numbers, and scannability
-
-- **Executive / customer lens**: trade metrics in time, money, risk, reliability, or adoption; omit raw stack traces, branch names, and DB columns unless requested.
-- **Peer engineer lens**: name exact mechanisms, root causes, and trade-offs, and link PRs, files, or dashboards cleanly inline.
-- **Honest precision & progressive disclosure**: summarize headlines cleanly (`$42k` vs `$68k` Q3 baseline, `382 ms` vs `1.5 s` SLA) while keeping exact figures in tables, SLAs (`99.95%`, never rounding away error budgets), and financial/ML metrics so row totals reconcile, and placing filter exclusions, SKU breakdowns, and formulas in `Sources` or `Annexes` instead of parenthetical soup in the headline.
+- **Jira & Confluence ([cloud-ops/acli](../../cloud-ops/references/acli.md))**: native ADF panels (`info`, `note`, `warning`, `success`, `error`), lozenges, tables, and expand macros—never raw Markdown.
+- **Slides ([draft/typst-deck](../../draft/references/typst-deck/GUIDE.md), [draft/slides](../../draft/references/slides/GUIDE.md))**: one focal visual and ~30 visible words (~45 on charts with units and `N`); in Typst use `#hl[...]`, `#pill[...]`, `#callout[...]`, `#kpi-card(...)`, `#bar-panel(...)`, `#split-cards(...)`, `#card(...)`, `#step-card(...)`, and `#flow-arrow(...)` (`#show: brand-card.with(...)` for standalone cards only), putting caveats in speaker notes.
+- **Sheets ([draft/sheets](../../draft/references/sheets/GUIDE.md))**: frozen bold header row, explicit currency/percent/date formats, right-aligned numbers, and separate `RAW` inputs vs explicit formula cells.
+- **Chat & Slack ([gws/chat](../../gws/references/chat.md))**: `<= 60–80` words (`3–5` lines): bold ask/outcome, 2–3 plain bullets, and sources/caveats/links in a thread reply.

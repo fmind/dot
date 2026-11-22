@@ -1,11 +1,11 @@
 ---
 name: system-prompts
-description: "Design layered, cache-friendly system prompts, tool guardrails, and schema-validated outputs for LLM agents."
+description: "Design layered cache-friendly system prompts, guardrails, and schemas."
 ---
 
 # System Prompts
 
-[model-providers](../../model-providers/SKILL.md#request-contracts) owns per-model request parameters; [task-prompts](../../task-prompts/SKILL.md) owns coding-agent handoffs.
+[request contracts](request-contracts.md) owns per-model request parameters; [task-prompts](../../agent-harnesses/references/task-prompts/GUIDE.md) owns coding-agent handoffs.
 
 ## Principles
 

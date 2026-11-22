@@ -88,27 +88,30 @@
       <section class="summary" aria-labelledby="summary-title">
         <h2 id="summary-title">Executive summary</h2>
         <p class="takeaway">{Core signal and recommendation in one plain sentence.}</p>
-        <p>{Brief context with the decisive figure <mark>{highlighted against baseline}</mark> and inline source links.}</p>
+        <p>{Brief context with the decisive figure <strong>{highlighted against baseline}</strong> and <a href="{https://primary.source/page}">{primary source}</a>.}</p>
         <p style="margin-bottom: 0;"><strong>Decision needed:</strong> {Clear yes/no choice and target date.}</p>
       </section>
 
-      <!-- Optional KPI strip: include ONLY when distinct numeric tiles add clarity beyond the summary above; delete otherwise to avoid box fatigue. -->
+      <!-- Alternative to .summary above (never render both stacked): replace .summary with a plain unboxed lead + 3-tile KPI strip when 3 curated figures carry the lead.
+      <p class="takeaway" style="margin-top: 1.75rem;">{Core signal and recommendation in one plain sentence.}</p>
+      <p><strong>Decision needed:</strong> {Clear yes/no choice and target date.}</p>
       <section class="tiles" aria-label="Key figures">
         <div class="tile"><span class="value">{€X–Y}</span><span class="label">{Primary metric delta vs baseline}</span></div>
         <div class="tile" style="--c: var(--series-2)"><span class="value">{N weeks}</span><span class="label">{Time to value}</span></div>
         <div class="tile" style="--c: var(--success)"><span class="value">{Low}</span><span class="label">{Operational risk}</span></div>
       </section>
+      -->
 
       <h2><span class="num">1</span>Options compared</h2>
-      <p><strong>{One-sentence comparison conclusion.}</strong></p>
+      <p><strong>{Option X} leads on {key metric}:</strong> {one-sentence comparison trade-off.}</p>
       <div class="table-wrap">
         <table>
           <thead>
             <tr><th scope="col">Option</th><th scope="col" class="num">{Cost / Impact}</th><th scope="col">{Main risk}</th><th scope="col">Status</th></tr>
           </thead>
           <tbody>
-            <tr class="recommended"><td><span class="opt">{Recommended option}</span>{Brief scope}</td><td class="num">{Range}</td><td>{Mitigated risk}</td><td><span class="badge rec">Recommended</span></td></tr>
-            <tr><td><span class="opt">{Alternative}</span>{Brief scope}</td><td class="num">{Range}</td><td>{Trade-off}</td><td><span class="badge mid">Higher effort</span></td></tr>
+            <tr class="recommended"><td><span class="opt">{Recommended option}</span>{Brief scope}</td><td class="num">{Range vs baseline}</td><td>{Mitigated risk}</td><td><span class="badge rec">Recommended</span></td></tr>
+            <tr><td><span class="opt">{Alternative}</span>{Brief scope}</td><td class="num">{Range vs baseline}</td><td>{Trade-off}</td><td><span class="badge mid">Higher effort</span></td></tr>
             <tr><td><span class="opt">Do nothing</span>{Keep baseline}</td><td class="num">{Baseline}</td><td>{Status quo risk}</td><td><span class="badge bad">Not viable</span></td></tr>
           </tbody>
         </table>

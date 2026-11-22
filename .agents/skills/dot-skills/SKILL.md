@@ -1,13 +1,13 @@
 ---
 name: dot-skills
-description: "Maintain fmind/dot skill packages, context budgets, contracts, and installed links."
+description: "Maintain fmind/dot skills, context budgets, contracts, installed links."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-skills
   created: "2026-09-09"
-  updated: "2026-11-17"
+  updated: "2026-11-22"
 ---
 
 # Maintain Dot Skills
@@ -35,4 +35,4 @@ Maintain first-party skills and chezmoi links. [skillify](../../../skills/skilli
 ## Documentation
 
 - [Agent Skills specification](https://agentskills.io/specification) · [gh skill](https://cli.github.com/manual/gh_skill) · [skill_contracts.py](../../../dot/dot_tasks/skill_contracts.py) · [test_contracts.py](../../../dot/tests/test_contracts.py)
-- Companions: [agent-project](../../../skills/agent-project/SKILL.md), [repository-docs](../../../skills/repository-docs/SKILL.md).
+- Companions: [project-setup](../../../skills/agent-harnesses/references/project-setup.md), [docs/repository](../../../skills/docs/references/repository/GUIDE.md).

@@ -1,10 +1,10 @@
 # Tool Versions
 
-[upgrade-tools](../../upgrade-tools/SKILL.md) owns upgrades; this reference owns version pinning for new and existing projects.
+[upgrade-tools](upgrade-tools/GUIDE.md) owns upgrades; this reference owns version pinning for new and existing projects.
 
 ## Workstation and projects
 
-- **Workstation vs project scope**: `fmind/dot` `dot_config/mise/config.toml` tracks `latest` (with inline comments explaining holds like `python`) and resolves into `mise.lock`. Standalone projects pin fixed versions in their own `mise.toml` + `mise.lock`, never importing workstation config or moving when `fmind/dot` or sibling repos upgrade.
+- **Workstation vs project scope**: `fmind/dot` `dot_config/mise/config.toml` tracks `latest` (with inline comments explaining holds like `python`) and resolves into `dot_config/mise/mise.lock`. Standalone projects pin fixed versions in their own `mise.toml` + `mise.lock`, never importing workstation config or moving when `fmind/dot` or sibling repos upgrade.
 - **Use lockfile revision 4** (mise 2026.11.1+, recording npm provenance repos; run `mise lock --upgrade` once on older locks) alongside referenced lock graphs, and install with `--locked`.
 - **Keep Python pin separate from `requires-python`**: align `.python-version` with the mise Python pin inside `requires-python`, and never add upper caps like `<3.15` to `requires-python` without a proven incompatibility (`uv` treats project `>=3.14,<3.15` as `==3.14.*` and ignores dependency upper caps; PEP 723 scripts may cap ranges to pick a compatible interpreter).
 - **Replace template `latest` placeholders** with exact versions before installing or delivering a scaffolded project.

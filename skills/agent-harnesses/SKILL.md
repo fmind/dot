@@ -1,45 +1,48 @@
 ---
 name: agent-harnesses
-description: "Operate and configure Claude Code, Copilot, OpenCode, and Pi; add or fix MCP servers across coding hosts and verify access."
+description: "Operate Antigravity (agy CLI, Remote Control, SDK) and Copilot; host bridges/discovery, vendor skills, MCP setup, headless reviews, prompts."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-11-19"
+  updated: "2026-11-22"
 ---
 
-# Agent Harnesses
+# Agent Harnesses & Project Setup
 
-Operate the selected coding-agent host without mixing another host's settings, permissions, or lifecycle. [agy](../agy/SKILL.md) owns Antigravity; [claude](references/claude.md) owns Claude Code.
+Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared repository `AGENTS.md`, `.agents/skills/`, host bridges, and vendor skills without mixing settings or lifecycles.
 
 ## Workflow
 
-1. **Check version-specific docs before calling a feature missing**: `--help` can omit supported flags.
-1. **Verify precedence and permissions before changing execution**: hooks and extensions run code.
-1. **Verify behavior and discovery**: check the host's own instruction/skill loading; [agent-project](../agent-project/SKILL.md) owns shared repo layout and [mcp-setup](references/mcp-setup.md) owns MCP registration.
+1. **Check version docs before calling features missing**: `--help` can omit flags.
+1. **Verify precedence & permissions**: hooks, repo configs, and extensions run code; vet before enabling.
+1. **Verify discovery**: run `dot context --check` and host listings ([project-setup](references/project-setup.md), [host-discovery](references/host-discovery.md)).
 
 ## Task guides
 
 <!-- guides:start -->
 
-- [claude](references/claude.md): Claude Code sessions, managed settings, headless flags, hooks, and background tasks.
+- [agy-cli](references/agy-cli/GUIDE.md): CLI sessions, managed settings, auth, custom agents, and completions.
+- [antigravity-sdk](references/antigravity-sdk/GUIDE.md): Python SDK orchestration, policy, subagents, and lifecycle.
 - [copilot](references/copilot.md): Copilot CLI sessions, non-interactive flags, folder trust, and extensions.
+- [cross-harness-agents](references/cross-harness-agents.md): Decide when a custom agent role pays off, write per-host definitions, and verify discovery.
+- [headless-review](references/headless-review/GUIDE.md): Structured headless agy review with JSON schema and fail-closed exit checks.
 - [mcp-setup](references/mcp-setup.md): Add, vet, or fix MCP servers across coding hosts and verify live access.
-- [notifications](references/notifications.md): Configure Zellij OSC 7501 turn attention, mobile push settings, and brain session-context hooks.
-- [opencode](references/opencode.md): OpenCode sessions and provider configuration.
-- [pi](references/pi.md): Pi sessions, providers, project trust, extensions, and headless runs.
+- [notifications](references/notifications.md): Zellij OSC 7501 turn attention, push alerts, brain context hooks.
+- [project-setup](references/project-setup.md): Set up repo AGENTS.md, shared skills, host bridges, discovery, and vendor skills.
+- [remote-control](references/remote-control.md): Headless agy Remote Control: session tunnels, daemon, and project registry.
+- [statusline](references/statusline.md): Configure or diagnose the managed agy status line and terminal title.
+- [task-prompts](references/task-prompts/GUIDE.md): Write task, delegation, and handoff prompts; resume, compact, or fork agy sessions.
 
 <!-- guides:end -->
 
 ## Gotchas
 
-- **Edit managed keys in `fmind/dot`**: `modify_*` chezmoi templates in `~/.local/share/chezmoi` merge Claude, Copilot, OpenCode, and Pi settings—direct edits to managed keys (including via `/config`) revert on `chezmoi apply --force`, while unmanaged keys survive. Edit source, preview with `mise run diff` (skips encrypted targets), and apply.
-- **Vet vendor skills and packages**: Pi packages/extensions run in-process; install requested packages only via [vendor-skill policy](../agent-project/references/vendor-skills.md) under one package manager.
+- **Edit managed keys in `fmind/dot`**: `modify_*` templates merge Antigravity and Copilot settings—managed edits revert on `chezmoi apply --force`. Edit source, preview via `mise run diff`, then apply.
 
 ## Documentation
 
-- [Claude Code](https://code.claude.com/docs/en/overview) · [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli) · [OpenCode](https://opencode.ai/v2/docs/) · [Pi](https://pi.dev/docs/latest/) · [MCP](https://modelcontextprotocol.io/docs/getting-started/intro)
-- Releases: [copilot-cli](https://github.com/github/copilot-cli/releases) · [opencode](https://github.com/anomalyco/opencode/releases) · [pi](https://github.com/earendil-works/pi/releases)
-- Companions: [agy](../agy/SKILL.md), [agent-project](../agent-project/SKILL.md), [dot-cli](../dot-cli/SKILL.md).
+- [Antigravity CLI](https://antigravity.google/docs/cli/reference/) · [Python SDK](https://antigravity.google/docs/sdk/overview/) · [Remote Control](https://antigravity.google/docs/remote-control/) · [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) · [AGENTS.md](https://agents.md)
+- Companions: [subagent](../subagent/SKILL.md), [skillify](../skillify/SKILL.md), [docs](../docs/SKILL.md), [dot-cli](../dot-cli/SKILL.md).

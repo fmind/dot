@@ -254,3 +254,188 @@ def test_pages_undecodable_input_keeps_its_bytes_off_stderr(tmp_path: Path) -> N
     )
     assert result.returncode == 1
     assert result.stderr == "pages: Input is not valid UTF-8; retain only UTF-8 gws stdout.\n"
+
+
+def test_drive_upload_dry_run_and_validation(tmp_path: Path) -> None:
+    report = tmp_path / "report.html"
+    report.write_text("<h1>Hello</h1>\n", encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS / "drive_upload.py"),
+            str(report),
+            "--drive-folder",
+            "folder_12345678",
+            "--target-mime",
+            "application/vnd.google-apps.document",
+            "--dry-run",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    plan = json.loads(result.stdout)
+    assert plan["ok"] is True
+    assert plan["dry_run"] is True
+    assert plan["remote_name"] == "report"
+    assert plan["upload_content_type"] == "text/html"
+    assert plan["target_mime"] == "application/vnd.google-apps.document"
+
+    bad = subprocess.run(
+        [sys.executable, str(SCRIPTS / "drive_upload.py"), str(report), "--drive-folder", "bad/id", "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert bad.returncode == 1
+    assert "Invalid --drive-folder" in bad.stderr
+
+
+def test_drive_upload_create_and_verify_with_mocked_gws(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import hashlib
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("drive_upload", SCRIPTS / "drive_upload.py")
+    assert spec
+    assert spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    pdf = tmp_path / "deck.pdf"
+    pdf.write_bytes(b"%PDF-1.7\nhello\n")
+    expected_md5 = hashlib.md5(pdf.read_bytes(), usedforsecurity=False).hexdigest()
+
+    calls: list[list[str]] = []
+
+    def fake_run_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        calls.append(args)
+        assert (cwd / "upload.pdf").is_file()
+        if args[:3] == ["drive", "files", "list"]:
+            return {"files": []}
+        if args[:3] == ["drive", "files", "create"]:
+            return {"id": "file_12345678"}
+        if args[:3] == ["drive", "files", "get"]:
+            return {
+                "id": "file_12345678",
+                "name": "deck.pdf",
+                "mimeType": "application/pdf",
+                "webViewLink": "https://drive.google.com/file/d/file_12345678/view",
+                "trashed": False,
+                "md5Checksum": expected_md5,
+                "size": str(pdf.stat().st_size),
+            }
+        raise AssertionError(f"Unexpected gws call: {args}")
+
+    monkeypatch.setattr(mod, "run_gws", fake_run_gws)
+    result = mod.upload_file(pdf, drive_folder="folder_12345678")
+    assert result["ok"] is True
+    assert result["action"] == "created"
+    assert result["id"] == "file_12345678"
+    assert len(calls) == 3
+
+    # --file-id without --name preserves the remote filename (omits --json metadata patch).
+    calls.clear()
+
+    def fake_update_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        calls.append(args)
+        assert (cwd / "upload.pdf").is_file()
+        if args[:3] == ["drive", "files", "update"]:
+            assert "--json" not in args
+            return {"id": "existing_12345678"}
+        return {
+            "id": "existing_12345678",
+            "name": "Original Remote Title.pdf",
+            "mimeType": "application/pdf",
+            "trashed": False,
+            "md5Checksum": expected_md5,
+            "size": str(pdf.stat().st_size),
+        }
+
+    monkeypatch.setattr(mod, "run_gws", fake_update_gws)
+    updated = mod.upload_file(pdf, file_id="existing_12345678")
+    assert updated["action"] == "updated"
+    assert updated["name"] == "Original Remote Title.pdf"
+
+    # Existing .gdoc must never be overwritten via drive.files.update (drops comments/suggestions),
+    # even when --target-mime is omitted.
+    html = tmp_path / "memo.html"
+    html.write_text("<h1>Memo</h1>\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=r"documents\.batchUpdate"):
+        mod.upload_file(html, file_id="existing_12345678", target_mime=mod.GOOGLE_DOC_MIME)
+    monkeypatch.setattr(
+        mod,
+        "run_gws",
+        lambda _args, **_kw: {"id": "gdoc_12345678", "mimeType": mod.GOOGLE_DOC_MIME, "trashed": False},
+    )
+    with pytest.raises(ValueError, match=r"documents\.batchUpdate"):
+        mod.upload_file(html, file_id="gdoc_12345678")
+    monkeypatch.setattr(
+        mod,
+        "run_gws",
+        lambda _args, **_kw: {"id": "trash_12345678", "mimeType": "text/markdown", "trashed": True},
+    )
+    with pytest.raises(ValueError, match="trashed"):
+        mod.upload_file(html, file_id="trash_12345678")
+
+    # --file-id with mismatched --target-mime must fail closed before calling drive.files.update.
+    mismatch_calls: list[list[str]] = []
+
+    def mismatch_gws(args: list[str], **_kw: object) -> dict[str, object]:
+        mismatch_calls.append(args)
+        return {"id": "pdf_12345678", "mimeType": "application/pdf", "trashed": False}
+
+    monkeypatch.setattr(mod, "run_gws", mismatch_gws)
+    with pytest.raises(ValueError, match="expected 'text/markdown'"):
+        mod.upload_file(html, file_id="pdf_12345678", target_mime="text/markdown")
+    assert [c[:3] for c in mismatch_calls] == [["drive", "files", "get"]]
+
+    # Missing mimeType or Google-native target without --target-mime must also fail closed before update.
+    monkeypatch.setattr(mod, "run_gws", lambda _args, **_kw: {"id": "nomime_1234", "trashed": False})
+    with pytest.raises(RuntimeError, match="missing mimeType"):
+        mod.upload_file(html, file_id="nomime_1234")
+    monkeypatch.setattr(
+        mod,
+        "run_gws",
+        lambda _args, **_kw: {
+            "id": "slides_1234",
+            "mimeType": "application/vnd.google-apps.presentation",
+            "trashed": False,
+        },
+    )
+    with pytest.raises(ValueError, match="Google-native"):
+        mod.upload_file(html, file_id="slides_1234")
+    monkeypatch.setattr(mod, "run_gws", lambda _args, **_kw: {"files": [{"id": "gdoc_12345678", "name": "memo"}]})
+    with pytest.raises(ValueError, match=r"documents\.batchUpdate"):
+        mod.upload_file(html, drive_folder="folder_12345678", target_mime=mod.GOOGLE_DOC_MIME)
+
+    # Multiple same-named files in a folder fail closed instead of picking files[0].
+    monkeypatch.setattr(
+        mod,
+        "run_gws",
+        lambda _args, **_kw: {
+            "files": [{"id": "a_12345678", "name": "deck.pdf"}, {"id": "b_12345678", "name": "deck.pdf"}]
+        },
+    )
+    with pytest.raises(RuntimeError, match="Multiple Drive files"):
+        mod.upload_file(pdf, drive_folder="folder_12345678")
+
+    # Empty source file fails closed.
+    empty = tmp_path / "empty.pdf"
+    empty.write_bytes(b"")
+    with pytest.raises(ValueError, match="non-empty"):
+        mod.upload_file(empty, drive_folder="folder_12345678")
+
+    # Fail closed on MD5 mismatch during read-back.
+    def bad_md5_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        res = fake_run_gws(args, cwd=cwd)
+        if args[:3] == ["drive", "files", "get"]:
+            res["md5Checksum"] = "0" * 32
+        return res
+
+    monkeypatch.setattr(mod, "run_gws", bad_md5_gws)
+    with pytest.raises(RuntimeError, match="MD5 mismatch"):
+        mod.upload_file(pdf, drive_folder="folder_12345678")

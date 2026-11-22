@@ -1,6 +1,6 @@
 ---
 name: svg
-description: "Self-contained SVG logos, geometric marks, and live-text SVG assets: branding, embedding, and visual checks."
+description: "Self-contained SVG logos, geometric marks, and live-text visual checks."
 ---
 
 # SVG Illustration Standard
@@ -11,7 +11,7 @@ Hand-authored, diffable `<svg>` files for geometric logos/marks (`96–128 px`),
 
 1. **Pick one concept**: loop, before/after, mapping, boundary, or layers—at most 3–7 items per group (split instead of shrinking; one diagram per core concept).
 1. **Apply the brand**: use customer branding when applicable (ask if missing; never guess or mix brands), else `~/.agents/DESIGN.md`.
-1. **Copy [illustration.svg](templates/illustration.svg)**: place in `docs/assets/<concept>.svg` (or dot-prefixed `.github/assets/` in chezmoi repos). Its `<style>` maps `DESIGN.md` roles (`chip`, `box`, `tile`, `config`, `err`, `step`, `flow`, `arrowhead`, `mask`, `label`, `muted`) inside a `#FFFFFF` card with `#9AA0A6` border for dark-mode legibility; swap only hex values and font names for customer brands, and preserve the 960px `viewBox` (600px for Google Docs per [draft-doc](../../../draft-doc/SKILL.md)), `role="img"`, `<title>`, and `<desc>`.
+1. **Copy [illustration.svg](templates/illustration.svg)**: place in `docs/assets/<concept>.svg` (or dot-prefixed `.github/assets/` in chezmoi repos). Its `<style>` maps `DESIGN.md` roles (`chip`, `box`, `tile`, `config`, `err`, `step`, `flow`, `arrowhead`, `mask`, `label`, `muted`) inside a `#FFFFFF` card with `#9AA0A6` border for dark-mode legibility; swap only hex values and font names for customer brands, and preserve the 960px `viewBox` (600px for Google Docs per [draft/doc](../../../draft/references/doc/GUIDE.md)), `role="img"`, `<title>`, and `<desc>`.
 1. **Compose on the grid**: columns at `x=32, 320, 704` (64px gutters) or even 2/3-column splits, 34px chips stepping by 42, numbered flow badges, sentence-case headings, code font only for commands/paths/fields, real source names, synthetic examples, and zero invented metrics.
 1. **Provide text equivalents**: full mechanism in `<desc>`, conclusion in `alt`, and standalone claim in surrounding prose.
 1. **Embed wrapped in a full-size link** (relative path, or raw URL only when republished to PyPI/registries):
@@ -22,7 +22,7 @@ Hand-authored, diffable `<svg>` files for geometric logos/marks (`96–128 px`),
    </a>
    ```
 
-1. **Validate and inspect**: run [check_svg.py](scripts/check_svg.py) (`CHROME` overrides browser; else use [playwright](../../../playwright/SKILL.md) with JS and network off) to verify XML, a11y, 12px floor, and `<img>`-sandbox safety, then visually inspect both brand-font and fallback-font renders for overflow, collisions, contrast, and typos:
+1. **Validate and inspect**: run [check_svg.py](scripts/check_svg.py) (`CHROME` overrides browser; else use [playwright](../../../web-frontend/references/playwright.md) with JS and network off) to verify XML, a11y, 12px floor, and `<img>`-sandbox safety, then visually inspect both brand-font and fallback-font renders for overflow, collisions, contrast, and typos:
 
    ```bash
    python3 -I ~/.agents/skills/diagrams-as-code/references/svg/scripts/check_svg.py docs/assets/*.svg --render "$(mktemp -d)"
@@ -39,4 +39,4 @@ Hand-authored, diffable `<svg>` files for geometric logos/marks (`96–128 px`),
 ## Documentation
 
 - [MDN SVG reference](https://developer.mozilla.org/en-US/docs/Web/SVG) · [Complex images](https://www.w3.org/WAI/tutorials/images/complex/)
-- Companions: [variants](../variants/GUIDE.md) (exploration rounds), [repository-docs](../../../repository-docs/SKILL.md) (README journey), [mermaid](../mermaid.md) (technical diagrams).
+- Companions: [variants](../variants/GUIDE.md) (exploration rounds), [docs/repository](../../../docs/references/repository/GUIDE.md) (README journey), [mermaid](../mermaid.md) (technical diagrams).

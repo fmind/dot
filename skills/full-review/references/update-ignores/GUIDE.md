@@ -19,7 +19,7 @@ Align ignore and exclude configs with the repository's actual stack and tasks—
 
 1. **Prune & add**: drop zero-hit foreign-stack, dead-tool, duplicate, and shadowed rules while keeping preventive secret/state rules (`.env`, `*.tfstate`, `*.pem`, `.terraform/`). Cover stack caches (`.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.ty_cache/`, `.coverage*`, `dist/`, `site/`, `node_modules/`); keep personal OS/editor noise in `~/.config/git/ignore` (`chezmoi source-path ~/.config/git/ignore`).
 1. **Keep `.ignore` to search noise**: list only low-signal tracked files (locks, generated schemas, snapshots, fixtures, minified/vendored assets)—never duplicate `.gitignore` or exclude Python tests/fixtures, which Ruff and ty also skip. Lead comment-capable files with their doc URL ([gitignore](https://git-scm.com/docs/gitignore), [ripgrep filtering](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering)).
-1. **Check non-gitignore excludes & verify**: test globs via `git ls-files -- ':(glob)<pattern>'` or `fd --glob '<pattern>'` (`.dockerignore` uses Go `filepath.Match` per [containerize](../../../docker/references/containerize/templates/.dockerignore)); rerun `audit.py`, verify `git ls-files -ci --exclude-standard` adds zero newly ignored tracked files, and report changes.
+1. **Check non-gitignore excludes & verify**: test globs via `git ls-files -- ':(glob)<pattern>'` or `fd --glob '<pattern>'` (`.dockerignore` uses Go `filepath.Match` per [containerize](../../../containers/references/containerize/templates/.dockerignore)); rerun `audit.py`, verify `git ls-files -ci --exclude-standard` adds zero newly ignored tracked files, and report changes.
 
 ## Gotchas
 
@@ -29,4 +29,4 @@ Align ignore and exclude configs with the repository's actual stack and tasks—
 ## Documentation
 
 - [gitignore](https://git-scm.com/docs/gitignore) · [git check-ignore](https://git-scm.com/docs/git-check-ignore) · [Docker build context](https://docs.docker.com/build/concepts/context/#dockerignore-files)
-- Companion skills: [project-scaffolding](../../../project-scaffolding/references/bootstrap.md).
+- Companion skills: [bootstrap](../../../github/references/bootstrap.md).

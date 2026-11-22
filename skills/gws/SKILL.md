@@ -1,22 +1,22 @@
 ---
 name: gws
-description: "Use gws for Google Workspace: Gmail, Drive, Docs, Sheets, Calendar, Chat."
+description: "Read, search, export, and admin Google Workspace (Gmail, Drive, Docs, Slides, Sheets, Calendar, Chat) via gws."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-11-16"
+  updated: "2026-11-22"
 ---
 
 # Google Workspace CLI
 
-Automate Drive, Docs, Sheets, Gmail, Calendar, and Chat via `gws` (use connected apps only when native document context requires them).
+Automate Drive, Docs, Slides, Sheets, Gmail, Calendar, and Chat via `gws` (use connected apps only when native document context requires them).
 
 ## Workflow
 
-1. **Verify active profile**: inspect `gws auth status` without printing secrets (`GOOGLE_WORKSPACE_CLI_CONFIG_DIR` isolates profiles; `GOOGLE_WORKSPACE_CLI_TOKEN` / `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` override stored logins). Because `gws` auto-loads ancestor `.env` files, run calls from a `.env`-free scratch directory and confirm `user` before writing (`draft-doc` and `draft-mail` isolate `gws` in a private temp dir).
+1. **Verify active profile**: inspect `gws auth status` without printing secrets (`GOOGLE_WORKSPACE_CLI_CONFIG_DIR` isolates profiles; `GOOGLE_WORKSPACE_CLI_TOKEN` / `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` override stored logins). Because `gws` auto-loads ancestor `.env` files, run calls from a `.env`-free scratch directory and confirm `user` before writing (`drive_upload.py` and the `draft_*.py` helpers isolate `gws` in a private temp dir).
 1. **Check command help and schema** (`--help` for flags, unexpanded `schema` for payloads):
 
    ```bash
@@ -45,10 +45,10 @@ Automate Drive, Docs, Sheets, Gmail, Calendar, and Chat via `gws` (use connected
 
 ## Official Skills
 
-Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills); audit and install selected service skills plus their shared base skill only under [vendor-skill policy](../agent-project/references/vendor-skills.md).
+Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills); audit and install selected service skills plus their shared base skill only under [vendor-skill policy](../agent-harnesses/references/vendor-skills.md).
 
 ## Documentation
 
 - [Google Workspace CLI](https://github.com/googleworkspace/cli) · [Workspace API reference](https://developers.google.com/workspace)
 - Releases: [Workspace CLI](https://github.com/googleworkspace/cli/releases) · [changelog](https://github.com/googleworkspace/cli/blob/main/CHANGELOG.md)
-- Companions: [draft-doc](../draft-doc/SKILL.md) (Google Docs `.gdoc` or `.md`), [draft-typst-deck](../draft-typst-deck/SKILL.md) (Typst PDF/PPTX & private Google Slides), [draft-mail](../draft-mail/SKILL.md) (draft-only Gmail), [acli](../acli/SKILL.md), [gcloud](../gcloud/SKILL.md), [mcp-setup](../agent-harnesses/references/mcp-setup.md).
+- Companions: [draft](../draft/SKILL.md) (Docs, Typst/Google Slides, Sheets, Gmail drafts), [acli](../cloud-ops/references/acli.md), [gcloud](../gcloud/SKILL.md), [mcp-setup](../agent-harnesses/references/mcp-setup.md).

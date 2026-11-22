@@ -1,6 +1,6 @@
 ---
 name: langgraph
-description: "LangGraph state, persistence, streaming, interrupts, and durable execution."
+description: "Build durable LangGraph workflows, checkpoints, streaming, and interrupts."
 ---
 
 # LangGraph
@@ -24,11 +24,11 @@ Hand-write `StateGraph` topology only beyond a tool loop (pre-routing classifica
 
 ## Official Skills
 
-Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`langgraph-fundamentals`, `langgraph-persistence`, `langgraph-human-in-the-loop`, plus `langgraph-cli` when needed); vet per [vendor-skill policy](../../agent-project/references/vendor-skills.md).
+Upstream: [langchain-ai/langchain-skills](https://github.com/langchain-ai/langchain-skills) (`langgraph-fundamentals`, `langgraph-persistence`, `langgraph-human-in-the-loop`, plus `langgraph-cli` when needed); vet per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md).
 
 ## Documentation
 
 - [Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api) · [Checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers) · [Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) · [Fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) · [Event streaming](https://docs.langchain.com/oss/python/langgraph/event-streaming)
 - Releases: [changelog](https://docs.langchain.com/oss/python/releases/changelog) · [GitHub releases](https://github.com/langchain-ai/langgraph/releases)
 - Live docs MCP: `https://docs.langchain.com/mcp`.
-- Companion skills: [python-async](../../python-stack/references/python-async/GUIDE.md), [observability](../../python-stack/references/observability.md).
+- Companion skills: [async](../../python/references/async.md), [observability](../../python/references/observability.md).

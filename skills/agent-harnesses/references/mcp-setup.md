@@ -5,7 +5,7 @@ description: "Add, vet, or fix MCP servers across coding hosts and verify live a
 
 # MCP Setup
 
-Register only the MCP capability a task needs using the host's native CLI. [MCP](../../agent-protocols/references/mcp/GUIDE.md) owns server code; [agent-project](../../agent-project/SKILL.md) owns shared repo layout.
+Register only the MCP capability a task needs using the host's native CLI. [MCP](../../agent-frameworks/references/mcp/GUIDE.md) owns server code; [project-setup](project-setup.md) owns shared repo layout.
 
 ## Workflow
 
@@ -15,29 +15,23 @@ Register only the MCP capability a task needs using the host's native CLI. [MCP]
 
 ## Native host commands
 
-Python stdio examples (for HTTP, substitute `--transport http <url>` in Claude/Copilot, `--url <url>` in OpenCode/Pi, or a bare URL in Antigravity; Pi HTTP bearer tokens use `--bearer-token-env-var NAME`):
+Python stdio examples (for HTTP, pass a bare URL in Antigravity or `--transport http <url>` in Copilot):
 
 ```bash
-agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                 # Antigravity: user scope only
-claude mcp add --scope local <name> -e KEY=value -- uvx --from '<package>==<version>' <command>  # -e is variadic: name first
-copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>             # user configuration
-opencode mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>            # project config unless --global
-pi mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>                  # user config unless -l
+agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>      # Antigravity: user scope only
+copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>  # Copilot: user configuration
 ```
 
 - **Pin executables & local projects**: use `uvx --from '<package>==<version>'`, never bare `uvx <package>`. For local Python checkouts, point directly at the locked `.venv` binary (e.g., `agy mcp add brain -- <brain-checkout>/.venv/bin/bf mcp --brain <brain>`) because `uvx --from` pins only the top-level package and agy spawns `bash -c` without shell init files.
-- **Keep secrets out of args and tracked files**: `KEY=value` is non-sensitive only; supply credentials via host env refs (`{env:NAME}`, `${NAME}`, `--bearer-token-env-var`), OAuth, or `with-secret` ([scoped credentials](../../dot-cli/references/authentication.md#scoped-credentials)). Keep Claude's default `--scope local` (`~/.claude.json`) unless the user approves shared `.mcp.json` (`--scope project`; `claude mcp reset-project-choices` resets).
-- **OpenCode 2.x schema** ([docs](https://opencode.ai/v2/docs/mcp-servers/)): nest under `mcp.servers.<name>` (`type: "local"` with command array + `environment`, or `type: "remote"` with `url`); use `disabled` (not `enabled`) and `{env:NAME}` for secrets. Project entries replace same-name global entries wholesale.
+- **Keep secrets out of args and tracked files**: `KEY=value` is non-sensitive only; supply credentials via host env refs (`${NAME}`), OAuth, or `with-secret` ([scoped credentials](../../dot-cli/references/authentication.md#scoped-credentials)).
+- **Antigravity `mcp_config.json`**: remote servers require Streamable HTTP (`serverUrl`, no legacy SSE). Tools lazy-load by default (schemas cached in `~/.gemini/antigravity-cli/mcp/<server>/`); set `tools.<name>.eager: true` for hot tools, `background: "always"|"off"`, `enabledTools`/`disabledTools`, `timeoutSeconds` (default 180s call / 300s connect), or `authProviderType: "google_credentials"` for GCP ADC (`1.5.8+` enforces `mcp(...)` deny/ask rules on eager tools too).
 
 ## Configuration files
 
-| Host        | User scope                                           | Project scope                                   |
-| ----------- | ---------------------------------------------------- | ----------------------------------------------- |
-| Antigravity | `~/.gemini/config/mcp_config.json` (`agy mcp add`)   | Unsupported by `agy mcp add` (user-only)        |
-| Claude Code | `~/.claude.json` (`--scope user` or default `local`) | `.mcp.json` (`--scope project`)                 |
-| Copilot     | `~/.copilot/mcp-config.json`                         | `.mcp.json` or `.github/mcp.json` (hand-edited) |
-| OpenCode    | `~/.config/opencode/opencode.json` or `.jsonc`       | `opencode.json` or `.jsonc`                     |
-| Pi          | `~/.pi/agent/mcp.json`                               | `.pi/mcp.json` (`-l`), after project trust      |
+| Host        | User scope                                         | Project scope                                              |
+| ----------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| Antigravity | `~/.gemini/config/mcp_config.json` (`agy mcp add`) | `.agents/mcp_config.json` (hand-edited; CLI add user-only) |
+| Copilot     | `~/.copilot/mcp-config.json`                       | `.mcp.json` or `.github/mcp.json` (hand-edited)            |
 
 ## Gotchas
 

@@ -1,11 +1,11 @@
 ---
 name: evaluation
-description: "Evaluate prompt, model, retrieval, and agent changes with graded multi-trial experiments."
+description: "Evaluate prompts, retrieval, and agents with graded multi-trial runs."
 ---
 
 # Agent Evaluation
 
-Test whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../system-prompts.md) owns prompt layering; [python-testing](../../../python-stack/references/python-testing/GUIDE.md) owns deterministic proof. Reuse the project or provider's evaluation workflow.
+Test whether a stochastic candidate improves observable outcomes under comparable conditions. [system-prompts](../system-prompts.md) owns prompt layering; [python/testing](../../../python/references/testing/GUIDE.md) owns deterministic proof. Reuse the project or provider's evaluation workflow.
 
 ## Workflow
 
@@ -14,7 +14,7 @@ Test whether a stochastic candidate improves observable outcomes under comparabl
 1. **Keep held-out cases sealed & cover edge paths**: include normal, boundary/empty, multi-turn recovery, and adversarial/injection/refusal cases; never tune on decision cases and call them unseen.
 1. **Grade outcomes, trajectories, and artifact craft**: prefer executable checks, tool-trajectory assertions, and resulting state (plus schema/linter/render checks when generating code, docs, or visuals); calibrate semantic judges on labeled examples, blind candidate identity, and escalate consequential disagreements to a human.
 1. **Report every trial**: run paired repeated trials on fresh state with [eval_runner.py](templates/eval_runner.py) (`pass@k` and `pass^k`, deterministic checks + blinded judges) or `mlflow.genai.evaluate`; keep failures, timeouts, and refusals without cherry-picking retries; save per-case outcomes, cost, and latency, and report uncertainty per the brief.
-1. **Instrument & compare in MLflow (`3.18.0+`)**: set `MLFLOW_DISABLE_AGENT_HINT=1`, wrap candidate calls with `@mlflow.trace`, grade with `@mlflow.genai.scorer` + `mlflow.genai.evaluate(...)`, and inspect regressions via `mlflow.genai.compare_evaluations(...)` ([experiments](../../../python-mlops/references/experiments.md)).
+1. **Instrument & compare in MLflow (`3.18.0+`)**: set `MLFLOW_DISABLE_AGENT_HINT=1`, wrap candidate calls with `@mlflow.trace`, grade with `@mlflow.genai.scorer` + `mlflow.genai.evaluate(...)`, and inspect regressions via `mlflow.genai.compare_evaluations(...)` ([experiments](../../../mlops/references/experiments.md)).
 1. **Decide against declared criteria**: adopt, iterate, reject, or inconclusive; adoption never authorizes production changes.
 
 ## Gotchas
@@ -26,6 +26,6 @@ Test whether a stochastic candidate improves observable outcomes under comparabl
 
 ## Documentation
 
-- Upstream: `mlflow/skills` (`mlflow-evaluation` for MLflow scorers, judges, and runs); vet per [vendor-skill policy](../../../agent-project/references/vendor-skills.md).
+- Upstream: `mlflow/skills` (`mlflow-evaluation` for MLflow scorers, judges, and runs); vet per [vendor-skill policy](../../../agent-harnesses/references/vendor-skills.md).
 - [Anthropic agent evaluation](https://www.anthropic.com/research/demystifying-evals-for-ai-agents)
-- Companions: [agents-cli](../agents-cli/GUIDE.md) (Google eval CLI), [observability](../../../python-stack/references/observability.md), [skillify](../../../skillify/SKILL.md), [AI red team](../../../code-security/references/ai-red-team/GUIDE.md).
+- Companions: [agents-cli](../agents-cli/GUIDE.md) (Google eval CLI), [observability](../../../python/references/observability.md), [skillify](../../../skillify/SKILL.md), [AI red team](../../../code-security/references/ai-red-team/GUIDE.md).

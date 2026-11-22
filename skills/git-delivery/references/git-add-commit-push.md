@@ -28,5 +28,5 @@ Stage, commit, and push authorized changes while preserving unrelated work and h
 
 ## Documentation
 
-- [Git push](https://git-scm.com/docs/git-push) · [lefthook](../../github-actions/references/lefthook.md)
-- Companion skills: [git-worktree](git-worktree/GUIDE.md), [pull-request](../../gh/references/pull-request.md), [resolve-conflicts](resolve-conflicts.md).
+- [Git push](https://git-scm.com/docs/git-push) · [lefthook](../../github/references/lefthook.md)
+- Companion skills: [git-worktree](git-worktree/GUIDE.md), [pull-request](../../github/references/pull-request.md), [resolve-conflicts](resolve-conflicts.md).

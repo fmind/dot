@@ -7,11 +7,11 @@ Verify in a **fresh session** that a reviewer supagent catches target defect cla
 Create synthetic fixtures inside a clean `/var/tmp` sandbox directory (never customer data in public repos) so fixture files stay inside the active workspace root under `allowNonWorkspaceAccess: false`:
 
 1. **Seeded defect cases (`>= 2` distinct rubric rules)**: plant concrete flaws per lens (e.g., shell interpolation + hardcoded dummy token for `security`; a `600`-LOC module + swallowed exception for `code`; `"Distills Book X"` name-dropping + mixed multi-discipline rubric for `supagent`).
-1. **Clean controls (`>= 2` clean edge cases)**: fix those exact flaws cleanly, including valid edge cases covered by `## Do Not Flag` (e.g., short plain 1:1 email for `human`; private `noindex` app without `sitemap.xml` for `web`).
+1. **Clean controls (`>= 2` clean edge cases)**: fix those exact flaws cleanly, including valid edge cases covered by `## Do Not Flag` (e.g., short plain 1:1 email for `human`; private `noindex` app without `sitemap.xml` for `frontend`).
 
 ## Headless Production-Contract Probe
 
-Run headless from the sandbox without overriding the supagent's `## Output Contract` (or use [headless-review](../../agy/references/headless-review/GUIDE.md) only when testing JSON pipelines), confining file reads to the sandbox (for visual/web roles or diff/gate-log bundles outside the sandbox under `allowNonWorkspaceAccess: false`, allocate `render_dir="$(cd "$(mktemp -d /tmp/agy-render.XXXXXX)" && pwd -P)"`, pre-render PNG/PDF/DOM/log fixtures into `"$render_dir"` before launching the reviewer, pass `--add-dir "$render_dir"` plus exact fixture paths in `-p`, and remove `"$render_dir"` on exit):
+Run headless from the sandbox without overriding the supagent's `## Output Contract`, confining file reads to the sandbox (for visual/web roles or external diff/log bundles under `allowNonWorkspaceAccess: false`, follow the `$render_dir` + `--add-dir` recipe in [headless-review](../../agent-harnesses/references/headless-review/GUIDE.md)):
 
 ```bash
 sandbox=$(mktemp -d /var/tmp/subagent-cal.XXXXXX)

@@ -34,7 +34,7 @@ Compile Tailwind via the standalone `tailwindcss` binary in `mise.toml` without 
    run = "tailwindcss -i assets/styles.css -o src/<package>/static/css/app.css --watch"
    ```
    Mount compiled files via `create_static_files_router(path="/static", directories=[...], cache_control=CacheControlHeader(max_age=31_536_000, immutable=True, public=True))` and link via `url_for("static", file_path=...)`.
-1. **Verify source scanning and live CSS**: confirm clean `--minify` output includes classes from nested templates, conditionals, and Python strings (and drops a removed fixture class), then inspect styles and responsive/keyboard states with [chrome-devtools](../../chrome-devtools/SKILL.md).
+1. **Verify source scanning and live CSS**: confirm clean `--minify` output includes classes from nested templates, conditionals, and Python strings (and drops a removed fixture class), then inspect styles and responsive/keyboard states with [chrome-devtools](chrome-devtools.md).
 
 ## Gotchas
 

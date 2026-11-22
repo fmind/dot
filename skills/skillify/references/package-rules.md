@@ -4,9 +4,9 @@ Keep discovery compact and load procedures on demand. `check:skills` checks sche
 
 ## Categories and scope
 
-- **Connector** (`metadata.kind: connector`): reusable CLI or API boundary (`bf`, `cf`, `fmind`, `gcloud`, `gh`, `gws`, `pup`); owns auth, bounded queries, output format, and guardrails so task skills link instead of duplicating.
-- **Task** (`metadata.kind: task`): cross-project workflow (`full-review`, `humanize`, `repository-docs`, `draft-typst-deck`); self-contained unless distinct modes or long schemas warrant `references/`.
-- **Collection** (`metadata.kind: collection`): cohesive domain (`python-stack`, `agent-frameworks`, `code-security`, `diagrams-as-code`, `project-scaffolding`) whose `SKILL.md` routes to guides and shared prerequisites.
+- **Connector** (`metadata.kind: connector`): reusable CLI or API boundary (`bf`, `dot-cli`, `duckdb`, `fmind`, `gcloud`, `gws`); owns auth, bounded queries, output format, and guardrails so task skills link instead of duplicating.
+- **Task** (`metadata.kind: task`): cross-project workflow (`finops`, `full-review`, `humanize`, `ingest`, `mise`, `proposal`, `skillify`, `subagent`); self-contained unless distinct modes or long schemas warrant `references/`.
+- **Collection** (`metadata.kind: collection`): cohesive domain (`python`, `mlops`, `cloud-ops`, `docs`, `draft`, `github`, `containers`, `agent-frameworks`, `code-security`, `diagrams-as-code`, `agent-harnesses`) whose `SKILL.md` routes to guides and shared prerequisites.
 - **Scope (`skills/` vs `.agents/skills/`)**: promote globally only for recurring triggers, non-trivial deltas beyond public docs, and room under [structure and budgets](#structure-budgets-and-authoring); default to repo-local first.
 
 ## Naming and ownership
@@ -16,18 +16,16 @@ Keep discovery compact and load procedures on demand. `check:skills` checks sche
   - _Indexed sub-guides_ (`references/<name>.md` or `references/<name>/GUIDE.md`): require strictly `name` and `description` in YAML frontmatter (without repeating the parent prefix) and sync between `<!-- guides:start -->` and `<!-- guides:end -->` in `SKILL.md`.
   - _Supporting files_ (`references/<topic>.md` or `references/<name>/references/<topic>.md`): plain Markdown with no YAML frontmatter (`check:skills` rejects non-indexed frontmatter files).
 - **Action-led descriptions (1–180 chars)**: open with the work performed plus triggers/tools; keep guide descriptions scoped to their branch.
-- **Request owners**:
-  - UI, Python servers, docs sites, & notebooks: [web-frontend](../../web-frontend/SKILL.md), [python-web](../../python-web/SKILL.md), [documentation-site](../../documentation-site/SKILL.md), [marimo](../../python-mlops/references/marimo.md).
-  - Mails, docs, slides, & diagrams: [humanize](../../humanize/SKILL.md), [draft-mail](../../draft-mail/SKILL.md), [draft-doc](../../draft-doc/SKILL.md), [draft-typst-deck](../../draft-typst-deck/SKILL.md), [diagrams-as-code](../../diagrams-as-code/SKILL.md).
-  - Project bootstrap, upkeep, docs, & review: [project-scaffolding](../../project-scaffolding/SKILL.md), [repository-docs](../../repository-docs/SKILL.md), [full-review](../../full-review/SKILL.md).
-  - Prompts, model APIs, harnesses, & MCP: [task-prompts](../../task-prompts/SKILL.md), [system-prompts](../../agent-frameworks/references/system-prompts.md), [request contracts](../../model-providers/SKILL.md#request-contracts), [agent-harnesses](../../agent-harnesses/SKILL.md), [mcp-setup](../../agent-harnesses/references/mcp-setup.md), [agent-protocols](../../agent-protocols/SKILL.md).
-  - Testing, smoke checks, & evals: [python-testing](../../python-stack/references/python-testing/GUIDE.md), [smoke](../../full-review/references/smoke.md), [evaluation](../../agent-frameworks/references/evaluation/GUIDE.md).
+- **Boundary seams** (avoid overlap when adding/routing guides):
+  - **Prose vs channel vs commercial**: [humanize](../../humanize/SKILL.md) owns audience/craft; [draft](../../draft/SKILL.md) owns Workspace/Typst plumbing; [proposal](../../proposal/SKILL.md) owns SOW/WBS/effort; [finops](../../finops/SKILL.md) owns cloud/AI TCO; [ingest](../../ingest/SKILL.md) owns inbound extraction.
+  - **Code vs ML vs agents**: [python](../../python/SKILL.md) owns core Python/web/CLIs; [mlops](../../mlops/SKILL.md) owns tabular/ML/notebooks; [agent-frameworks](../../agent-frameworks/SKILL.md) owns LLM SDKs/evals/RAG; [agent-harnesses](../../agent-harnesses/SKILL.md) owns CLI hosts/MCP/setup.
+  - **Docs vs review**: [docs](../../docs/SKILL.md) owns README/AGENTS/ADR/Zensical; [full-review](../../full-review/SKILL.md) owns repo/PR/smoke audits; [subagent](../../subagent/SKILL.md) owns read-only `fmind-review-*` reviewers.
 
 ## Structure, budgets, and authoring
 
 - **Single root `SKILL.md`**: never nest `SKILL.md` in subdirectories; keep dormant skills outside discovery roots. agy reads only `name` and `description` at startup, so do not rely on `allowed-tools` or `disable-model-invocation` for permissions.
 - **Size and budgets**: target ~200–500 tokens for collection routers and <1,200 tokens for procedures. `check:skills` enforces **< 1,500 estimated tokens** on every non-template skill Markdown file and a 500-line ceiling; offload long schemas/flags to `references/`, `templates/`, or `assets/`, keeping `AGENTS.md` + skill discovery well under **5,000 tokens** and `supagents` discovery under **2,000 tokens** per scope ([context budgets](../../dot-cli/references/context.md)).
-- **Authoring deltas**: encode only non-obvious flags, version quirks, security boundaries, executable validation scripts, and Fmind defaults—drop stdlib trivia and raw vendor dumps ([vendor-skills](../../agent-project/references/vendor-skills.md)). Never write shortcut-licensing slogans; scope YAGNI strictly to unrequested features while requiring full state coverage and rendered verification on agreed work. Calibrate monospace per [humanize](../../humanize/SKILL.md) and keep copy-pasteable commands quiet (`--json`, `--quiet`).
+- **Authoring deltas**: encode only non-obvious flags, version quirks, security boundaries, executable validation scripts, and Fmind defaults—drop stdlib trivia and raw vendor dumps ([vendor-skills](../../agent-harnesses/references/vendor-skills.md)). Never write shortcut-licensing slogans; scope YAGNI strictly to unrequested features while requiring full state coverage and rendered verification on agreed work. Calibrate monospace per [humanize](../../humanize/SKILL.md) and keep copy-pasteable commands quiet (`--json`, `--quiet`).
 
 ## Promotion and portability
 

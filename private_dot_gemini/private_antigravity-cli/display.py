@@ -64,8 +64,10 @@ ICONS = {
     "project": "\uf07b",
     "branch": "\ue0a0",
     "model": "\uf2db",
+    "agent": "\uf007",
     "mode": "\uf013",
     "context": "\uf0e4",
+    "subagents": "\uf0c0",
     "tasks": "\uf0ae",
     "queued": "\uf086",
     "artifacts": "\uf15b",
@@ -165,9 +167,12 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
     model_name = clean(model.get("display_name")) or clean(model.get("id"))
     if model_name:
         segments.append((f"{ICONS['model']} {clip(model_name, 48)}", "35", 3))
-    execution_mode = clean(payload.get("execution_mode"))
-    if execution_mode:
-        segments.append((f"{ICONS['mode']} {clip(execution_mode, 16)}", "90", 6))
+    agent_name = clean(record(payload.get("agent")).get("name"))
+    if agent_name:
+        segments.append((f"{ICONS['agent']} {clip(agent_name, 32)}", "36", 3))
+    cycle_mode = clean(payload.get("cycle_mode")) or clean(payload.get("execution_mode"))
+    if cycle_mode:
+        segments.append((f"{ICONS['mode']} {clip(cycle_mode, 16)}", "90", 6))
     window = record(payload.get("context_window"))
     context = number(window.get("used_percentage"), 100)
     if context is not None:
@@ -177,6 +182,15 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
         if size:
             text += f" · {tokens(size * context / 100)}/{tokens(size)}"
         segments.append((text, shade, 2))
+    raw_subagents = payload.get("subagents")
+    running_subagents = (
+        sum(1 for item in raw_subagents if isinstance(item, dict) and item.get("status") == "running")
+        if isinstance(raw_subagents, list)
+        else 0
+    )
+    if running_subagents:
+        label = "subagent" if running_subagents == 1 else "subagents"
+        segments.append((f"{ICONS['subagents']} {running_subagents} {label}", "36", 1))
     if tasks:
         segments.append((f"{ICONS['tasks']} {tasks:.0f} tasks", "36", 1))
     queued = number(payload.get("pending_input_count"), 10000)
@@ -185,25 +199,17 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
     artifacts = number(payload.get("artifact_count"), 10000)
     if artifacts:
         segments.append((f"{ICONS['artifacts']} {artifacts:.0f} artifacts", "90", 7))
-    buckets = [
-        (str(key).lower(), (fraction, number(item.get("reset_in_seconds"), 10**8)))
-        for key, raw in record(payload.get("quota")).items()
-        if (item := record(raw)).get("disabled") is not True
-        and (fraction := number(item.get("remaining_fraction"), 1)) is not None
-    ]
-    model_key = f"{clean(model.get('id'))} {model_name}".lower()
-    family = (
-        ("gemini-" if "gemini" in model_key or "flash" in model_key or "orchestrator" in model_key else "3p-")
-        if model_name
-        else ""
+    # Report only the global Gemini weekly bucket; ignore 5-hour and 3P buckets.
+    quota = next(
+        (record(raw) for key, raw in record(payload.get("quota")).items() if str(key).lower() == "gemini-weekly"),
+        {},
     )
-    # Prefer the active model family's enabled buckets (gemini-* vs 3p-*); fall back to all enabled buckets.
-    quotas = [q for key, q in buckets if family and key.startswith(family)] or [q for _, q in buckets]
-    if quotas:
-        fraction, reset = min(quotas, key=lambda q: q[0])
+    fraction = None if quota.get("disabled") is True else number(quota.get("remaining_fraction"), 1)
+    if fraction is not None:
         remaining = fraction * 100
         # Battery glyphs run full (U+F240) to empty (U+F244).
         text = f"{chr(0xF244 - round(fraction * 4))} quota {remaining:.0f}% left"
+        reset = number(quota.get("reset_in_seconds"), 10**8)
         if reset:
             text += f" ↻ {duration(reset)}"
         segments.append((text, "31" if remaining <= 5 else "33" if remaining <= 20 else "90", 4))

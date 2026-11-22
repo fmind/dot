@@ -5,7 +5,7 @@ description: "Copilot CLI sessions, non-interactive flags, folder trust, and ext
 
 # GitHub Copilot CLI
 
-Operate Copilot CLI; [github-actions](../../github-actions/SKILL.md) owns GitHub Agentic Workflows.
+Operate Copilot CLI; [gh-aw](../../github/references/gh-aw.md) owns GitHub Agentic Workflows.
 
 ## Workflow
 

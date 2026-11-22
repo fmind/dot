@@ -1,6 +1,6 @@
 ---
 name: ai-red-team
-description: "Red-team AI apps and agents with PyRIT: prompt injection, tool misuse, and agent authority."
+description: "Red-team AI apps/agents via PyRIT: injection, tool misuse, authority."
 ---
 
 # AI Red Team

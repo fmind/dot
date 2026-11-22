@@ -25,4 +25,4 @@ Prepare, publish, or verify versioned releases using Conventional Commits, `git-
 ## Documentation
 
 - [git-cliff](https://git-cliff.org) · [gh release manual](https://cli.github.com/manual/gh_release) · [GitHub release integrity](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity) · [git-cliff releases](https://github.com/orhun/git-cliff/releases) · [changelog](https://github.com/orhun/git-cliff/blob/main/CHANGELOG.md)
-- Companion skills: [commit messages](../../SKILL.md#commit-messages), [pull-request](../../../gh/references/pull-request.md), [mise](../../../mise/SKILL.md).
+- Companion skills: [commit messages](../../SKILL.md#commit-messages), [pull-request](../../../github/references/pull-request.md), [mise](../../../mise/SKILL.md).

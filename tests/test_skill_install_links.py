@@ -19,12 +19,12 @@ def installation(tmp_path: Path) -> tuple[Path, Path, list[str]]:
     shutil.copyfile(
         ROOT / ".chezmoitemplates/skill-catalog-check.tmpl", source / ".chezmoitemplates/skill-catalog-check.tmpl"
     )
-    package = source / "skills/python-stack"
+    package = source / "skills/python"
     package.mkdir(parents=True)
     (package / "SKILL.md").write_text("# Fixture\n")
     declarations = source / "dot_agents/skills"
     declarations.mkdir(parents=True)
-    shutil.copyfile(ROOT / "dot_agents/skills/symlink_python-stack.tmpl", declarations / "symlink_python-stack.tmpl")
+    shutil.copyfile(ROOT / "dot_agents/skills/symlink_python.tmpl", declarations / "symlink_python.tmpl")
     config = tmp_path / "chezmoi.toml"
     config.write_text("")
     return (
@@ -56,28 +56,28 @@ def test_retired_repository_links_need_explicit_cleanup(
     peer = catalog / "meeting-prep"
     peer.mkdir()
     (peer / "SKILL.md").write_text("# Another package\n")
-    (source / "dot_agents/skills/symlink_python-stack.tmpl").unlink()
+    (source / "dot_agents/skills/symlink_python.tmpl").unlink()
     if rename:
-        (source / "skills/python-stack").rename(source / "skills/python-workflow")
+        (source / "skills/python").rename(source / "skills/python-workflow")
         (source / "dot_agents/skills/symlink_python-workflow.tmpl").write_text(
             "{{ .chezmoi.sourceDir }}/skills/python-workflow\n"
         )
     subprocess.run([*command, "--dry-run"], capture_output=True, text=True, timeout=30, check=True)
-    assert (catalog / "python-stack").is_symlink()
+    assert (catalog / "python").is_symlink()
     for _ in range(2):
         result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
         assert result.stderr == ""
-        assert (catalog / "python-stack").is_symlink()
+        assert (catalog / "python").is_symlink()
         assert (peer / "SKILL.md").read_text() == "# Another package\n"
-        name = "python-workflow" if rename else "python-stack"
+        name = "python-workflow" if rename else "python"
         assert (source / "skills" / name / "SKILL.md").read_text() == "# Fixture\n"
         if rename:
             assert (catalog / name).resolve() == source / "skills" / name
 
-    target = catalog / "python-stack"
+    target = catalog / "python"
     # Removal remains an explicit, owner-checked action outside dot's runtime.
     assert target.is_symlink()
-    assert target.readlink() == source / "skills/python-stack"
+    assert target.readlink() == source / "skills/python"
     assert (peer / "SKILL.md").read_text() == "# Another package\n"
 
 
@@ -87,10 +87,10 @@ def test_apply_preserves_retired_names_now_owned_elsewhere(
 ) -> None:
     source, home, command = installation
     subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
-    (source / "dot_agents/skills/symlink_python-stack.tmpl").unlink()
-    target = home / ".agents/skills/python-stack"
+    (source / "dot_agents/skills/symlink_python.tmpl").unlink()
+    target = home / ".agents/skills/python"
     target.unlink()
-    elsewhere = home / "library/python-stack"
+    elsewhere = home / "library/python"
     if replacement == "directory":
         target.mkdir()
         (target / "SKILL.md").write_text("# Another owner\n")
@@ -116,14 +116,14 @@ def test_source_relocation_requires_explicit_link_repair(installation: tuple[Pat
     moved = source.with_name("moved-source")
     source.rename(moved)
     command[command.index("--source") + 1] = str(moved)
-    target = home / ".agents/skills/python-stack"
+    target = home / ".agents/skills/python"
     result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode != 0
     assert "belongs to another source" in result.stderr
-    assert target.readlink() == source / "skills/python-stack"
+    assert target.readlink() == source / "skills/python"
     target.unlink()
     subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
-    assert target.readlink() == moved / "skills/python-stack"
+    assert target.readlink() == moved / "skills/python"
     assert (target / "SKILL.md").read_text() == "# Fixture\n"
 
 
@@ -132,7 +132,7 @@ def test_apply_blocks_conflicting_skill_owners(installation: tuple[Path, Path, l
     _source, home, command = installation
     catalog = home / ".agents/skills"
     catalog.mkdir(parents=True)
-    target = catalog / "python-stack"
+    target = catalog / "python"
     if conflict == "directory":
         target.mkdir()
         (target / "SKILL.md").write_text("preserve")
@@ -160,7 +160,7 @@ def test_apply_individual_skills_preserves_other_packages(
     installation: tuple[Path, Path, list[str]],
 ) -> None:
     source, home, command = installation
-    package = source / "skills/python-stack"
+    package = source / "skills/python"
     catalog = home / ".agents/skills"
     catalog.mkdir(parents=True)
     independent = home / "independent"
@@ -170,19 +170,19 @@ def test_apply_individual_skills_preserves_other_packages(
         result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
         assert result.stderr == ""
         assert not catalog.is_symlink()
-        assert (catalog / "python-stack").is_symlink()
-        assert (catalog / "python-stack").resolve() == package
+        assert (catalog / "python").is_symlink()
+        assert (catalog / "python").resolve() == package
         assert (package / "SKILL.md").read_text() == "# Fixture\n"
         assert (catalog / "meeting-prep").resolve() == independent
         assert not (source / "skills/meeting-prep").exists()
 
     # A later repository-name collision fails even with --force and preserves the owner.
-    (catalog / "python-stack").unlink()
-    (catalog / "python-stack").symlink_to(independent, target_is_directory=True)
+    (catalog / "python").unlink()
+    (catalog / "python").symlink_to(independent, target_is_directory=True)
     result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode != 0
     assert "belongs to another source" in result.stderr
-    assert (catalog / "python-stack").resolve() == independent
+    assert (catalog / "python").resolve() == independent
 
 
 @pytest.mark.parametrize(
@@ -202,7 +202,7 @@ def test_glob_characters_in_source_path_are_rejected(installation: tuple[Path, P
     moved = source.with_name(name)
     source.rename(moved)
     command[command.index("--source") + 1] = str(moved)
-    target = home / ".agents/skills/python-stack"
+    target = home / ".agents/skills/python"
     target.parent.mkdir(parents=True)
     foreign = home / "foreign-package"
     foreign.mkdir()
@@ -226,10 +226,10 @@ def test_apply_rejects_former_whole_catalog_link(installation: tuple[Path, Path,
     assert result.returncode != 0
     assert "must be a real directory" in result.stderr
     assert catalog.is_symlink()
-    assert (source / "skills/python-stack/SKILL.md").read_text() == "# Fixture\n"
+    assert (source / "skills/python/SKILL.md").read_text() == "# Fixture\n"
 
 
-@pytest.mark.parametrize("link", [".claude/skills", ".gemini/config/skills"])
+@pytest.mark.parametrize("link", [".gemini/config/skills"])
 def test_existing_host_skill_directory_blocks_forced_apply(
     installation: tuple[Path, Path, list[str]], link: str
 ) -> None:

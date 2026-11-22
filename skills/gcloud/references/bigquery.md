@@ -23,9 +23,10 @@ Query and inspect BigQuery datasets safely with hard byte caps, partition prunin
    ```
 1. **Partition & cluster hygiene**: check `bq show --format=prettyjson <project>:<dataset>.<table>` for `timePartitioning` and `clustering` fields before scanning, avoid `SELECT *` on columnar storage, and filter on raw partition columns directly (wrapping columns in `DATE(...)` or functions disables partition pruning unless matching partitioned expression).
 
-## Python & Polars Reads
+## Python, Polars & Gotchas
 
-- **Parameterized client + Storage Read API**: install `'google-cloud-bigquery'` (+ `google-cloud-bigquery-storage` for bulk analytics), configure `QueryJobConfig(maximum_bytes_billed=..., query_parameters=[ScalarQueryParameter(...)])`, pass `job_config.dry_run = True` first for unverified scans, and export large Arrow batches directly into `pl.from_arrow(...)` ([polars](../../python-mlops/references/polars.md)).
+- **Parameterized client + Storage Read API**: install `'google-cloud-bigquery'` (+ `google-cloud-bigquery-storage` for bulk analytics), configure `QueryJobConfig(maximum_bytes_billed=..., query_parameters=[ScalarQueryParameter(...)])`, pass `job_config.dry_run = True` first for unverified scans, and export large Arrow batches directly into `pl.from_arrow(...)` ([polars](../../mlops/references/polars.md)).
+- **Linked datasets (`type = "LINKED"`) inherit `projectReaders`**: `google_logging_linked_dataset` carries `specialGroup: projectReaders` and rejects dataset-level IAM (`HTTP 400`); project `roles/bigquery.dataViewer` or `roles/viewer` grants reads regardless of `roles/logging.viewAccessor`.
 
 ## Documentation
 

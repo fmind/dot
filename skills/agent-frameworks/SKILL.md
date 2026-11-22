@@ -1,44 +1,47 @@
 ---
 name: agent-frameworks
-description: "Build and evaluate Python agents and system prompts with Google ADK, LangGraph, LangChain, and agents-cli."
+description: "Build, route, evaluate Python AI/agents: Agent Platform, Gemini/Claude/OpenAI/OpenRouter, ADK, LangGraph, RAG, A2A, MCP, ACP."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-frameworks
   created: "2026-09-16"
-  updated: "2026-11-17"
+  updated: "2026-11-22"
 ---
 
-# Agent Frameworks
+# Agent Frameworks & Model Providers
 
-Use the project's existing or requested agent framework. Selecting a framework never authorizes provider calls, trace exports, deployment, or bulk vendor-skill installs.
+Default to **GCP Agent Platform with ADC**, explicit project, `global`, latest GA model + high thinking ([request-contracts](references/request-contracts.md)). Never auto-fallback to ambient keys; selecting a framework never authorizes provider calls, traces, or deploys.
 
 ## Workflow
 
-1. **Keep the project's framework** unless the user asks to migrate.
-1. **Pick the simplest tier that fits**:
-   - **Direct SDK (Tier 1)**: start with async `google-genai` ([gcp-agent-platform](../model-providers/references/gcp-agent-platform.md)) for single structured calls or fixed chains.
-   - **Google ADK (Tier 2, default for new agents)**: layer `google-adk>=2.14.1` on [python-stack](../python-stack/references/foundation/references/bootstrap.md) + [cloud-run](../cloud-run/SKILL.md) per [google-adk](references/google-adk.md); opt into [agents-cli](references/agents-cli/GUIDE.md) only when full enterprise scaffolds (Agent Runtime, Agent Gateway, Terraform, BigQuery analytics) are needed.
-   - **LangGraph (Tier 3)**: use when ADK does not fit (non-Google stack, durable graph state, or custom interrupts), using [langchain](references/langchain.md) `create_agent` only as building blocks.
-1. **Load matching guides & verify**: read the active framework guide plus [system-prompts](references/system-prompts.md) and [evaluation](references/evaluation/GUIDE.md) (plus [rag-and-vectors](references/rag-and-vectors.md) when retrieving), and audit non-trivial agent/retrieval designs with `fmind-review-agents` and `fmind-review-rag` ([subagent](../subagent/SKILL.md)).
+1. **Pick the simplest tier**: **Direct SDK** (`google-genai`, `gcp-agent-platform`) for single calls/chains; **Google ADK** (`google-adk>=2.14.1` on [python/bootstrap](../python/references/foundation/references/bootstrap.md) + [cloud-run](../gcloud/references/cloud-run/GUIDE.md), or opt-in `agents-cli`); or **LangGraph** + `langchain` for durable state or non-Google stacks. Inject keys per process via secret manager or `with-secret`; use thinking/effort levels + native structured output ([request-contracts](references/request-contracts.md)).
+1. **Verify**: load `system-prompts`, `evaluation`, and `rag-and-vectors` as needed; audit non-trivial agent/RAG designs with `fmind-review-agents` ([subagent](../subagent/SKILL.md)).
 
 ## Task guides
 
 <!-- guides:start -->
 
-- [agents-cli](references/agents-cli/GUIDE.md): Google agent scaffolding, lifecycle, and official skill discovery.
-- [evaluation](references/evaluation/GUIDE.md): Evaluate prompt, model, retrieval, and agent changes with graded multi-trial experiments.
-- [google-adk](references/google-adk.md): Google ADK agents, runners, tools, sessions, and evaluation.
-- [langchain](references/langchain.md): LangChain create_agent, middleware, MCP tools, and structured output for LangGraph.
-- [langgraph](references/langgraph.md): LangGraph state, persistence, streaming, interrupts, and durable execution.
-- [rag-and-vectors](references/rag-and-vectors.md): Build hybrid pgvector/DuckDB retrieval with tenant ACL pushdown, Gemini embeddings, and native multimodal inputs.
-- [system-prompts](references/system-prompts.md): Design layered, cache-friendly system prompts, tool guardrails, and schema-validated outputs for LLM agents.
+- [a2a](references/a2a.md): A2A clients, servers, Agent Cards, task lifecycle, and official guidance.
+- [acp](references/acp.md): ACP editor-agent sessions, capability negotiation, streaming, and permission handling.
+- [agents-cli](references/agents-cli/GUIDE.md): Scaffold, test, eval, and deploy enterprise ADK agents with agents-cli.
+- [anthropic-sdk](references/anthropic-sdk.md): Async Claude calls via Vertex ADC or API key, caching, and parsed outputs.
+- [evaluation](references/evaluation/GUIDE.md): Evaluate prompts, retrieval, and agents with graded multi-trial runs.
+- [gcp-agent-platform](references/gcp-agent-platform.md): GCP Agent Platform model access with ADC and global location.
+- [gemini-api](references/gemini-api.md): Gemini Developer API access with an explicit API key backend.
+- [google-adk](references/google-adk.md): Build Google ADK agents, workflows, tools, and sessions.
+- [langchain](references/langchain.md): Use LangChain create_agent, middleware, and MCP tools in LangGraph.
+- [langextract](references/langextract.md): Source-grounded extraction with LangExtract and strict validation.
+- [langgraph](references/langgraph.md): Build durable LangGraph workflows, checkpoints, streaming, and interrupts.
+- [mcp](references/mcp/GUIDE.md): MCP tool and context clients/servers, transports, schemas, and protocol tests.
+- [openai-sdk](references/openai-sdk.md): Async OpenAI Responses API, Workload Identity, and strict Pydantic outputs.
+- [openrouter](references/openrouter.md): OpenRouter routing, key auth, batches, and OpenAI-compatible calls.
+- [rag-and-vectors](references/rag-and-vectors.md): Build pgvector/DuckDB hybrid RAG, tenant ACLs, and Gemini embeddings.
+- [system-prompts](references/system-prompts.md): Design layered cache-friendly system prompts, guardrails, and schemas.
 
 <!-- guides:end -->
 
 ## Documentation
 
-- [Google ADK](https://adk.dev/) · [google/agents-cli](https://github.com/google/agents-cli) · [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) · [LangChain](https://docs.langchain.com/oss/python/langchain/overview) · [Gemini prompting](https://aistudio.google.com/docs/prompting-strategies) · [Claude prompting](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)
-- Releases: [adk-python](https://github.com/google/adk-python/releases) · [langgraph](https://github.com/langchain-ai/langgraph/releases)
-- Companions: [model-providers](../model-providers/SKILL.md), [agent-protocols](../agent-protocols/SKILL.md), [python-stack](../python-stack/SKILL.md), [code-security](../code-security/SKILL.md).
+- Companions: [python](../python/SKILL.md), [gcloud](../gcloud/SKILL.md), [finops](../finops/SKILL.md), [code-security](../code-security/SKILL.md), [dot-cli](../dot-cli/SKILL.md).

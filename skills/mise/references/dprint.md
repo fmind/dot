@@ -5,7 +5,7 @@ description: "Configure and format JSON, Markdown, TOML, and YAML with dprint."
 
 # dprint
 
-Format JSON, Markdown, TOML, and YAML with `dprint` (Python formatting and linting belong to [Ruff](../../python-stack/references/foundation/GUIDE.md#ruff)).
+Format JSON, Markdown, TOML, and YAML with `dprint` (Python formatting and linting belong to [Ruff](../../python/references/foundation/GUIDE.md#ruff)).
 
 ## Configuration
 
@@ -30,11 +30,11 @@ run = "dprint check"
 
 ## Gotchas
 
-- **Use `npm:` plugin specifiers**: prefer `npm:@dprint/markdown@<version>` over `.wasm` URLs; preview updates with `dprint config update --dry-run` and apply via [upgrade-tools](../../upgrade-tools/SKILL.md).
+- **Use `npm:` plugin specifiers**: prefer `npm:@dprint/markdown@<version>` over `.wasm` URLs; preview updates with `dprint config update --dry-run` and apply via [upgrade-tools](upgrade-tools/GUIDE.md).
 - **Set `markdown.textWrap: "never"` with `@dprint/markdown`**: preserves scannable bullet/paragraph lines and HTML blocks without mid-sentence line splits; fenced JSON/TOML/YAML blocks only format when those plugins are also configured.
 - **Keep repo excludes explicit**: list generated locks (`**/*-lock.json`) and dynamic template files in `excludes`, and pass `--allow-no-files` for `{staged_files}` hook invocations (`dprint check` verifies the full tree).
 
 ## Documentation
 
 - [dprint](https://dprint.dev) · [Configuration](https://dprint.dev/config/) · [CLI](https://dprint.dev/cli/) · [releases](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../SKILL.md), [lefthook](../../github-actions/references/lefthook.md).
+- Companion skills: [mise](../SKILL.md), [lefthook](../../github/references/lefthook.md).

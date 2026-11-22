@@ -1,59 +1,38 @@
 ---
 name: humanize
-description: "Turn dense AI drafts into clear, scannable, visually structured human communication for emails, chat, PRs, docs, reports, and slides."
+description: "Write and edit short, clear, insightful prose and visuals for busy leaders, email, chat, memos, PRs, docs, and slides."
 license: MIT
 metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/humanize
   created: "2026-08-20"
-  updated: "2026-11-18"
+  updated: "2026-11-22"
   kind: task
 ---
 
 # Humanize
 
-Respect reading time without losing substance: deliver clear, complete, visually structured copy instead of AI text walls, telegraphic caveat soup, or shallow summaries.
+Central guide for human-facing writing. **Default reader:** a busy executive or cross-functional leader scanning between meetings who wants the **take-home, business impact, risk, and decision** (_so what_)—not the engineering _how_. **Short, clear, and insightful is default; depth is opt-in** (use peer-engineer depth only on developer PRs/RFCs).
 
-## Structure before drafting
+## Core Rules
 
-1. **Open in plain English**: finish *"After reading this, the reader should know or do ___."* State what the subject is and the core outcome or decision in 1–2 plain, conversational sentences (never a noun-stacked feature list or filter dump).
-1. **Separate overview clarity from annex proof (progressive disclosure)**: keep the opening, main chat/mail message, or `Overview` focused on the primary signal and baseline (`+18% throughput, 1,420 vs 1,200 req/s`). Put filter exclusions, SKU breakdowns, formulas, and raw queries in `Sources`, `Annexes`, or a thread reply so nothing is lost and the main flow reads fast.
-1. **Match visual weight to the medium (zero box fatigue)**: use bold lead-ins and short bullets on chat and mail; on reports and docs, pick **either** a summary callout **or** a 3-tile KPI strip (never stack summary + KPI tiles + take-home + key-terms boxes on one page), and keep body text at `>= 10.5pt` (`>= 10pt` in tables).
+1. **Read the room & avoid bad surprises**: check prior threads, comments, or notes for priorities, vocabulary, and sensitivities. Surface bad news, delays, cost shifts, or risks early with a mitigation or option—never blindside owners in a broad forum.
+1. **Take-home & "so what" first**: open in 1–2 plain sentences with the decision, headline insight, or ask and why it matters (time, cost, risk, customer impact). Drop investigation logs and engineering-trench detail unless asked.
+1. **Curated figures, never data dumps**: pick **1–3 decision-bearing numbers** paired with a baseline/delta (`+18% throughput vs Q3`, `~€120k/year`), rounded to decision precision. Move secondary stats, exclusions, methodology, or raw queries to a link, thread reply, or optional `Annex`.
+1. **Plain translation & visual calm**: translate acronyms, ticket IDs, repo/table names, and technical mechanisms into reader impact; use monospace only for literal commands/paths. Keep paragraphs `<= 3`–`4` lines, sentences `<= 25`–`30`w, lists `<= 4`–`5` single-line bullets, tables `<= 4` cols / `<= 5` rows, and bold sparse; see [outlines](references/outlines.md) and [primitives](references/primitives.md) for callouts, KPI strips, and brand/type rules.
+1. **Balanced clickable sources**: link verified docs, dashboards, tickets, and primary sources inline (never invent URLs or dump link walls). Fit attribution to the medium: inline links (+ compact `Sources:` line on email/Chat), subtle footnote + speaker notes on decks, or a closing `Sources` section on memos/reports.
+1. **Authentic voice, zero slop**: drop em dashes (`—`), EN/FR AI clichés, `"not only X, but also Y"` cadences, and assistant framing (`Done`, `Confidence`, `Verification`). Match audience language (`tu`/`vous`) and close with **one** dated next step when action is needed.
 
-Before: _"Checked `loader.py`; bumped `chunk_size=100_000` and `memory=8Gi` in `infra/main.tf`; all `14` `pytest` cases pass; please review PR `#418`."_
+## Length Budgets & Channel Guides
 
-After: **Batch imports are healthy again: [approve PR 418](https://example.com/org/repo/pull/418) before 17:00 UTC.** Peak memory stays below 5.4 GB against our 8 GB limit after tuning batch sizing.
+- **Budgets**: Chat `<= 60–80`w (`3–5` lines) · Email `<= 120–150`w (`~100`w replies) · Brief/memo `~250–400`w (`<= 1` screen) · PRs/issues `~150–250`w · Slides `~30`w + one focal visual.
+- **Guides**: [outlines](references/outlines.md), [primitives](references/primitives.md), [report.html](templates/report.html), [report.md](templates/report.md) · Channels: [draft](../draft/SKILL.md), [docs](../docs/SKILL.md), [github](../github/SKILL.md), [acli](../cloud-ops/references/acli.md), [gws/chat](../gws/references/chat.md), [diagrams-as-code](../diagrams-as-code/SKILL.md), [playwright](../web-frontend/references/playwright.md).
 
-## Hard rules
+## Pre-Send Gate
 
-- **Zero em dashes & telegraphic fact-stuffing**: drop em dashes (`—`) in external copy and write natural sentences with one main idea (`<= 25–30` words); never pack 4+ colons, semicolons, timestamps, SKU exclusions, and sub-tier breakdowns into one sentence or cell.
-- **Reader-calibrated monospace & precision**: keep monospace for literal commands/paths in executive, client, and mail prose (`< 3` code spans per sentence in developer docs/PRs); frame executive copy around user, cost, risk, and reliability outcomes while keeping exact root causes (`OOMKilled` exit `137` at 8 GiB -> 12 GiB) in technical docs.
-- **Signal first, depth underneath**: pair headline outcomes with baselines, close substantive deliverables with a `Sources` section (`source`, claim, `date/version`), and put raw logs, filter exclusions, and derivations in annexes or thread replies.
-- **Proportional hierarchy & clean voice**: apply project/customer brand tokens when present, else `~/.agents/DESIGN.md` (skip boxes on short 1-to-1 mail); match the audience's language and never leak assistant framing (`Done`, `Confidence`, `Verification`, `Decisions`).
-
-## Default length budgets
-
-Flexible targets—keep main copy scannable and move derivations or filters to annexes or thread replies:
-
-- **Chat & Slack**: `<= 60–80` words (`3–5` lines: bold headline, 2–3 plain bullets, ask); sources, caveats, and query links go in a thread reply.
-- **Email**: ~150 words (~100 for replies); bold takeaway/ask, short `<p>` blocks, optional ≤4-item list, owner/date.
-- **PRs & issues**: ~150–300 words scaled to complexity; impact summary, root cause/trade-offs, proof, rollout notes.
-- **Docs, RFCs, & reports**: plain one-screen `Overview` + focused sections, figures/tables, `Sources`, and `Annexes` (`<details>` or tab).
-- **Slides**: ~30 visible words target (~45 on charts with units and `N`) and one focal visual; details in speaker notes.
-
-## Choose format by medium
-
-- **HTML reports, newsletters, & email**: use [primitives](references/primitives.md) and [report.html](templates/report.html); deliver mail via [draft-mail](../draft-mail/SKILL.md).
-- **Docs, memos, PRs, & tickets**: pick structures from [outlines](references/outlines.md) ([report.md](templates/report.md)) and visuals from [primitives](references/primitives.md); inspect pages via [playwright](../playwright/SKILL.md). Owners: [draft-doc](../draft-doc/SKILL.md), [acli](../acli/SKILL.md), [gh](../gh/SKILL.md), [documentation-site](../documentation-site/SKILL.md), [web-frontend](../web-frontend/SKILL.md), [repository-docs](../repository-docs/SKILL.md).
-- **Decks & graphics**: structure arcs in [outlines](references/outlines.md) and render via [draft-typst-deck](../draft-typst-deck/SKILL.md) or [diagrams-as-code](../diagrams-as-code/SKILL.md).
-
-## Pre-send gate
-
-1. **Lint deterministically**: run `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` (omit `--config` if repo `.vale.ini` exists) to block AI clichés and em dashes (`—` / `&mdash;`) and flag style, wordiness, prose backticks, `> 40`-word sentences, and `> 65`-word paragraphs.
-1. **Verify completeness & visuals**: confirm every question is answered, baselines/owners stand out, substantive docs close with `Sources`, HTML/web/docs preview cleanly across `1440x900` and `390x844`, and slide/PDF frames fit without clipping.
-1. **Audit high-stakes copy**: freeze external briefs, decks, docs, and announcements and run `fmind-review-human` + `fmind-review-completeness` and matching specialists (`factcheck`, `docs`, `pitch`, `figures`, `design`; [subagent](../subagent/SKILL.md)).
+1. **Lint**: `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` (omit `--config` if repo `.vale.ini` exists).
+1. **Review & inspect**: freeze and run `fmind-review-human` on **all leadership, stakeholder, and external drafts** (emails, Chat posts, memos, briefs, docs, decks). Add `fmind-review-completeness` + matching roles (`factcheck`, `docs`, `proposal`, `visuals`, `frontend`; [subagent](../subagent/SKILL.md)) on substantive deliverables, and inspect `1440x900` & `390x844` or PDF/PNG renders for zero clipping.
 
 ## Documentation
 
-- [Vale](https://docs.vale.sh/) · [fmind/theme DESIGN.md](https://github.com/fmind/theme/blob/main/DESIGN.md) · [WCAG 2.2 Quick Reference](https://www.w3.org/WAI/WCAG22/quickref/) · [Vale releases](https://github.com/vale-cli/vale/releases)
-- Companions: [trim](../trim/SKILL.md), [draft-mail](../draft-mail/SKILL.md), [draft-doc](../draft-doc/SKILL.md), [draft-typst-deck](../draft-typst-deck/SKILL.md), [subagent](../subagent/SKILL.md).
+- [Vale](https://docs.vale.sh/) · [DESIGN.md](https://github.com/fmind/theme/blob/main/DESIGN.md) · [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/) · Companions: [trim](../skillify/references/trim.md), [draft](../draft/SKILL.md), [subagent](../subagent/SKILL.md).

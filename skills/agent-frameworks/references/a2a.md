@@ -1,0 +1,32 @@
+---
+name: a2a
+description: "A2A clients, servers, Agent Cards, task lifecycle, and official guidance."
+---
+
+# A2A Python SDK
+
+Use official `a2a-sdk` (`a2aproject/a2a-python`) and the `a2a` CLI (`a2aproject/a2a-cli`); [MCP](mcp/GUIDE.md) owns tools/resources and [api-client](../../python/references/api-client/GUIDE.md) owns plain HTTP clients.
+
+## Workflow
+
+1. **Pin SDK and protocol version**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check 'a2a-sdk>=1.3.0'` (client) or `'a2a-sdk[http-server]>=1.3.0'` (HTTP server), adding extras only on demand; pin `github:a2aproject/a2a-cli` in the project `mise.toml` to inspect remote peers with `a2a`.
+1. **Define transport and Agent Card**: match a mutually supported transport from official samples and declare accurate capabilities, endpoints, security schemes, and protocol skills.
+1. **Implement executor and handler**: map execution to task states and artifacts, preserve task/context IDs, persist durable state, and propagate cancellation downstream.
+1. **Build clients via current factories**: use the locked SDK's client factory and card resolver rather than legacy client classes.
+1. **Test a local round trip**: drive a deterministic executor or `a2a server --echo` (`--protocol 0.3` for legacy, `--proxy` logs live traffic to stderr—keep private) across `a2a card get`, `a2a send`, `a2a send --stream` (if advertised), `a2a task cancel`, invalid inputs, and unknown task IDs.
+1. **Harden peers and egress**: authenticate peers, authorize every task read/write per caller, enforce timeouts/size caps, validate advertised/callback URLs at connect time before egress ([ssrf-egress](../../code-security/references/code-review/references/ssrf-egress.md)), and test idempotent retries.
+
+## Gotchas
+
+- **SDK 1.x API break**: 1.x uses protobuf messages and route builders (not older Pydantic/`A2AStarletteApplication` samples); align `A2A-Version` headers and test version mismatches.
+- **`AgentSkill` != Agent Skill**: Agent Card `AgentSkill` entries advertise protocol capabilities, not `SKILL.md` packages or authorization.
+- **Persist tasks**: in-memory stores fail restarts and multi-worker scaling—use `DatabaseTaskStore` (`a2a-sdk[postgresql]` or `[sqlite]`) plus 1.2 cluster mode (`a2a.server.cluster`) across replicas, testing restart and concurrency.
+
+## Official Skills
+
+[a2aproject/a2a-cli](https://github.com/a2aproject/a2a-cli) ships `a2a-cli` (`skills/a2a-cli/SKILL.md`), printable via `a2a skill` and installable via `DISABLE_TELEMETRY=1 npx --yes skills@<version> add <pinned-snapshot> -s a2a-cli` per the [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md). [a2aproject/a2a-python](https://github.com/a2aproject/a2a-python) ships only contributor `mistake-reflection` guidance—use its SDK docs and samples instead.
+
+## Documentation
+
+- [Official SDK](https://github.com/a2aproject/a2a-python) · [SDK documentation](https://a2a-protocol.org/latest/sdk/python/) · [A2A CLI](https://github.com/a2aproject/a2a-cli) · [Python tutorial](https://a2a-protocol.org/latest/tutorials/python/1-introduction/)
+- Releases: [a2a-python](https://github.com/a2aproject/a2a-python/releases) · [changelog](https://github.com/a2aproject/a2a-python/blob/main/CHANGELOG.md)

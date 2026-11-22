@@ -5,7 +5,7 @@ URL string parsing (`urllib.parse.urlsplit`) never prevents Server-Side Request 
 ## Controls for Untrusted or User-Influenced URLs
 
 1. **Validate scheme, port, and hostname upfront**: allow only `https` on port `443` (unless an explicit contract requires another port), reject userinfo (`user:pass@host`), and prefer an exact hostname allowlist when destinations are known.
-1. **Disable ambient proxies and automatic redirects**: set `trust_env=False` and `follow_redirects=False` on `httpx2` / `httpx` clients ([api-client](../../../../python-stack/references/api-client/GUIDE.md)). If redirects are required, re-validate every `Location` hop against the full policy with a low hop cap (`≤3`).
+1. **Disable ambient proxies and automatic redirects**: set `trust_env=False` and `follow_redirects=False` on `httpx2` / `httpx` clients ([api-client](../../../../python/references/api-client/GUIDE.md)). If redirects are required, re-validate every `Location` hop against the full policy with a low hop cap (`≤3`).
 1. **Reject non-global IPs across all DNS answers**: resolve `socket.getaddrinfo(host, port, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)` and verify **every** returned address is globally routable (unpacking `ip.ipv4_mapped` on `IPv6Address` first):
 
    ```python
