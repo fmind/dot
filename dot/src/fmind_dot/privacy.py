@@ -206,8 +206,11 @@ def _workstation_tokens(
     return tokens
 
 
+_NOT_A_GIT_REPO = "not a git repository (or any"
+
+
 def _run_git(runner: Runner, root: Path, *args: str) -> CommandResult:
-    return runner.run(["git", "-C", str(root), *args], timeout=_GIT_TIMEOUT_SECONDS, check=False)
+    return runner.run(["git", "-C", str(root), *args], env={"LC_ALL": "C"}, timeout=_GIT_TIMEOUT_SECONDS, check=False)
 
 
 def _git_error(action: str, detail: str) -> str:
@@ -219,16 +222,21 @@ def _git_detail(res: CommandResult) -> str:
 
 
 def _detect_git_worktree(runner: Runner, root: Path) -> tuple[bool, str | None]:
-    """Return ``(in_worktree, error)``; fail closed if ``.git`` exists or git fails."""
+    """Return ``(in_worktree, error)``; fail closed if any ancestor ``.git`` exists or git fails."""
     try:
         res = _run_git(runner, root, "rev-parse", "--is-inside-work-tree")
     except (DotError, OSError) as error:
         return False, _git_error("rev-parse", error.__class__.__name__)
     if res.returncode == 0:
         return res.stdout.strip() == "true", None
-    if os.path.lexists(root / ".git"):
-        return False, _git_error("rev-parse", _git_detail(res))
-    return False, None
+    resolved = root.resolve()
+    if (
+        res.returncode == 128
+        and _NOT_A_GIT_REPO in res.stderr.lower()
+        and not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents))
+    ):
+        return False, None
+    return False, _git_error("rev-parse", _git_detail(res))
 
 
 def _has_git_head(runner: Runner, root: Path) -> tuple[bool, str | None]:
@@ -244,6 +252,9 @@ def _has_git_head(runner: Runner, root: Path) -> tuple[bool, str | None]:
         sym = _run_git(runner, root, "symbolic-ref", "--quiet", "HEAD")
         if sym.returncode != 0 or not (ref := sym.stdout.strip()):
             return False, _git_error("rev-parse HEAD", _git_detail(res))
+        show_ref = _run_git(runner, root, "show-ref", "--verify", "--quiet", ref)
+        if show_ref.returncode != 1 or show_ref.stderr.strip():
+            return False, _git_error("rev-parse HEAD", _git_detail(show_ref))
         ref_path = _run_git(runner, root, "rev-parse", "--git-path", ref)
         if ref_path.returncode != 0 or not (rel_ref := ref_path.stdout.strip()):
             return False, _git_error("rev-parse HEAD", _git_detail(res))

@@ -156,24 +156,28 @@ def test_privacy_git_subdir_nested_git_errors_and_unreadable_files(
     non_git_findings = json.loads(non_git.stdout)["targets"][0]["findings"]
     assert non_git_findings == ["link.age: encrypted .age source must not be a symlink"]
 
-    # Corrupt .git and dangling .git symlink fail closed cleanly without a traceback.
+    # Corrupt .git and dangling .git symlink fail closed (at root and in subdirectories) without a traceback.
     corrupt = tmp_path / "corrupt"
-    corrupt.mkdir()
+    corrupt_sub = corrupt / "pkg"
+    corrupt_sub.mkdir(parents=True)
     (corrupt / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
-    corrupt_res = CliRunner().invoke(app, ["privacy", "--json", str(corrupt)])
-    assert corrupt_res.exit_code == 1
-    corrupt_payload = json.loads(corrupt_res.stdout)
-    assert corrupt_payload["passed"] is False
-    assert any("git rev-parse failed" in f for f in corrupt_payload["targets"][0]["findings"])
+    for target in (corrupt, corrupt_sub):
+        corrupt_res = CliRunner().invoke(app, ["privacy", "--json", str(target)])
+        assert corrupt_res.exit_code == 1
+        corrupt_payload = json.loads(corrupt_res.stdout)
+        assert corrupt_payload["passed"] is False
+        assert any("git rev-parse failed" in f for f in corrupt_payload["targets"][0]["findings"])
 
     dangling = tmp_path / "dangling-git"
-    dangling.mkdir()
+    dangling_sub = dangling / "pkg"
+    dangling_sub.mkdir(parents=True)
     (dangling / ".git").symlink_to(tmp_path / "missing-gitdir")
-    dangling_res = CliRunner().invoke(app, ["privacy", "--json", str(dangling)])
-    assert dangling_res.exit_code == 1
-    assert any("git rev-parse failed" in f for f in json.loads(dangling_res.stdout)["targets"][0]["findings"])
+    for target in (dangling, dangling_sub):
+        dangling_res = CliRunner().invoke(app, ["privacy", "--json", str(target)])
+        assert dangling_res.exit_code == 1
+        assert any("git rev-parse failed" in f for f in json.loads(dangling_res.stdout)["targets"][0]["findings"])
 
-    # Corrupt branch ref or detached invalid HEAD fails closed instead of pretending the repo is unborn.
+    # Corrupt branch ref (loose or packed) or detached invalid HEAD fails closed instead of pretending unborn.
     broken_head = tmp_path / "broken-head"
     broken_head.mkdir()
     subprocess.run(["git", "-C", str(broken_head), "init", "-q"], check=True, timeout=30)
@@ -189,6 +193,27 @@ def test_privacy_git_subdir_nested_git_errors_and_unreadable_files(
     corrupt_ref_res = CliRunner().invoke(app, ["privacy", "--json", str(corrupt_ref)])
     assert corrupt_ref_res.exit_code == 1
     assert any("git rev-parse HEAD failed" in f for f in json.loads(corrupt_ref_res.stdout)["targets"][0]["findings"])
+
+    packed_corrupt = tmp_path / "packed-corrupt"
+    packed_corrupt.mkdir()
+    subprocess.run(["git", "-C", str(packed_corrupt), "init", "-q", "-b", "main"], check=True, timeout=30)
+    (packed_corrupt / ".git/packed-refs").write_text(
+        f"# pack-refs with: peeled fully-peeled sorted\n{'1' * 40} refs/heads/main\n", encoding="utf-8"
+    )
+    packed_res = CliRunner().invoke(app, ["privacy", "--json", str(packed_corrupt)])
+    assert packed_res.exit_code == 1
+    assert any("git rev-parse HEAD failed" in f for f in json.loads(packed_res.stdout)["targets"][0]["findings"])
+
+    # Broken global gitconfig fails closed on a plain directory instead of silently skipping git detection.
+    bad_cfg = tmp_path / "bad-gitconfig"
+    bad_cfg.write_text("[broken\n", encoding="utf-8")
+    plain_dir = tmp_path / "plain-for-bad-cfg"
+    plain_dir.mkdir()
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(bad_cfg))
+    bad_cfg_res = CliRunner().invoke(app, ["privacy", "--json", str(plain_dir)])
+    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)
+    assert bad_cfg_res.exit_code == 1
+    assert any("git rev-parse failed" in f for f in json.loads(bad_cfg_res.stdout)["targets"][0]["findings"])
 
     # Non-regular .age path (FIFO) fails closed without blocking on open().
     fifo_dir = tmp_path / "fifo-age"
