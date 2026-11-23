@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.2.1] - 2026-11-23
+
+### 📚 Documentation
+
+- _(mise)_ Document tool_config.locked and multi-file usage defaults
+- _(agent-harnesses)_ Update agy 1.5.14 and SDK 0.1.24 guidance
+- _(agents)_ Add architecture and design north star
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Pin fmind/theme to v11.0.1
+- _(deps)_ Upgrade global mise tools to latest
+- _(deps)_ Upgrade Neovim plugins to latest
+- _(deps)_ Upgrade brain-framework to 33.2.0
+
 ## [18.2.0] - 2026-11-22
 
 ### 🚀 Features
