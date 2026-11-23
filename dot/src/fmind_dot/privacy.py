@@ -69,6 +69,7 @@ PRIVACY_SKIP_PREFIXES = (".mise/locks/", "dot_config/mise/locks/")
 SAFE_HOST_TOKENS = {
     "chezmoi",
     "courses",
+    "customers",
     "debian",
     "default",
     "example",
@@ -171,10 +172,21 @@ def _workstation_tokens(
         for sec in (cfg.get("auth") or {}).values() if isinstance(cfg.get("auth"), dict) else ():
             if isinstance(sec, dict) and isinstance(proj := sec.get("project"), str):
                 _add(proj)
-        for s, k in (("pull", "directories"), ("trust", "github_owners")):
+        for s, k in (("pull", "directories"), ("trust", "github_owners"), ("trust", "agy_projects")):
             if isinstance(sec := cfg.get(s), dict) and isinstance(vals := sec.get(k), list):
                 for val in (v for v in vals if isinstance(v, str)):
-                    _add(Path(val.rstrip("/")).name if k == "directories" else val)
+                    if k == "directories":
+                        _add(Path(val.rstrip("/")).name)
+                    elif k == "agy_projects":
+                        parts = [
+                            p
+                            for p in Path(val.rstrip("/")).parts
+                            if p not in {"/", "~"} and not any(c in p for c in "*?[")
+                        ]
+                        if parts:
+                            _add(parts[-1])
+                    else:
+                        _add(val)
 
     git_configs: list[Path] = [
         p
@@ -251,19 +263,22 @@ def _has_git_head(runner: Runner, root: Path) -> tuple[bool, str | None]:
     try:
         sym = _run_git(runner, root, "symbolic-ref", "--quiet", "HEAD")
         if sym.returncode != 0 or not (ref := sym.stdout.strip()):
-            return False, _git_error("rev-parse HEAD", _git_detail(res))
+            return False, _git_error("rev-parse HEAD", _git_detail(sym))
         show_ref = _run_git(runner, root, "show-ref", "--verify", "--quiet", ref)
         if show_ref.returncode != 1 or show_ref.stderr.strip():
-            return False, _git_error("rev-parse HEAD", _git_detail(show_ref))
+            detail = (
+                "corrupt ref" if show_ref.returncode == 0 and not show_ref.stderr.strip() else _git_detail(show_ref)
+            )
+            return False, _git_error("rev-parse HEAD", detail)
         ref_path = _run_git(runner, root, "rev-parse", "--git-path", ref)
         if ref_path.returncode != 0 or not (rel_ref := ref_path.stdout.strip()):
-            return False, _git_error("rev-parse HEAD", _git_detail(res))
+            return False, _git_error("rev-parse HEAD", _git_detail(ref_path))
     except (DotError, OSError) as error:
         return False, _git_error("rev-parse HEAD", error.__class__.__name__)
     candidate = Path(rel_ref)
     full_ref = candidate if candidate.is_absolute() else root / candidate
     if os.path.lexists(full_ref):
-        return False, _git_error("rev-parse HEAD", _git_detail(res))
+        return False, _git_error("rev-parse HEAD", "corrupt ref")
     return False, None
 
 

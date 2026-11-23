@@ -187,7 +187,7 @@ def login_workspace(
             file=state.stderr,
         )
     _execute(state, args, open_url=None if headless else _GOOGLE_OAUTH_URL_RE)
-    config_dir = env_path("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", Path.home() / ".config" / "gws", expand_vars=False)
+    config_dir = env_path("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", Path.home() / ".config" / "gws")
     for name in ("token_cache.json", "sa_token_cache.json"):
         (config_dir / name).unlink(missing_ok=True)
     if not workspace_ready(state, extra):

@@ -14,7 +14,6 @@ from fmind_dot.config import (
     env_path,
     load_config,
     policy,
-    xdg_dir,
 )
 
 
@@ -36,13 +35,8 @@ def test_agy_projects_must_be_absolute_or_home_paths(tmp_path: Path, pattern: st
         load_config(path)
 
 
-@pytest.mark.parametrize(("value", "suffix"), [("", ".cache"), ("rel/cache", ".cache"), ("~/xdg", "xdg")])
-def test_xdg_dir_and_env_path_and_config_file_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str, suffix: str
-) -> None:
+def test_env_path_and_config_file_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("XDG_CACHE_HOME", value)
-    assert xdg_dir("XDG_CACHE_HOME", ".cache") == tmp_path / suffix
     monkeypatch.setenv("CUSTOM_DIR", "~/sub")
     assert env_path("CUSTOM_DIR", tmp_path / "fallback") == tmp_path / "sub"
     assert config_file_path(None) == (tmp_path / ".config/dot.yaml", True)

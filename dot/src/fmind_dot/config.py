@@ -301,18 +301,11 @@ def expand_path(value: str | Path, *, home: Path | None = None) -> Path:
     return (home or Path.home()) / text[2:] if text.startswith("~/") else Path(text)
 
 
-def env_path(name: str, default: Path, *, expand_vars: bool = True) -> Path:
-    """Resolve an environment path override, expanding `~/` and optional `$VARS`."""
+def env_path(name: str, default: Path) -> Path:
+    """Resolve an environment path override, expanding `~/`."""
     if raw := os.environ.get(name):
-        return expand_path(os.path.expandvars(raw) if expand_vars else raw)
+        return expand_path(raw)
     return default
-
-
-def xdg_dir(name: str, default: str | Path) -> Path:
-    """Resolve an XDG base-directory override; empty or relative values fall back to `default`."""
-    if (raw := os.environ.get(name)) and (candidate := expand_path(os.path.expandvars(raw))).is_absolute():
-        return candidate
-    return default if isinstance(default, Path) else Path.home() / default
 
 
 def config_file_path(path: str | Path | None) -> tuple[Path, bool]:

@@ -36,7 +36,7 @@ def write_json(output: IO[str], document: object) -> None:
 
 
 def diagnostic_report(scope: str, checks: list[dict[str, Any]]) -> dict[str, Any]:
-    """Wrap workstation and agent checks in the shared dot.diagnostics/v1 schema."""
+    """Wrap workstation diagnostics in the dot.diagnostics/v1 schema."""
     return {
         "schema": "dot.diagnostics/v1",
         "scope": scope,

@@ -234,25 +234,12 @@ def build_parser() -> Parser:
     return root
 
 
-def _state_cls() -> Any:
-    if "State" in globals():
-        return globals()["State"]
-    from fmind_dot.state import State as StateCls
-
-    globals()["State"] = StateCls
-    return StateCls
-
-
-def __getattr__(name: str) -> Any:
-    if name == "State":
-        return _state_cls()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
 def app(arguments: Sequence[str] | None = None) -> None:
     """Parse and run one command; usage errors exit 2 through argparse, failures raise."""
+    from fmind_dot.state import State
+
     args = build_parser().parse_args(arguments)
-    state = _state_cls()(config_argument=args.config)
+    state = State(config_argument=args.config)
     if args.needs_config:
         _ = state.config
     try:

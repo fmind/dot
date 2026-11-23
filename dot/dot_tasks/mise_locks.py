@@ -5,12 +5,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import sys
 import tomllib
 from pathlib import Path
 
-from fmind_dot.config import xdg_dir
+from fmind_dot.config import expand_path
 from fmind_dot.private_files import write_atomic_file
 
 _GRAPH_FILES = {"uv": ("pyproject.toml", "uv.lock"), "aube": ("package.json", "aube-lock.yaml")}
@@ -154,11 +155,17 @@ def retire_installs(lock: Path, installs: Path) -> list[Path]:
     return retired
 
 
+def _xdg_dir(name: str, default: str) -> Path:
+    if (raw := os.environ.get(name)) and (candidate := expand_path(os.path.expandvars(raw))).is_absolute():
+        return candidate
+    return Path.home() / default
+
+
 def main() -> int:
     """Retire stale graphs and hash-suffixed installs next to a deployed global lock."""
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("lock", type=Path, help="deployed global mise.lock")
-    lock, installs = parser.parse_args().lock, xdg_dir("MISE_DATA_DIR", ".local/share/mise") / "installs"
+    lock, installs = parser.parse_args().lock, _xdg_dir("MISE_DATA_DIR", ".local/share/mise") / "installs"
     try:
         for path in [*(lock.parent / rel for rel in retire(lock)), *retire_installs(lock, installs)]:
             sys.stdout.write(f"Retired {path}\n")

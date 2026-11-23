@@ -146,16 +146,21 @@ def register_agy_projects(folders: list[Path], include: Sequence[str], *, home: 
             else (str(folder.relative_to(resolved_home)) if folder.is_relative_to(resolved_home) else str(folder))
         )
         slug = re.sub(r"[^a-z0-9-.:]+", "-", name.casefold()).strip("-.:")
-        project_id = f"local-{slug or hashlib.sha256(str(folder).encode('utf-8')).hexdigest()[:24]}"
+        digest = hashlib.sha256(str(folder).encode("utf-8")).hexdigest()
+        project_id = f"local-{slug or digest[:24]}"
         target = registry / f"{project_id}.json"
         if _lstat_regular(target) is not None:
-            continue
+            project_id = f"local-{slug}-{digest[:8]}" if slug else f"local-{digest[:24]}"
+            target = registry / f"{project_id}.json"
+            if _lstat_regular(target) is not None:
+                continue
         payload = {
             "id": project_id,
             "name": name,
             "projectResources": {"resources": [{"folderUri": folder.as_uri()}]},
         }
         _write_text(target, _dump_json(payload), home=resolved_home)
+        listed.add(str(folder))
         added.append(folder)
     return added
 
@@ -240,8 +245,8 @@ def run_trust(state: State, targets: Sequence[str] = (".",)) -> None:
     if not agy_installed(home):
         state.stdout.write("○ No agent harness state found; nothing to trust yet.\n")
         return
-    projects = register_agy_projects(folders, state.config.trust.agy_projects, home=home)
     added = set(trust_folders(folders, home=home))
+    projects = register_agy_projects(folders, state.config.trust.agy_projects, home=home)
     lines = [
         f"{'+' if folder in added else '✓'} {folder}: {'trusted in agy' if folder in added else 'already trusted'}\n"
         for folder in folders

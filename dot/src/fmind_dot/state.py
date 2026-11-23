@@ -28,10 +28,6 @@ class State:
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     @property
-    def config_path(self) -> Path:
-        return config_file_path(self.config_argument)[0]
-
-    @property
     def config(self) -> Config:
         if self._config is not None:
             return self._config

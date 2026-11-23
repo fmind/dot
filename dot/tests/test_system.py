@@ -298,9 +298,6 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
 
 def test_probe_json_github_and_gcp_login_flows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    st = make_state(ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("", "Reauthentication required", 1)))
-    with pytest.raises(DotError, match="run dot login gcp"):
-        auth_probes_module.probe_json(st, ["gcloud", "x"])
 
     with pytest.raises(DotError, match="github authentication state is unknown"):
         auth_probes_module.github_entry(
@@ -606,7 +603,7 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
     monkeypatch.setattr("fmind_dot.state.State.config", cfg)
     # Verify --force/--dry-run/--check before provider behave identically to after provider.
     monkeypatch.setattr(
-        "fmind_dot.cli.State",
+        "fmind_dot.state.State",
         lambda **_kw: State(
             runner=ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("tok\n", "", 0)),
         ),
@@ -725,7 +722,7 @@ def test_doctor_quiet_and_headroom_modes(tmp_path: Path, monkeypatch: pytest.Mon
         return CommandResult("", "err", 1) if Path(cmd[0]).name == "broken" else CommandResult("ok\n", "", 0)
 
     monkeypatch.setattr(
-        "fmind_dot.cli.State", lambda **_kw: State(runner=ScriptedRunner({"git", "broken"}, run=doc_run))
+        "fmind_dot.state.State", lambda **_kw: State(runner=ScriptedRunner({"git", "broken"}, run=doc_run))
     )
     monkeypatch.setattr(shutil, "disk_usage", lambda _p: SimpleNamespace(free=200 * 1024**3))
     monkeypatch.setattr(system_module, "available_memory_bytes", lambda: 8 * 1024**3)
@@ -748,7 +745,7 @@ def test_doctor_quiet_and_headroom_modes(tmp_path: Path, monkeypatch: pytest.Mon
 
     monkeypatch.setattr(system_module, "DOCTOR_TOOLS", ("git",))
     monkeypatch.setattr(
-        "fmind_dot.cli.State",
+        "fmind_dot.state.State",
         lambda **_kw: State(runner=ScriptedRunner({"git"}, run=lambda *_a: CommandResult("ok\n", "", 0))),
     )
     res_pass_qj = CliRunner().invoke(app, ["doctor", "-q", "--json"])
@@ -798,6 +795,23 @@ def test_system_and_auth_coverage_branches(tmp_path: Path, monkeypatch: pytest.M
     with monkeypatch.context() as mp:
         mp.setattr(os, "fchmod", lambda *_a: (_ for _ in ()).throw(PermissionError("ro")))
         assert "repair failed" in system_module._inspect_secret(str(sec), fix=True).details  # noqa: SLF001
+    # Verify fstat re-checks file type and ownership before fchmod on the opened fd.
+    fchmod_calls: list[int] = []
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "fstat", lambda _fd: SimpleNamespace(st_mode=0o040755, st_uid=os.getuid()))
+        mp.setattr(os, "fchmod", lambda fd, _m: fchmod_calls.append(fd))
+        assert "not a regular file" in system_module._inspect_secret(str(sec), fix=True).details  # noqa: SLF001
+        assert fchmod_calls == []
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "fstat", lambda _fd: SimpleNamespace(st_mode=0o100644, st_uid=99999))
+        mp.setattr(os, "fchmod", lambda fd, _m: fchmod_calls.append(fd))
+        assert "not owned" in system_module._inspect_secret(str(sec), fix=True).details  # noqa: SLF001
+        assert fchmod_calls == []
+    if os.geteuid() != 0:
+        sec.chmod(0o244)
+        repaired = system_module._inspect_secret(str(sec), fix=True)  # noqa: SLF001
+        assert repaired.status == "pass"
+        assert sec.stat().st_mode & 0o777 == 0o600
 
     # _probe OSError, _docker_results timeout, _auth_results failure branches
     err_runner = ScriptedRunner(

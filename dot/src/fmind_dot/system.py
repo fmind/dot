@@ -85,9 +85,15 @@ def _inspect_secret(label: str, *, fix: bool) -> CheckResult:
         return CheckResult(label, "pass", f"secure (permissions: {current:04o})")
     if not fix:
         return CheckResult(label, "fail", f"INSECURE permissions: {current:04o} (expected 0600)")
+    open_mode = os.O_WRONLY if (current & 0o400 == 0 and current & 0o200) else os.O_RDONLY
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = os.open(path, open_mode | os.O_NOFOLLOW | os.O_NONBLOCK)
         try:
+            fd_info = os.fstat(fd)
+            if not stat.S_ISREG(fd_info.st_mode):
+                return CheckResult(label, "fail", "not a regular file")
+            if fd_info.st_uid != os.getuid():
+                return CheckResult(label, "fail", "not owned by current user")
             os.fchmod(fd, 0o600)
         finally:
             os.close(fd)

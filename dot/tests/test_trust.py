@@ -59,6 +59,17 @@ def test_register_agy_projects(tmp_path: Path) -> None:
     assert payload["projectResources"]["resources"][0]["folderUri"] == chezmoi.as_uri()
     assert register_agy_projects([chezmoi], ["~/.local/share/chezmoi"], home=home) == []
 
+    # Distinct repos whose normalized slugs collide both register with deterministic disambiguation.
+    dash, under = home / "work/my-repo", home / "work/my_repo"
+    (dash / ".git").mkdir(parents=True)
+    (under / ".git").mkdir(parents=True)
+    assert register_agy_projects([dash, under], ["~/work/*"], home=home) == [dash, under]
+    assert (reg / "local-work-my-repo.json").is_file()
+    extra = list(reg.glob("local-work-my-repo-*.json"))
+    assert len(extra) == 1
+    assert json.loads(extra[0].read_text())["projectResources"]["resources"][0]["folderUri"] == under.as_uri()
+    assert register_agy_projects([dash, under], ["~/work/*"], home=home) == []
+
 
 @pytest.mark.parametrize(
     ("origin", "expected"),
@@ -170,3 +181,13 @@ def test_trust_rejects_home_ancestors_symlinks_and_corrupt_json(
     agy_settings.write_text('{"trustedWorkspaces": {}}')
     with pytest.raises(DotError, match="trustedWorkspaces must be a JSON array"):
         trust_folders([tmp_path], home=home)
+
+    # Corrupt settings.json must fail before creating Remote Control project entries.
+    reg = home / ".gemini/config/projects"
+    reg.mkdir(parents=True)
+    repo = home / "work/repo"
+    (repo / ".git").mkdir(parents=True)
+    cfg = Config(trust=TrustConfig(github_owners=["fmind"], agy_projects=["~/work/*"]))
+    with pytest.raises(DotError, match="trustedWorkspaces must be a JSON array"):
+        run_trust(make_state(config=cfg), [str(repo)])
+    assert list(reg.glob("*.json")) == []

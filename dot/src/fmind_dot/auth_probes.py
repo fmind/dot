@@ -89,9 +89,6 @@ def probe(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS)
 def probe_json(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS) -> object:
     """Run a probe returning JSON output and raise an actionable DotError on failure."""
     result = probe(state, args, timeout)
-    markers: Sequence[str] = policy()["gcp"]["login_markers"]
-    if result.returncode and args[0] == "gcloud" and any(m in result.stderr.lower() for m in markers):
-        raise DotError("gcloud credentials need a fresh login; run dot login gcp and retry")
     if result.returncode:
         raise DotError(f"{args[0]} status failed (exit {result.returncode}); inspect the provider directly and retry")
     try:
@@ -286,7 +283,7 @@ def gcloud_ready(state: State, args: list[str], provider: str = "gcp") -> bool:
 def adc_ready(state: State, provider: str = "gcp") -> bool:
     """Return True when Application Default Credentials hold configured GCP scopes (ignoring GCE metadata SA fallback)."""
     if is_gce_vm() and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        gcloud_dir = env_path("CLOUDSDK_CONFIG", Path.home() / ".config" / "gcloud", expand_vars=False)
+        gcloud_dir = env_path("CLOUDSDK_CONFIG", Path.home() / ".config" / "gcloud")
         adc_file = gcloud_dir / "application_default_credentials.json"
         if not adc_file.is_file():
             return False

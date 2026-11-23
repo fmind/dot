@@ -90,13 +90,28 @@ def test_privacy_cli_honors_config_flag_and_fails_closed_when_missing(
     (repo / "notes.md").write_text("Owned by secret-client-42\n", encoding="utf-8")
 
     cfg = tmp_path / "client.yaml"
-    cfg.write_text("trust:\n  github_owners: [secret-client-42]\n", encoding="utf-8")
+    cfg.write_text(
+        "trust:\n"
+        "  github_owners: [secret-client-42]\n"
+        "  agy_projects: ['~/.local/share/chezmoi', '~/customers/*', '~/customers/vault-proj', '~/hidden-org/*']\n",
+        encoding="utf-8",
+    )
 
     flagged = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
     assert flagged.exit_code == 1
     payload = json.loads(flagged.stdout)
     assert payload["passed"] is False
     assert any("secret-client-42" in item for item in payload["targets"][0]["findings"])
+
+    (repo / "notes.md").write_text("Project vault-proj under hidden-org\n", encoding="utf-8")
+    proj_flagged = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
+    assert proj_flagged.exit_code == 1
+    proj_findings = json.loads(proj_flagged.stdout)["targets"][0]["findings"]
+    assert any("vault-proj" in item or "hidden-org" in item for item in proj_findings)
+
+    (repo / "notes.md").write_text("Customers use chezmoi\n", encoding="utf-8")
+    safe_ok = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
+    assert safe_ok.exit_code == 0, safe_ok.stdout + safe_ok.stderr
 
     missing_cfg = tmp_path / "does-not-exist.yaml"
     missing = CliRunner().invoke(app, ["--config", str(missing_cfg), "privacy", "--json", str(repo)])
