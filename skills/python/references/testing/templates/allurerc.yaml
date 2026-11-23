@@ -1,0 +1,35 @@
+# Docs: https://allurereport.org/docs/v3/
+# Pure YAML + CEL Allure 3 config for opt-in BDD projects (zero JS/TS deps).
+name: Acceptance Report
+output: .cache/allure-report
+plugins:
+  awesome:
+    options:
+      singleFile: true
+      groupBy: ["feature", "story"]
+categories:
+  rules:
+    - name: SLA Budget Breaches
+      matchers:
+        statuses: ["failed"]
+        labels:
+          tag: "sla"
+    - name: Acceptance Regressions
+      matchers:
+        statuses: ["failed"]
+    - name: Harness / Setup Errors
+      matchers:
+        statuses: ["broken"]
+qualityGate:
+  rules:
+    - id: implemented-specs
+      maxFailures: 0
+      minTestsCount: 1
+      filter: >-
+        ${{ !test.labels.exists(l, l.name == 'tag' && l.value == 'wip') }}
+    # Opt in when @sla scenarios enforce wall-clock duration budgets (milliseconds):
+    # - id: sla-budgets
+    #   maxFailures: 0
+    #   maxDuration: 5000
+    #   filter: >-
+    #     ${{ test.labels.exists(l, l.name == 'tag' && l.value == 'sla') }}

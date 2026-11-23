@@ -69,6 +69,8 @@ def _materialize_shared_layer(
     _run(project, "git", "init", "-q", "-b", "main")
     _write(project, "src/starter_py/py.typed", "")
     _write(project, "README.md", "# Starter Python\n")
+    _write(project, "CHANGELOG.md", "# Changelog\n\nAll notable changes to this project are documented in this file.\n")
+    _write(project, "cliff.toml", _render("cliff.toml", replacements, owner="git-delivery", guide=""))
     _write(
         project,
         "LICENSE",
@@ -124,6 +126,9 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _write(project, "src/starter_py/__init__.py", _render("init-library.py", replacements))
 
     if profile == "library":
+        _write(project, "SECURITY.md", _render("SECURITY.md", replacements, owner="github", guide=""))
+        _write(project, "zensical.toml", _render("zensical.toml", replacements))
+        _write(project, "docs/index.md", _render("docs-index.md", replacements))
         _run(project, "uv", "add", "--dev", "zensical>=0.1.1,<0.2", "mkdocstrings-python>=2.0.11")
         _write(project, "tests/test_library.py", _render("test_library.py", replacements))
     elif profile == "cli":
@@ -228,6 +233,9 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(project, "uv", "sync", "--locked")
     _run(project, "dprint", "fmt")
     _run(project, "dprint", "check")
+    _run(project, "lefthook", "validate")
+    _run(project, "lychee", "--offline", "--include-fragments", "--no-progress", "--extensions", "md", ".")
+    _run(project, "typos")
     _run(project, "jactionlint", "--profile", "pedantic")
     _run(
         project, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner"
@@ -245,8 +253,6 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(project, "uv", "build", "--clear", "--no-sources", "--out-dir", "dist")
     if profile == "library":
         # Opt-in strict docs build renders every module's API page and fails on broken cross-references.
-        _write(project, "zensical.toml", _render("zensical.toml", replacements))
-        _write(project, "docs/index.md", _render("docs-index.md", replacements))
         _run(project, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
         assert (project / "site/reference/starter_py/index.html").is_file()
 
@@ -449,7 +455,10 @@ def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> Non
     _write(site, "docs/guides/lesson.md", (tpl_dir / "lesson.md").read_text(encoding="utf-8"))
     _write(site, "includes/abbreviations.md", (tpl_dir / "abbreviations.md").read_text(encoding="utf-8"))
     _write(site, "docs/stylesheets/fmind.css", ":root { --md-primary-fg-color: #174ea6; }\n")
+    _write(site, "CHANGELOG.md", "# Changelog\n\nAll notable changes to this project are documented in this file.\n")
+    _write(site, "cliff.toml", _render("cliff.toml", replacements, owner="git-delivery", guide=""))
     _write(site, "mise.toml", (tpl_dir / "mise.toml").read_text(encoding="utf-8"))
+    _write(site, "lefthook.yml", (tpl_dir / "lefthook.yml").read_text(encoding="utf-8"))
     _write(site, "dprint.json", (ROOT / "skills/mise/templates/dprint.json").read_text(encoding="utf-8"))
     _write(site, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
     _write(site, ".github/workflows/docs.yml", (tpl_dir / "docs.yml").read_text(encoding="utf-8"))
@@ -457,6 +466,9 @@ def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> Non
     _run(site, "uv", "lock")
     _run(site, "uv", "sync", "--locked")
     _run(site, "dprint", "check")
+    _run(site, "lefthook", "validate")
+    _run(site, "lychee", "--offline", "--include-fragments", "--no-progress", "--extensions", "md", ".")
+    _run(site, "typos")
     _run(site, "jactionlint", "--profile", "pedantic")
     _run(site, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner")
     _run(site, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
@@ -497,6 +509,9 @@ def test_opentofu_starter_validates(tmp_path: Path) -> None:
         for placeholder, value in replacements.items():
             text = text.replace(placeholder, value)
         _write(iac, dst_rel, text)
+    _write(iac, "LICENSE", _render("PROPRIETARY", replacements, owner="github", guide="project-license"))
+    _write(iac, "CHANGELOG.md", "# Changelog\n\nAll notable changes to this project are documented in this file.\n")
+    _write(iac, "cliff.toml", _render("cliff.toml", replacements, owner="git-delivery", guide=""))
     _write(iac, "trivy.yaml", (ROOT / "skills/code-security/references/trivy/templates/trivy.yaml").read_text())
     _write(iac, "dprint.json", (ROOT / "skills/mise/templates/dprint.json").read_text())
     _write(iac, ".betterleaks.toml", _render("betterleaks.toml", replacements, owner="code-security", guide=""))
@@ -511,6 +526,9 @@ def test_opentofu_starter_validates(tmp_path: Path) -> None:
     _run(iac, "terraform-docs", ".")
     _run(iac, "dprint", "fmt", "README.md")
     _run(iac, "dprint", "check")
+    _run(iac, "lefthook", "validate")
+    _run(iac, "lychee", "--offline", "--include-fragments", "--no-progress", "--extensions", "md", ".")
+    _run(iac, "typos")
     _run(iac, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner")
     _run(
         iac,
@@ -543,3 +561,154 @@ def test_typst_deck_figure_card_renders_png(tmp_path: Path) -> None:
     assert helper.main(["render", str(tmp_path / "figure-card.typ"), "-o", str(card_png), "--allow-font-warnings"]) == 0
     assert card_png.is_file()
     assert card_png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+@pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
+def test_python_bdd_starter_validates(tmp_path: Path) -> None:
+    project = tmp_path / "bdd-starter"
+    project.mkdir()
+    version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    replacements = {
+        "<owner>": "example",
+        "<slug>": "starter-py",
+        "<package>": "starter_py",
+        "<description>": "Starter BDD application",
+        "<holder>": "Fixture Author",
+        "<year>": "2026",
+        "<python_major_minor>": version,
+    }
+    manifest = _render("pyproject.toml.template", replacements)
+    markers_block = (
+        "markers = [\n"
+        '  "e2e: requires browser and live local server",\n'
+        '  "integration: requires local Docker and disposable external services",\n'
+        "]"
+    )
+    assert markers_block in manifest
+    manifest = manifest.replace(
+        markers_block,
+        'bdd_features_base_dir = "features"\n'
+        "markers = [\n"
+        '  "e2e: requires browser and live local server",\n'
+        '  "integration: requires local Docker and disposable external services",\n'
+        '  "wip: unimplemented acceptance specs",\n'
+        '  "sla: service-level acceptance budgets",\n'
+        "]",
+    )
+    _write(project, "pyproject.toml", manifest)
+    _write(project, ".python-version", f"{version}\n")
+    _materialize_shared_layer(project, replacements)
+    _write(
+        project,
+        "src/starter_py/__init__.py",
+        _render("init-library.py", replacements) + '\n\ndef greet(name: str) -> str:\n    return f"Hello, {name}!"\n',
+    )
+
+    bdd_tpl = ROOT / "skills/python/references/testing/templates"
+    _write(project, "allurerc.yaml", (bdd_tpl / "allurerc.yaml").read_text(encoding="utf-8"))
+    _write(project, "tests/bdd/conftest.py", (bdd_tpl / "bdd-conftest.py").read_text(encoding="utf-8"))
+    _write(project, "tests/bdd/report_bdd.py", (bdd_tpl / "report_bdd.py").read_text(encoding="utf-8"))
+    _write(
+        project,
+        "features/orders.feature",
+        "Feature: Order greeting\n"
+        "\n"
+        "  Rule: Implemented greetings meet SLA\n"
+        "    @issue_42 @severity_critical @sla\n"
+        "    Scenario: Greet customer cleanly\n"
+        "      Given a customer named Ada\n"
+        "      When the greeter runs\n"
+        "      Then the greeting includes Ada\n"
+        "\n"
+        "  @wip\n"
+        "  Rule: Future batch greetings\n"
+        "    Scenario: Unimplemented batch step skips cleanly\n"
+        "      Given an unimplemented batch queue\n",
+    )
+    _write(
+        project,
+        "tests/bdd/test_features.py",
+        "import json\n"
+        "from pathlib import Path\n"
+        "\n"
+        "import allure\n"
+        "from pytest_bdd import given, parsers, scenarios, then, when\n"
+        "\n"
+        "from starter_py import greet\n"
+        "\n"
+        'scenarios(".")\n'
+        "\n"
+        "\n"
+        '@given(parsers.parse("a customer named {name}"), target_fixture="customer")\n'
+        "def customer_name(name: str) -> str:\n"
+        "    return name\n"
+        "\n"
+        "\n"
+        '@when("the greeter runs", target_fixture="greeting")\n'
+        "def run_greeter(customer: str) -> str:\n"
+        "    print(f'cwd={Path.cwd()} home={Path.home()}')\n"
+        "    allure.attach(\n"
+        '        json.dumps({"p95_ms": 12}, indent=2),\n'
+        '        name="sla.json",\n'
+        "        attachment_type=allure.attachment_type.JSON,\n"
+        "    )\n"
+        "    return greet(customer)\n"
+        "\n"
+        "\n"
+        '@then(parsers.parse("the greeting includes {name}"))\n'
+        "def check_greeting(greeting: str, name: str) -> None:\n"
+        "    assert name in greeting\n",
+    )
+
+    _run(project, "uv", "add", "--dev", "pytest-bdd>=9.0", "allure-pytest-bdd>=2.16.2")
+    _run(project, "uv", "sync", "--locked")
+    pr_out = _run(
+        project, "uv", "run", "--frozen", "pytest", "-m", "not integration and not e2e and not wip", "tests/bdd"
+    )
+    assert "1 passed" in pr_out
+    assert "1 deselected" in pr_out
+    assert "skipped" not in pr_out
+    _run(
+        project,
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "-q",
+        "tests/bdd",
+        "--alluredir=.cache/allure-results",
+        "--allure-link-pattern=issue:https://github.com/example/starter-py/issues/{}",
+    )
+
+    results_dir = project / ".cache/allure-results"
+    report_bdd = load_script("starter_report_bdd", project / "tests/bdd/report_bdd.py")
+    report_bdd.sanitize_results(results_dir, cwd=project, home=Path.home())
+
+    result_files = sorted(results_dir.glob("*-result.json"))
+    assert len(result_files) == 2
+    parsed = {data["name"]: data for data in (json.loads(p.read_text(encoding="utf-8")) for p in result_files)}
+
+    passed = parsed["Greet customer cleanly"]
+    assert passed["status"] == "passed"
+    labels = {(lbl["name"], lbl["value"]) for lbl in passed["labels"]}
+    assert ("story", "Implemented greetings meet SLA") in labels
+    assert ("severity", "critical") in labels
+    assert ("tag", "sla") in labels
+    assert not any(lbl["name"] == "host" for lbl in passed["labels"])
+    assert any(
+        link.get("type") == "issue" and link.get("url") == "https://github.com/example/starter-py/issues/42"
+        for link in passed.get("links", [])
+    )
+    json_attachments = sorted(results_dir.glob("*-attachment.json"))
+    assert len(json_attachments) == 1
+    assert json.loads(json_attachments[0].read_text(encoding="utf-8")) == {"p95_ms": 12}
+    txt_attachments = sorted(results_dir.glob("*-attachment.txt"))
+    assert txt_attachments
+    assert any("cwd=. home=~" in p.read_text(encoding="utf-8") for p in txt_attachments)
+    for txt_attachment in txt_attachments:
+        body = txt_attachment.read_text(encoding="utf-8")
+        assert str(project) not in body
+        assert str(Path.home()) not in body
+
+    wip = parsed["Unimplemented batch step skips cleanly"]
+    assert wip["status"] == "skipped"

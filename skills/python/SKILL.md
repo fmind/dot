@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/python
   created: "2026-11-21"
-  updated: "2026-11-22"
+  updated: "2026-11-23"
 ---
 
 # Python Engineering
@@ -16,7 +16,7 @@ Maintain lean, strictly typed Python packages, CLIs, web services, and PEP 723 s
 
 ## Workflow
 
-Load the matching domain guide(s) below plus `language` and `testing`. Defaults: [mlops](../mlops/SKILL.md) for dataframes/ML, [argparse](references/argparse/GUIDE.md#defaults-for-new-clis) for CLIs, and `litestar` for web services (`django` for ORM/admin, `ui` for Gradio/NiceGUI). Audit non-trivial changes with matching `fmind-review-python`, `cli`, `test`, `api`, `frontend`, `data`, or `security` reviewers ([subagent](../subagent/SKILL.md)).
+Load the matching domain guide(s) below plus `language` and `testing`. Defaults: [mlops](../mlops/SKILL.md) for dataframes/ML, [argparse](references/argparse/GUIDE.md#defaults-for-new-clis) for CLIs, and `litestar` for web services (`django` for ORM/admin, `ui` for Gradio/NiceGUI). Audit non-trivial changes with `fmind-review-code` and `fmind-review-python` plus matching `sre`, `simplicity`, `test`, `cli`, `api`, `frontend`, `data`, or `security` reviewers ([subagent](../subagent/SKILL.md)).
 
 ## Task guides
 

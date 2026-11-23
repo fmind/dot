@@ -21,7 +21,16 @@ Prove behavior changes with tests that fail before the fix and pass with it (for
      | xargs -r rg -s -nH '\bskip(if)?\b|xfail|@wip\b|mark\.wip\b|pragma: no cover|noqa|ignore\['
    ```
 
-1. **Optional review evidence (on request or high-risk changes)**: check changed-line coverage (`uv run --locked coverage xml -q --fail-under=0 -o .cache/coverage.xml && uvx --from 'diff-cover==<version>' diff-cover .cache/coverage.xml --compare-branch=<base> --include-untracked`) or scoped mutation probes (`#mutation-tests`).
+1. **Changed-line coverage (`diff-cover`, opt-in PR summary or gate)** and deep probes: overall `fail_under = 85` can mask large untested AI deltas in mature repos. Add `diff-cover` to `dev` (`UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev diff-cover`) for CI/PR gates, generate Cobertura XML, and run `diff-cover` with `--branch-coverage` (matching `[tool.coverage.run] branch = true`):
+
+   ```bash
+   uv run --locked coverage xml -q --fail-under=0 -o .cache/coverage.xml
+   uv run --locked diff-cover .cache/coverage.xml \
+     --branch-coverage --compare-branch=<base> --include-untracked \
+     --format markdown:.cache/diff-cover.md --fail-under=90
+   ```
+
+   Omit `--fail-under=90` for a non-blocking PR summary (`if [ -f .cache/diff-cover.md ]; then cat .cache/diff-cover.md >> "$GITHUB_STEP_SUMMARY"; fi`; see [github/ci-cd](../../../github/references/ci-cd/GUIDE.md#principles); reserve `uvx` for ad-hoc local probes only). Add scoped [mutation probes](#mutation-tests), symbolic execution (`hypothesis-crosshair`), or ASGI API fuzzing (`schemathesis`) per [property tests](references/property-tests.md) on high-risk boundaries.
 
 ## Gotchas
 
