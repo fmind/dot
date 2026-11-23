@@ -428,15 +428,26 @@ class HarnessConfigTests(unittest.TestCase):
 
     def test_zellij_config_uses_attention_mode_with_notifications_and_validates_natively(self):
         config_path = ROOT / "dot_config/zellij/config.kdl"
-        content = config_path.read_text(encoding="utf-8")
-        assert 'host_notification_protocol "auto"' in content
-        assert 'startup_card "attention"' in content
-        assert "track_commands true" in content
-        assert "needs_you true" in content
-        assert "failed true" in content
-        assert "done true" in content
-        assert 'unbind "Alt o"' in content
-        assert 'bind "Alt Shift i" { ToggleSessionCard; }' in content
+        raw_lines = config_path.read_text(encoding="utf-8").splitlines()
+        active_lines = [line.split("//", 1)[0].strip() for line in raw_lines]
+        active = "\n".join(line for line in active_lines if line)
+        assert 'on_quit "ask_detach"' in active
+        assert "scroll_buffer_size 50000" in active
+        assert 'stacked_pane_list_orientation "horizontal"' in active
+        assert "session_suggestions {" in active
+        assert 'match "directory" "git_branch"' in active
+        assert 'then "recent"' in active
+        assert 'host_notification_protocol "auto"' in active
+        assert 'startup_card "attention"' in active
+        assert "track_commands true" in active
+        assert "needs_you true" in active
+        assert "failed true" in active
+        assert "done true" in active
+        assert 'unbind "Alt o"' in active
+        assert 'bind "Alt Shift /" "Alt ?" { ToggleSession; }' in active
+        assert 'bind "Alt z" { ToggleFocusFullscreen; }' in active
+        assert 'bind "Alt Shift z" { ToggleFocusNoUiFullscreen; }' in active
+        assert 'bind "Alt Shift i" { ToggleSessionCard; }' in active
         zellij = native_binary("zellij")
         if zellij is None:
             pytest.skip("Zellij native validation requires the workstation tool")
