@@ -389,6 +389,7 @@ def test_probe_json_github_and_gcp_login_flows(tmp_path: Path, monkeypatch: pyte
 
 def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", raising=False)
     monkeypatch.delenv("GWS_PROJECT", raising=False)
     gws_dir = tmp_path / ".config/gws"
     gws_dir.mkdir(parents=True)

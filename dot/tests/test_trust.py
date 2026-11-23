@@ -83,7 +83,7 @@ def test_register_agy_projects(tmp_path: Path) -> None:
         ("https://evil.example#@github.com/fmind/dot", None),
         ("https://evil.example\\@github.com/fmind/dot", None),
         ("ssh://evil.example?@github.com/fmind/dot", None),
-        ("https://user:" + "fixture@github.com/fmind/dot", None),
+        pytest.param("https://user:" + "fixture@github.com/fmind/dot", None, id="user-password-url"),
         ("https://github.com:8443/fmind/dot", None),
         ("https://github.com:bad/fmind/dot", None),
         ("https://[bad/fmind/dot", None),

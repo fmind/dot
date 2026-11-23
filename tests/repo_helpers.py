@@ -87,6 +87,8 @@ def isolated_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     """Drop desktop, multiplexer, and XDG variables during isolated tests."""
     for key in (
         "DBUS_SESSION_BUS_ADDRESS",
+        "GOOGLE_WORKSPACE_CLI_CONFIG_DIR",
+        "GWS_PROJECT",
         "HF_HOME",
         "HF_HUB_CACHE",
         "HUGGINGFACE_HUB_CACHE",
