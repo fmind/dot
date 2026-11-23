@@ -76,6 +76,7 @@ TRIVY_CONFIG = "{{env.HOME}}/.config/trivy/trivy.yaml"
 "pypi:supagents" = { version = "latest", python = "3.14" } # Cross-harness subagent compiler across projects
 acli = "latest"
 age = "latest"
+ast-grep = "latest" # Structural code search and custom AST invariant linting across projects
 atuin = "latest"
 bat = "latest"
 betterleaks = "latest"
@@ -142,3 +143,13 @@ version = "latest" # Google Workspace CLI (gws)
 linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl*" }
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
+
+[tools."github:opengrep/opengrep"]
+# aqua's registry misses v2.0.0's renamed Linux binaries (`opengrep_linux_*`); exclude `.cert`/`.sig` sidecars.
+bin = "opengrep"
+version = "latest" # Local taint/dataflow SAST across projects without a Sonar server
+
+[tools."github:opengrep/opengrep".platforms]
+linux-arm64 = { asset_pattern = "opengrep_linux_aarch64" }
+linux-x64 = { asset_pattern = "opengrep_linux_x86" }
+macos-arm64 = { asset_pattern = "opengrep_osx_arm64" }

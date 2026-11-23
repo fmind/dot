@@ -2304,6 +2304,29 @@ checksum = "sha256:e2020b073c44f692685a24d6abc378817eb81ffaaf49fd0531ef8565f767f
 url = "https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-darwin-arm64.tar.gz"
 url_api = "https://api.github.com/repos/FiloSottile/age/releases/assets/535541897"
 
+[[tools.ast-grep]]
+version = "0.51.3"
+backend = "aqua:ast-grep/ast-grep"
+specifiers = ["latest"]
+
+[tools.ast-grep."platforms.linux-arm64"]
+checksum = "sha256:5b44fd68e78744934b359b07badce347d4197ed50b341d50f1f99d056ecedb08"
+checksum_source = "mise-versions"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.3/app-aarch64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/753397190"
+
+[tools.ast-grep."platforms.linux-x64"]
+checksum = "sha256:22803eb0c5bf83164fb7fd76d4721d355ecf0c8466ef47342c1ec7d80897ca47"
+checksum_source = "mise-versions"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.3/app-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/753396224"
+
+[tools.ast-grep."platforms.macos-arm64"]
+checksum = "sha256:7954eab1e2803d1485f263377be7f359db6d3915312b5d773cd575eb009330b1"
+checksum_source = "mise-versions"
+url = "https://github.com/ast-grep/ast-grep/releases/download/0.51.3/app-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/ast-grep/ast-grep/releases/assets/753396910"
+
 [[tools.atuin]]
 version = "18.25.1"
 backend = "aqua:atuinsh/atuin"
@@ -3283,6 +3306,48 @@ asset_pattern = "*aarch64-apple-darwin*"
 checksum = "sha256:1d2a9ffd5bc9b2c2c4b48630daf082fad13d9e57d741988a2c248eed562f7dac"
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/googleworkspace/cli/releases/assets/385726972"
+
+[[tools."github:opengrep/opengrep"]]
+version = "2.0.0"
+backend = "github:opengrep/opengrep"
+specifiers = ["latest"]
+
+[tools."github:opengrep/opengrep".options]
+asset_pattern = "opengrep_linux_aarch64"
+
+[tools."github:opengrep/opengrep"."platforms.linux-arm64"]
+checksum = "sha256:6257b65423a744b704af2ff9beeb8f222c2f6925236af386b56b031d4c06d6d8"
+checksum_source = "mise-versions"
+url = "https://github.com/opengrep/opengrep/releases/download/v2.0.0/opengrep_linux_aarch64"
+url_api = "https://api.github.com/repos/opengrep/opengrep/releases/assets/743710465"
+
+[[tools."github:opengrep/opengrep"]]
+version = "2.0.0"
+backend = "github:opengrep/opengrep"
+specifiers = ["latest"]
+
+[tools."github:opengrep/opengrep".options]
+asset_pattern = "opengrep_linux_x86"
+
+[tools."github:opengrep/opengrep"."platforms.linux-x64"]
+checksum = "sha256:37e93f4da5fd04a18c5c1febbdd12f7e98dfccd4d0c9cf2593bcb25eeb462da0"
+checksum_source = "mise-versions"
+url = "https://github.com/opengrep/opengrep/releases/download/v2.0.0/opengrep_linux_x86"
+url_api = "https://api.github.com/repos/opengrep/opengrep/releases/assets/743710463"
+
+[[tools."github:opengrep/opengrep"]]
+version = "2.0.0"
+backend = "github:opengrep/opengrep"
+specifiers = ["latest"]
+
+[tools."github:opengrep/opengrep".options]
+asset_pattern = "opengrep_osx_arm64"
+
+[tools."github:opengrep/opengrep"."platforms.macos-arm64"]
+checksum = "sha256:b51b3d83f165a2e0934497b8f1b08abb1c3041ef20ef911c97e04cb39af1ad55"
+checksum_source = "mise-versions"
+url = "https://github.com/opengrep/opengrep/releases/download/v2.0.0/opengrep_osx_arm64"
+url_api = "https://api.github.com/repos/opengrep/opengrep/releases/assets/743710472"
 
 [[tools.imagemagick]]
 version = "7.1.2_31"

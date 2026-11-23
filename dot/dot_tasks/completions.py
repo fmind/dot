@@ -26,7 +26,7 @@ _PLAIN_COMPLETIONS = ("betterleaks", "chezmoi", "copilot", "databricks", "dot", 
 _COMPLETION_PACKAGES: dict[str, str] = {"lsd": "lsd", "ya": "yazi", "yazi": "yazi", "zoxide": "zoxide"}
 _COMPLETION_ENV: dict[str, str] = {"hf": "_HF_COMPLETE=fish_source"}
 _COMPLETION_COMMANDS: dict[str, tuple[str, ...]] = (
-    {t: (t, "completions", "fish") for t in ("doggo", "dprint", "starship", "typst")}
+    {t: (t, "completions", "fish") for t in ("ast-grep", "doggo", "dprint", "starship", "typst")}
     | {t: (t, "generate-shell-completion", "fish") for t in ("ruff", "ty", "uv")}
     | {t: (t, "--generate", "complete-fish") for t in ("rg", "xh")}
     | {
