@@ -17,34 +17,25 @@ if status is-interactive
         end
         set -l cache_dir "$cache_root/fish/init"
         set -l cache "$cache_dir/$name.fish"
-        if test -d "$cache_dir" -a ! -L "$cache_dir" -a -O "$cache_dir" -a -f "$cache" -a ! -L "$cache" -a -O "$cache" -a -s "$cache"
+        if test -d "$cache_dir" -a ! -L "$cache_dir" -a -O "$cache_dir" -a -f "$cache" -a ! -L "$cache" -a -O "$cache" -a -r "$cache" -a -s "$cache"
             read -l header <"$cache"
             if test "$header" = "$expected"
                 source "$cache"
                 return
             end
         end
+        set -l output ($cmd | string collect)
+        test $pipestatus[1] -eq 0; or return
+        test -n "$output"; or return
         if mkdir -p -m 700 "$cache_dir" 2>/dev/null; and test -d "$cache_dir" -a ! -L "$cache_dir" -a -O "$cache_dir" -a -w "$cache_dir"
-            set -l body "$cache.$fish_pid.body.tmp"
             set -l tmp "$cache.$fish_pid.tmp"
-            if not $cmd >"$body"
-                rm -f "$body" "$tmp" 2>/dev/null
-                return
-            end
-            if not test -s "$body"
-                rm -f "$body" "$tmp" 2>/dev/null
-                return
-            end
-            if printf '%s\n' "$expected" >"$tmp" 2>/dev/null; and command cat -- "$body" >>"$tmp" 2>/dev/null; and mv -f "$tmp" "$cache" 2>/dev/null
-                rm -f "$body" 2>/dev/null
+            if printf '%s\n%s\n' "$expected" "$output" >"$tmp" 2>/dev/null; and mv -f "$tmp" "$cache" 2>/dev/null
                 source "$cache"
                 return
             end
-            source "$body"
-            rm -f "$body" "$tmp" 2>/dev/null
-            return
+            rm -f "$tmp" 2>/dev/null
         end
-        $cmd | source
+        printf '%s\n' "$output" | source
     end
 
     __dot_source_cached mise mise activate fish

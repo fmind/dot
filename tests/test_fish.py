@@ -449,6 +449,31 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
     assert rel_run.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
     assert (rel_home / ".cache/fish/init/mise.fish").is_file()
 
+    # Unreadable cache file and read-only cache dir both fall back cleanly without stderr errors.
+    if os.geteuid() != 0:
+        unreadable_cache = rel_home / ".cache/fish/init/mise.fish"
+        unreadable_cache.chmod(0o000)
+        cache_dir = rel_home / ".cache/fish/init"
+        cache_dir.chmod(0o500)
+        try:
+            fallback_run = subprocess.run(
+                [_fish(), "--no-config", "--interactive", "--command", rel_cmd],
+                cwd=rel_cwd,
+                env=rel_env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=15,
+                check=False,
+            )
+            assert fallback_run.returncode == 0, fallback_run.stderr
+            assert fallback_run.stderr == "", fallback_run.stderr
+            assert fallback_run.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
+        finally:
+            cache_dir.chmod(0o700)
+            unreadable_cache.chmod(0o600)
+
 
 def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) -> None:
     base_cmd = "source dot_config/fish/config.fish"
@@ -553,6 +578,27 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
     assert cached_theme.returncode == 0, cached_theme.stderr
     assert cached_theme.stderr == "", cached_theme.stderr
     assert cached_theme.stdout.splitlines() == ["cmd=174ea6,--theme=fmind", "kw=174ea6,--bold,--theme=fmind"]
+    theme_cache = tmp_path / ".cache/fish/theme-fmind.fish"
+    assert len(theme_cache.read_text(encoding="utf-8").splitlines()[0].split("|")) == 3
+
+    if os.geteuid() != 0:
+        theme_cache.chmod(0o000)
+        try:
+            unreadable_cache_run = subprocess.run(
+                [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
+                cwd=ROOT,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=15,
+                check=False,
+            )
+            assert unreadable_cache_run.returncode == 0, unreadable_cache_run.stderr
+            assert unreadable_cache_run.stderr == "", unreadable_cache_run.stderr
+        finally:
+            theme_cache.chmod(0o600)
 
     # Missing or unreadable fmind.theme is skipped cleanly without stderr errors.
     theme_file.unlink()

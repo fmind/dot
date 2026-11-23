@@ -3,7 +3,9 @@
 if status is-interactive; and test -f "$__fish_config_dir/themes/fmind.theme" -a -r "$__fish_config_dir/themes/fmind.theme"
     set -l __dot_theme "$__fish_config_dir/themes/fmind.theme"
     set -l __dot_theme_mtime (path mtime -- "$__dot_theme" 2>/dev/null); or set __dot_theme_mtime 0
-    set -l __dot_expected "# $__dot_theme|$__dot_theme_mtime"
+    set -l __dot_self (status filename)
+    set -l __dot_self_mtime (path mtime -- "$__dot_self" 2>/dev/null); or set __dot_self_mtime 0
+    set -l __dot_expected "# $__dot_theme|$__dot_theme_mtime|$__dot_self_mtime"
     set -l __dot_cache_root "$HOME/.cache"
     if set -q XDG_CACHE_HOME; and string match -q '/*' -- "$XDG_CACHE_HOME"
         set __dot_cache_root "$XDG_CACHE_HOME"
@@ -11,7 +13,7 @@ if status is-interactive; and test -f "$__fish_config_dir/themes/fmind.theme" -a
     set -l __dot_cache_dir "$__dot_cache_root/fish"
     set -l __dot_theme_cache "$__dot_cache_dir/theme-fmind.fish"
     set -l __dot_theme_loaded 0
-    if test -d "$__dot_cache_dir" -a ! -L "$__dot_cache_dir" -a -O "$__dot_cache_dir" -a -f "$__dot_theme_cache" -a ! -L "$__dot_theme_cache" -a -O "$__dot_theme_cache" -a -s "$__dot_theme_cache"
+    if test -d "$__dot_cache_dir" -a ! -L "$__dot_cache_dir" -a -O "$__dot_cache_dir" -a -f "$__dot_theme_cache" -a ! -L "$__dot_theme_cache" -a -O "$__dot_theme_cache" -a -r "$__dot_theme_cache" -a -s "$__dot_theme_cache"
         read -l __dot_header <"$__dot_theme_cache"
         if test "$__dot_header" = "$__dot_expected"
             source "$__dot_theme_cache"
