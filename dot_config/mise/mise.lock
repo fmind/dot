@@ -3771,10 +3771,10 @@ checksum = "sha256:aec2514ea1ceb2ba52455e9ec65986f6749a06dd759e5db2a72e6889668c9
 url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-darwin-arm64.tar.gz"
 
 [[tools."pypi:brain-framework"]]
-version = "33.1.0"
+version = "33.2.0"
 backend = "pypi:brain-framework"
 specifiers = ["latest"]
-uv = { path = "locks/pypi-brain-framework/33.1.0~60d65a25", digest = "sha256:c31ea91e0b020ffaa18cea28dd33bb7290dd9e42cc4de3ece74e1b68a76144f3" }
+uv = { path = "locks/pypi-brain-framework/33.2.0~60d65a25", digest = "sha256:a8bd9c5e92afa70b9a687d078c0d557ecee9881d684a2214524b8ce4d91d2dff" }
 
 [tools."pypi:brain-framework".options]
 python = "3.14"
