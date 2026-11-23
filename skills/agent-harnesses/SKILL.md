@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-11-22"
+  updated: "2026-11-23"
 ---
 
 # Agent Harnesses & Project Setup
@@ -24,7 +24,7 @@ Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared
 
 <!-- guides:start -->
 
-- [agy-cli](references/agy-cli/GUIDE.md): CLI sessions, managed settings, auth, custom agents, and completions.
+- [agy-cli](references/agy-cli/GUIDE.md): CLI sessions, managed settings, auth, and custom agents.
 - [antigravity-sdk](references/antigravity-sdk/GUIDE.md): Python SDK orchestration, policy, subagents, and lifecycle.
 - [copilot](references/copilot.md): Copilot CLI sessions, non-interactive flags, folder trust, and extensions.
 - [cross-harness-agents](references/cross-harness-agents.md): Decide when a custom agent role pays off, write per-host definitions, and verify discovery.

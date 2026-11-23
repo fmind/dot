@@ -18,13 +18,14 @@ Register only the MCP capability a task needs using the host's native CLI. [MCP]
 Python stdio examples (for HTTP, pass a bare URL in Antigravity or `--transport http <url>` in Copilot):
 
 ```bash
-agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>      # Antigravity: user scope only
+agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>      # Antigravity: user scope only; flags must precede <name>
 copilot mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>  # Copilot: user configuration
 ```
 
 - **Pin executables & local projects**: use `uvx --from '<package>==<version>'`, never bare `uvx <package>`. For local Python checkouts, point directly at the locked `.venv` binary (e.g., `agy mcp add brain -- <brain-checkout>/.venv/bin/bf mcp --brain <brain>`) because `uvx --from` pins only the top-level package and agy spawns `bash -c` without shell init files.
 - **Keep secrets out of args and tracked files**: `KEY=value` is non-sensitive only; supply credentials via host env refs (`${NAME}`), OAuth, or `with-secret` ([scoped credentials](../../dot-cli/references/authentication.md#scoped-credentials)).
-- **Antigravity `mcp_config.json`**: remote servers require Streamable HTTP (`serverUrl`, no legacy SSE). Tools lazy-load by default (schemas cached in `~/.gemini/antigravity-cli/mcp/<server>/`); set `tools.<name>.eager: true` for hot tools, `background: "always"|"off"`, `enabledTools`/`disabledTools`, `timeoutSeconds` (default 180s call / 300s connect), or `authProviderType: "google_credentials"` for GCP ADC (`1.5.8+` enforces `mcp(...)` deny/ask rules on eager tools too).
+- **Antigravity transport & auth**: remote servers require Streamable HTTP (`serverUrl` or `url`; no legacy SSE/`httpUrl`), with OAuth 2.0 PKCE supporting CIMD (`https://antigravity.google/oauth/client-metadata.json`), DCR, or manual `oauth` (`https://antigravity.google/oauth-callback`), `authProviderType: "google_credentials"` for GCP ADC, and `1.5.9+` stripping custom `headers` on cross-origin redirects. Avoid duplicate server names across global/workspace files (the running server wins).
+- **Antigravity tool loading & timeouts**: tools lazy-load by default (schemas cached in `~/.gemini/antigravity-cli/mcp/<server>/`); set `tools.<name>.eager: true` for hot tools (`1.5.8+` enforces `mcp(...)` deny/ask rules on eager tools too), `background: "always"|"off"`, `enabledTools`/`disabledTools`, or `timeoutSeconds` (default 180s call / 300s connect; `-1` disables both).
 
 ## Configuration files
 

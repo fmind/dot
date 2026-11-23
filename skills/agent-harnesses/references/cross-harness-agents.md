@@ -20,8 +20,8 @@ Both use YAML frontmatter + Markdown body (Antigravity also discovers `.agents/a
 
 - **Shared `agy-secret-denies.tmpl`**: defines the credential paths (incl. `~/.local/share/atuin`, `~/.cache/huggingface/stored_tokens`, `.private.fish`, `.pgpass`) and secret globs (`*.env*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`) enforced by managed Antigravity configs. Copilot (`COPILOT_ALLOW_ALL=1`) enforces no secret-read denies globally or per agent.
 - **Antigravity (`agy`)**:
-  - Set `subagent: true` (`mainAgent: false` if subagent-only), `excludeDefaultComponents: true`, `inheritMcp: false`, and `commandExecutionPolicy: "off"` for read-only reviewers.
-  - Omitting `tools` leaves a minimal read/web/messaging set. An explicit list replaces it from `init.tools`: `view_file`, `list_dir`, `find_by_name`, `grep_search`, `finish`, plus `read_url_content`/`search_web` on `_reviewer_web`.
+  - Set `subagent: true` (`mainAgent: false` if subagent-only), `excludeDefaultComponents: true`, `inheritMcp: false` (and `inheritCustomizations: false` when isolating plugin/workspace rules/skills), and `commandExecutionPolicy: "off"` for read-only reviewers.
+  - Omitting `tools` leaves a minimal read/web/messaging set. An explicit list replaces it from `init.tools`: `view_file`, `list_dir`, `find_by_name`, `grep_search`, `finish`, plus `read_url_content`/`search_web` on `_reviewer_web` (known issue: unmapped or misspelled tool names can hang the subagent).
   - IDE binds the full read set; `agy` 1.5.x CLI binds `view_file` -> `read_file`, `search_web`, `finish`. Pass file lists, diffs, gate logs, and PNG/DOM captures; `skills` neither preloads nor filters.
   - Enforce shared denies via `read_file(<abs>)` (recursive for directories) and `read_file(<glob>)` in `settings.json` and `config.json`.
 - **Copilot**:

@@ -2,10 +2,10 @@
 
 ## 1. Install and Authenticate
 
-[`orchestrator.py`](../templates/orchestrator.py) pins `google-antigravity==0.1.23` (bundles a harness binary) on Python 3.14 via PEP 723 and treats warnings as errors—never silence upstream deprecations.
+[`orchestrator.py`](../templates/orchestrator.py) pins `google-antigravity==0.1.24` (bundles a harness binary; SDK default model `gemini-4-hydrogen`, optional `ThinkingLevel.EXTRA_HIGH` -> `xhigh`) on Python 3.14 via PEP 723 with `ThinkingLevel.HIGH`; treat warnings as errors in project runs/tests and never silence upstream deprecations.
 
 ```bash
-uv add google-antigravity==0.1.23
+uv add google-antigravity==0.1.24
 export GOOGLE_CLOUD_PROJECT=<project-id>  # optional: ANTIGRAVITY_MODEL, GOOGLE_CLOUD_LOCATION
 uv run orchestrator.py <workspace>
 ```
@@ -14,14 +14,14 @@ uv run orchestrator.py <workspace>
 
 ## 2. Orchestrate
 
-- **Static over dynamic subagents**: prefer named `types.SubagentConfig` roles; `CapabilitiesConfig(enable_subagents=True)` self-clones with the parent's full toolset.
-- **Subagent-scoped tools** (0.1.15+): functions in `SubagentConfig(tools=[...])` expose only to that subagent without registering on the root (contrary to older docs; duplicate names across callables raise `ValueError`). `SubagentConfig.capabilities` defaults to read-only built-ins; `model=` overrides the model.
-- **Typed results**: check `response.stop_reason` and validate `await response.structured_output()` (`None` when missing) via `Model.model_validate(...)`.
-- **Resume**: set `conversation_id` (>=32 alphanumeric/hyphen chars, no underscores), `session_continuation_mode` (`CREATE_ONLY`, `CREATE_OR_RESUME`, `RESUME`), and `save_dir`.
+- **Static over dynamic subagents**: prefer named `types.SubagentConfig` roles; `CapabilitiesConfig(enable_subagents=True)` self-clones with the parent's full toolset (`BuiltinTools.START_SUBAGENT` is deprecated for `INVOKE_SUBAGENT`).
+- **Subagent-scoped tools** (0.1.15+): functions in `SubagentConfig(tools=[...])` expose only to that subagent without registering on the root (contrary to older docs; duplicate names across callables raise `ValueError`). Custom tools (0.1.24+) can return SDK media (`Image`, `Audio`, `Video`, `Document`) or Pydantic models directly. `SubagentConfig.capabilities` defaults to read-only built-ins; `model=` overrides the model.
+- **Typed results**: check `response.stop_reason` and validate `await response.structured_output()` (`None` when missing; 0.1.24+ snapshots per turn) via `Model.model_validate(...)`.
+- **Resume & cancellation**: set `conversation_id` (>=32 alphanumeric/hyphen chars, no underscores), `session_continuation_mode` (`CREATE_ONLY`, `CREATE_OR_RESUME`, `RESUME`), and `save_dir`. In `0.1.24+`, `asyncio.CancelledError` reaps subprocesses/transports and surfaces non-zero teardown exits as `AntigravityExecutionError`.
 
 ## 3. Bound the Run
 
-- **Policies gate tools**: `policy.allow`, `deny`, `ask_user`, `workspace_only`, `allow_all`, `deny_all` (tool-specific rules beat wildcards). Under `deny_all()`, explicitly `allow("<function_name>")` each custom tool (verified 0.1.20); default `confirm_run_command()` (0.1.23) blocks shell commands only.
+- **Policies gate tools**: `policy.allow`, `deny`, `ask_user`, `workspace_only`, `allow_all`, `deny_all` (tool-specific rules beat wildcards). Under `deny_all()`, explicitly `allow("<function_name>")` each custom tool (verified 0.1.20); default `confirm_run_command()` (0.1.23–0.1.24) blocks shell commands only, and `ToolCall.canonical_path` (0.1.24+) normalizes `.`/`..` segments against traversal bypasses.
 - **Budgets gate volume**: `types.BudgetConfig(max_model_calls, max_tool_calls, max_input_tokens, max_output_tokens, max_total_tokens)` (`BudgetScope.FORWARD_LOOKING` counts post-resume spend only); pair with an `asyncio.timeout` deadline. Any `response.stop_reason` besides `UNSPECIFIED` (`MAX_*_EXCEEDED`, `QUOTA_EXHAUSTED`) means early termination.
 - **Side effects and telemetry**: `RunCommandConfig` controls command timeout (600s default), `enable_daemons` (off), and `enable_sandbox` (off; warns if unsupported); `CompactionConfig(token_threshold=...)` and `tool_output_truncation_config` bound context; omit `BuiltinTools.SCHEDULE` unless persistent timers belong. Track `response.usage_metadata.total_token_count` and audit hooks ([observability](../../../../python/references/observability.md)); never mask audit failures in `on_tool_error`.
 

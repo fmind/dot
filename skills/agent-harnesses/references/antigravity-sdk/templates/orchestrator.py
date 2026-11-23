@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.14"
-# dependencies = ["google-antigravity==0.1.23", "pydantic>=2.14.3"]
+# dependencies = ["google-antigravity==0.1.24", "pydantic>=2.14.3"]
 # ///
 """Fan work out to static subagents under explicit budgets and an explicit policy.
 
