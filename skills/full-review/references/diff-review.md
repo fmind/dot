@@ -7,7 +7,7 @@ description: "Review a diff, branch, or PR read-only: test strength, scope creep
 
 Review a diff, patch, branch, PR, or self-review in [full-review](../SKILL.md) `report` mode (read-only, no repo inventory or remote actions unless asked), ranking findings by [severity](../SKILL.md#severity) against the exact base and head.
 
-1. **Resolve base and head**: record dirty tree, local commit, or PR head, and read full patches per changed path (including generator inputs and locks). When Difftastic is installed, run `git -c diff.external=difft diff` (`git dft` in fmind/dot) to separate AST-neutral refactors from semantic edits.
+1. **Resolve base and head**: record dirty tree, local commit, or PR head, and read full patches per changed path (including generator inputs and locks). When Difftastic is installed, run `git -c diff.external=difft diff` to separate AST-neutral refactors from semantic edits.
 1. **Test the tests**: inspect assertions against the changed branches to confirm they would fail without the fix (optional on security, money, or data-loss boundaries: run a scoped scratch mutation probe per [mutation tests](../../python/references/testing/GUIDE.md#mutation-tests)).
 1. **Classify scope**: tag each changed dependency, config, public API, artifact, and suspect hunk as **keep**, **split**, or **justify** (never revert or restage hunks automatically).
 1. **Audit sensitive paths**: route authz, upload, deserialization, subprocess, credential, and agent-tool diffs through [code-review](../../code-security/references/code-review/GUIDE.md).

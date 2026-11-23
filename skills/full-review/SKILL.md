@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-11-22"
+  updated: "2026-11-23"
 ---
 
 # Full Review
