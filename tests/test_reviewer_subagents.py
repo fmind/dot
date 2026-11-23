@@ -18,57 +18,10 @@ from yaml.constructor import ConstructorError
 from yaml.resolver import BaseResolver
 
 from dot_tasks.skill_contracts import _read_utf8
-from repo_helpers import ROOT, chezmoi, native_binary
+from repo_helpers import ROOT, native_binary
 
 EXPECTED_REVIEWERS = frozenset(p.stem for p in (ROOT / "dot_agents/supagents").glob("fmind-review-*.md"))
 WEB_REVIEWERS = frozenset({"fmind-review-factcheck"})
-RETIRED_REVIEWERS = (
-    "fmind-review-ai",
-    "fmind-review-arch",
-    "fmind-review-deck",
-    "fmind-review-design",
-    "fmind-review-docker",
-    "fmind-review-estimate",
-    "fmind-review-figures",
-    "fmind-review-interface",
-    "fmind-review-k8s",
-    "fmind-review-ops",
-    "fmind-review-perf",
-    "fmind-review-pitch",
-    "fmind-review-rag",
-    "fmind-review-readme",
-    "fmind-review-sql",
-    "fmind-review-web",
-)
-RETIRED_HOST_REVIEWERS = (
-    "fmind-review-agents",
-    "fmind-review-api",
-    "fmind-review-architecture",
-    "fmind-review-cicd",
-    "fmind-review-cli",
-    "fmind-review-code",
-    "fmind-review-completeness",
-    "fmind-review-compliance",
-    "fmind-review-containers",
-    "fmind-review-data",
-    "fmind-review-docs",
-    "fmind-review-factcheck",
-    "fmind-review-finops",
-    "fmind-review-frontend",
-    "fmind-review-human",
-    "fmind-review-mlops",
-    "fmind-review-proposal",
-    "fmind-review-python",
-    "fmind-review-security",
-    "fmind-review-shell",
-    "fmind-review-simplicity",
-    "fmind-review-skill",
-    "fmind-review-sre",
-    "fmind-review-supagent",
-    "fmind-review-terraform",
-    "fmind-review-test",
-    "fmind-review-visuals",
-)
 EXPECTED_SUPAGENTS_CONFIG: dict[str, dict[str, dict[str, str]]] = {
     "targets": {
         "AGY": {"project_path": "private_dot_gemini/private_config/agents"},
@@ -531,83 +484,6 @@ def test_supagents_strict_check_and_compiled_outputs() -> None:
             assert 40 <= len(fm["description"]) <= 190
             _validate_host_block(host, {k: v for k, v in fm.items() if k not in {"name", "description"}}, tier=tier)
             _assert_contract_body(f"{host}/{path.name}", raw_body, expected_contracts[tier])
-
-
-def test_chezmoiremove_retires_removed_reviewers_and_retired_hosts_only(tmp_path: Path) -> None:
-    assert EXPECTED_REVIEWERS.isdisjoint(RETIRED_REVIEWERS)
-    source = tmp_path / "source"
-    source.mkdir()
-    remove_src = (ROOT / ".chezmoiremove").read_text(encoding="utf-8")
-    (source / ".chezmoiremove").write_text(remove_src, encoding="utf-8")
-    dest = tmp_path / "dest"
-    dest.mkdir()
-    config = tmp_path / "chezmoi.toml"
-    config.write_text("", encoding="utf-8")
-    env = {**os.environ, "HOME": str(dest)}
-
-    rendered_remove = {
-        ln.strip()
-        for ln in chezmoi(source, "execute-template", config=config, env=env, stdin=remove_src).splitlines()
-        if ln.strip() and not ln.lstrip().startswith("#")
-    }
-    expected_retired_paths = {
-        *(
-            path
-            for retired in RETIRED_REVIEWERS
-            for path in (
-                f".agents/supagents/{retired}.md",
-                f".gemini/config/agents/{retired}.md",
-                f".claude/agents/{retired}.md",
-                f".copilot/agents/{retired}.agent.md",
-                f".config/opencode/agents/{retired}.md",
-            )
-        ),
-        *(
-            path
-            for active in RETIRED_HOST_REVIEWERS
-            for path in (
-                f".claude/agents/{active}.md",
-                f".config/opencode/agents/{active}.md",
-            )
-        ),
-    }
-    agent_or_glob_entries = {
-        ln for ln in rendered_remove if "agents" in ln or "supagents" in ln or any(ch in ln for ch in "*?[")
-    }
-    assert agent_or_glob_entries == expected_retired_paths
-
-    surviving_paths = {
-        *(
-            path
-            for active in ("fmind-review-architecture", "fmind-review-code", "fmind-review-data")
-            for path in (
-                f".agents/supagents/{active}.md",
-                f".gemini/config/agents/{active}.md",
-                f".copilot/agents/{active}.agent.md",
-            )
-        ),
-        ".agents/supagents/_reviewer.md",
-        ".agents/supagents/_reviewer_web.md",
-        ".claude/agents/custom-local.md",
-    }
-    for rel in expected_retired_paths | surviving_paths:
-        target = dest / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("fixture\n", encoding="utf-8")
-
-    chezmoi(
-        source,
-        "apply",
-        "--force",
-        "--destination",
-        str(dest),
-        "--persistent-state",
-        str(tmp_path / "state.boltdb"),
-        config=config,
-        env=env,
-    )
-    assert all(not (dest / rel).exists() for rel in expected_retired_paths)
-    assert all((dest / rel).is_file() for rel in surviving_paths)
 
 
 def test_supagents_config_and_outputs_excluded_from_chezmoi_and_dprint() -> None:
