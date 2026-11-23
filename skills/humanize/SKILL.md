@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/humanize
   created: "2026-08-20"
-  updated: "2026-11-22"
+  updated: "2026-11-23"
   kind: task
 ---
 
@@ -26,6 +26,7 @@ Central guide for human-facing writing. **Default reader:** a busy executive or 
 ## Length Budgets & Channel Guides
 
 - **Budgets**: Chat `<= 60–80`w (`3–5` lines) · Email `<= 120–150`w (`~100`w replies) · Brief/memo `~250–400`w (`<= 1` screen) · PRs/issues `~150–250`w · Slides `~30`w + one focal visual.
+- **Tight rewrites**: when shortening a draft, add a 1-line note outside the copy stating what was cut vs kept (for example, `Cut background (~40% shorter); kept trade-offs and numbers`) so over-cuts surface immediately.
 - **Guides**: [outlines](references/outlines.md), [primitives](references/primitives.md), [report.html](templates/report.html), [report.md](templates/report.md) · Channels: [draft](../draft/SKILL.md), [docs](../docs/SKILL.md), [github](../github/SKILL.md), [acli](../cloud-ops/references/acli.md), [gws/chat](../gws/references/chat.md), [diagrams-as-code](../diagrams-as-code/SKILL.md), [playwright](../web-frontend/references/playwright.md).
 
 ## Pre-Send Gate

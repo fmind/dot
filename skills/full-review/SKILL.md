@@ -1,6 +1,6 @@
 ---
 name: full-review
-description: "Review diffs, PRs, or repos for readiness, smoke tests, HTTP/DNS probing (xh/hurl/doggo), dead code, and ignores."
+description: "Code review and readiness audits for diffs, PRs, or repos: smoke tests, HTTP/DNS probing (xh/hurl/doggo), dead code, and ignores."
 license: MIT
 metadata:
   kind: task
@@ -29,7 +29,7 @@ Ask only when ambiguity alters scope, cost, or reversibility:
 
 ## Supagent Routing
 
-Pick matching `fmind-review-*` roles from discovered subagents ([subagent](../subagent/SKILL.md)): `1–2` on small diffs or `3–5` in parallel on cross-cutting/whole-repo reviews. Anchor substantive reviews with `fmind-review-completeness`, add `fmind-review-simplicity` on whole-repo/refactors, and isolate `fmind-review-factcheck` on secret-bearing repos per [cross-harness-agents](../agent-harnesses/references/cross-harness-agents.md#permission-limits).
+Pick matching `fmind-review-*` roles from discovered subagents ([subagent](../subagent/SKILL.md)): `1–2` on small diffs or `3–5` in parallel on cross-cutting/whole-repo reviews. Default code reviews to `fmind-review-code` plus matching language/test/perf peers (`fmind-review-python`/`shell`, `test`, `sre`—including CLI/library hot paths—and `simplicity` on refactors/whole-repo). Anchor substantive reviews with `fmind-review-completeness` and isolate `fmind-review-factcheck` on secret-bearing repos per [cross-harness-agents](../agent-harnesses/references/cross-harness-agents.md#permission-limits).
 
 ## Proof ladder
 
