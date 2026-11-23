@@ -140,7 +140,7 @@ wheels = [
 
 [[package]]
 name = "fmind-dot"
-version = "18.2.2"
+version = "18.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },

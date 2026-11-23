@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.3.0] - 2026-11-23
+
+### 🚀 Features
+
+- _(tools)_ Add ast-grep and opengrep to global toolchain, doctor, and completions
+- _(zellij)_ Configure ask-detach quit, session suggestions, and fullscreen keybinds
+- _(skills)_ Standardize starter baselines with cliff.toml, SECURITY.md, lychee, typos, and docs lefthook
+- _(testing)_ Add Allure 3 BDD templates, report sanitizer, and expanded testing guides
+
+### 🐛 Bug Fixes
+
+- _(tests)_ Isolate GWS config env and parametrize URL fixture ID against leaks
+
+### 📚 Documentation
+
+- _(agents)_ Refine proportional feedback, reviewer routing, and defect-to-linter guidance
+
+### 🧹 Miscellaneous
+
+- _(chezmoi)_ Remove .chezmoiremove after final rollout
+
 ## [18.2.2] - 2026-11-23
 
 ### 🐛 Bug Fixes
