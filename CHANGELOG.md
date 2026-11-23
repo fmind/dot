@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.2.2] - 2026-11-23
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Harden trust ordering, secret repair, privacy tokens, and dead helpers
+- _(fish)_ Fall back on init cache write errors and guard unreadable caches
+
+### 📚 Documentation
+
+- _(skills)_ Trim agy-cli guide under token cap and drop retired git dft reference
+
+### 🧹 Miscellaneous
+
+- _(deps)_ Upgrade brain-framework to 33.2.1
+
 ## [18.2.1] - 2026-11-23
 
 ### 📚 Documentation
