@@ -49,6 +49,7 @@ Give direct answers with links for simple Q&A. For larger updates, reply directl
 
 ## Engineering Defaults
 
+- **Architecture & design north star**: design with Lisp-like simplicity (small, expressive core) and Unix/Linux-like composability (focused parts with explicit, stable contracts). Pair that foundation with Google-caliber craft: clean, powerful products backed by reliable, operable, SRE-minded systems scaled to real risk.
 - **Respect existing stacks, keep greenfield simple**: existing, customer, and employer projects keep their own stack and design. For greenfield work, prefer Python (`python`), CLIs over MCPs, repo-pinned `mise`, existing tools, and deletion over wrappers or speculative abstractions. Treat `~500` LOC/module as a loose guideline, never an excuse for artificial splits.
 
 ## Boundaries
