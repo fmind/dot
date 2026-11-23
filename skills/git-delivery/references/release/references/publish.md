@@ -12,11 +12,11 @@ Prefer the repository's native release task when defined; use this fallback only
 1. **Compute the next tag** (`feat` → minor, `fix`/others → patch, `!`/`BREAKING CHANGE` → major; keep the `v` prefix, start untagged repos at `v0.1.0`, and override `git-cliff` only for deliberate milestones):
 
    ```bash
-   tag=$(git-cliff --bumped-version)   # pass --config pyproject.toml when configured there; global ~/.config/git-cliff shadows [tool.git-cliff] otherwise
+   tag=$(git-cliff --bumped-version)   # repo-root cliff.toml loads automatically; pass --config pyproject.toml when configured there (global ~/.config/git-cliff shadows [tool.git-cliff] otherwise)
    ```
 
 1. **Bump static manifests**: run `uv version "${tag#v}" --no-sync` for static Python versions (`pyproject.toml` + `uv.lock`) and check OpenTofu version constants; skip for VCS-versioned (`hatch-vcs`) packages.
-1. **Update `CHANGELOG.md`** (`--prepend` preserves prior edits; use `-o CHANGELOG.md` only to initialize a missing file):
+1. **Update `CHANGELOG.md`** (copy [cliff.toml](../../../templates/cliff.toml) if the repo has no local config; `--prepend` populates a header stub and preserves prior edits, while `-o CHANGELOG.md` initializes a missing file):
 
    ```bash
    git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md

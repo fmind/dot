@@ -25,13 +25,16 @@ TRIVY_NO_PROGRESS = "true"
 [tools]
 betterleaks = "latest"
 dprint = "latest"
+git-cliff = "latest"
 jactionlint = "latest"
 lefthook = "latest"
+lychee = "latest"
 opentofu = "latest"
 shellcheck = "latest"
 terraform-docs = "latest"
 tflint = "latest"
 trivy = "latest"
+typos = "latest"
 
 [tasks.all]
 alias = "a"
@@ -60,7 +63,16 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no network (pre-commit)"
-depends = ["check:actions", "check:format", "check:leaks", "check:lint", "check:tasks", "check:validate"]
+depends = [
+  "check:actions",
+  "check:format",
+  "check:leaks",
+  "check:links",
+  "check:lint",
+  "check:tasks",
+  "check:typos",
+  "check:validate",
+]
 
 [tasks."check:actions"]
 alias = "ca"
@@ -90,6 +102,10 @@ run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
 run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
+[tasks."check:links"]
+description = "Check offline Markdown links and fragments (lychee)"
+run = "lychee --offline --include-fragments --no-progress --extensions md ."
+
 [tasks."check:lint"]
 alias = "cl"
 description = "Lint HCL with provider-aware rules (tflint)"
@@ -103,6 +119,10 @@ run = "trivy --config trivy.yaml fs --tf-vars terraform.example.tfvars ."
 [tasks."check:tasks"]
 description = "Validate repository task and Git hook definitions"
 run = ["mise tasks validate", "lefthook validate"]
+
+[tasks."check:typos"]
+description = "Check spelling across documentation and sources (typos)"
+run = "typos"
 
 [tasks."check:validate"]
 description = "Validate configuration syntax and internal consistency"

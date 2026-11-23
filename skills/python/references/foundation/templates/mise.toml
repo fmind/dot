@@ -21,11 +21,14 @@ dir = "{{config_root}}"
 # Scaffold selectors: replace with exact baseline pins before locking and installation.
 betterleaks = "latest"
 dprint = "latest"
+git-cliff = "latest"
 jactionlint = "latest"
 lefthook = "latest"
+lychee = "latest"
 # Default to 3.14; bump to 3.15 for pure-Python packages whose deps all support it.
 python = "3.14"
 shellcheck = "latest"
+typos = "latest"
 uv = "latest"
 
 [tasks.all]
@@ -45,7 +48,17 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run the static checks that need no network (pre-commit)"
-depends = ["check:actions", "check:deps", "check:format", "check:leaks", "check:lint", "check:tasks", "check:types"]
+depends = [
+  "check:actions",
+  "check:deps",
+  "check:format",
+  "check:leaks",
+  "check:links",
+  "check:lint",
+  "check:tasks",
+  "check:types",
+  "check:typos",
+]
 
 [tasks."check:actions"]
 alias = "ca"
@@ -85,6 +98,10 @@ run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
 run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
+[tasks."check:links"]
+description = "Check offline Markdown links and fragments (lychee)"
+run = "lychee --offline --include-fragments --no-progress --extensions md ."
+
 [tasks."check:lint"]
 alias = "cl"
 description = "Lint Python sources (ruff)"
@@ -98,6 +115,10 @@ run = ["mise tasks validate", "lefthook validate"]
 alias = "ct"
 description = "Type-check Python sources (ty)"
 run = "uv run --locked ty check"
+
+[tasks."check:typos"]
+description = "Check spelling across documentation and sources (typos)"
+run = "typos"
 
 [tasks."check:vuln"]
 alias = "cv"

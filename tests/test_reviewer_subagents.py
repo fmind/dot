@@ -645,6 +645,7 @@ def test_vale_accepts_external_starter_markdown_templates() -> None:
         ROOT / "skills/humanize/templates/report.md",
         ROOT / "skills/humanize/templates/report.html",
         ROOT / "skills/docs/references/repository/templates/README.md",
+        ROOT / "skills/github/templates/SECURITY.md",
         ROOT / "skills/infra-as-code/templates/README.md",
         *sorted((ROOT / "skills/docs/references/site/templates").glob("*.md")),
         ROOT / "skills/python/references/foundation/templates/docs-index.md",

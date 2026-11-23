@@ -17,16 +17,17 @@ Compose the selected foundation and application owner, then add the shared repos
    - **Docs, IaC, Containers**: [docs/site](../../docs/references/site/GUIDE.md) (standalone `docs.yml` replaces `ci.yml`; Python libraries opt in), [infra-as-code](../../infra-as-code/SKILL.md), [containerize](../../containers/references/containerize/GUIDE.md)/[cloud-run](../../gcloud/references/cloud-run/GUIDE.md)/[kubernetes](../../containers/references/kubernetes/GUIDE.md). Combining `Python + infra/ + docs/ + Dockerfile` keeps Python `mise.toml` as root, merges [in-app OpenTofu](../../infra-as-code/references/scaffold.md#opentofu-inside-an-application-repository), extends `zensical.toml` ([template](../../docs/references/site/templates/zensical.toml)), and aligns [.dockerignore](../../containers/references/containerize/templates/.dockerignore).
 1. **Add the shared layer** (skipping files already supplied):
    - `LICENSE`: [project-license](project-license/GUIDE.md); ignores: [update-ignores](../../full-review/references/update-ignores/GUIDE.md).
+   - Changelog: [cliff.toml](../../git-delivery/templates/cliff.toml) + `CHANGELOG.md` header stub (populated by `git-cliff` on release).
    - [dprint.json](../../mise/templates/dprint.json) ([dprint](../../mise/references/dprint.md)); hooks: [lefthook](lefthook.md).
-   - Security: `.betterleaks.toml` ([betterleaks.toml](../../code-security/templates/betterleaks.toml)) + `check:leaks`/`check:vuln`/`check:actions`; add [trivy.yaml](../../code-security/references/trivy/templates/trivy.yaml) + `check:scan` for containers, IaC, or non-`uv` locks ([code-security](../../code-security/references/code-review/GUIDE.md)).
+   - Security: `.betterleaks.toml` ([betterleaks.toml](../../code-security/templates/betterleaks.toml)) + `check:leaks`/`vuln`/`actions`; add [trivy.yaml](../../code-security/references/trivy/templates/trivy.yaml) + `check:scan` for containers, IaC, or non-`uv` locks ([code-security](../../code-security/references/code-review/GUIDE.md)). Add root [SECURITY.md](../templates/SECURITY.md) only for custom scope/accepted trade-offs (read by `fmind-review-*`) or repos without public `<owner>/.github/SECURITY.md` ([settings-baseline](repository/references/settings-baseline.md#gotchas)).
    - CI/Dependabot: [ci-cd](ci-cd/GUIDE.md), [dependabot.yml](../templates/dependabot.yml), and [jactionlint.yaml](../templates/jactionlint.yaml).
    - Agent & docs: `AGENTS.md` (when absent) and `.agents/skills/` via [project-setup](../../agent-harnesses/references/project-setup.md); `README.md` via [docs/repository](../../docs/references/repository/GUIDE.md) ([README standard](../../docs/references/repository/references/readme.md)).
-1. **Pin tools via [mise](../../mise/SKILL.md)**: replace `latest` with exact pins (`mise use --path mise.toml --pin <tool>`) and commit `mise.lock` so the repo builds without `fmind/dot` (never assume repo CI/release tools live globally):
-   - **All repos**: `betterleaks`, `dprint`, `git-cliff`, `jactionlint`, `lefthook`, `lychee`, `typos` (add `trivy` for containers, IaC, or non-`uv` locks; `shellcheck` + `shfmt` when shipping shell scripts; `vale` for public docs).
-   - **Python**: `python`, `uv` (Ruff, ty, pytest, deptry live in `pyproject.toml` `[dependency-groups]` dev).
+1. **Pin tools via [mise](../../mise/SKILL.md)**: pin exact versions (`mise use --path mise.toml --pin <tool>`) and commit `mise.lock` so builds need no `fmind/dot`:
+   - **All repos**: `betterleaks`, `dprint`, `git-cliff`, `jactionlint`, `lefthook`, `lychee`, `shellcheck`, `typos` (add `trivy` for containers, IaC, or non-`uv` locks; `shfmt` for shell scripts; `vale` for public docs).
+   - **Python**: `python`, `uv` (Ruff, ty, pytest, deptry in `pyproject.toml` dev deps).
    - **OpenTofu / K8s**: `opentofu`, `tflint`, `terraform-docs` (`kubectl`, `helm`, `kustomize`, `kubeconform` for K8s).
    - **Typst decks / Docs**: `typst` (or `zensical` in `uv` dev deps for doc sites).
-1. **Validate locally**: `mise run install` and `mise run all` (including `check:leaks`); qualify wheels and entry points for packages.
+1. **Validate locally**: `mise run install && mise run all`; qualify wheels and entry points for packages.
 1. **Publish & ship when authorized**: commit (`chore: initial commit`, [commit messages](../../git-delivery/SKILL.md#commit-messages)), push via [repository](repository/GUIDE.md), release `v0.1.0` ([release](../../git-delivery/references/release/GUIDE.md)), and deploy ([cloud-run](../../gcloud/references/cloud-run/GUIDE.md)):
 
    ```bash
@@ -37,7 +38,7 @@ Compose the selected foundation and application owner, then add the shared repos
 
 ## Gotchas
 
-- **Keep composed `AGENTS.md`**: merge application instructions into the foundation; never overwrite with `project-setup`'s generic template.
+- **Keep composed `AGENTS.md`**: merge app rules into foundation; never overwrite with `project-setup`'s template.
 - **Never scaffold real secrets**: `.env.example` lists variable names only.
 
 ## Documentation

@@ -8,7 +8,7 @@ Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `u
 
 - `mise run install`: `uv sync --locked` (malware-checked) + git hooks.
 - `mise run format`: `ruff` (imports + format) and `dprint`.
-- `mise run check`: `check:local` (`jactionlint`, `ruff`, `ty`, `deptry`, `dprint`, `betterleaks`, `validate-pyproject`, `uv lock --check`, `check:tasks` via `mise tasks validate` and `lefthook validate`) + `check:network` (`uv audit`).
+- `mise run check`: `check:local` (`jactionlint`, `ruff`, `ty`, `deptry`, `dprint`, `betterleaks`, `lychee`, `typos`, `validate-pyproject`, `uv lock --check`, `check:tasks` via `mise tasks validate` and `lefthook validate`) + `check:network` (`uv audit`).
 - `mise run test`: offline `pytest` (`pytest-socket` loopback-only, 60s timeout, 85% branch coverage).
 - `mise run build`: `uv build --clear --no-sources` (add `build:docs` / `test:integration` / `test:e2e` tasks when opted in).
 - **Fast inner loop**: `uv run --locked pytest -q <path>::<test>`, `uv run --locked pytest -q -x -l --lf`, `uv run --locked ruff check <path>`, `uv run --locked ty check <path>`; finish with full `mise` gates.
@@ -23,4 +23,4 @@ Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `u
 - `src/<package>/`: package exports (`__init__.py`, `__version__`) and cohesive domain modules.
 - `tests/`: deterministic offline tests (`@pytest.mark.integration` opt-in only when needed).
 - `.agents/skills/`, `.agents/supagents/`: project skills and static read-only reviewers (when used; content producers remain dynamic).
-- `pyproject.toml`, `mise.toml`, `lefthook.yml`, `dprint.json`: single sources of truth for config and pins.
+- `pyproject.toml`, `mise.toml`, `lefthook.yml`, `dprint.json`, `cliff.toml`: single sources of truth for config and pins.

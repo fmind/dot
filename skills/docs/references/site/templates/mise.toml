@@ -22,9 +22,12 @@ dir = "{{config_root}}"
 # Scaffold selectors: replace with exact pins; CI installs only what this table declares.
 betterleaks = "latest"
 dprint = "latest"
+git-cliff = "latest"
 jactionlint = "latest"
 lefthook = "latest"
+lychee = "latest"
 shellcheck = "latest"
+typos = "latest"
 uv = "latest"
 
 [tasks.all]
@@ -63,6 +66,10 @@ run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
 run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
+[tasks."check:links"]
+description = "Check offline Markdown links and fragments (lychee)"
+run = "lychee --offline --include-fragments --no-progress --extensions md ."
+
 [tasks."check:actions"]
 alias = "ca"
 description = "Lint GitHub Actions workflows and shell snippets offline (jactionlint + shellcheck)"
@@ -73,8 +80,12 @@ description = "Audit GitHub Actions workflows with online checks"
 run = "jactionlint --online=strict --strict-exit"
 
 [tasks."check:tasks"]
-description = "Validate repository task definitions"
-run = "mise tasks validate"
+description = "Validate repository task and Git hook definitions"
+run = ["mise tasks validate", "lefthook validate"]
+
+[tasks."check:typos"]
+description = "Check spelling across documentation and sources (typos)"
+run = "typos"
 
 [tasks."check:vuln"]
 alias = "cv"
@@ -104,7 +115,7 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run offline checks (pre-commit)"
-depends = ["check:actions", "check:format", "check:leaks", "check:tasks"]
+depends = ["check:actions", "check:format", "check:leaks", "check:links", "check:tasks", "check:typos"]
 
 [tasks."check:network"]
 description = "Audit locked dependencies and build the site with vendored font/Mermaid assets (pre-push)"

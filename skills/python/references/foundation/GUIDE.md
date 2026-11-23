@@ -37,6 +37,13 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; keep existing conventions
 - **Bounds, precedence, & suppressions**: pin `ty>=<latest>,<0.1`; `ty.toml` overrides `[tool.ty]` and `[tool.ty.environment].python-version` overrides `requires-python`. Require `# ty: ignore[rule]` (`blanket-ignore-comment = "error"`, `unused-ignore-comment` errors; never `--exit-zero-on-warning` or `--add-ignore`).
 - **Legacy baseline (`0.0.93+`)**: `[tool.ty] baseline = "ty-baseline.json"`, update once (`ty check --update-baseline`), and accept only entry-deleting diffs.
 
+### Architecture & structural gates (opt-in)
+
+Add once a package grows multiple internal layers or recurring agent-violated invariants—prefer mechanical rules over prose in `AGENTS.md`:
+
+- **Module boundaries (`import-linter`)**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev import-linter`, declare `[tool.importlinter]` (`root_package = "<package>"`) and `[[tool.importlinter.contracts]]` (`type = "layers"`, `"forbidden"`, or `"acyclic_siblings"`) in `pyproject.toml`, and wire `uv run --locked lint-imports --no-logo` into `check:local` (prefer over `tach`, which is unmaintained).
+- **Custom AST invariants (`ast-grep`)**: pin `ast-grep` in project `mise.toml` (and regenerate `mise.lock`), add `sgconfig.yml` (`ruleDirs: [.ast-grep/rules]`, `testDirs: [.ast-grep/tests]`) with YAML rules setting `severity: error` and a remediation `message:` explaining the approved helper or pattern, wire `ast-grep scan` into `check:local`, test rules with `ast-grep test`, and keep `--custom-languages` at its `ignore` default unless reviewed.
+
 ## Documentation
 
-- Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins) ([vendor-skills](../../../agent-harnesses/references/vendor-skills.md)) · [Python](https://docs.python.org/3/) · [uv](https://docs.astral.sh/uv/) ([releases](https://github.com/astral-sh/uv/releases)) · [Ruff](https://docs.astral.sh/ruff/) ([releases](https://github.com/astral-sh/ruff/releases)) · [ty](https://docs.astral.sh/ty/) ([releases](https://github.com/astral-sh/ty/releases)) · Companions: [language](../language.md), [testing](../testing/GUIDE.md).
+- Upstream: [astral-sh/claude-code-plugins](https://github.com/astral-sh/claude-code-plugins) ([vendor-skills](../../../agent-harnesses/references/vendor-skills.md)) · [Python](https://docs.python.org/3/) · [uv](https://docs.astral.sh/uv/) ([releases](https://github.com/astral-sh/uv/releases)) · [Ruff](https://docs.astral.sh/ruff/) ([releases](https://github.com/astral-sh/ruff/releases)) · [ty](https://docs.astral.sh/ty/) ([releases](https://github.com/astral-sh/ty/releases)) · [import-linter](https://import-linter.readthedocs.io/) · [ast-grep](https://ast-grep.github.io/) · Companions: [language](../language.md), [testing](../testing/GUIDE.md).

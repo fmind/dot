@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-11-22"
+  updated: "2026-11-23"
 ---
 
 # Git Delivery

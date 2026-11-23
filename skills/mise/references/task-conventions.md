@@ -34,7 +34,7 @@ Split `<task>:<x>` only when parts run independently:
 
 ## Conventions
 
-- **Parallelize offline vs network checks**: `check` depends on `check:local` (`check:deps`, `check:format`, `check:leaks`, `check:lint`, `check:types`—`pre-commit`) and `check:network` (`check:vuln`, optional `check:scan`—`pre-push`) per [lefthook](../../github/references/lefthook.md). Use `wait_for` for ordering without forcing execution.
+- **Parallelize offline vs network checks**: `check` depends on `check:local` (`check:actions`, `check:deps`, `check:format`, `check:leaks`, `check:links`, `check:lint`, `check:tasks`, `check:types`, `check:typos`—`pre-commit`) and `check:network` (`check:vuln`, optional `check:scan`—`pre-push`) per [lefthook](../../github/references/lefthook.md). Use `wait_for` for ordering without forcing execution.
 - **Declare `sources` and `outputs`** on build tasks so unchanged inputs skip rebuilds.
 - **Forward file args cleanly**: without `usage`, mise appends CLI args to the last command (`format:dprint` takes `{staged_files}` directly). Multi-command formatters (`format:python`) or custom defaults declare `usage = 'arg "[files]..."'` and start with `eval "set -- ${usage_files:-}"` (set multi-file defaults in `run` via `[ $# -gt 0 ] || set -- ...`—`default="a b"` quotes all words as one arg) so one task serves hooks and `mise run format` without `:files` duplicates.
 

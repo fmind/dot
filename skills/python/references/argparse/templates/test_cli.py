@@ -66,8 +66,8 @@ def test_version(capsys: pytest.CaptureFixture[str]) -> None:
         [],
         ["--unknown-option"],
         ["greet", "--name"],
-        ["gret"],  # typos: ignore-line
-        ["greet", "--nam", "Ada"],  # typos: ignore-line
+        ["greetx"],
+        ["greet", "--na", "Ada"],
     ],
 )
 def test_usage_errors(capsys: pytest.CaptureFixture[str], args: list[str]) -> None:
