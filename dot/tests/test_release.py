@@ -60,7 +60,9 @@ class ReleaseRunner(Runner):
         call = tuple(args)
         self.calls.append(call)
         if args[0] == "uv":
-            return Runner().run(args, cwd=cwd, env={**(env or {}), "UV_OFFLINE": "1"}, timeout=timeout)
+            return Runner().run(
+                args, cwd=cwd, env={**(env or {}), "UV_OFFLINE": "1", "UV_LOCKED": "0"}, timeout=timeout
+            )
         response = self.responses.get(call, CommandResult("", "", 0))
         if isinstance(response, BaseException):
             raise response
@@ -97,7 +99,7 @@ def project(tmp_path: Path) -> Path:
         '[project]\nname = "fmind-dot"\nversion = "1.26.2"\nrequires-python = ">=3.14"\ndependencies = []\n'
     )
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n")
-    Runner().run(["uv", "lock", "--project", str(package)], env={"UV_OFFLINE": "1"})
+    Runner().run(["uv", "lock", "--project", str(package)], env={"UV_OFFLINE": "1", "UV_LOCKED": "0"})
     return tmp_path
 
 

@@ -178,11 +178,11 @@ run = "stylua --check dot_config/nvim"
 
 [tasks."check:privacy"]
 description = "Scan non-encrypted sources and local commits for unapproved emails, SSH comments, and workstation tokens"
-run = "uv run --frozen --project dot dot privacy -q ."
+run = "uv run --locked --project dot dot privacy -q ."
 
 [tasks."check:privacy:staged"]
 description = "Scan staged Git index blobs and local commits for unapproved emails, SSH comments, and workstation tokens"
-run = "uv run --frozen --project dot dot privacy --staged -q ."
+run = "uv run --locked --project dot dot privacy --staged -q ."
 
 [tasks."check:python"]
 description = "Lint, format-check, type-check, and validate Python packaging and dependencies"
@@ -199,27 +199,27 @@ depends = [
 [tasks."check:python:lint"]
 hide = true
 # ruff.toml scopes Ruff.
-run = "uv run --frozen --project dot ruff check ."
+run = "uv run --locked --project dot ruff check ."
 
 [tasks."check:python:format"]
 hide = true
-run = "uv run --frozen --project dot ruff format --check ."
+run = "uv run --locked --project dot ruff format --check ."
 
 [tasks."check:python:types"]
 hide = true
-run = "uv run --frozen --project dot ty check --project dot --extra-search-path tests --extra-search-path skills/gws/scripts --extra-search-path skills/draft/references/typst-deck/scripts --extra-search-path skills/draft/references/mail/scripts dot tests skills --exclude 'skills/*/templates' --exclude 'skills/*/references/*/templates'"
+run = "uv run --locked --project dot ty check --project dot --extra-search-path tests --extra-search-path skills/gws/scripts --extra-search-path skills/draft/references/typst-deck/scripts --extra-search-path skills/draft/references/mail/scripts dot tests skills --exclude 'skills/*/templates' --exclude 'skills/*/references/*/templates'"
 
 [tasks."check:python:types-display"]
 hide = true
-run = "uv run --frozen --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py"
+run = "uv run --locked --project dot ty check --python-version 3.9 private_dot_gemini/private_antigravity-cli/display.py"
 
 [tasks."check:python:deptry"]
 hide = true
-run = "uv run --frozen --directory dot deptry ."
+run = "uv run --locked --directory dot deptry ."
 
 [tasks."check:python:pyproject"]
 hide = true
-run = "uv run --frozen --project dot validate-pyproject dot/pyproject.toml"
+run = "uv run --locked --project dot validate-pyproject dot/pyproject.toml"
 
 [tasks."check:python:lock"]
 hide = true
@@ -269,7 +269,7 @@ run = "gh skill publish --dry-run skills"
 
 [tasks."check:skills:contracts"]
 hide = true
-run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts"
+run = "uv run --locked --directory dot python -m dot_tasks.skill_contracts"
 
 [tasks."check:skills:links"]
 hide = true
@@ -281,7 +281,7 @@ description = "Validate cross-harness subagent sources and generated configurati
 wait_for = ["format:supagents"]
 run = """
 set -eu
-if output="$(uv run --frozen --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml 2>&1)"; then
+if output="$(uv run --locked --project dot supagents check --strict --project --source-dir dot_agents/supagents --config supagents.yaml 2>&1)"; then
   printf '%s\n' "$output" | tail -n 1
 else
   rc=$?
@@ -309,7 +309,7 @@ run = "vale --no-global --config .vale.ini --output=line AGENTS.md dot_agents/AG
 
 [tasks."check:completions"]
 description = "Validate active Fish completion generators without changing installed scripts"
-run = "uv run --frozen --directory dot python -m dot_tasks.completions --check"
+run = "uv run --locked --directory dot python -m dot_tasks.completions --check"
 
 [tasks."check:vuln"]
 description = "Audit the locked Python dependency graph"
@@ -318,7 +318,7 @@ run = "uv audit --project dot --preview-features audit-command --locked"
 [tasks."report:coverage"]
 description = "Show per-file coverage from the last test run without rerunning tests"
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage" }
-run = "uv run --frozen --project dot coverage report --rcfile=dot/pyproject.toml"
+run = "uv run --locked --project dot coverage report --rcfile=dot/pyproject.toml"
 
 [tasks.format]
 alias = "f"
@@ -335,14 +335,14 @@ run = "dprint fmt --allow-no-files"
 
 [tasks."format:skills"]
 description = "Generate parent routing indexes from guide metadata"
-run = "uv run --frozen --directory dot python -m dot_tasks.skill_contracts --sync"
+run = "uv run --locked --directory dot python -m dot_tasks.skill_contracts --sync"
 
 [tasks."format:supagents"]
 description = "Compile canonical subagent sources into native harness profiles and remove retired outputs"
 wait_for = ["format:dprint"]
 run = [
-  "uv run --frozen --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
-  "uv run --frozen --project dot supagents clean --project --source-dir dot_agents/supagents --config supagents.yaml",
+  "uv run --locked --project dot supagents build --strict --project --source-dir dot_agents/supagents --config supagents.yaml",
+  "uv run --locked --project dot supagents clean --project --source-dir dot_agents/supagents --config supagents.yaml",
 ]
 
 # Lefthook passes staged files to these formatters; mise hands variadic arguments
@@ -362,8 +362,8 @@ usage = 'arg "[files]..." default="."'
 run = '''
 set -eu
 eval "set -- ${usage_files:-}"
-uv run --frozen --project dot ruff check --fix-only -- "$@"
-uv run --frozen --project dot ruff format -- "$@"
+uv run --locked --project dot ruff check --fix-only -- "$@"
+uv run --locked --project dot ruff format -- "$@"
 '''
 
 [tasks."format:shell"]
@@ -393,12 +393,12 @@ description = "Run the Python CLI and repository contract tests"
 # Keep the total and threshold; report:coverage reads per-file detail from dot/.coverage.
 wait_for = ["check:leaks"]
 env = { COVERAGE_FILE = "{{config_root}}/dot/.coverage", TZ = "UTC" }
-run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 --dist worksteal dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
+run = "uv run --locked --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 8 --dist worksteal dot/tests tests --cov --cov-config=dot/pyproject.toml --cov-report="
 
 [tasks."test:starters"]
 description = "Materialize and execute Python, MCP, ML, script, docs, OpenTofu, and deck starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
-run = "uv run --frozen --project dot pytest -c dot/pyproject.toml -q --force-enable-socket --timeout=600 tests/test_python_starter.py"
+run = "uv run --locked --project dot pytest -c dot/pyproject.toml -q --force-enable-socket --timeout=600 tests/test_python_starter.py"
 
 # Project management tasks. Every alias begins with m.
 
@@ -410,7 +410,7 @@ run = "chezmoi apply --force"
 [tasks.completions]
 alias = "mg"
 description = "Generate Fish completions for installed CLI tools"
-run = "uv run --frozen --directory dot python -m dot_tasks.completions"
+run = "uv run --locked --directory dot python -m dot_tasks.completions"
 
 [tasks.deploy]
 alias = "me"
@@ -418,7 +418,7 @@ description = "Install the dot CLI from this checkout with its locked dependency
 # uv tool install ignores uv.lock, so the exported lock constrains it (uv skips constraint
 # hashes). --reinstall rebuilds unversioned source edits; --force replaces another ~/.local/bin/dot.
 run = [
-  "uv export --project dot --frozen --no-dev --no-emit-project --no-hashes --quiet --output-file dot/dist/constraints.txt",
+  "uv export --project dot --locked --no-dev --no-emit-project --no-hashes --quiet --output-file dot/dist/constraints.txt",
   "uv tool install --reinstall --force --python 3.14 --constraints dot/dist/constraints.txt ./dot",
 ]
 
@@ -442,7 +442,7 @@ run = [
   "uv lock --project dot",
   "{{vars.repo_mise}} lock --yes",
   # Resolve the portable source baseline, without machine-local tool overrides.
-  "uv run --frozen --directory dot python -m dot_tasks.mise_refresh",
+  "uv run --locked --directory dot python -m dot_tasks.mise_refresh",
 ]
 
 [tasks."lock:tool"]
@@ -452,13 +452,13 @@ usage = 'arg "<tools>..." help="[tools] keys from dot_config/mise/config.toml, s
 run = '''
 set -eu
 eval "set -- ${usage_tools:-}"
-uv run --frozen --directory dot python -m dot_tasks.mise_refresh --tool "$@"
+uv run --locked --directory dot python -m dot_tasks.mise_refresh --tool "$@"
 '''
 
 [tasks.release]
 alias = "mr"
 description = "Prepare, tag, and push the next release; CD publishes it"
-run = "uv run --frozen --directory dot python -m dot_tasks.release"
+run = "uv run --locked --directory dot python -m dot_tasks.release"
 
 [tasks.full]
 description = "Install locked repository and global tools, apply dotfiles, deploy dot, and regenerate completions"
@@ -469,7 +469,7 @@ run = [
   # chezmoi keeps deployed targets whose source was removed: drop superseded version graphs
   # on every machine that syncs, not only on the one that upgraded. Retire before installing:
   # mise reuses an install directory whose graph changed, so the install below rebuilds it.
-  'uv run --frozen --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
+  'uv run --locked --directory dot python -m dot_tasks.mise_locks "$HOME/.config/mise/mise.lock"',
   "mise -C \"$HOME\" --locked install -y",
   "mise run deploy",
   # Hooks now see the current dot and global tools on the very first bootstrap.
@@ -484,9 +484,9 @@ run = [
   "UV_MALWARE_CHECK=1 uv sync --upgrade --preview-features malware-check --project dot",
   # Refresh version pins before installing the selected releases.
   "{{vars.repo_mise}} lock --bump --yes",
-  "uv run --frozen --directory dot python -m dot_tasks.mise_refresh --bump",
+  "uv run --locked --directory dot python -m dot_tasks.mise_refresh --bump",
   # Advance the checksummed fmind/theme pin; several theme files execute.
-  "uv run --frozen --directory dot python -m dot_tasks.theme_pin",
+  "uv run --locked --directory dot python -m dot_tasks.theme_pin",
   # Publish the complete bundle before installation; rerun full after a failed install.
   "mise run full",
   "dprint config update --yes",

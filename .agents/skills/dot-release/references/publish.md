@@ -10,7 +10,7 @@ Execute only on `/dot-release` or an explicit release request after [Qualificati
 1. **Confirm authority**: `/dot-release` or explicit release authority covers commits, pushing `main`, `mise run release`, and forward CI/CD fixes; stop if any gate stays red or needs a user decision.
 1. **Commit and sync `main`**: group work into logical [Conventional Commits](../../../../skills/git-delivery/SKILL.md#commit-messages) (`git-cliff` groups sections from them), then `git fetch` and push `main` (run `mise run all` before pushing; Lefthook covers formatting, leaks, privacy, and Python lint). Integrate upstream moves without rewriting history only if commits are disjoint; otherwise stop.
 1. **Check preconditions**: `dprint`, `git`, `git-cliff`, `mise`, and `uv` present; clean `main` matching fetched `origin/main`; next tag absent locally; at least one new Conventional Commit. Preserve unrelated work if preflight stops.
-1. **Run from source** (`uv run --frozen --directory dot python -m dot_tasks.release` via `mise`):
+1. **Run from source** (`uv run --locked --directory dot python -m dot_tasks.release` via `mise`):
    ```bash
    mise run release        # interactive
    mise run release -- -y  # non-interactive when authorized

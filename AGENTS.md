@@ -16,7 +16,7 @@
 Run `mise tasks` to list all tasks. Iterate: edit source → targeted checks → `mise run diff` → `mise run apply` (plus `mise run deploy` after `dot/` edits).
 
 - **Docs, skills, persona**: `mise run check:format check:skills check:vale` + `dot context --source . --project .` ([dot-skills](.agents/skills/dot-skills/SKILL.md)).
-- **Supagents**: `mise run format:supagents check:supagents` + `uv run --frozen --project dot pytest -c dot/pyproject.toml -q tests/test_reviewer_subagents.py` ([subagent](skills/subagent/SKILL.md)).
+- **Supagents**: `mise run format:supagents check:supagents` + `uv run --locked --project dot pytest -c dot/pyproject.toml -q tests/test_reviewer_subagents.py` ([subagent](skills/subagent/SKILL.md)).
 - **Code & templates**: targeted `pytest` + affected `check:*` ([dot-development](.agents/skills/dot-development/SKILL.md)).
 - **Tools & releases**: alphabetize `[tools]` in `dot_config/mise/config.toml` → `mise run lock` → `mise run full`; releases follow [dot-release](.agents/skills/dot-release/SKILL.md).
 

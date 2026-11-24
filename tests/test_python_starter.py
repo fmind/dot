@@ -42,8 +42,10 @@ def _run(root: Path, *command: str, expected_code: int = 0) -> str:
         "UV_PYTHON": sys.executable or "python",
         "UV_PYTHON_DOWNLOADS": "never",
     }
-    # An inherited UV_PROJECT would redirect uv; a generated project must resolve itself.
+    # An inherited UV_PROJECT or UV_LOCKED would redirect or block uv; a generated project resolves itself.
     environment.pop("UV_PROJECT", None)
+    environment.pop("UV_LOCKED", None)
+    environment.pop("UV_FROZEN", None)
     environment.pop("VIRTUAL_ENV", None)
     environment.pop("COVERAGE_FILE", None)
     # argparse colors help when a CI forces it; help assertions read plain text.
@@ -240,20 +242,20 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
     _run(
         project, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner"
     )
-    _run(project, "uv", "run", "--frozen", "validate-pyproject", "pyproject.toml")
+    _run(project, "uv", "run", "--locked", "validate-pyproject", "pyproject.toml")
     # The documented gate formats materialized code for the selected Python target first.
-    _run(project, "uv", "run", "--frozen", "ruff", "format")
-    _run(project, "uv", "run", "--frozen", "ruff", "check")
-    _run(project, "uv", "run", "--frozen", "ruff", "format", "--check")
-    _run(project, "uv", "run", "--frozen", "ty", "check")
-    _run(project, "uv", "run", "--frozen", "deptry", ".")
+    _run(project, "uv", "run", "--locked", "ruff", "format")
+    _run(project, "uv", "run", "--locked", "ruff", "check")
+    _run(project, "uv", "run", "--locked", "ruff", "format", "--check")
+    _run(project, "uv", "run", "--locked", "ty", "check")
+    _run(project, "uv", "run", "--locked", "deptry", ".")
     _run(
-        project, "uv", "run", "--frozen", "pytest", "-m", "not integration and not e2e", "--cov", "--cov-fail-under=85"
+        project, "uv", "run", "--locked", "pytest", "-m", "not integration and not e2e", "--cov", "--cov-fail-under=85"
     )
     _run(project, "uv", "build", "--clear", "--no-sources", "--out-dir", "dist")
     if profile == "library":
         # Opt-in strict docs build renders every module's API page and fails on broken cross-references.
-        _run(project, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
+        _run(project, "uv", "run", "--locked", "zensical", "build", "--clean", "--strict")
         assert (project / "site/reference/starter_py/index.html").is_file()
 
     runtime = project / "runtime"
@@ -471,7 +473,7 @@ def test_standalone_zensical_docs_starter_builds_strictly(tmp_path: Path) -> Non
     _run(site, "typos")
     _run(site, "jactionlint", "--profile", "pedantic")
     _run(site, "betterleaks", "dir", ".", "--config", ".betterleaks.toml", "--redact=100", "--verbose", "--no-banner")
-    _run(site, "uv", "run", "--frozen", "zensical", "build", "--clean", "--strict")
+    _run(site, "uv", "run", "--locked", "zensical", "build", "--clean", "--strict")
     assert (site / "site/index.html").is_file()
     assert (site / "site/llms.txt").is_file()
 
@@ -663,7 +665,7 @@ def test_python_bdd_starter_validates(tmp_path: Path) -> None:
     _run(project, "uv", "add", "--dev", "pytest-bdd>=9.0", "allure-pytest-bdd>=2.16.2")
     _run(project, "uv", "sync", "--locked")
     pr_out = _run(
-        project, "uv", "run", "--frozen", "pytest", "-m", "not integration and not e2e and not wip", "tests/bdd"
+        project, "uv", "run", "--locked", "pytest", "-m", "not integration and not e2e and not wip", "tests/bdd"
     )
     assert "1 passed" in pr_out
     assert "1 deselected" in pr_out
@@ -672,7 +674,7 @@ def test_python_bdd_starter_validates(tmp_path: Path) -> None:
         project,
         "uv",
         "run",
-        "--frozen",
+        "--locked",
         "pytest",
         "-q",
         "tests/bdd",

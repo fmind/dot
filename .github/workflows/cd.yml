@@ -4,8 +4,7 @@ on:
   push:
     tags:
       - "v*"
-permissions:
-  contents: read
+permissions: {}
 concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
@@ -28,6 +27,8 @@ jobs:
     name: Extract release notes
     needs: ci
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     timeout-minutes: 15
     outputs:
       notes: ${{ steps.notes.outputs.notes }}

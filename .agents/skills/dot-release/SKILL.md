@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-release
   created: "2026-07-08"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Dot Release
@@ -20,7 +20,7 @@ Qualify `fmind/dot` and ship releases through `mise run release`. Run **Qualific
 1. **Review changes**: inspect `git diff <tag>` plus uncommitted work (excluding generated locks), fanning out read-only subreviews by area (`dot/`, chezmoi/harnesses, docs/skills) on large sets. Verify findings against code or live data and add regression tests for behavior fixes.
 1. **Sync docs & metadata**: align `README.md`, `AGENTS.md`, `dot_agents/AGENTS.md`, `SECURITY.md`, `.agents/skills/`, and `skills/` with live `--help`, `mise tasks`, and JSON schemas; bump `updated:` on edited skills and run `mise run format:skills`.
 1. **Run gates**: `mise run format` (isolated if unrelated edits exist), `mise run all`, `mise run check:completions`, and `mise run test:starters`; rerun anything invalidated by later fixes.
-1. **Smoke-test `dot`** from repo root via `uv run --frozen --project dot dot` (`--directory dot` resolves `.` to `dot/`): `--help` on every top-level command, then `doctor`, `doctor --headroom`, `context --check`, `privacy .`, and `status` (all exit 0 or explained).
+1. **Smoke-test `dot`** from repo root via `uv run --locked --project dot dot` (`--directory dot` resolves `.` to `dot/`): `--help` on every top-level command, then `doctor`, `doctor --headroom`, `context --check`, `privacy .`, and `status` (all exit 0 or explained).
 1. **Check workstation** when dotfiles or tools changed: `mise run diff` and `mise run doctor` (installed `dot` showing `STALE` is expected before `deploy`/release). Stop here on qualification-only runs and report fixed/deferred items and gate results.
 
 ## Gotchas

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/.agents/skills/dot-development
   created: "2026-09-09"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Develop Dot
@@ -19,8 +19,8 @@ Modify `fmind_dot` while preserving CLI and installation contracts. [dot-cli](..
 1. **Locate the owner**: inspect the layout below and read current code before choosing a seam (`rg -l <symbol> dot/tests tests` finds test owners).
 1. **Preserve the surface**: keep [CLI contracts](../../../skills/python/references/argparse/GUIDE.md#defaults-for-new-clis) and Fish completions intact unless changing them. Test config failures via the public CLI; `--help` and `doctor --headroom` must work without config loading.
 1. **Use existing boundaries**: route config, streams, subprocesses, and fan-out through `State`, `Runner`, and `run_parallel`. Runtime dependency is strictly PyYAML (`@dataclass`, strict validators, stdlib). Isolate tests with temp homes and fake runners so suites never touch live auth or host state.
-1. **Test and qualify**: run `uv run --frozen --project dot pytest -c dot/pyproject.toml -q dot/tests/<test_file>.py` covering changed paths and failure modes, plus `AGENTS.md` static checks (isolate formatters alongside unrelated edits).
-1. **Check the right binary**: test checkout code via `uv run --frozen --project dot dot <command>`. When installation is in scope, run `mise run deploy` (`uv tool install` locked to `dot/uv.lock`) and verify `dot --version` plus the changed command (`mise run doctor` checks workstation health, not checkout code).
+1. **Test and qualify**: run `uv run --locked --project dot pytest -c dot/pyproject.toml -q dot/tests/<test_file>.py` covering changed paths and failure modes, plus `AGENTS.md` static checks (isolate formatters alongside unrelated edits).
+1. **Check the right binary**: test checkout code via `uv run --locked --project dot dot <command>`. When installation is in scope, run `mise run deploy` (`uv tool install` locked to `dot/uv.lock`) and verify `dot --version` plus the changed command (`mise run doctor` checks workstation health, not checkout code).
 
 ## Layout and seams
 
