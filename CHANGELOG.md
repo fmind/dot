@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.4.0] - 2026-11-24
+
+### 🚀 Features
+
+- _(dot)_ Audit global agy isolation and skill updated metadata
+- _(vale)_ Add ProseBackticks and InternalPlumbing prose rules
+- _(ci)_ Enforce UV_LOCKED and least-privilege workflow permissions
+- _(skills)_ Harden BDD leak checks, starter templates, and guides
+
 ## [18.3.0] - 2026-11-23
 
 ### 🚀 Features
