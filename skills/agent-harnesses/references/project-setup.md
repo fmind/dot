@@ -19,6 +19,8 @@ Author shared project instructions and skills once, adding host overrides only w
 
 - **One rule body**: never create project `CLAUDE.md` or `CLAUDE.local.md`—Claude Code loads either instead of `AGENTS.md`.
 - **Vet repo configs before enabling**: review repository hooks, MCP servers, skills, plugins, and custom agents first.
+- **Keep client skills & plugins project-local on multi-tenant machines**: keep org/client skills and plugins in repo `.agents/` rather than global `~/.gemini/config/{skills,plugins}.json` so they never bleed into unrelated sessions (`dot doctor` warns on external global paths).
+- **Support mixed-audience teams via an Interaction Mode switch**: for shared team starter templates serving both non-technical teammates and engineers, include an explicit `Interaction Mode: Discovery | Expert` setting in `AGENTS.md` (guided explanations and confirmation prompts vs terse execution).
 
 ## Documentation
 

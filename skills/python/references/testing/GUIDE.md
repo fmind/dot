@@ -30,10 +30,11 @@ Prove behavior changes with tests that fail before the fix and pass with it (for
      --format markdown:.cache/diff-cover.md --fail-under=90
    ```
 
-   Omit `--fail-under=90` for a non-blocking PR summary (`if [ -f .cache/diff-cover.md ]; then cat .cache/diff-cover.md >> "$GITHUB_STEP_SUMMARY"; fi`; see [github/ci-cd](../../../github/references/ci-cd/GUIDE.md#principles); reserve `uvx` for ad-hoc local probes only). Add scoped [mutation probes](#mutation-tests), symbolic execution (`hypothesis-crosshair`), or ASGI API fuzzing (`schemathesis`) per [property tests](references/property-tests.md) on high-risk boundaries.
+   Omit `--fail-under=90` for a non-blocking PR summary (`if [ -f .cache/diff-cover.md ]; then cat .cache/diff-cover.md >> "$GITHUB_STEP_SUMMARY"; fi`; see [github/ci-cd](../../../github/references/ci-cd/GUIDE.md#principles); reserve `uvx` for ad-hoc local probes only). Escalate along the [4-tier verification ladder](references/property-tests.md#verification-ladder) (`hypothesis`, `schemathesis`, scoped [mutation probes](#mutation-tests), `hypothesis-crosshair`/Z3) on high-risk boundaries.
 
 ## Gotchas
 
+- **Separate holdout validation on autonomous runs**: tests inside a coding agent's writable tree can be overfit even without weakening diffs. For high-autonomy or client-critical builds, keep black-box acceptance/holdout suites outside the generator workspace (separate private repo, CI-only checkout, or an OS-level read-only mount / isolated evaluator workdir) and feed only structured failure summaries (for example `allure agent query` JSON) back for fixes ([holdout scenarios](references/bdd.md#holdout-scenarios)).
 - **Hand-checked expectations**: use literal expected values (never recomputed by the system under test), assert observable behavior rather than source text or wording constants, and type-check mocks via `create_autospec(..., spec_set=True)` or `AsyncMock` for `async def` collaborators (never un-specced `MagicMock()`).
 - **Real collaborators first**: use real parsers, temp dirs, SQLite/in-memory stores, and `MockTransport`; fake only paid, destructive, slow, or flaky external systems behind narrow owned interfaces.
 - **Sub-minute suites**: avoid sleeps, live network calls, and repeated cold subprocesses in unit tests.

@@ -265,6 +265,37 @@ def test_bdd_templates_hooks_and_sanitizer(tmp_path: Path, monkeypatch: pytest.M
     assert (results / "1-attachment.json").read_text(encoding="utf-8") == sla_json
     assert (results / "2-attachment.json").read_text(encoding="utf-8") == "{truncated"
     assert (results / "3-attachment.txt").read_bytes() == b"\xff\xfe\x00binary"
+    # Relative paths and URLs containing /home/ or /Users/ segments must not falsely abort reports.
+    (results / "clean-attachment.txt").write_text(
+        "src/app/home/views.py docs/home/index.md https://example.com/home/dashboard https://api.example.com/Users/42\n",
+        encoding="utf-8",
+    )
+    assert report_bdd.assert_no_leaks(results) == []
+
+    # Fail-closed leak check catches residual workstation paths, diff hunks (including mnemonic prefixes),
+    # JSON-escaped secrets, JSON attachments, nested files, and mixed invalid-UTF-8 text without echoing values.
+    (results / "4-attachment.txt").write_bytes(
+        b"\xffpath=/Users/alice/repo\ndiff --git a/x.py b/x.py\nAuthorization: Bearer abcdef1234567890abcd\n"
+    )
+    (results / "5-result.json").write_text(
+        json.dumps({"statusDetails": {"trace": "line1\nghp_1234567890abcdef1234567890"}}),
+        encoding="utf-8",
+    )
+    (results / "6-attachment.json").write_text(
+        json.dumps({"header": "Bearer\tabcdef1234567890abcd"}),
+        encoding="utf-8",
+    )
+    (results / "nested").mkdir()
+    (results / "nested/7-diff.txt").write_text("diff --git c/src/a.py i/src/a.py\n", encoding="utf-8")
+    leaks = report_bdd.assert_no_leaks(results)
+    assert leaks == [
+        ("4-attachment.txt", "workstation_path"),
+        ("4-attachment.txt", "diff_hunk"),
+        ("4-attachment.txt", "secret_token"),
+        ("5-result.json", "secret_token"),
+        ("6-attachment.json", "secret_token"),
+        ("nested/7-diff.txt", "diff_hunk"),
+    ]
 
 
 def test_allurerc_yaml_template_structure() -> None:
@@ -330,6 +361,31 @@ def test_report_bdd_main_orchestration(
     monkeypatch.setattr(report_bdd.subprocess, "run", fake_run)
     assert report_bdd.main([]) == expected_rc
     assert events == (["pytest", "generate", "log"] if expect_allure else ["pytest"])
+
+
+def test_report_bdd_main_aborts_on_leaks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    report_bdd = load_script("report_bdd_leak_tpl", ROOT / "skills/python/references/testing/templates/report_bdd.py")
+    monkeypatch.chdir(tmp_path)
+    events: list[str] = []
+
+    def fake_run(cmd: list[str], *, check: bool = False) -> SimpleNamespace:
+        assert check is False
+        events.append(cmd[0])
+        if cmd[0] == "uv":
+            results_dir = tmp_path / ".cache/allure-results"
+            results_dir.mkdir(parents=True, exist_ok=True)
+            (results_dir / "1-attachment.txt").write_text("Authorization: Bearer secret1234567890abcdef\n")
+            return SimpleNamespace(returncode=0)
+        raise AssertionError(f"allure must not run when leaks exist: {cmd}")
+
+    monkeypatch.setattr(report_bdd.subprocess, "run", fake_run)
+    assert report_bdd.main([]) == 1
+    assert events == ["uv"]
+    err = capsys.readouterr().err
+    assert "redacted secret_token match in 1-attachment.txt" in err
+    assert "secret1234567890abcdef" not in err
 
 
 @pytest.mark.parametrize("starter", STARTERS)

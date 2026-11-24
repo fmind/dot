@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/subagent
   created: "2026-09-09"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Adversarial Reviewer Subagents
@@ -28,6 +28,7 @@ Active roles are injected by host subagent discovery (`/agents`). Each extends `
 
 1. **Author/refresh** ([authoring](references/authoring.md)): 1 discipline = 1 supagent (no `references/`), pragmatic risk-scaled model-delta rules (`~35`–`75` compiled lines, `< 7,000` chars; [template](templates/reviewer.md)), grounded in verified primary docs without inlining URL walls in compiled prompts. Build & check via `supagents build --strict --project && supagents clean --project && supagents check --strict --project`, then audit via `fmind-review-supagent` and [calibration](references/calibration.md).
 1. **Coordinator-as-critic loop**: run linters/tests/scanners/renders first (`0` tokens); capture frozen diffs, manifests, gate logs, `vale --output=JSON`, `--help`, and PNG/PDF/DOM renders to a temp dir (`agy` flags in [headless-review](../agent-harnesses/references/headless-review/GUIDE.md)); fan out `1`–`5` roles in parallel (isolate `fmind-review-factcheck` on secret-bearing repos per [cross-harness-agents](../agent-harnesses/references/cross-harness-agents.md#permission-limits)); verify `rule:`/`loc:`/`evidence:`, fix verified `P0`–`P1` defects (plus quick `P2`/`DELETIONS` in one pass), cap at `2` rounds, and stop once `P0`–`P1` reach `PASS` (never re-review for `P2` or `DELETIONS`).
+1. **Ratchet recurring `P1`s**: when a reviewer flags the same `P1` defect pattern `>= 2` times across diffs/sessions, propose promoting it into a mechanical gate via [lesson-learned](../skillify/references/lesson-learned.md).
 
 ## Gotchas
 

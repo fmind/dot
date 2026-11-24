@@ -20,8 +20,9 @@ Write concise ADRs (`docs/decisions/NNNN-<slug>.md`, MADR style) for single irre
 
 - **Avoid premature microservices or custom queues**: justify every new runtime component against its Day-2 operational tax.
 - **Never skip flip conditions**: state the exact threshold (load, cost, compliance, or vendor change) that would reverse the decision.
+- **Model-check distributed designs before coding**: for multi-step sagas, consensus, or concurrency/locking protocols, specify and check invariants in **Quint** (TLA+) during the RFC phase; keep implementation-level checks on Python's [4-tier verification ladder](../../python/references/testing/references/property-tests.md#verification-ladder) and skip Lean 4 unless building crypto primitives or prover-compiled policy kernels.
 
 ## Documentation
 
-- [MADR (Markdown Architectural Decision Records)](https://adr.github.io/madr/) · [C4 Model](https://c4model.com/)
+- [MADR (Markdown Architectural Decision Records)](https://adr.github.io/madr/) · [C4 Model](https://c4model.com/) · [Quint](https://quint.sh/)
 - Companions: [repository](repository/GUIDE.md), [humanize](../../humanize/SKILL.md), [diagrams-as-code](../../diagrams-as-code/SKILL.md), [finops](../../finops/SKILL.md), [proposal](../../proposal/SKILL.md).

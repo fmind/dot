@@ -13,6 +13,8 @@ defaults:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+env:
+  UV_LOCKED: "1"
 jobs:
   check:
     name: Validate repository

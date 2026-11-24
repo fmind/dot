@@ -5,8 +5,7 @@ name: CD
 on:
   push:
     tags: ["v*"]
-permissions:
-  contents: read
+permissions: {}
 defaults:
   run:
     shell: bash
@@ -16,11 +15,14 @@ concurrency:
 env:
   # Each deploy moves this traffic tag to the new no-traffic candidate revision.
   CANDIDATE_TAG: candidate
+  UV_LOCKED: "1"
 jobs:
   validate:
     name: Validate tagged revision
     if: ${{ vars.ENABLE_DEPLOY_CLOUDRUN == 'true' }}
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     timeout-minutes: 20
     steps:
       - name: Checkout repository

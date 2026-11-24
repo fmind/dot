@@ -15,6 +15,10 @@ Single-file CLIs with inline `# /// script` metadata executed via `uv run --scri
 1. **Run, lock, & audit**: execute via `chmod +x script.py && ./script.py input.txt` or `uv run script.py input.txt`. Lock durable scripts with `UV_MALWARE_CHECK=1 uv lock --preview-features malware-check --script script.py`, run with `uv run --locked --script script.py`, and scan via `uv audit --preview-features audit-command --locked --script script.py` (schedule externally via [scheduled-jobs](../../../dot-cli/references/scheduled-jobs/GUIDE.md)).
 1. **Lint, type-check, & test**: run `ruff check script.py`, `UV_MALWARE_CHECK=1 uv sync --preview-features malware-check --script script.py`, and `ty check --python "$(uv python find --script script.py)" script.py`, then test `--help`/`--version` without inputs, exit `2` usage errors, stream separation, bracketed paths, and redacted errors.
 
+## Gotchas
+
+- **Multi-script repos**: when a repository maintains multiple PEP 723 scripts alongside `pytest` and `ty`, mirror their dependency union in `[dependency-groups]` `scripts = [...]` + `dev = [..., { include-group = "scripts" }]` (plus `[tool.uv] package = false` for scripts-only, non-package repos) so `ty` and `pytest` resolve imports from one locked environment.
+
 ## Documentation
 
 - [PEP 723](https://peps.python.org/pep-0723/) · [uv scripts](https://docs.astral.sh/uv/guides/scripts/) · [argparse](https://docs.python.org/3/library/argparse.html) · [uv releases](https://github.com/astral-sh/uv/releases) ([changelog](https://github.com/astral-sh/uv/blob/main/CHANGELOG.md)) · Companions: [foundation](../foundation/GUIDE.md), [argparse](../argparse/GUIDE.md).

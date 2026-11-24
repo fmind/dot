@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-11-23"
+  updated: "2026-11-24"
 ---
 
 # Mise
@@ -18,7 +18,7 @@ One project `mise.toml` owns tool pins and task commands; hooks and CI only choo
 
 1. **Pin exact versions** per [tool-versions.md](references/tool-versions.md) before installing copied scaffolds; never commit tool binaries.
 1. **Keep tasks simple**: use direct commands, short `run` arrays, native CLI flags, and `depends`; never wrap commands in `bash -c`/`sh -c`, nest conditionals, cram scripts onto one line, or embed large shell blocks in TOML (put branching, retries, and response parsing in a small Python script).
-1. **Follow the shared vocabulary** in [task-conventions.md](references/task-conventions.md#task-vocabulary) (`install`, `format`, `check`, `test`, `build`, `watch`, `all`) plus subtask naming, concise output, and argument forwarding.
+1. **Follow the shared vocabulary** in [task-conventions.md](references/task-conventions.md#task-vocabulary) (`install`, `format`, `check`, `test`, `build`, `watch`, `doctor`, `all`) plus subtask naming, concise output, and argument forwarding.
 1. **Lock and validate**: install pinned tools, run `mise tasks validate`, and invoke `mise run <task>` in automation.
 1. **Verify** modified tasks and their callers, documenting any held-back pin.
 

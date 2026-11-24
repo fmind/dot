@@ -27,10 +27,18 @@ The build should print `No issues found`, exit with status 0, and create `site/i
 1. Repeat the build and read the reported source location.
 1. Fix the link and rebuild.
 
-!!! tip "Check your understanding"
+## Check your understanding
 
-    Why should an internal link use its Markdown source path?
+Which path style lets a strict Zensical build catch a moved target page before publishing?
+
+- [ ] A built HTML URL such as `/guides/install/`
+- [ ] A relative Markdown source path such as `../guides/install.md`
+- [ ] An external homepage URL
+
+??? question "Reveal answer"
+
+    Use the relative Markdown source path (`../guides/install.md`). Strict builds resolve source paths and heading anchors, while built HTML URLs bypass target validation.
 
 ## Completion check
 
-Explain the failure, show the corrected link, and confirm the strict build succeeds. Remove the temporary exercise edit; keep the source improvement if it is useful.
+Share one fixed broken-link output with your team, or note the verified build command in your project README. Remove the temporary exercise edit; keep any real source improvement.

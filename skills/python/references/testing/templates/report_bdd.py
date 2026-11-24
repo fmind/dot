@@ -13,6 +13,22 @@ from pathlib import Path
 
 _METADATA_SUFFIXES = ("-result.json", "-container.json")
 _TEXT_ATTACHMENT_SUFFIXES = ("-attachment.txt", "-attachment.log")
+_BINARY_SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".zip", ".gz", ".tar", ".mp4", ".webm")
+_LEAK_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("workstation_path", re.compile(r"(?<![A-Za-z0-9._-])/(?:Users|home)/[A-Za-z0-9._-]+")),
+    ("diff_hunk", re.compile(r"diff --git\s+[abciow12]/|@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@")),
+    (
+        "secret_token",
+        re.compile(
+            r"\b(?:gh[pousr]_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|"
+            r"AIza[0-9A-Za-z_-]{20,}|(?:AKIA|ASIA)[0-9A-Z]{16}|"
+            r"ya29\.[A-Za-z0-9._-]{12,}|hvs\.[A-Za-z0-9._-]{12,}|"
+            r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b|"
+            r"(?i:\b(?:Bearer|Basic)\s+[A-Za-z0-9._+/=-]{16,})|"
+            r"BEGIN [A-Z ]*PRIVATE KEY"
+        ),
+    ),
+)
 
 
 def _exit_code(returncode: int) -> int:
@@ -63,7 +79,7 @@ def _scrub_value(value: object, patterns: list[tuple[re.Pattern[str], str]]) -> 
 def sanitize_results(results_dir: Path, *, cwd: Path | None = None, home: Path | None = None) -> None:
     """Strip host labels and local filesystem paths without touching JSON/binary attachments."""
     patterns = _path_patterns(cwd or Path.cwd(), home or Path.home())
-    for path in sorted(results_dir.iterdir()):
+    for path in sorted(results_dir.rglob("*")):
         if not path.is_file():
             continue
         if path.name.endswith(_METADATA_SUFFIXES):
@@ -81,6 +97,41 @@ def sanitize_results(results_dir: Path, *, cwd: Path | None = None, home: Path |
             path.write_text(_scrub_text(text, patterns), encoding="utf-8")
 
 
+def _iter_json_strings(value: object) -> list[str]:
+    strings: list[str] = []
+    if isinstance(value, str):
+        strings.append(value)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(key, str):
+                strings.append(key)
+            strings.extend(_iter_json_strings(item))
+    elif isinstance(value, list):
+        for item in value:
+            strings.extend(_iter_json_strings(item))
+    return strings
+
+
+def assert_no_leaks(results_dir: Path) -> list[tuple[str, str]]:
+    """Fail-closed scan of all non-binary Allure artifacts for residual secrets, paths, or diff hunks."""
+    findings: list[tuple[str, str]] = []
+    for path in sorted(results_dir.rglob("*")):
+        if not path.is_file() or path.suffix.lower() in _BINARY_SKIP_SUFFIXES:
+            continue
+        raw_text = path.read_bytes().decode("utf-8", errors="replace")
+        texts: list[str] = [raw_text]
+        if path.suffix.lower() == ".json":
+            try:
+                texts = _iter_json_strings(json.loads(raw_text))
+            except json.JSONDecodeError:
+                texts = [raw_text]
+        rel = path.relative_to(results_dir).as_posix()
+        for rule, pattern in _LEAK_PATTERNS:
+            if any(pattern.search(chunk) for chunk in texts):
+                findings.append((rel, rule))
+    return findings
+
+
 def main(argv: list[str] | None = None) -> int:
     results_dir = Path(".cache/allure-results")
     report_dir = Path(".cache/allure-report")
@@ -96,6 +147,10 @@ def main(argv: list[str] | None = None) -> int:
         return _exit_code(pytest_rc)
 
     sanitize_results(results_dir)
+    if leaks := assert_no_leaks(results_dir):
+        for filename, rule in leaks:
+            print(f"ERROR: redacted {rule} match in {filename}; aborting report generation", file=sys.stderr)
+        return 1
     qg_rc = _exit_code(subprocess.run(["allure", "generate", str(results_dir), "--clean"], check=False).returncode)
     log_rc = _exit_code(
         subprocess.run(

@@ -31,7 +31,7 @@ Build minimal, reproducible, non-root `uv` Python images locally, verify `@sha25
    run = "trivy --config trivy.yaml image --skip-dirs '' --input tmp/image.tar"
    ```
 
-1. **Smoke-test the image**: `docker load --input tmp/image.tar`, then test `/health` and `/ready` via `docker run --rm -p 127.0.0.1:8080:8080 --env-file <runtime-env-file> -e HOST=0.0.0.0 -e PORT=8080 -e ENVIRONMENT=production <slug>:local` (or exercise CLI args/exit codes directly for CLI images).
+1. **Smoke-test the image**: `docker load --input tmp/image.tar`, then test `/health` and `/ready` under least privilege (`docker run --rm --cap-drop=ALL --security-opt=no-new-privileges -p 127.0.0.1:8080:8080 --env-file <runtime-env-file> -e HOST=0.0.0.0 -e PORT=8080 -e ENVIRONMENT=production <slug>:local`, or exercise CLI args/exit codes directly for CLI images; add `--read-only` when the process needs no container-FS writes).
 1. **Push when authorized**: run `docker buildx build --push --tag "$IMAGE_REPOSITORY:$TAG" --metadata-file tmp/image-metadata.json .`, validate `containerimage.digest` (`^sha256:[0-9a-f]{64}$`), and record `$IMAGE_REPOSITORY@$DIGEST`.
 1. **Sign and attest**: run the [cosign release sequence](../docker/references/cosign.md#release-sequence) on `$IMAGE_REPOSITORY@$DIGEST` (automated in the [CD template](../../../github/references/ci-cd/templates/cd.yml)).
 1. **Clean up** task-created artifacts on success or failure per [resource cleanup](../docker/references/resource-cleanup.md) and report any retained footprint.
@@ -39,7 +39,7 @@ Build minimal, reproducible, non-root `uv` Python images locally, verify `@sha25
 ## Gotchas
 
 - **Use `uv sync --locked`, not `--frozen`**: `--locked` fails on stale `uv.lock`, whereas `--frozen` ignores `pyproject.toml` drift.
-- **Pass `pip --no-deps` on `uv export` installs**: prevents pip from re-resolving and rejecting `override-dependencies` pins.
+- **Pass `pip --no-deps` on `uv export` installs**: prevents pip from re-resolving and rejecting `override-dependencies` pins; in slim Python runtime images where `uv` already copied `.venv`, uninstall `pip` (`python -m pip uninstall --yes --root-user-action=ignore pip`) to drop unneeded attack surface and CVEs.
 - **Keep `/app/.venv` root-owned under UID `10001:10001`**: prevents runtime self-modification; mount or use an external writable dir for temp files.
 - **Copy source trees when unbundled**: projects with `[tool.uv] package = false` ([Django bootstrap](../../../python/references/django/references/bootstrap.md)) or root `templates/`/`static/` must also copy root-owned app sources into the runtime stage.
 - **Update tags and multi-arch digests together** via [upgrade-tools](../../../mise/references/upgrade-tools/GUIDE.md).

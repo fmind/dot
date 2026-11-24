@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/containers
   created: "2026-11-21"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Containers & Kubernetes

@@ -12,11 +12,17 @@ Page structure and syntax beyond standard Markdown ([Zensical authoring](https:/
 
 Keep 4-space indentation inside admonition, tab, and annotation bodies ([primitives](../../../../humanize/references/primitives.md#channel-primitives)); never emit GitHub-only `> [!IMPORTANT]` blocks in Zensical docs:
 
-- **Highlight, callouts & tabs**: use `==mark==` sparingly for key phrases, `!!! note|tip|warning|danger` or collapsible `???` admonitions for takeaways, `=== "Tab"` for alternatives, and `<div class="grid cards" markdown>` for scan cards.
+- **Highlight, callouts & tabs**: use `==mark==` sparingly for key phrases, `!!! note|tip|warning|danger` or collapsible `???` admonitions for takeaways, `=== "Tab"` for alternatives, and `<div class="grid cards" markdown>` for scan cards (configure Zensical list indentation in [dprint](../../../../mise/references/dprint.md#gotchas)).
 - **Include tested source**: `--8<-- "src/pkg/module.py"` or `--8<-- "file.py:name"` (`# --8<-- [start:name]` .. `[end:name]`); `check_paths` fails strict builds on missing files.
 - **Diagrams**: inline ` ```mermaid ` (set `config.flowchart.wrappingWidth: 280` or `320` in Mermaid frontmatter and bound on-page SVG `max-width` by `viewBox` aspect ratio via [`extra_javascript`](configuration.md#customization)), or [Typst](../../../../diagrams-as-code/references/typst.md) / [D2](../../../../diagrams-as-code/references/d2.md) / [SVG](../../../../diagrams-as-code/references/svg/GUIDE.md) assets in `docs/assets/`.
 - **Glossary & tooltips**: `*[CLI]: Command-Line Interface` in `includes/abbreviations.md` separated by blank lines; `[link](page.md "Tooltip")`.
 - **Page frontmatter**: `hide: [navigation, toc, footer, path, tags]`, `icon: lucide/rocket`, `status: new`, `search: {exclude: true}`, `template: custom.html`.
+
+## Courses & Workshops
+
+- **Role-split prerequisites**: separate a zero-terminal Visual/Non-Technical Path from the Engineer/Host Path, and offer a skippable Lesson 0 for foundations instead of front-loading multi-OS CLI walls.
+- **Visual & interactive cadence**: give every core lesson at least one Mermaid or SVG diagram, `2`–`3` clickable scenario quizzes (`- [ ]` checkboxes + collapsible `??? question` reveal), and one concrete share-back takeaway artifact for the learner's team.
+- **Progressive disclosure & template parity**: push deep CLI/API reference into `Going Further` or `Cheat Sheet` pages, and verify every referenced file path, skill name, and placeholder matches the live starter template repository before publishing.
 
 ## Content practices
 

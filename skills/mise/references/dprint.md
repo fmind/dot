@@ -31,7 +31,7 @@ run = "dprint check"
 ## Gotchas
 
 - **Pin `npm:` plugin checksums**: prefer `npm:@dprint/markdown@<version>@<sha256>` over unhashed specifiers or `.wasm` URLs; preview updates with `dprint config update --dry-run` and apply via [upgrade-tools](upgrade-tools/GUIDE.md).
-- **Set `markdown.textWrap: "never"` with `@dprint/markdown`**: preserves scannable bullet/paragraph lines and HTML blocks without mid-sentence line splits; fenced JSON/TOML/YAML blocks only format when those plugins are also configured.
+- **Set `markdown.textWrap: "never"` with `@dprint/markdown`**: preserves scannable bullet/paragraph lines and HTML blocks without mid-sentence line splits; fenced JSON/TOML/YAML blocks only format when those plugins are also configured. On Zensical / Python-Markdown sites using nested lists inside admonitions or tabs, also set `"list.indentKind": "pythonMarkdown"` (and `"hardBreakKind": "doubleSpace"` when preserving trailing-space breaks) so 4-space indentation stays intact.
 - **Keep repo excludes explicit**: list generated locks (`**/*-lock.json`) and dynamic template files in `excludes`, and pass `--allow-no-files` for `{staged_files}` hook invocations (`dprint check` verifies the full tree).
 
 ## Documentation

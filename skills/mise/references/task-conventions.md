@@ -2,15 +2,16 @@
 
 ## Task Vocabulary
 
-| Task      | Alias | Purpose                                                  |
-| --------- | ----- | -------------------------------------------------------- |
-| `install` | `i`   | Sync deps and install Git hooks (`lefthook install`).    |
-| `format`  | `f`   | Format all sources (`format:*`).                         |
-| `check`   | `c`   | Run static checks in parallel (`check:*`).               |
-| `test`    | `t`   | Run the test suite.                                      |
-| `build`   | `b`   | Build/package artifacts (`build:*`).                     |
-| `watch`   | `w`   | Live reload or watcher (omit when unused).               |
-| `all`     | `a`   | `check`, `test`, `build` sequentially without rewriting. |
+| Task      | Alias | Purpose                                                                                                     |
+| --------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| `install` | `i`   | Sync deps and install Git hooks (`lefthook install`).                                                       |
+| `format`  | `f`   | Format all sources (`format:*`).                                                                            |
+| `check`   | `c`   | Run static checks in parallel (`check:*`).                                                                  |
+| `test`    | `t`   | Run the test suite.                                                                                         |
+| `build`   | `b`   | Build/package artifacts (`build:*`).                                                                        |
+| `watch`   | `w`   | Live reload or watcher (omit when unused).                                                                  |
+| `doctor`  | `do`  | Optional workstation/connector readiness check (offline by default; `--live` opt-in, never prints secrets). |
+| `all`     | `a`   | `check`, `test`, `build` sequentially without rewriting.                                                    |
 
 ## Subtask Naming
 

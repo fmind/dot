@@ -21,7 +21,7 @@ Since 1.10, `.betterleaks.toml` loads only with explicit `--config .betterleaks.
 
 ## Mise Task
 
-Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.betterleaks.toml`; scans working tree including untracked/gitignored `.env` unless allowlisted in `.betterleaks.toml`, run pre-commit via [lefthook](../../github/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
+Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.betterleaks.toml`; scans working tree including untracked/gitignored `.env` unless excluded, run pre-commit via [lefthook](../../github/references/lefthook.md)) and `check:leaks:full` (scheduled history audit) per [mise](../../mise/SKILL.md).
 
 ## When a Secret Is Found
 
@@ -29,6 +29,8 @@ Wire `check:leaks` (with [betterleaks.toml](../templates/betterleaks.toml) as `.
 1. **Allowlist false positives**: document the reason via inline `betterleaks:allow`, a narrow `.betterleaks.toml` rule, or `.betterleaksignore`.
 
 ## Gotchas
+
+- **Never add blanket `.env`/`.env.*` allowlists to `.betterleaks.toml`**: the shared config also governs `betterleaks git` and `--staged`, blinding commit/history scans if `.env` is force-added. On repos with gitignored `.env` files or large histories, pair `check:leaks:staged` (`git --staged`) with `check:leaks:history` (`git --log-opts="--max-count=100 --ignore-missing HEAD --"`), or isolate `.env` excludes in a separate `dir`-only config that still scans `.env.example`/`.env.sample` case-insensitively.
 
 - **Audit suppressions**: inspect `.betterleaks.toml`, ignore files, and `betterleaks:allow` / `gitleaks:allow` comments; scan untrusted code from outside with trusted `--config`, `--gitleaks-ignore-path`, and `--ignore-gitleaks-allow`.
 - **Full history needs `fetch-depth: 0`** in `security.yml` ([github/ci-cd](../../github/references/ci-cd/GUIDE.md)) and a fresh `check:leaks:full` after `--no-verify` or foreign history imports.

@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/full-review
   created: "2026-10-04"
-  updated: "2026-11-23"
+  updated: "2026-11-24"
 ---
 
 # Full Review
@@ -25,7 +25,8 @@ Ask only when ambiguity alters scope, cost, or reversibility:
 
 1. **Baseline & deterministic gates**: check `git status --short`, diffs, latest tag, and `git fetch` (preserve uncommitted work); read `AGENTS.md`, `README.md`, and skills; run `mise run check`, tests, [smoke](references/smoke.md), and scanners before spawning reviewers.
 1. **Audit & fan out reviewers** (name any skip): run [repo-audit](references/repo-audit.md) on whole-repo runs; pre-capture frozen diff, manifest, gate logs, `vale --output=JSON`, `--help`, and PNG/DOM renders ([headless-review](../agent-harnesses/references/headless-review/GUIDE.md)), then pick the best-suited `fmind-review-*` roles below ([subagent](../subagent/SKILL.md)) and verify every `loc`/`evidence` claim.
-1. **Fix, prove, report**: land root-cause fixes + tests for verified `P0`–`P1` findings (plus quick `P2`/`DELETIONS` in one pass; hold irreversible/costly/architectural forks); rerun `mise run all`, renders, and reviewers only for `P0`–`P1` fixes (max `2` rounds per [subagent](../subagent/SKILL.md)). Emit verdict (`ready` | `ready with caveats` | `blocked`), highest proven rung (`#proof-ladder`), `path:line` evidence, decisions, and gaps.
+1. **Fix & prove**: land root-cause fixes + tests for verified `P0`–`P1` findings (plus quick `P2`/`DELETIONS` in one pass; hold irreversible/costly/architectural forks); rerun `mise run all`, renders, and reviewers only for `P0`–`P1` fixes (max `2` rounds per [subagent](../subagent/SKILL.md)).
+1. **Report & ratchet**: emit verdict (`ready` | `ready with caveats` | `blocked`), highest proven rung ([proof ladder](#proof-ladder)), `path:line` evidence, decisions, and gaps; when the same `P1` rule recurs (`>= 2` diffs/sessions), propose promoting it to a mechanical gate via [lesson-learned](../skillify/references/lesson-learned.md) under `Suggestions`.
 
 ## Supagent Routing
 

@@ -9,7 +9,7 @@ metadata:
   source: github.com/fmind/dot/tree/main/skills/bf
   upstream: github.com/fmind/brain-framework
   created: "2026-09-13"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Use Brain Framework (`/bf`)
@@ -26,7 +26,7 @@ metadata:
    - Check health first with `bf status` (`--format text` for bird's-eye overview; `attention`, `orphaned_states`) and `bf review` (stale notes, newer evidence, open tasks). Empty search results never prove absence when `problems`/`attention` are present.
    - Search via `bf query "terms"` (EN+FR synonyms) or `bf query --jq 'FILTER'` (`--kind note|memory|usage`, `-s/--scope`, `--format json|jsonl`), or directly with `rg`/`jq`/`duckdb` over `memories/*.jsonl` and `usages/*.jsonl`.
    - Read selectively via `bf read "bf:///concepts/topic.md#sec"` or `bf read "source:id"` (`--raw`, `--max-bytes`; `deprecated` notes are superseded).
-1. **Author & verify**: link via relative paths, `<source>:<id>`, or declared `bf://` URIs with `{rel=...}` metadata; organize ad-hoc work as `actions/YYYY-MM-DD_<slug>/index.md` bundles; run `bf build && bf check` (`--strict`) and brain `evals/` after edits. Never edit `memories/*.jsonl` or `usages/*.jsonl` by hand.
+1. **Author & verify**: link via relative paths, `<source>:<id>`, or declared `bf://` URIs with `{rel=...}` metadata; organize ad-hoc work as `actions/YYYY-MM-DD_<slug>/index.md` bundles; run `bf build && bf check` (`--strict`) and deterministic offline retrieval `evals/` (`pytest evals/` asserting expected `bf` `jq`/`read`/`rg` hits on authored notes so CI catches missing synonyms or broken links) after edits. Never edit `memories/*.jsonl` or `usages/*.jsonl` by hand.
 
 ## Boundaries
 

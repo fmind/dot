@@ -22,10 +22,9 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; keep existing conventions
 
 ### uv
 
-- **Add, sync, & verify**: add via `UV_MALWARE_CHECK=1 uv add --preview-features malware-check <pkg>` (do not export globally), sync via `uv sync --locked`, check `uv lock --check`, commit `uv.lock`, and never pass bare `uv run`/`uv sync` in gates (`--locked` or `--frozen`).
-- **Isolated wheel test & env**: inspect `.venv/` directly (`uv pip show`); unset `UV_*` (`UV_PROJECT`) on sibling repos instead of `--no-config`. See [PyPI publishing](references/pypi.md) for hashed `uv export` + isolated wheel checks.
-- **Triage `uv audit`**: upgrade first (`uv lock --upgrade-package <pkg>`); record upstream-unfixed CVEs in `[tool.uv.audit] ignore-until-fixed` with dated reason—never CLI `--ignore`.
-- **Workspaces & private indexes**: share one root `uv.lock` across `[tool.uv.workspace]` members (`workspace = true` in `[tool.uv.sources]`, scoping commands with `--package <member>` and running `deptry`/`ty` per member). Declare internal registries via `[[tool.uv.index]]` + `keyring-provider = "subprocess"` (Artifact Registry / GitHub Packages), never embedding tokens in `pyproject.toml`.
+- **Add, sync, & lock**: add via `UV_MALWARE_CHECK=1 uv add --preview-features malware-check <pkg>` (never export globally), sync via `uv sync --locked`, check `uv lock --check`, commit `uv.lock`, and enforce `--locked` + pinned CI tools (`UV_LOCKED: "1"`, no bare `uvx`) per [ci-cd](../../../github/references/ci-cd/GUIDE.md#principles).
+- **Supply-chain hardening (opt-in)**: on wheel-only projects set `[tool.uv] no-build = true` (`no-binary-package = ["<pkg>"]` allowlist) to block sdist build-backend execution; on team/production repos outside personal `0d` defaults set `[tool.uv] exclude-newer = "3d"` (`exclude-newer-package = { "<pkg>" = false }` or ISO date override) to buffer fresh releases ahead of malware reports.
+- **Wheel check, audit, & workspaces**: inspect `.venv/` (`uv pip show`); unset `UV_*` (`UV_PROJECT`) on sibling repos instead of `--no-config`; see [PyPI publishing](references/pypi.md) for hashed `uv export` wheel checks. Triage `uv audit` by upgrading first (`uv lock --upgrade-package <pkg>`) or recording dated `[tool.uv.audit] ignore-until-fixed` (never CLI `--ignore`). Share one root `uv.lock` across `[tool.uv.workspace]` members (`workspace = true` in `[tool.uv.sources]`, `--package <member>`, per-member `deptry`/`ty`); declare internal registries via `[[tool.uv.index]]` + `keyring-provider = "subprocess"`, never tokens in `pyproject.toml`.
 
 ### Ruff
 
@@ -39,10 +38,10 @@ Shared Python packaging and `uv`/`ruff`/`ty` defaults; keep existing conventions
 
 ### Architecture & structural gates (opt-in)
 
-Add once a package grows multiple internal layers or recurring agent-violated invariants—prefer mechanical rules over prose in `AGENTS.md`:
+Prefer mechanical rules over `AGENTS.md` prose once layers or recurring invariants grow:
 
-- **Module boundaries (`import-linter`)**: `UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev import-linter`, declare `[tool.importlinter]` (`root_package = "<package>"`) and `[[tool.importlinter.contracts]]` (`type = "layers"`, `"forbidden"`, or `"acyclic_siblings"`) in `pyproject.toml`, and wire `uv run --locked lint-imports --no-logo` into `check:local` (prefer over `tach`, which is unmaintained).
-- **Custom AST invariants (`ast-grep`)**: pin `ast-grep` in project `mise.toml` (and regenerate `mise.lock`), add `sgconfig.yml` (`ruleDirs: [.ast-grep/rules]`, `testDirs: [.ast-grep/tests]`) with YAML rules setting `severity: error` and a remediation `message:` explaining the approved helper or pattern, wire `ast-grep scan` into `check:local`, test rules with `ast-grep test`, and keep `--custom-languages` at its `ignore` default unless reviewed.
+- **Module boundaries (`import-linter`)**: add `--dev import-linter` with `UV_MALWARE_CHECK=1 --preview-features malware-check`, configure `[tool.importlinter]` (`root_package`) + `[[tool.importlinter.contracts]]` (`layers`/`forbidden`/`acyclic_siblings`), and wire `uv run --locked lint-imports --no-logo` into `check:local` (prefer over unmaintained `tach`).
+- **Custom AST invariants (`ast-grep`)**: pin `ast-grep` in `mise.toml` (re-lock), add `sgconfig.yml` (`ruleDirs: [.ast-grep/rules]`, `testDirs: [.ast-grep/tests]`) with `severity: error` rules and remediation `message:`, wire `ast-grep scan` into `check:local`, run `ast-grep test`, and keep `--custom-languages` at `ignore`.
 
 ## Documentation
 

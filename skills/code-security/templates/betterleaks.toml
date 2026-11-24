@@ -4,6 +4,10 @@ title = "<slug>"
 [extend]
 useDefault = true
 
+# Never add blanket `.env` / `.env.*` allowlists here: this file is shared with `betterleaks git`
+# and `--staged`, so allowlisting `.env` here would blind commit and history scans if force-added.
+# For local `betterleaks dir .` alongside gitignored `.env`, use a separate dir-only config (see betterleaks.md).
+
 # Add narrow, documented allowlists only for verified false positives:
 # [[allowlists]]
 # description = "Explain why this synthetic fixture or lock key is safe."

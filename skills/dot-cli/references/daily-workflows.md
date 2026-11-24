@@ -14,7 +14,7 @@ dot doctor --json
 dot doctor --headroom
 ```
 
-`dot doctor` emits `dot.diagnostics/v1` across secret file modes (`~/.config/chezmoi/key.txt`, `~/.ssh/id_ed25519_signing`), Docker, disk headroom, core CLI tools, installation freshness, and agent harnesses (persona, skills, and reviewer wiring).
+`dot doctor` emits `dot.diagnostics/v1` across secret file modes (`~/.config/chezmoi/key.txt`, `~/.ssh/id_ed25519_signing`), Docker, disk headroom, core CLI tools, installation freshness, and agent harnesses (persona, skills, reviewers, and multi-tenant `agy` `skills.json`/`plugins.json`/`hooks.json` isolation).
 
 - `--fix`: repair local secret-file permissions (`0600`).
 - `-q`/`--quiet`: show only `fail`/`warn` items and a verdict (`--json -q` filters `.checks[]`).
@@ -46,4 +46,4 @@ dot trust all ~/.local/share/chezmoi    # authorized: allowlisted workspace repo
 
 ## Fish completions
 
-`mise run completions` (`uv run --frozen --directory dot python -m dot_tasks.completions`; `--check` uses temp dirs) refreshes Fish completions, replacing regular `*.fish` files in `~/.config/fish/completions` while keeping symlinks ([dot-development](https://github.com/fmind/dot/blob/main/.agents/skills/dot-development/SKILL.md)).
+`mise run completions` (`uv run --locked --directory dot python -m dot_tasks.completions`; `--check` uses temp dirs) refreshes Fish completions, replacing regular `*.fish` files in `~/.config/fish/completions` while keeping symlinks ([dot-development](https://github.com/fmind/dot/blob/main/.agents/skills/dot-development/SKILL.md)).

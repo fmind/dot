@@ -6,7 +6,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/humanize
   created: "2026-08-20"
-  updated: "2026-11-23"
+  updated: "2026-11-24"
   kind: task
 ---
 
@@ -33,7 +33,7 @@ Central guide for human-facing writing. **Default reader:** a busy executive or 
 
 Apply these checks to **long-form, public, or high-stakes drafts** (memos, briefs, proposals, decks, public docs, sensitive leadership emails); skip Vale and subagent spawns on short 1:1 replies or quick Chat posts unless requested.
 
-1. **Lint**: `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` (omit `--config` if repo `.vale.ini` exists).
+1. **Lint**: `vale --no-global --config ~/.config/vale/.vale.ini --output=JSON <draft.md>` (omit `--config` if repo `.vale.ini` exists; for domain vocabulary, add a repo-local `Terminology.yml` `extends: substitution` rule in your project's Vale styles).
 1. **Review & inspect**: freeze and run `fmind-review-human` (plus `fmind-review-completeness` and matching `factcheck`/`docs`/`proposal`/`visuals`/`frontend` roles on substantive deliverables; [subagent](../subagent/SKILL.md)), and inspect `1440x900` & `390x844` or PDF/PNG renders for zero clipping.
 
 ## Documentation
