@@ -54,12 +54,42 @@ def _has_env_workspace_client() -> bool:
     )
 
 
-def _workspace_client(state: State, project: str) -> tuple[bool, set[str] | None]:
+def _workspace_mismatch_error(existing: object, project: str) -> DotError:
+    has_dir = bool(os.environ.get("GOOGLE_WORKSPACE_CLI_CONFIG_DIR"))
+    has_existing = isinstance(existing, str) and bool(existing)
+    valid_existing = has_existing and PROJECT_RE.fullmatch(existing) is not None
+    subject = (
+        f"Workspace OAuth client is configured for project {existing!r}, not {project!r}"
+        if has_existing
+        else f"Workspace OAuth client has an unknown project, not {project!r}"
+    )
+    env_note = " (GOOGLE_WORKSPACE_CLI_CONFIG_DIR is set)" if has_dir else ""
+    if has_dir:
+        actions = ["unset GOOGLE_WORKSPACE_CLI_CONFIG_DIR"]
+        if valid_existing:
+            actions.append(f"run dot login workspace --project {existing}")
+        actions.append("run dot login workspace --setup to reconfigure")
+    else:
+        actions = [
+            f"run dot login workspace --project {existing}" if valid_existing else "update the project setting",
+            "run dot login workspace --setup to reconfigure",
+        ]
+    remedy = f"{actions[0]}, {actions[1]}, or {actions[2]}" if len(actions) == 3 else f"{actions[0]} or {actions[1]}"
+    return DotError(f"{subject}{env_note}; {remedy}")
+
+
+def _workspace_client(
+    state: State, project: str, *, allow_project_mismatch: bool = False
+) -> tuple[bool, set[str] | None]:
     status = probe_json(state, WORKSPACE_STATUS)
     if not isinstance(status, dict) or type(status.get("client_config_exists")) is not bool:
         raise DotError("Workspace client configuration state is unknown; inspect gws auth status before setup")
-    same_project = status.get("project_id") == project
-    configured = status["client_config_exists"] and same_project and not status.get("client_config_error")
+    existing = status.get("project_id")
+    same_project = existing == project
+    has_valid_client = status["client_config_exists"] and not status.get("client_config_error")
+    if has_valid_client and not same_project and not allow_project_mismatch:
+        raise _workspace_mismatch_error(existing, project)
+    configured = has_valid_client and same_project
     apis = status.get("enabled_apis")
     return configured, set(apis) if same_project and isinstance(apis, list) and all(
         isinstance(a, str) for a in apis
@@ -110,7 +140,7 @@ def setup_workspace(state: State, project: str, *, dry_run: bool = False) -> Non
         _dry_run(state, *_enable_commands(WORKSPACE_APIS, project), setup)
         return
     require_tools(state, [*_enable_commands(WORKSPACE_APIS, project), setup])
-    configured, enabled = _workspace_client(state, project)
+    configured, enabled = _workspace_client(state, project, allow_project_mismatch=True)
     if not configured:
         _require_tty(state, setup[0])
     missing = list(WORKSPACE_APIS) if enabled is None else [a for a in WORKSPACE_APIS if a not in enabled]
@@ -119,7 +149,7 @@ def setup_workspace(state: State, project: str, *, dry_run: bool = False) -> Non
     )
     if not configured:
         _execute(state, setup)
-        if not _workspace_client(state, project)[0]:
+        if not _workspace_client(state, project, allow_project_mismatch=True)[0]:
             raise DotError("Workspace OAuth client setup is incomplete; inspect gws auth status and retry")
     if enabled_missing or not configured:
         print("Workspace setup is complete.", file=state.stderr)
@@ -167,7 +197,7 @@ def login_workspace(
         ("GOOGLE_WORKSPACE_CLI_TOKEN", "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE"),
         "external Workspace credentials override stored OAuth; unset GOOGLE_WORKSPACE_CLI_TOKEN or GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE before using dot login workspace",
     )
-    client_ready = bool(selected) and _workspace_client(state, selected)[0]
+    client_ready = bool(selected) and _workspace_client(state, selected, allow_project_mismatch=setup)[0]
     if not force and not setup and (not selected or client_ready) and workspace_ready(state, extra):
         print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
         return
@@ -180,6 +210,8 @@ def login_workspace(
     if not force and workspace_ready(state, extra):
         print("Workspace is already authenticated with the requested scopes.", file=state.stderr)
         return
+    require_tools(state, [args])
+    _require_tty(state, args[0])
     headless = is_headless_ssh()
     if headless:
         print(
@@ -267,6 +299,8 @@ def provider_ready(state: State, provider: LoginProvider, *, reconcile: bool = F
         return github_ready(github_status(state), reconcile=reconcile)
     if provider == "gcp":
         return gcloud_ready(state, GCLOUD_CLI_TOKEN) and adc_ready(state)
+    if selected := _resolve_workspace_project(state, None):
+        return _workspace_client(state, selected)[0] and workspace_ready(state)
     return workspace_ready(state)
 
 

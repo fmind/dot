@@ -706,6 +706,151 @@ def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatc
     assert ready_runner.calls == [["gws", "auth", "status"]]
     assert "already authenticated" in buf(st_ready.stderr)
 
+    # Existing valid client for a different or unknown project fails closed unless --setup is explicit.
+    mismatch_status = json.dumps(
+        {
+            "client_config_exists": True,
+            "project_id": "other-proj",
+            "enabled_apis": list(WORKSPACE_APIS),
+            "token_valid": True,
+            "scopes": list(cfg.auth.workspace.scopes),
+        }
+    )
+    mismatch_runner = ScriptedRunner({"gcloud", "gws"}, run=lambda *_a: CommandResult(mismatch_status, "", 0))
+    with pytest.raises(DotError, match="configured for project 'other-proj', not 'my-proj-1'"):
+        auth_module.login_workspace(make_state(mismatch_runner, cfg), project="my-proj-1")
+    assert mismatch_runner.calls == [["gws", "auth", "status"]]
+
+    mismatch_runner.calls.clear()
+    with pytest.raises(
+        DotError, match="run dot login workspace --project other-proj or run dot login workspace --setup"
+    ):
+        auth_module.login_workspace(make_state(mismatch_runner, cfg), force=True, project="my-proj-1")
+    assert mismatch_runner.calls == [["gws", "auth", "status"]]
+
+    for unknown_payload in (
+        {"client_config_exists": True, "enabled_apis": []},
+        {"client_config_exists": True, "project_id": None, "enabled_apis": []},
+        {"client_config_exists": True, "project_id": "", "enabled_apis": []},
+    ):
+        unk_runner = ScriptedRunner(
+            {"gcloud", "gws"}, run=lambda *_a, p=unknown_payload: CommandResult(json.dumps(p), "", 0)
+        )
+        with pytest.raises(DotError, match="unknown project, not 'my-proj-1'; update the project setting"):
+            auth_module.login_workspace(make_state(unk_runner, cfg), project="my-proj-1")
+        assert unk_runner.calls == [["gws", "auth", "status"]]
+
+    bad_id_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        run=lambda *_a: CommandResult(json.dumps({"client_config_exists": True, "project_id": "BAD\nID"}), "", 0),
+    )
+    with pytest.raises(DotError, match="update the project setting or run dot login workspace --setup") as bad_id_err:
+        auth_module.login_workspace(make_state(bad_id_runner, cfg), project="my-proj-1")
+    assert "--project" not in str(bad_id_err.value)
+
+    with monkeypatch.context() as mp:
+        mp.setenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", str(tmp_path / "gws-alt"))
+        mismatch_runner.calls.clear()
+        with pytest.raises(
+            DotError,
+            match="GOOGLE_WORKSPACE_CLI_CONFIG_DIR is set\\); unset GOOGLE_WORKSPACE_CLI_CONFIG_DIR, run dot login workspace --project other-proj",
+        ):
+            auth_module.login_workspace(make_state(mismatch_runner, cfg), project="my-proj-1")
+        assert mismatch_runner.calls == [["gws", "auth", "status"]]
+
+        # Matching --project succeeds even under GOOGLE_WORKSPACE_CLI_CONFIG_DIR.
+        mismatch_runner.calls.clear()
+        st_match_alt = make_state(mismatch_runner, cfg)
+        auth_module.login_workspace(st_match_alt, project="other-proj")
+        assert mismatch_runner.calls == [["gws", "auth", "status"]]
+        assert "already authenticated" in buf(st_match_alt.stderr)
+
+        st_chk_mismatch = make_state(mismatch_runner, cfg)
+        with pytest.raises(SystemExit) as mismatch_exit:
+            auth_module.check_logins(st_chk_mismatch, ["workspace"], "dot login", force=False, dry_run=False)
+        assert mismatch_exit.value.code == 1
+        assert "GOOGLE_WORKSPACE_CLI_CONFIG_DIR is set" in buf(st_chk_mismatch.stdout)
+
+    # --check mirrors login_workspace readiness when the client config is missing or corrupt despite a valid token.
+    for unready_client in (
+        {"client_config_exists": False, "token_valid": True, "scopes": list(cfg.auth.workspace.scopes)},
+        {
+            "client_config_exists": True,
+            "client_config_error": "invalid json",
+            "project_id": "my-proj-1",
+            "token_valid": True,
+            "scopes": list(cfg.auth.workspace.scopes),
+        },
+    ):
+        unready_runner = ScriptedRunner({"gws"}, run=lambda *_a, p=unready_client: CommandResult(json.dumps(p), "", 0))
+        st_chk_unready = make_state(unready_runner, cfg)
+        with pytest.raises(SystemExit) as unready_exit:
+            auth_module.check_logins(st_chk_unready, ["workspace"], "dot login", force=False, dry_run=False)
+        assert unready_exit.value.code == 1
+        assert "workspace: login needed" in buf(st_chk_unready.stdout)
+
+    reconfig_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(mismatch_status, "", 0),
+                CommandResult(
+                    json.dumps(
+                        {
+                            "client_config_exists": True,
+                            "project_id": "my-proj-1",
+                            "enabled_apis": list(WORKSPACE_APIS),
+                            "token_valid": True,
+                            "scopes": list(cfg.auth.workspace.scopes),
+                        }
+                    ),
+                    "",
+                    0,
+                ),
+            ]
+        },
+    )
+    auth_module.login_workspace(make_state(reconfig_runner, cfg), setup=True, project="my-proj-1")
+    reconfig_enables = [c for c in reconfig_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
+    assert [api for c in reconfig_enables for api in c[3:-3]] == list(WORKSPACE_APIS)
+    assert all(c[-3:] == ["--project", "my-proj-1", "--quiet"] for c in reconfig_enables)
+    assert ["gws", "auth", "setup", "--project", "my-proj-1"] in reconfig_runner.calls
+
+    corrupt_runner = ScriptedRunner(
+        {"gcloud", "gws"},
+        responses={
+            ("gws", "auth", "status"): [
+                CommandResult(
+                    json.dumps(
+                        {
+                            "client_config_exists": True,
+                            "client_config_error": "invalid json",
+                            "project_id": "other-proj",
+                            "enabled_apis": [],
+                        }
+                    ),
+                    "",
+                    0,
+                ),
+                CommandResult(
+                    json.dumps(
+                        {
+                            "client_config_exists": True,
+                            "project_id": "my-proj-1",
+                            "enabled_apis": list(WORKSPACE_APIS),
+                            "token_valid": True,
+                            "scopes": list(cfg.auth.workspace.scopes),
+                        }
+                    ),
+                    "",
+                    0,
+                ),
+            ]
+        },
+    )
+    auth_module.login_workspace(make_state(corrupt_runner, cfg), project="my-proj-1")
+    assert ["gws", "auth", "setup", "--project", "my-proj-1"] in corrupt_runner.calls
+
     with pytest.raises(UsageError, match="invalid scope"):
         auth_probes_module.one_off_scopes(["not valid!"], [])
     for bad_grant in ("", "/", "-bad", "https://www.googleapis.com/auth/"):
@@ -1261,6 +1406,14 @@ def test_system_and_auth_coverage_branches(tmp_path: Path, monkeypatch: pytest.M
     with pytest.raises(DotError, match="requires a terminal"):
         auth_module.login_workspace(make_state(non_tty_runner, cfg_ws), project="my-proj-1", setup=True)
     assert ws_calls == [["gws", "auth", "status"]]
+
+    # Non-TTY headless login fails closed BEFORE printing interactive SSH curl instructions.
+    with monkeypatch.context() as mp:
+        mp.setenv("SSH_TTY", "/dev/pts/0")
+        st_headless_non_tty = make_state(non_tty_runner, cfg_ws)
+        with pytest.raises(DotError, match="requires a terminal"):
+            auth_module.login_workspace(st_headless_non_tty, project="my-proj-1")
+        assert "Headless SSH detected" not in buf(st_headless_non_tty.stderr)
 
     # --dry-run and --check continue to work without a TTY
     dry_non_tty = make_state(non_tty_runner, cfg_ws)

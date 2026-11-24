@@ -9,7 +9,7 @@ description: "Reconcile configured provider logins, OAuth scopes, one-off grants
 
 - **Fixed order**: `dot login` runs `auth.login` (default `[github, gcp, workspace]`) in order GitHub → GCP + ADC → Workspace, skipping ready steps and failing closed on unknown state.
 - **Preflight & OAuth**: readiness probes run first in memory (`--check` skips browsers and blocks forbidden grants); missing logins open browser OAuth (copying GitHub device codes) without printing secrets. On GCE VMs, probes ignore metadata service accounts (`*.gserviceaccount.com`) and require user ADC; over headless SSH, `gcp` passes `--no-launch-browser` and `workspace` prints a localhost `curl` callback hint.
-- **Precedence & `--setup`**: Workspace project resolves CLI arg → `GWS_PROJECT` → `auth.workspace.project` in `~/.config/dot.yaml`. Pass `--setup` (`dot login workspace --setup`) only to enable APIs or bootstrap a project; re-run `dot login` after config changes.
+- **Precedence & `--setup`**: Workspace project resolves CLI arg → `GWS_PROJECT` → `auth.workspace.project` in `~/.config/dot.yaml`. When an existing OAuth client belongs to a different or unreported project (for example under `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`), `dot login` fails closed instead of running `gws auth setup`; unset the profile override, run `dot login workspace --project <id>`, or pass `--setup` (`dot login workspace --setup`) to reconfigure or enable APIs, then re-run `dot login` after config changes.
 - **Plaintext `hosts.yml` warning**: if `gh` fell back to insecure `hosts.yml`, unlock macOS Keychain or Linux Secret Service (`login` / `default`), then run `gh auth logout && dot login github`.
 
 ## Workspace scopes & one-off grants
