@@ -5,10 +5,13 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import stat
+import subprocess
 import sys
 import unicodedata
 from collections.abc import Mapping, Sequence
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -30,6 +33,18 @@ GUIDE_END = "<!-- guides:end -->"
 _REQ_META = ("author", "source", "created", "updated")
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_GIT_ENV_STRIP = frozenset(
+    {
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_WORK_TREE",
+    }
+)
 FRONTMATTER_FIELDS = {
     "allowed-tools",
     "compatibility",
@@ -286,6 +301,15 @@ def _document_targets(content: str) -> tuple[str, ...]:
     )
 
 
+def _parse_iso_date(value: Any) -> date | None:
+    if not isinstance(value, str) or _ISO_DATE.fullmatch(value.strip()) is None:
+        return None
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError:
+        return None
+
+
 def _metadata_findings(relative: str, metadata: Any) -> list[str]:
     if not isinstance(metadata, dict):
         return [f"{relative}: metadata must be a mapping"]
@@ -295,7 +319,90 @@ def _metadata_findings(relative: str, metadata: Any) -> list[str]:
     if metadata.get("kind") not in SKILL_KINDS:
         findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
     bad = [f for f in _REQ_META if not isinstance(v := metadata.get(f), str) or not v.strip()]
-    return [*findings, *(f"{relative}: metadata.{f} must be a non-empty string" for f in bad)]
+    findings.extend(f"{relative}: metadata.{f} must be a non-empty string" for f in bad)
+    dates: dict[str, date] = {}
+    for field in ("created", "updated"):
+        if field not in bad:
+            parsed = _parse_iso_date(metadata.get(field))
+            if parsed is None:
+                findings.append(f"{relative}: metadata.{field} must be a valid YYYY-MM-DD date")
+            else:
+                dates[field] = parsed
+    if "created" in dates and "updated" in dates and dates["updated"] < dates["created"]:
+        findings.append(
+            f"{relative}: metadata.updated ({metadata['updated']!r}) precedes metadata.created ({metadata['created']!r})"
+        )
+    return findings
+
+
+def _git_output(root: Path, *args: str) -> str | None:
+    if (git := shutil.which("git")) is None:
+        return None
+    env = {k: v for k, v in os.environ.items() if k not in _GIT_ENV_STRIP}
+    try:
+        res = subprocess.run(  # noqa: S603
+            [git, "-C", str(root), *args], capture_output=True, text=True, check=False, env=env, timeout=15
+        )
+    except OSError, subprocess.SubprocessError:
+        return None
+    return res.stdout.strip() if res.returncode == 0 else None
+
+
+def _skill_dir_for_rel(rel_path: str) -> str | None:
+    parts = Path(rel_path).parts
+    if len(parts) >= 3 and parts[0] == "skills":
+        return f"skills/{parts[1]}"
+    if len(parts) >= 4 and parts[0] == ".agents" and parts[1] == "skills":
+        return f".agents/skills/{parts[2]}"
+    return None
+
+
+def _stale_updated_findings(root: Path, discovered: Sequence[tuple[str, Path]]) -> list[str]:
+    """Flag skills modified since the latest v* tag whose metadata.updated was not bumped."""
+    if not (root / ".git").exists():
+        return []
+    base_tag = _git_output(root, "describe", "--tags", "--abbrev=0", "--match", "v*", "HEAD")
+    if not base_tag:
+        return []
+    diff_since_tag = (_git_output(root, "diff", "--name-only", base_tag) or "").splitlines()
+    untracked = (_git_output(root, "ls-files", "--others", "--exclude-standard") or "").splitlines()
+    touched = {d for p in (*diff_since_tag, *untracked) if (d := _skill_dir_for_rel(p))}
+    if not touched:
+        return []
+    dirty_since_head = (_git_output(root, "diff", "--name-only", "HEAD") or "").splitlines()
+    dirty_dirs = {d for p in (*dirty_since_head, *untracked) if (d := _skill_dir_for_rel(p))}
+    today = datetime.now().astimezone().date().isoformat()
+    findings: list[str] = []
+    for _, skill_path in discovered:
+        rel_dir = _relative(root, skill_path.parent)
+        if rel_dir not in touched:
+            continue
+        rel_skill = _relative(root, skill_path)
+        base_text = _git_output(root, "show", f"{base_tag}:{rel_skill}")
+        if base_text is None:
+            continue
+        try:
+            base_meta, _ = cb.parse_frontmatter(base_text, rel_skill)
+            cur_meta, _ = cb.parse_frontmatter(skill_path.read_text(encoding="utf-8"), rel_skill)
+        except DotError, OSError, UnicodeDecodeError:
+            continue
+        base_upd = (
+            (base_meta.get("metadata") or {}).get("updated") if isinstance(base_meta.get("metadata"), dict) else None
+        )
+        cur_upd = (
+            (cur_meta.get("metadata") or {}).get("updated") if isinstance(cur_meta.get("metadata"), dict) else None
+        )
+        base_dt, cur_dt = _parse_iso_date(base_upd), _parse_iso_date(cur_upd)
+        if base_dt is None or cur_dt is None or cur_dt > base_dt:
+            continue
+        change_date = (
+            today
+            if rel_dir in dirty_dirs
+            else (_git_output(root, "log", "-1", "--format=%cs", f"{base_tag}..HEAD", "--", rel_dir) or "")
+        )
+        if change_date > base_dt.isoformat():
+            findings.append(f"{rel_skill}: metadata.updated ({cur_upd!r}) must be bumped after edits since {base_tag}")
+    return findings
 
 
 def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
@@ -331,6 +438,7 @@ def _repository_check(root: Path) -> tuple[list[str], int]:
     discovered, findings = _discover_skills(root)
     for name, path in sorted(discovered):
         findings.extend(_skill_findings(root, name, path))
+    findings.extend(_stale_updated_findings(root, sorted(discovered)))
     try:
         context = cb.context_report(root, source=root)
         for scope, b in context["budgets"].items():

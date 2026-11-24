@@ -271,6 +271,133 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
     assert "reviewers" in missing_rev["copilot"]["details"]
     sample_rev.write_text("---\nname: fmind-review-code\n---\n", encoding="utf-8")
 
+    # Multi-tenant agy isolation: global skills.json/plugins.json external paths, fail-closed parsing, and hooks.json hardening.
+    skills_json = tmp_path / ".gemini/config/skills.json"
+    for payload in (
+        {"directories": [{"path": "~/client-secret/skills"}]},
+        {"directories": [{"dir": "~/client-secret/skills"}]},
+        {"inherits": ["~/client-secret/skills.json"]},
+        ["~/client-secret/skills"],
+    ):
+        skills_json.write_text(json.dumps(payload), encoding="utf-8")
+        skills_json.chmod(0o600)
+        leaked = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+        assert leaked["agy"]["status"] == "warn"
+        assert leaked["agy"]["condition"] == "insecure"
+        assert "1 external path(s)" in leaked["agy"]["details"]
+        assert "client-secret" not in leaked["agy"]["details"]
+
+    skills_json.write_text(json.dumps({"skills": ["~/client-secret/skills"]}), encoding="utf-8")
+    skills_json.chmod(0o600)
+    unknown_key = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert unknown_key["agy"]["status"] == "warn"
+    assert "unrecognized global entries" in unknown_key["agy"]["details"]
+    assert "client-secret" not in unknown_key["agy"]["details"]
+
+    skills_json.write_text(
+        json.dumps({"entries": [{"path": "~/.agents/skills", "exclude": ["unused"]}]}), encoding="utf-8"
+    )
+    skills_json.chmod(0o600)
+    allowed_only = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert allowed_only["agy"]["status"] == "pass"
+
+    skills_json.write_bytes(b"\xff\xfeinvalid-utf8")
+    skills_json.chmod(0o600)
+    bad_utf8 = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert bad_utf8["agy"]["status"] == "warn"
+    assert "unreadable or invalid JSON" in bad_utf8["agy"]["details"]
+
+    symlink_target = tmp_path / "external_skills.json"
+    symlink_target.write_text("{}", encoding="utf-8")
+    symlink_target.chmod(0o644)
+    skills_json.unlink()
+    skills_json.symlink_to(symlink_target)
+    sym_warn = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert sym_warn["agy"]["status"] == "warn"
+    assert "unreadable or symlink" in sym_warn["agy"]["details"]
+    skills_json.unlink()
+
+    plugins_json = tmp_path / ".gemini/config/plugins.json"
+    plugins_json.write_text(json.dumps({"entries": [{"path": "~/client-secret/plugins"}]}), encoding="utf-8")
+    plugins_json.chmod(0o600)
+    plugin_leak = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert plugin_leak["agy"]["status"] == "warn"
+    assert "plugins.json registers 1 external path(s)" in plugin_leak["agy"]["details"]
+    assert "client-secret" not in plugin_leak["agy"]["details"]
+    plugins_json.unlink()
+
+    hook_script = tmp_path / ".local/share/demo/hook.py"
+    hook_script.parent.mkdir(parents=True, exist_ok=True)
+    hook_script.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    hook_script.chmod(0o755)
+    fake_py = tmp_path / ".local/share/demo/python3"
+    fake_py.write_text("#!/bin/sh\n", encoding="utf-8")
+    fake_py.chmod(0o777)
+    hooks_json = tmp_path / ".gemini/config/hooks.json"
+    hooks_json.write_text(
+        json.dumps(
+            {
+                "demo": {
+                    "SessionStart": [
+                        {"command": f"python3 {hook_script}"},
+                        {"command": f"uv run --locked --script {hook_script} --arg"},
+                        {"command": f"env -u FOO python3 -W ignore {hook_script}"},
+                        {"command": "python3 -m demo.hook"},
+                        {"command": ["python3", str(hook_script)]},
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    hooks_json.chmod(0o600)
+    clean_hook = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert clean_hook["agy"]["status"] == "pass"
+
+    hook_script.chmod(0o777)
+    hooks_json.chmod(0o644)
+    bad_hook = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert bad_hook["agy"]["status"] == "warn"
+    assert "permissions too open" in bad_hook["agy"]["details"]
+    assert "4 invalid, relative, missing, or writable" in bad_hook["agy"]["details"]
+    hook_script.chmod(0o755)
+
+    bypass_cmds: list[object] = [
+        "./relative-hook.sh",
+        "unclosed 'quote",
+        f"uv run --locked --script={tmp_path / 'missing.py'}",
+        f"uv run --project ./rel python3 {hook_script}",
+        f"uv run -C./rel python3 {hook_script}",
+        "uv -q run ./relative-hook.sh",
+        f"uv --directory ./rel run python3 {hook_script}",
+        "env -iS 'python3 -c import os'",
+        f"env ./python3 {hook_script}",
+        f"env {fake_py} {hook_script}",
+        "bash -c 'echo bad'",
+        f"fish -C 'echo bad' {hook_script}",
+        "sh -m ./relative-hook.sh",
+        "python3 -uc 'import os' safe",
+        "node -e'process.exit(1)' safe",
+        "node -pe '1+1'",
+        f"(python3 {fake_py})",
+        f"python3 {hook_script} arg;id",
+        f"foo#bar ; {fake_py}",
+        f"true && {hook_script}",
+        f"python3 {hook_script} $(id)",
+        "",
+        "''",
+        123,
+    ]
+    hooks_json.write_text(
+        json.dumps({"demo": {"SessionStart": [{"command": c} for c in bypass_cmds]}}),
+        encoding="utf-8",
+    )
+    hooks_json.chmod(0o600)
+    rel_hook = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
+    assert rel_hook["agy"]["status"] == "warn"
+    assert f"{len(bypass_cmds)} invalid, relative, missing, or writable" in rel_hook["agy"]["details"]
+    hooks_json.unlink()
+
     assert {r["name"]: r["status"] for r in sec["auth"]} == {
         "gh": "warn",
         "gcloud": "pass",

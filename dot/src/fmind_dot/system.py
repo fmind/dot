@@ -1,7 +1,9 @@
 """Workstation diagnostics and installation freshness."""
 
 import argparse
+import json
 import os
+import shlex
 import shutil
 import stat
 import sys
@@ -42,6 +44,9 @@ _AGENT_REVIEWERS: dict[str, tuple[str, str]] = {
     "agy": ("~/.gemini/config/agents", "fmind-review-*.md"),
     "copilot": ("~/.copilot/agents", "fmind-review-*.agent.md"),
 }
+_AGY_SKILLS_JSON = "~/.gemini/config/skills.json"
+_AGY_PLUGINS_JSON = "~/.gemini/config/plugins.json"
+_AGY_HOOKS_JSON = "~/.gemini/config/hooks.json"
 
 _DOCTOR_GROUPS = (
     ("auth", "CLI Authentication"),
@@ -214,6 +219,366 @@ def _same_file(path: Path, target: Path) -> bool:
         return False
 
 
+_SKILL_PATH_KEYS = frozenset({"path", "paths", "inherits", "directories", "dirs", "entries"})
+_MANIFEST_IGNORED_KEYS = frozenset({"$schema", "include_only", "exclude"})
+_INTERPRETER_WRAPPERS = frozenset({"env", "sh", "bash", "zsh", "fish", "node", "python", "python3"})
+_SHELL_WRAPPERS = frozenset({"sh", "bash", "zsh", "fish"})
+_UV_RUN_VALUE_FLAGS = frozenset(
+    {
+        "--project",
+        "--directory",
+        "-C",
+        "-p",
+        "--python",
+        "-w",
+        "--with",
+        "--with-editable",
+        "--with-requirements",
+        "--group",
+        "--only-group",
+        "--extra",
+        "--env-file",
+        "--config-file",
+    }
+)
+_UV_RUN_PATH_FLAGS = frozenset(
+    {"--project", "--directory", "-C", "--with-editable", "--with-requirements", "--env-file", "--config-file"}
+)
+_SHELL_OP_CHARS = frozenset({";", "&", "|", "<", ">", "(", ")"})
+_MAX_AGY_JSON_BYTES = 1024 * 1024
+
+
+def _collect_manifest_paths(node: object, *, under_path_key: bool = False) -> tuple[list[str], bool]:
+    """Collect registered paths and report whether unrecognized non-empty global entries exist."""
+    values: list[str] = []
+    has_unknown = False
+    if isinstance(node, str):
+        if under_path_key:
+            if node.strip():
+                values.append(node.strip())
+        elif node.strip():
+            has_unknown = True
+    elif isinstance(node, list):
+        for item in node:
+            sub_vals, sub_unknown = _collect_manifest_paths(item, under_path_key=under_path_key)
+            values.extend(sub_vals)
+            has_unknown = has_unknown or sub_unknown
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            if k in _MANIFEST_IGNORED_KEYS:
+                continue
+            if k in _SKILL_PATH_KEYS or under_path_key:
+                sub_vals, sub_unknown = _collect_manifest_paths(v, under_path_key=True)
+                values.extend(sub_vals)
+                has_unknown = has_unknown or sub_unknown
+            elif v not in (None, "", [], {}):
+                has_unknown = True
+    elif node not in (None, False):
+        has_unknown = True
+    return values, has_unknown
+
+
+def _collect_hook_commands(node: object) -> list[object]:
+    values: list[object] = []
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "command":
+                values.append(v)
+            else:
+                values.extend(_collect_hook_commands(v))
+    elif isinstance(node, list):
+        for item in node:
+            values.extend(_collect_hook_commands(item))
+    return values
+
+
+def _load_agy_json(path: Path, label: str, expected_types: type | tuple[type, ...]) -> tuple[object | None, list[str]]:
+    issues: list[str] = []
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return None, []
+    except OSError:
+        return None, [f"{label} unreadable or symlink"]
+    try:
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return None, [f"{label} is not a regular file"]
+            if info.st_uid != os.getuid():
+                return None, [f"{label} not owned by current user"]
+            if stat.S_IMODE(info.st_mode) & ~0o600 != 0:
+                issues.append(f"{label} permissions too open (expected 0600)")
+            raw = stream.read(_MAX_AGY_JSON_BYTES + 1)
+    except OSError:
+        return None, [f"{label} unreadable"]
+    if len(raw) > _MAX_AGY_JSON_BYTES:
+        return None, [*issues, f"{label} exceeds size limit"]
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+    except UnicodeDecodeError, json.JSONDecodeError, RecursionError:
+        return None, [*issues, f"{label} unreadable or invalid JSON"]
+    if not isinstance(parsed, expected_types):
+        return None, [*issues, f"{label} unreadable or invalid JSON"]
+    return parsed, issues
+
+
+def _parse_hook_command(cmd: object) -> list[str] | None:
+    """Parse a hook command string or argv list; fail closed on shell operators or invalid shapes."""
+    if isinstance(cmd, list):
+        return list(cmd) if cmd and all(isinstance(t, str) for t in cmd) else None
+    if not isinstance(cmd, str) or not cmd.strip():
+        return None
+    if any(seq in cmd for seq in ("\n", "\r", "`", "$(")):
+        return None
+    try:
+        lexer = shlex.shlex(cmd, posix=True, punctuation_chars=True)
+        lexer.commenters = ""
+        lexed = list(lexer)
+        if any(
+            (tok and tok[0] in _SHELL_OP_CHARS and set(tok) <= _SHELL_OP_CHARS) or tok in {"{", "}"} for tok in lexed
+        ):
+            return None
+        return shlex.split(cmd)
+    except ValueError:
+        return None
+
+
+def _hook_target_paths(tokens: list[str]) -> tuple[list[str], bool]:
+    """Return local script/executable paths to verify plus whether the command is invalid or relative."""
+    if not tokens or not tokens[0]:
+        return [], True
+    candidates: list[str] = []
+    idx = 0
+    done = False
+    while idx < len(tokens):
+        tok = tokens[idx]
+        if not tok:
+            return [], True
+        base = Path(tok).name
+        if base == "env":
+            candidates.append(tok)
+            idx += 1
+            while idx < len(tokens):
+                arg = tokens[idx]
+                if arg == "--":
+                    idx += 1
+                    break
+                if (
+                    arg in {"-S", "--split-string"}
+                    or arg.startswith(("-S", "--split-string="))
+                    or (arg.startswith("-") and not arg.startswith("--") and "S" in arg[1:])
+                ):
+                    return [], True
+                if arg in {"-u", "--unset", "-C", "--chdir"}:
+                    if idx + 1 >= len(tokens):
+                        return [], True
+                    if arg in {"-C", "--chdir"} and not tokens[idx + 1].startswith(("/", "~")):
+                        return [], True
+                    idx += 2
+                elif arg.startswith(("--chdir=", "-C")):
+                    val = arg.partition("=")[2] if "=" in arg else arg[2:]
+                    if not val.startswith(("/", "~")):
+                        return [], True
+                    idx += 1
+                elif arg.startswith("-") or "=" in arg:
+                    idx += 1
+                else:
+                    break
+            continue
+        if base == "uv":
+            candidates.append(tok)
+            idx += 1
+            while idx < len(tokens) and tokens[idx].startswith("-"):
+                arg = tokens[idx]
+                if arg in _UV_RUN_VALUE_FLAGS:
+                    if idx + 1 >= len(tokens):
+                        return [], True
+                    if arg in _UV_RUN_PATH_FLAGS and not tokens[idx + 1].startswith(("/", "~")):
+                        return [], True
+                    idx += 2
+                elif arg.startswith(
+                    (
+                        "--project=",
+                        "--directory=",
+                        "-C",
+                        "--with-editable=",
+                        "--with-requirements=",
+                        "--env-file=",
+                        "--config-file=",
+                    )
+                ):
+                    val = arg.partition("=")[2] if "=" in arg else arg[2:]
+                    if not val.startswith(("/", "~")):
+                        return [], True
+                    idx += 1
+                else:
+                    idx += 1
+            if idx >= len(tokens) or tokens[idx] != "run":
+                done = idx < len(tokens)
+                break
+            idx += 1
+            script_target: str | None = None
+            while idx < len(tokens) and tokens[idx].startswith("-"):
+                arg = tokens[idx]
+                if arg == "--":
+                    idx += 1
+                    break
+                if arg == "--script":
+                    if idx + 1 >= len(tokens):
+                        return [], True
+                    script_target = tokens[idx + 1]
+                    idx += 2
+                    break
+                if arg.startswith("--script="):
+                    val = arg.partition("=")[2]
+                    if not val:
+                        return [], True
+                    script_target = val
+                    idx += 1
+                    break
+                if arg in _UV_RUN_VALUE_FLAGS:
+                    if idx + 1 >= len(tokens):
+                        return [], True
+                    if arg in _UV_RUN_PATH_FLAGS and not tokens[idx + 1].startswith(("/", "~")):
+                        return [], True
+                    idx += 2
+                elif arg.startswith(
+                    (
+                        "--project=",
+                        "--directory=",
+                        "-C",
+                        "--with-editable=",
+                        "--with-requirements=",
+                        "--env-file=",
+                        "--config-file=",
+                    )
+                ):
+                    val = arg.partition("=")[2] if "=" in arg else arg[2:]
+                    if not val.startswith(("/", "~")):
+                        return [], True
+                    idx += 1
+                else:
+                    idx += 1
+            if script_target is not None:
+                candidates.append(script_target)
+                done = True
+                break
+            continue
+        if base in _INTERPRETER_WRAPPERS or base.startswith("python3."):
+            is_python = base in {"python", "python3"} or base.startswith("python3.")
+            candidates.append(tok)
+            idx += 1
+            while idx < len(tokens) and tokens[idx].startswith("-"):
+                arg = tokens[idx]
+                if arg == "--":
+                    idx += 1
+                    break
+                if (
+                    (is_python and not arg.startswith(("--", "-W", "-X", "-m")) and "c" in arg[1:])
+                    or (
+                        base == "node"
+                        and (
+                            arg in {"-e", "-p", "--eval", "--print"}
+                            or arg.startswith(("-e", "-p", "--eval=", "--print="))
+                            or (not arg.startswith("--") and any(c in arg[1:] for c in "ep"))
+                        )
+                    )
+                    or (base in _SHELL_WRAPPERS and not arg.startswith("--") and "c" in arg[1:])
+                    or (
+                        base == "fish"
+                        and (
+                            arg in {"-C", "--command", "--init-command"}
+                            or arg.startswith(("-C", "--command=", "--init-command="))
+                        )
+                    )
+                ):
+                    return [], True
+                if is_python and arg == "-m":
+                    if idx + 1 >= len(tokens) or not tokens[idx + 1]:
+                        return [], True
+                    idx += 2
+                    done = True
+                    break
+                if is_python and arg.startswith("-m") and len(arg) > 2:
+                    idx += 1
+                    done = True
+                    break
+                if arg in {"-W", "-X", "-o"}:
+                    if idx + 1 >= len(tokens):
+                        return [], True
+                    idx += 2
+                else:
+                    idx += 1
+            if done:
+                break
+            continue
+        candidates.append(tok)
+        done = True
+        break
+    if not done:
+        return [], True
+    targets: list[str] = []
+    is_invalid = False
+    for tok in candidates:
+        if not tok:
+            is_invalid = True
+        elif tok.startswith(("/", "~")):
+            targets.append(tok)
+        elif "/" in tok or tok.startswith("."):
+            is_invalid = True
+    return targets, is_invalid
+
+
+def _inspect_agy_manifest(path: Path, label: str, kind: str, *, allowed_target: Path | None) -> list[str]:
+    parsed, issues = _load_agy_json(path, label, (dict, list))
+    if parsed is None:
+        return issues
+    raw_paths, has_unknown = _collect_manifest_paths(parsed, under_path_key=isinstance(parsed, list))
+    external = sum(1 for raw in raw_paths if allowed_target is None or not _same_file(expand_path(raw), allowed_target))
+    if external:
+        issues.append(f"{label} registers {external} external path(s) globally (keep client {kind} project-local)")
+    if has_unknown:
+        issues.append(f"{label} contains unrecognized global entries (keep client {kind} project-local)")
+    return issues
+
+
+def _inspect_agy_isolation(shared_skills: Path) -> list[str]:
+    issues = _inspect_agy_manifest(expand_path(_AGY_SKILLS_JSON), "skills.json", "skills", allowed_target=shared_skills)
+    issues.extend(_inspect_agy_manifest(expand_path(_AGY_PLUGINS_JSON), "plugins.json", "plugins", allowed_target=None))
+
+    parsed_hooks, hook_issues = _load_agy_json(expand_path(_AGY_HOOKS_JSON), "hooks.json", dict)
+    issues.extend(hook_issues)
+    if parsed_hooks is not None:
+        bad_hooks = 0
+        uid = os.getuid()
+        for cmd in _collect_hook_commands(parsed_hooks):
+            tokens = _parse_hook_command(cmd)
+            if tokens is None:
+                bad_hooks += 1
+                continue
+            targets, is_invalid = _hook_target_paths(tokens)
+            if is_invalid:
+                bad_hooks += 1
+                continue
+            for raw_target in targets:
+                try:
+                    cmd_info = expand_path(raw_target).stat()
+                except OSError:
+                    bad_hooks += 1
+                    break
+                if (
+                    not stat.S_ISREG(cmd_info.st_mode)
+                    or cmd_info.st_uid not in (0, uid)
+                    or stat.S_IMODE(cmd_info.st_mode) & 0o022 != 0
+                ):
+                    bad_hooks += 1
+                    break
+        if bad_hooks:
+            issues.append(f"hooks.json references {bad_hooks} invalid, relative, missing, or writable command(s)")
+    return issues
+
+
 def _inspect_agent(name: str) -> CheckResult:
     persona_path, skills_path = _AGENT_HOSTS[name]
     shared = expand_path(_SHARED_SKILLS)
@@ -227,6 +592,8 @@ def _inspect_agent(name: str) -> CheckResult:
     if problems := [lbl for lbl, ok in checks if not ok]:
         msg = f"discovery broken ({','.join(problems)}); run chezmoi apply --force"
         return CheckResult(name, "fail", msg, condition="broken")
+    if name == "agy" and (isolation_issues := _inspect_agy_isolation(shared)):
+        return CheckResult(name, "warn", "; ".join(isolation_issues), condition="insecure")
     return CheckResult(name, "pass", "persona, skills, and reviewers configured", condition="healthy")
 
 

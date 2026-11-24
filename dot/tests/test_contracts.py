@@ -87,6 +87,8 @@ def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, valu
         ("  source: github.com/fmind/dot/tree/main/skills/fixture", "  source: null", "metadata.source"),
         ('  created: "2026-10-01"', "  created: 2026-10-01", "metadata keys and values must be strings"),
         ('  updated: "2026-10-12"\n', "", "metadata.updated must be a non-empty string"),
+        ('  updated: "2026-10-12"', '  updated: "2026-13-40"', "must be a valid YYYY-MM-DD date"),
+        ('  updated: "2026-10-12"', '  updated: "2026-09-01"', "precedes metadata.created"),
         ("  kind: task", "  kind: unknown", "metadata.kind must"),
         ("  kind: task", "  kind: []", "metadata.kind must"),
         ("  kind: task", "  kind: {}", "metadata.kind must"),
@@ -101,6 +103,42 @@ def test_skills_contract_rejects_invalid_frontmatter_and_metadata(
     skill = root / "skills/fixture/SKILL.md"
     skill.write_text(skill.read_text(encoding="utf-8").replace(orig, repl), encoding="utf-8")
     assert any(expected in f for f in checker.repository_findings(root))
+
+
+def test_skills_contract_flags_stale_updated_date_since_release_tag(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    env = {
+        **{k: v for k, v in os.environ.items() if k not in {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"}},
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_AUTHOR_NAME": "Fixture",
+        "GIT_AUTHOR_EMAIL": "fixture@example.com",
+        "GIT_COMMITTER_NAME": "Fixture",
+        "GIT_COMMITTER_EMAIL": "fixture@example.com",
+    }
+
+    def git(*args: str) -> None:
+        res = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False, env=env)
+        assert res.returncode == 0, res.stderr
+
+    git("init", "-q", "-b", "main")
+    git("add", ".")
+    git("commit", "-q", "-m", "chore: init")
+    git("tag", "v1.0.0")
+    assert checker.repository_findings(root) == []
+
+    # Editing a reference without bumping metadata.updated must fail.
+    (root / "skills/fixture/references/guide.md").write_text("# Guide\n\nUpdated guidance.\n", encoding="utf-8")
+    stale = checker.repository_findings(root)
+    assert any("skills/fixture/SKILL.md: metadata.updated ('2026-10-12') must be bumped" in f for f in stale)
+
+    # Bumping metadata.updated clears the finding, both uncommitted and committed.
+    skill = root / "skills/fixture/SKILL.md"
+    skill.write_text(skill.read_text(encoding="utf-8").replace("2026-10-12", "2026-11-24"), encoding="utf-8")
+    assert checker.repository_findings(root) == []
+    git("add", ".")
+    git("commit", "-q", "-m", "docs(skills): update fixture")
+    assert checker.repository_findings(root) == []
 
 
 @pytest.mark.parametrize(
