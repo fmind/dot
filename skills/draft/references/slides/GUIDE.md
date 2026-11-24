@@ -25,6 +25,7 @@ Native editable Google Slides plumbing via [gws](../../../gws/SKILL.md) (`gws sl
 - **No public URLs for `createImage`**: never make Drive images public just to call `createImage`; import via `.pptx` + `drive_upload.py` instead.
 - **Units & IDs**: Slides API geometry uses EMU (`1 pt = 12700 EMU`; 16:9 slide is `9144000 x 5143500 EMU` = `720 x 405 pt`). Provide deterministic `objectId` values (5–50 chars `[a-zA-Z0-9_-]`) so follow-up style requests target the exact element.
 - **Template ACLs**: `drive.files.copy` inherits destination `parents` ACLs; verify with `gws drive permissions list`.
+- **PPTX → Google Slides rendering & French NBSP**: size arrow textboxes (`→`/`↓`) to at least `0.35 in` wide (narrower boxes clip to dashes on import), inset top accent bars on tall `ROUND_RECTANGLE` shapes (Google Slides scales corner radii proportionally), and never put `\b` after non-word currency symbols (`$`, `€`) in French NBSP regexes—bind both currency symbols and multi-letter units (`jours`, `mois`, `ans`, `min`) plus `month YYYY` to prevent orphan line wraps.
 
 ## Documentation
 
