@@ -1,0 +1,225 @@
+text := import("text")
+
+strip_blockquote := func(s) {
+  cur := s
+  for {
+    i := 0
+    for i < len(cur) && i < 3 && cur[i:i+1] == " " {
+      i += 1
+    }
+    if i < len(cur) && cur[i:i+1] == ">" {
+      rest := cur[i+1:]
+      if len(rest) > 0 && rest[0:1] == " " {
+        rest = rest[1:]
+      }
+      cur = rest
+    } else {
+      break
+    }
+  }
+  return cur
+}
+
+// Up to 3 leading spaces are allowed before an opening/closing CommonMark fence (§4.5).
+strip_up_to_3_spaces := func(s) {
+  i := 0
+  for i < len(s) && i < 3 && s[i:i+1] == " " {
+    i += 1
+  }
+  return s[i:]
+}
+
+fence_run := func(s) {
+  body := strip_up_to_3_spaces(s)
+  if len(body) < 3 {
+    return {ch: "", n: 0, rest: body}
+  }
+  ch := body[0:1]
+  if ch != "`" && ch != "~" {
+    return {ch: "", n: 0, rest: body}
+  }
+  i := 0
+  for i < len(body) && body[i:i+1] == ch {
+    i += 1
+  }
+  if i < 3 {
+    return {ch: "", n: 0, rest: body}
+  }
+  return {ch: ch, n: i, rest: body[i:]}
+}
+
+ascii_ci_at := func(s, pos, lower_pat) {
+  m := len(lower_pat)
+  if pos+m > len(s) {
+    return false
+  }
+  for k := 0; k < m; k += 1 {
+    b := s[pos+k]
+    if b >= 65 && b <= 90 {
+      b += 32
+    }
+    if b != lower_pat[k] {
+      return false
+    }
+  }
+  return true
+}
+
+find_ascii_ci := func(s, start, lower_pat) {
+  m := len(lower_pat)
+  limit := len(s) - m
+  for p := start; p <= limit; p += 1 {
+    if ascii_ci_at(s, p, lower_pat) {
+      return p
+    }
+  }
+  return -1
+}
+
+scan_line := func(s, in_comment) {
+  n := len(s)
+  i := 0
+  spans := 0
+  has_pipe := false
+  for i < n {
+    if in_comment {
+      end := text.index(s[i:], "-->")
+      if end < 0 {
+        return {spans: spans, has_pipe: has_pipe, in_comment: true}
+      }
+      i += end + 3
+      in_comment = false
+      continue
+    }
+    ch := s[i:i+1]
+    if ch == "\\" && i+1 < n {
+      i += 2
+      continue
+    }
+    if ch == "<" {
+      if text.has_prefix(s[i:], "<!--") {
+        in_comment = true
+        i += 4
+        continue
+      }
+      if ascii_ci_at(s, i, "<code") && (i+5 == n || s[i+5:i+6] == ">" || s[i+5:i+6] == " ") {
+        close := find_ascii_ci(s, i+5, "</code>")
+        if close >= 0 {
+          i = close + 7
+          continue
+        }
+      }
+    }
+    if ch == "|" {
+      has_pipe = true
+      i += 1
+      continue
+    }
+    if ch != "`" {
+      i += 1
+      continue
+    }
+    open_len := 0
+    for i < n && s[i:i+1] == "`" {
+      open_len += 1
+      i += 1
+    }
+    j := i
+    closed := false
+    for j < n {
+      if s[j:j+1] != "`" {
+        j += 1
+        continue
+      }
+      close_len := 0
+      for j < n && s[j:j+1] == "`" {
+        close_len += 1
+        j += 1
+      }
+      if close_len == open_len {
+        spans += 1
+        i = j
+        closed = true
+        break
+      }
+    }
+    if !closed {
+      continue
+    }
+  }
+  return {spans: spans, has_pipe: has_pipe, in_comment: in_comment}
+}
+
+matches := []
+lines := text.split(scope, "\n")
+in_frontmatter := false
+fm_delim := ""
+in_fence := false
+fence_char := ""
+fence_len := 0
+in_comment := false
+prev_blank := true
+in_indented := false
+offset := 0
+
+for idx, line in lines {
+  raw_trim := text.trim_space(line)
+  if idx == 0 && (raw_trim == "---" || raw_trim == "+++") {
+    in_frontmatter = true
+    fm_delim = raw_trim
+    prev_blank = true
+    offset += len(line) + 1
+    continue
+  }
+  if in_frontmatter {
+    if raw_trim == fm_delim || (fm_delim == "---" && raw_trim == "...") {
+      in_frontmatter = false
+      fm_delim = ""
+      prev_blank = true
+    }
+    offset += len(line) + 1
+    continue
+  }
+
+  // Indented code block (CommonMark §4.4): only starts after a blank line (or start of doc)
+  // and continues across indented lines; never swallows nested list items or wrapped paragraphs.
+  is_indented_line := text.has_prefix(line, "    ") || text.has_prefix(line, "\t")
+  if !in_fence && !in_comment && is_indented_line && (prev_blank || in_indented) {
+    in_indented = true
+    prev_blank = false
+    offset += len(line) + 1
+    continue
+  }
+  if raw_trim == "" {
+    prev_blank = true
+    offset += len(line) + 1
+    continue
+  }
+  in_indented = false
+
+  unquoted := strip_blockquote(line)
+  trimmed := text.trim_space(unquoted)
+  run := fence_run(unquoted)
+
+  if in_fence {
+    if run.ch == fence_char && run.n >= fence_len && text.trim_space(run.rest) == "" {
+      in_fence = false
+      fence_char = ""
+      fence_len = 0
+    }
+  } else if !in_comment && run.n >= 3 && (run.ch == "~" || !text.contains(run.rest, "`")) {
+    in_fence = true
+    fence_char = run.ch
+    fence_len = run.n
+  } else {
+    scanned := scan_line(unquoted, in_comment)
+    in_comment = scanned.in_comment
+    if !text.has_prefix(trimmed, "#") && !text.has_prefix(trimmed, "|") && !scanned.has_pipe {
+      if scanned.spans >= 3 {
+        matches = append(matches, {begin: offset, end: offset + len(line)})
+      }
+    }
+  }
+  prev_blank = false
+  offset += len(line) + 1
+}

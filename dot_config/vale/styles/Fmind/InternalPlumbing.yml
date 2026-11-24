@@ -1,0 +1,10 @@
+# Docs: https://vale.sh/docs/topics/styles/
+extends: existence
+message: "Remove repo or operational plumbing ('%s') from stakeholder-facing copy; state the decision or impact in plain language."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\bPR\s*#\d+\b'
+  - '\bpull request\s*#\d+\b'
+  - '\bClickOps\b'

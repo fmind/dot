@@ -528,11 +528,15 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
         "In today\u2019s fast-paced landscape, we delve into a seamless rollout — a game-changer.\n\n"
         "Il convient de noter qu'on doit utiliser cette méthode afin de pouvoir avancer.\n\n"
         + (" ".join(["word"] * 70))
-        + ".\n",
+        + ".\n\n"
+        "Avoid `one`, `two`, and `three` backticks in executive prose.\n\n"
+        "Merge PR #42 and avoid ClickOps during rollout.\n\n"
+        "<code>\u0130</code>`one` `two` `three` still trips backtick spam.\n\n"
+        "- top item\n    - nested item with `one`, `two`, and `three` backticks.\n",
         encoding="utf-8",
     )
     slop_readme = tmp_path / "README.md"
-    slop_readme.write_text("Unleash the power of this tool.\n", encoding="utf-8")
+    slop_readme.write_text("Unleash the power of this tool after PR #42.\n", encoding="utf-8")
     bad_html = tmp_path / "bad.html"
     bad_html.write_text(
         "<p>Update &mdash; ready now.</p>\n<table><tr><td>Bad — text</td></tr></table>\n", encoding="utf-8"
@@ -558,6 +562,10 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
         (3, "Fmind.Wordiness"): "warning",
         (5, "Fmind.ParagraphLength"): "warning",
         (5, "Fmind.SentenceLength"): "warning",
+        (7, "Fmind.ProseBackticks"): "error",
+        (9, "Fmind.InternalPlumbing"): "error",
+        (11, "Fmind.ProseBackticks"): "error",
+        (14, "Fmind.ProseBackticks"): "error",
     }
     assert [(i["Check"], i["Severity"]) for i in blocking[str(slop_readme)]] == [("Fmind.SlopWords", "error")]
     assert [(i["Line"], i["Check"], i["Severity"]) for i in blocking[str(bad_html)]] == [
@@ -601,7 +609,8 @@ def test_vale_catches_ai_slop_and_handles_commonmark_edge_cases(tmp_path: Path) 
             "doit contrôler l'état du sous-système, s'assurer qu'il n'y a pas d'anomalie critique, "
             "et mettre à jour l'outil d'ici demain.\n\n" + (" ".join(["don't"] * 21)) + ".\n\n"
             "> ```bash\n> echo `one` and `two` and `three`\n> ```\n\n"
-            "````markdown\n```bash\nChecked `one` and `two` and `three` inside nested fence.\n```\n````\n"
+            "````markdown\n```bash\nChecked `one` and `two` and `three` inside nested fence.\n```\n````\n\n"
+            "```markdown\n    ```\nStill inside fence with `one`, `two`, and `three`.\n```\n"
         ),
         tmp_path / "toml_frontmatter.md": '+++\ntitle = "Use `a`, `b`, and `c`"\n+++\n\nClean body.\n',
         tmp_path / "sub" / "README.md": "Run `one`, `two`, and `three` in terminal.\n",
@@ -690,15 +699,21 @@ def test_repo_vale_config_still_enforces_em_dash_on_relocated_starter_templates(
         )
     )
     (tmp_path / ".vale.ini").write_text(cfg, encoding="utf-8")
-    for rel in (
-        "skills/docs/references/repository/templates/README.md",
-        "skills/docs/references/site/templates/index.md",
-        "skills/python/references/foundation/templates/docs-index.md",
+    for rel, expect_extra in (
+        ("skills/docs/references/repository/templates/README.md", False),
+        ("skills/docs/references/site/templates/index.md", True),
+        ("skills/python/references/foundation/templates/docs-index.md", True),
     ):
         probe = tmp_path / rel
         probe.parent.mkdir(parents=True, exist_ok=True)
-        probe.write_text("This starter has an em dash — which must fail.\n", encoding="utf-8")
+        probe.write_text(
+            "This starter has an em dash — which must fail.\n\n"
+            "Avoid `one`, `two`, and `three` backticks after PR #42.\n",
+            encoding="utf-8",
+        )
         res = _run_vale(vale, tmp_path / ".vale.ini", probe, cwd=tmp_path)
-        assert res.returncode == 1, f"{rel}: expected Fmind.EmDash failure, got rc=0"
-        findings = json.loads(res.stdout)
-        assert any(item["Check"] == "Fmind.EmDash" for items in findings.values() for item in items)
+        assert res.returncode == 1, f"{rel}: expected Vale failure, got rc=0"
+        checks = {item["Check"] for items in json.loads(res.stdout).values() for item in items}
+        assert "Fmind.EmDash" in checks
+        if expect_extra:
+            assert {"Fmind.ProseBackticks", "Fmind.InternalPlumbing"} <= checks
