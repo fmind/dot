@@ -2,6 +2,11 @@
 
 Rules for coding agents in `<slug>` (<description>). Humans start at `README.md`.
 
+## Priorities (Optional)
+
+- **Trade-off order**: `<e.g., Simplicity >= UX > Stability > Security > Cost>` (delete section if unused; guides coordinator design trade-offs and cross-reviewer `P1` arbitration; verified `P0` defects never trade away).
+- **Risk tier & non-goals**: `<e.g., internal CLI/library; skip distributed tracing or enterprise KMS>`.
+
 ## Tasks (`mise.toml`)
 
 Git hooks and CI call the same `mise` tasks (Python <python_major_minor>+ via `uv`):

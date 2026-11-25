@@ -2,6 +2,11 @@
 
 Rules for coding agents in `<slug>` (<1-2 sentences on what this project does>). Global rules come from `~/.agents/AGENTS.md`; humans start at `README.md`.
 
+## Priorities (Optional)
+
+- **Trade-off order**: `<e.g., UX >= Security > Stability > Simplicity > Cost>` (delete section if unused; guides coordinator design trade-offs and cross-reviewer `P1` arbitration; verified `P0` defects never trade away).
+- **Risk tier & non-goals**: `<e.g., public product app; skip multi-region HA or enterprise KMS>`.
+
 ## Tasks
 
 - `<install command>`: install dependencies and git hooks.
