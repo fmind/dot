@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.5.0] - 2026-11-27
+
+### 🚀 Features
+
+- _(subagent)_ Add priority balancing and canonical P0-P2 scale
+- _(dot)_ Harden CLI auth, privacy gws profile tokens, doctor, and completions
+- _(agents)_ Route reviewers to flash, tighten context guards, and add host-local secret denies
+- _(tools)_ Add OpenSpec, AgentsView daemon, stricter Vale rules, and locked tool updates
+- _(skills)_ Add openspec and sre skills, refine catalog guides, templates, and audits
+
+### 🐛 Bug Fixes
+
+- _(dot)_ Fail closed on workspace OAuth project mismatch
+
+### 📚 Documentation
+
+- _(draft)_ Document Google Slides PPTX import and French NBSP regex pitfalls
+
 ## [18.4.0] - 2026-11-24
 
 ### 🚀 Features
