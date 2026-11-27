@@ -10,9 +10,16 @@ import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-import yaml
+if TYPE_CHECKING:
+    GITHUB_SCOPES: tuple[str, ...]
+    GITHUB_REMOVE_SCOPES: tuple[str, ...]
+    GITHUB_FORBIDDEN_SCOPES: frozenset[str]
+    WORKSPACE_SCOPES: tuple[str, ...]
+    WORKSPACE_FORBIDDEN_SCOPES: frozenset[str]
+    WORKSPACE_APIS: tuple[str, ...]
+    GCP_ADC_SCOPES: tuple[str, ...]
 
 # `~`, `~/...`, or absolute: a relative workspace would resolve against the caller's directory.
 WORKSPACE_PATH_RE = re.compile(r"^(?:~|~/.+|/.*)$")
@@ -87,20 +94,40 @@ class ConfigValidationError(ValueError):
 @functools.cache
 def policy() -> dict[str, Any]:
     """Return the bundled static tool, scope, and API catalogs."""
+    import yaml
+
     loaded = yaml.safe_load(Path(__file__).with_name("policy.yaml").read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         raise ValueError("invalid bundled policy catalog")
     return loaded
 
 
-_policy = policy()
-GITHUB_SCOPES: tuple[str, ...] = tuple(_policy["github"]["scopes"])
-GITHUB_REMOVE_SCOPES: tuple[str, ...] = tuple(_policy["github"]["remove_scopes"])
-GITHUB_FORBIDDEN_SCOPES: frozenset[str] = frozenset(_policy["github"]["forbidden_scopes"])
-WORKSPACE_SCOPES: tuple[str, ...] = ("openid", *(f"{_GWS_AUTH}{s}" for s in _policy["workspace"]["scope_suffixes"]))
-WORKSPACE_FORBIDDEN_SCOPES: frozenset[str] = frozenset(_policy["workspace"]["forbidden_scopes"])
-WORKSPACE_APIS: tuple[str, ...] = tuple(f"{n}.googleapis.com" for n in _policy["workspace"]["api_names"])
-GCP_ADC_SCOPES: tuple[str, ...] = ("openid", *(f"{_GWS_AUTH}{s}" for s in _policy["gcp"]["adc_scope_suffixes"]))
+@functools.cache
+def _policy_constants() -> dict[str, Any]:
+    loaded = policy()
+    return {
+        "GITHUB_SCOPES": tuple(loaded["github"]["scopes"]),
+        "GITHUB_REMOVE_SCOPES": tuple(loaded["github"]["remove_scopes"]),
+        "GITHUB_FORBIDDEN_SCOPES": frozenset(loaded["github"]["forbidden_scopes"]),
+        "WORKSPACE_SCOPES": ("openid", *(f"{_GWS_AUTH}{s}" for s in loaded["workspace"]["scope_suffixes"])),
+        "WORKSPACE_FORBIDDEN_SCOPES": frozenset(loaded["workspace"]["forbidden_scopes"]),
+        "WORKSPACE_APIS": tuple(f"{n}.googleapis.com" for n in loaded["workspace"]["api_names"]),
+        "GCP_ADC_SCOPES": ("openid", *(f"{_GWS_AUTH}{s}" for s in loaded["gcp"]["adc_scope_suffixes"])),
+    }
+
+
+def __getattr__(name: str) -> Any:
+    if name in {
+        "GITHUB_SCOPES",
+        "GITHUB_REMOVE_SCOPES",
+        "GITHUB_FORBIDDEN_SCOPES",
+        "WORKSPACE_SCOPES",
+        "WORKSPACE_FORBIDDEN_SCOPES",
+        "WORKSPACE_APIS",
+        "GCP_ADC_SCOPES",
+    }:
+        return _policy_constants()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _expect_mapping(raw: object, allowed: frozenset[str], path: tuple[object, ...]) -> dict[str, Any]:
@@ -203,7 +230,7 @@ class WorkspaceConfig:
         expanded = [expand_google_scope(s) for s in self.extra_scopes]
         if any(not is_valid_google_scope(s) for s in expanded):
             raise ConfigValidationError(("auth", "workspace", "extra_scopes"), "contains an invalid Google OAuth scope")
-        if {s.lower() for s in expanded} & WORKSPACE_FORBIDDEN_SCOPES:
+        if {s.lower() for s in expanded} & _policy_constants()["WORKSPACE_FORBIDDEN_SCOPES"]:
             raise ConfigValidationError(
                 ("auth", "workspace", "extra_scopes"),
                 "contains a forbidden high-risk scope (https://mail.google.com/, gmail.settings.sharing, or cloud-platform)",
@@ -231,7 +258,11 @@ class WorkspaceConfig:
 
     @property
     def scopes(self) -> list[str]:
-        return list(dict.fromkeys([*WORKSPACE_SCOPES, *(expand_google_scope(s) for s in self.extra_scopes)]))
+        return list(
+            dict.fromkeys(
+                [*_policy_constants()["WORKSPACE_SCOPES"], *(expand_google_scope(s) for s in self.extra_scopes)]
+            )
+        )
 
 
 @dataclass
@@ -298,7 +329,7 @@ def expand_path(value: str | Path, *, home: Path | None = None) -> Path:
     text = os.fspath(value)
     if text == "~":
         return home or Path.home()
-    return (home or Path.home()) / text[2:] if text.startswith("~/") else Path(text)
+    return (home or Path.home()) / text[2:].lstrip("/") if text.startswith("~/") else Path(text)
 
 
 def env_path(name: str, default: Path) -> Path:
@@ -322,13 +353,17 @@ def yaml_error_location(error: BaseException) -> str:
 def load_config(path: str | Path | None = None) -> Config:
     resolved, implicit = config_file_path(path)
     try:
-        documents = list(yaml.safe_load_all(resolved.read_text(encoding="utf-8")))
+        raw_text = resolved.read_text(encoding="utf-8")
     except FileNotFoundError as error:
         if implicit:
             return Config()
         raise FileNotFoundError(f"failed to read config file at {resolved}") from error
     except (OSError, UnicodeError) as error:
         raise ValueError(f"failed to read config file at {resolved}: {error}") from error
+    import yaml
+
+    try:
+        documents = list(yaml.safe_load_all(raw_text))
     except (yaml.YAMLError, RecursionError) as error:
         where = yaml_error_location(error)
         raise ValueError(

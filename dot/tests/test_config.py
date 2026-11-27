@@ -6,12 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from fmind_dot import config as config_module
 from fmind_dot.config import (
     Config,
     ConfigValidationError,
     WorkspaceConfig,
     config_file_path,
     env_path,
+    expand_path,
     load_config,
     policy,
 )
@@ -41,6 +43,11 @@ def test_env_path_and_config_file_path(tmp_path: Path, monkeypatch: pytest.Monke
     assert env_path("CUSTOM_DIR", tmp_path / "fallback") == tmp_path / "sub"
     assert config_file_path(None) == (tmp_path / ".config/dot.yaml", True)
     assert config_file_path("~/explicit.yaml") == (tmp_path / "explicit.yaml", False)
+    assert expand_path("~//usr/bin/python3", home=tmp_path) == tmp_path / "usr/bin/python3"
+    assert expand_path("~///", home=tmp_path) == tmp_path
+    assert config_module.GITHUB_SCOPES
+    with pytest.raises(AttributeError):
+        _ = config_module.NO_SUCH_POLICY_CONSTANT
 
 
 def test_load_config_overlay_and_strict_validation(tmp_path: Path) -> None:

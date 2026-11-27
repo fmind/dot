@@ -313,3 +313,112 @@ def test_runner_run_decodes_and_encodes_utf8_under_c_locale() -> None:
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
+
+
+def test_sigterm_as_keyboard_interrupt_restores_handler() -> None:
+    prev = process_module.signal.getsignal(process_module.signal.SIGTERM)
+    with pytest.raises(KeyboardInterrupt), process_module.sigterm_as_keyboard_interrupt():
+        process_module.signal.raise_signal(process_module.signal.SIGTERM)
+    assert process_module.signal.getsignal(process_module.signal.SIGTERM) is prev
+
+
+def test_runner_run_bytes_and_stream_stdout() -> None:
+    runner = Runner()
+    raw = runner.run_bytes([sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'\\xff\\x00ok')"])
+    assert raw.stdout == b"\xff\x00ok"
+    assert raw.returncode == 0
+    with pytest.raises(DotError, match="command failed"):
+        runner.run_bytes([sys.executable, "-c", "raise SystemExit(3)"], check=True)
+
+    payload, rc, stderr = runner.stream_stdout(
+        [sys.executable, "-c", "import sys; data = sys.stdin.buffer.read(); sys.stdout.buffer.write(data[::-1])"],
+        lambda stream: stream.read(),
+        input_bytes=b"\x00abc\xff",
+        timeout=10,
+    )
+    assert (payload, rc, stderr) == (b"\xffcba\x00", 0, b"")
+
+    # Empty command and pre-cancelled runner fail closed.
+    with pytest.raises(DotError, match="empty command"):
+        runner.stream_stdout([], lambda stream: stream.read())
+    cancelled = Runner()
+    cancelled.cancel()
+    with pytest.raises(DotError, match="cancelled"):
+        cancelled.stream_stdout([sys.executable, "-c", "pass"], lambda stream: stream.read())
+
+    # Timeout raises CommandTimeoutError cleanly (no ValueError: read of closed file).
+    with pytest.raises(CommandTimeoutError, match="timed out"):
+        runner.stream_stdout(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            lambda stream: stream.read(),
+            timeout=0.15,
+        )
+
+    # Non-zero exit + large stderr (>64 KiB) drains cleanly without deadlock, retaining first 4096 bytes.
+    _, rc_err, err_bytes = runner.stream_stdout(
+        [sys.executable, "-c", "import sys; sys.stderr.buffer.write(b'E' * 80000); raise SystemExit(7)"],
+        lambda stream: stream.read(),
+        timeout=10,
+    )
+    assert rc_err == 7
+    assert len(err_bytes) == 4096
+
+    # Early-returning handler against huge stdout does not deadlock; stdout closure breaks the pipe cleanly.
+    head, _, _ = runner.stream_stdout(
+        [
+            sys.executable,
+            "-c",
+            "import sys\ntry:\n sys.stdout.buffer.write(b'X' * 500000)\nexcept BrokenPipeError:\n pass",
+        ],
+        lambda stream: stream.read(4),
+        timeout=10,
+    )
+    assert head == b"XXXX"
+
+    # Handler exception terminates child cleanly and propagates.
+    with pytest.raises(RuntimeError, match="handler boom"):
+        runner.stream_stdout(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            lambda _stream: (_ for _ in ()).throw(RuntimeError("handler boom")),
+            timeout=10,
+        )
+
+
+def test_stream_stdout_timeout_reaps_grandchild_and_signal_handles_eperm(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A leader that spawns a grandchild keeping stderr open (and ignoring SIGTERM) must be reaped via PGID SIGKILL
+    # without leaking the grandchild or deadlocking BufferedReader.close().
+    monkeypatch.setattr(process_module, "_TERMINATION_GRACE_SECONDS", 0.2)
+    pid_file = tmp_path / "grandchild.pid"
+    leader = (
+        "import pathlib, signal, subprocess, sys, time; "
+        "gc = subprocess.Popen([sys.executable, '-c', "
+        "'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)']); "
+        f"pathlib.Path({str(pid_file)!r}).write_text(str(gc.pid)); "
+        "time.sleep(60)"
+    )
+    with pytest.raises(CommandTimeoutError, match="timed out"):
+        Runner().stream_stdout([sys.executable, "-c", leader], lambda stream: stream.read(), timeout=0.25)
+
+    assert pid_file.exists()
+    gc_pid = int(pid_file.read_text().strip())
+    deadline = time.monotonic() + 5.0
+    alive = True
+    while time.monotonic() < deadline:
+        try:
+            os.kill(gc_pid, 0)
+        except ProcessLookupError:
+            alive = False
+            break
+        time.sleep(0.05)
+    assert not alive, f"grandchild pid {gc_pid} leaked after stream_stdout timeout"
+
+    # PermissionError from os.killpg must not fall through to send_signal or escape _signal.
+    fake_proc = Mock()
+    fake_proc.pid = 999999
+    fake_proc.send_signal.side_effect = PermissionError("eperm")
+    monkeypatch.setattr(process_module.os, "killpg", Mock(side_effect=PermissionError("eperm")))
+    process_module._signal(fake_proc, process_module.signal.SIGTERM, group=True)  # noqa: SLF001
+    fake_proc.send_signal.assert_not_called()
+    process_module._signal(fake_proc, process_module.signal.SIGTERM, group=False)  # noqa: SLF001

@@ -103,15 +103,27 @@ def test_privacy_cli_honors_config_flag_and_fails_closed_when_missing(
     assert payload["passed"] is False
     assert any("secret-client-42" in item for item in payload["targets"][0]["findings"])
 
-    (repo / "notes.md").write_text("Project vault-proj under hidden-org\n", encoding="utf-8")
-    proj_flagged = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
-    assert proj_flagged.exit_code == 1
-    proj_findings = json.loads(proj_flagged.stdout)["targets"][0]["findings"]
-    assert any("vault-proj" in item or "hidden-org" in item for item in proj_findings)
+    for token in ("vault-proj", "hidden-org"):
+        (repo / "notes.md").write_text(f"Project {token}\n", encoding="utf-8")
+        proj_flagged = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
+        assert proj_flagged.exit_code == 1
+        proj_findings = json.loads(proj_flagged.stdout)["targets"][0]["findings"]
+        assert any(token in item for item in proj_findings), (token, proj_findings)
 
     (repo / "notes.md").write_text("Customers use chezmoi\n", encoding="utf-8")
     safe_ok = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
     assert safe_ok.exit_code == 0, safe_ok.stdout + safe_ok.stderr
+
+    # Secondary ~/.config/gws-* profile directories harvest non-generic profile tokens (excluding SAFE_HOST_TOKENS).
+    (home / ".config/gws-personal").mkdir(parents=True)
+    (home / ".config/gws-acmecorp").mkdir(parents=True)
+    (repo / "notes.md").write_text("Personal workspace config\n", encoding="utf-8")
+    personal_ok = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
+    assert personal_ok.exit_code == 0, personal_ok.stdout + personal_ok.stderr
+    (repo / "notes.md").write_text('".config/gws-acmecorp"\n', encoding="utf-8")
+    gws_flagged = CliRunner().invoke(app, ["-c", str(cfg), "privacy", "--json", str(repo)])
+    assert gws_flagged.exit_code == 1
+    assert any("acmecorp" in item for item in json.loads(gws_flagged.stdout)["targets"][0]["findings"])
 
     missing_cfg = tmp_path / "does-not-exist.yaml"
     missing = CliRunner().invoke(app, ["--config", str(missing_cfg), "privacy", "--json", str(repo)])
@@ -151,13 +163,20 @@ def test_privacy_git_subdir_nested_git_errors_and_unreadable_files(
     sub_ok = CliRunner().invoke(app, ["privacy", "--json", str(sub)])
     assert sub_ok.exit_code == 0, sub_ok.stdout + sub_ok.stderr
 
-    # ~/.gitconfig email and quoted user token are detected.
-    (sub / "leak.txt").write_text("Using employer-priv and quoted-handle\n", encoding="utf-8")
-    sub_leak = CliRunner().invoke(app, ["privacy", "--json", str(sub)])
-    assert sub_leak.exit_code == 1
-    findings = json.loads(sub_leak.stdout)["targets"][0]["findings"]
-    assert any("employer-priv" in f or "quoted-handle" in f for f in findings)
+    # ~/.gitconfig email and quoted user token are each detected independently.
+    for token in ("employer-priv", "quoted-handle"):
+        (sub / "leak.txt").write_text(f"Using {token}\n", encoding="utf-8")
+        sub_leak = CliRunner().invoke(app, ["privacy", "--json", str(sub)])
+        assert sub_leak.exit_code == 1
+        findings = json.loads(sub_leak.stdout)["targets"][0]["findings"]
+        assert any(token in f for f in findings), (token, findings)
     (sub / "leak.txt").unlink()
+
+    # Working-tree scan skips NUL-containing binary files identically to --staged.
+    (sub / "blob.bin").write_bytes(b"\x00\x01" + bad_gitconfig_email.encode("utf-8"))
+    bin_ok = CliRunner().invoke(app, ["privacy", "--json", str(sub)])
+    assert bin_ok.exit_code == 0, bin_ok.stdout + bin_ok.stderr
+    (sub / "blob.bin").unlink()
 
     # Non-git parent prunes nested .git/ and still flags symlinked .age files.
     parent = tmp_path / "non-git-parent"
@@ -355,3 +374,131 @@ def test_privacy_staged_scans_index_blobs_and_rejects_non_git(tmp_path: Path, mo
     subprocess.run(["git", "-C", str(repo), "add", "sub/uv.lock"], check=True, timeout=30)
     sub_res = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(sub)])
     assert sub_res.exit_code == 0, sub_res.stdout + sub_res.stderr
+
+    # --staged also scans commit history, including approved-domain commit emails leaking a local token.
+    (home / ".config").mkdir(parents=True, exist_ok=True)
+    (home / ".config/dot.yaml").write_text("trust:\n  github_owners: [secretcorp]\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "--allow-empty", "-q", "-m", "token-in-email"],
+        env=git_env | {"GIT_AUTHOR_EMAIL": "secretcorp@fmind.dev"},
+        check=True,
+        timeout=30,
+    )
+    commit_tok = CliRunner().invoke(app, ["privacy", "--staged", "--json", str(repo)])
+    assert commit_tok.exit_code == 1
+    commit_findings = json.loads(commit_tok.stdout)["targets"][0]["findings"]
+    assert any("author email contains local workstation identifier 'secretcorp'" in f for f in commit_findings)
+
+
+@pytest.mark.parametrize(
+    ("raw_stream", "blobs", "expected"),
+    [
+        (b"", [("a.txt", "1" * 40)], "truncated git cat-file stream"),
+        (
+            b"1111111111111111111111111111111111111111 missing\n",
+            [("a.txt", "1" * 40)],
+            "unreadable staged blob (missing)",
+        ),
+        (b"1111 bad-header\n", [("a.txt", "1" * 40)], "unexpected git cat-file header"),
+        (b"1111 blob 10\nabc", [("a.txt", "1" * 40)], "truncated git cat-file payload"),
+        (b"1111 blob 3\nabcX", [("a.txt", "1" * 40)], "truncated git cat-file payload"),
+    ],
+)
+def test_scan_staged_blobs_fail_closed_and_streaming_edges(
+    tmp_path: Path, raw_stream: bytes, blobs: list[tuple[str, str]], expected: str
+) -> None:
+    import io
+    from collections.abc import Callable, Sequence
+    from typing import IO
+
+    from fmind_dot import privacy
+    from fmind_dot.errors import DotError
+    from fmind_dot.process import Runner
+
+    class StubRunner(Runner):
+        def stream_stdout[T](
+            self,
+            args: Sequence[str],
+            handler: Callable[[IO[bytes]], T],
+            *,
+            cwd: Path | None = None,
+            input_bytes: bytes | None = None,
+            timeout: float | None = None,
+        ) -> tuple[T, int, bytes]:
+            del args, cwd, input_bytes, timeout
+            return handler(io.BytesIO(raw_stream)), 0, b""
+
+    findings = privacy._scan_staged_blobs(StubRunner(), tmp_path, blobs, None)  # noqa: SLF001
+    assert any(expected in item for item in findings)
+
+    # Non-zero exit and DotError fail closed cleanly.
+    class ErrRunner(Runner):
+        def stream_stdout[T](
+            self,
+            args: Sequence[str],
+            handler: Callable[[IO[bytes]], T],
+            *,
+            cwd: Path | None = None,
+            input_bytes: bytes | None = None,
+            timeout: float | None = None,
+        ) -> tuple[T, int, bytes]:
+            del args, cwd, input_bytes, timeout
+            return handler(io.BytesIO(b"")), 128, b"fatal: bad object\n"
+
+    assert any("fatal: bad object" in f for f in privacy._scan_staged_blobs(ErrRunner(), tmp_path, blobs, None))  # noqa: SLF001
+
+    class RaiseRunner(Runner):
+        def stream_stdout[T](
+            self,
+            args: Sequence[str],
+            handler: Callable[[IO[bytes]], T],
+            *,
+            cwd: Path | None = None,
+            input_bytes: bytes | None = None,
+            timeout: float | None = None,
+        ) -> tuple[T, int, bytes]:
+            del args, handler, cwd, input_bytes, timeout
+            raise DotError("boom")
+
+    assert any("DotError" in f for f in privacy._scan_staged_blobs(RaiseRunner(), tmp_path, blobs, None))  # noqa: SLF001
+
+    # Valid 0-byte blob, deduplicated SHA across two paths, and large binary drain all work cleanly.
+    big_bin = b"\x00" + b"A" * 100_000
+    leak_payload = ("leak@" + "staged-leak.io\n").encode("utf-8")
+    good_stream = (
+        b"0000 blob 0\n\n"
+        + f"1111 blob {len(big_bin)}\n".encode()
+        + big_bin
+        + b"\n"
+        + f"2222 blob {len(leak_payload)}\n".encode()
+        + leak_payload
+        + b"\n"
+    )
+    seen_stdin: list[bytes] = []
+
+    class GoodRunner(Runner):
+        def stream_stdout[T](
+            self,
+            args: Sequence[str],
+            handler: Callable[[IO[bytes]], T],
+            *,
+            cwd: Path | None = None,
+            input_bytes: bytes | None = None,
+            timeout: float | None = None,
+        ) -> tuple[T, int, bytes]:
+            del args, cwd, timeout
+            assert input_bytes is not None
+            seen_stdin.append(input_bytes)
+            return handler(io.BytesIO(good_stream)), 0, b""
+
+    good_blobs = [
+        ("a_empty.txt", "0" * 40),
+        ("b_bin.dat", "1" * 40),
+        ("c_dup1.txt", "2" * 40),
+        ("d_dup2.txt", "2" * 40),
+    ]
+    good_findings = privacy._scan_staged_blobs(GoodRunner(), tmp_path, good_blobs, None)  # noqa: SLF001
+    assert seen_stdin == [f"{'0' * 40}\n{'1' * 40}\n{'2' * 40}\n".encode()]
+    assert len(good_findings) == 2
+    assert any(f.startswith("c_dup1.txt:") for f in good_findings)
+    assert any(f.startswith("d_dup2.txt:") for f in good_findings)

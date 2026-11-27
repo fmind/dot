@@ -173,6 +173,7 @@ gcp:
 
 doctor_tools:
   - age
+  - agentsview
   - agy
   - ast-grep
   - betterleaks
@@ -188,6 +189,7 @@ doctor_tools:
   - mise
   - nvim
   - opengrep
+  - openspec
   - python
   - ruff
   - sqlite3

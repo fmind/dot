@@ -9,6 +9,7 @@ from pathlib import Path
 
 from dot_tasks import ROOT
 from fmind_dot.errors import DotError
+from fmind_dot.process import sigterm_as_keyboard_interrupt
 from fmind_dot.repository import git_failure
 from fmind_dot.state import State, require_tools
 
@@ -54,8 +55,8 @@ def validate_release_status(status_output: str) -> None:
         raise DotError(f"release validation changed unrelated paths: {', '.join(unexpected)}")
 
 
-def _git(state: State, *args: str) -> str:
-    result = state.runner.run(["git", *args], timeout=_GIT_TIMEOUT_SECONDS, check=False)
+def _git(state: State, *args: str, cwd: Path | None = None) -> str:
+    result = state.runner.run(["git", *args], cwd=cwd, timeout=_GIT_TIMEOUT_SECONDS, check=False)
     if result.returncode:
         if "would clobber existing tag" in result.stderr:
             clobber = "local tags differ from the remote; back them up, then run: git fetch --tags --force"
@@ -93,10 +94,10 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
     if _git(state, "status", "--porcelain"):
         raise DotError("working directory has uncommitted or staged changes; commit or stash them first")
     root = Path(_git(state, "rev-parse", "--show-toplevel")).absolute()
-    if (cur := _git(state, "branch", "--show-current")) != branch:
+    if (cur := _git(state, "branch", "--show-current", cwd=root)) != branch:
         raise DotError(f"release preparation requires branch {branch!r}, current branch is {cur!r}")
-    _git(state, "fetch", "--prune", "--tags", remote)
-    if _git(state, "rev-parse", "HEAD") != _git(state, "rev-parse", f"{remote}/{branch}"):
+    _git(state, "fetch", "--prune", "--tags", remote, cwd=root)
+    if _git(state, "rev-parse", "HEAD", cwd=root) != _git(state, "rev-parse", f"{remote}/{branch}", cwd=root):
         raise DotError(f"HEAD must equal {remote}/{branch}; push or integrate first")
     bump_cmd = ["git-cliff", "--config", str(_RELEASE_CLIFF_CONFIG), "--bumped-version"]
     bumped = state.runner.run(bump_cmd, cwd=root, timeout=_TOOL_TIMEOUT_SECONDS).stdout.strip()
@@ -105,7 +106,7 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
     if bumped == (current := f"v{read_release_version(root)}"):
         state.stdout.write(f"No new conventional commits since {current}. Nothing to release.\n")
         return None
-    if _git(state, "tag", "--list", bumped):
+    if _git(state, "tag", "--list", bumped, cwd=root):
         raise DotError(f"tag {bumped} already exists locally; delete it with: git tag -d {bumped}")
     state.stdout.write(f"Current version: {current}\nNext version:    {bumped}\n")
     if not yes:
@@ -127,7 +128,7 @@ def run_release(state: State, *, yes: bool = False) -> str | None:
     push = ["git", "push", "--atomic", remote, f"HEAD:refs/heads/{branch}", f"refs/tags/{bumped}"]
     push_s = " ".join(push)
     try:
-        _git(state, "tag", bumped, "-m", bumped)
+        _git(state, "tag", bumped, "-m", bumped, cwd=root)
     except DotError as error:
         tail = f"fix the cause, then run: git tag {bumped} -m {bumped} && {push_s} && mise run deploy"
         raise DotError(f"tagging failed after the local release commit ({error}); {tail}") from error
@@ -144,13 +145,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("--yes", "-y", action="store_true")
     os.chdir(ROOT)
-    try:
-        run_release(State(), yes=parser.parse_args().yes)
-    except KeyboardInterrupt:
-        return 130
-    except (DotError, OSError) as error:
-        sys.stderr.write(f"release: {error}\n")
-        return 1
+    with sigterm_as_keyboard_interrupt():
+        try:
+            run_release(State(), yes=parser.parse_args().yes)
+        except KeyboardInterrupt:
+            return 130
+        except (DotError, OSError) as error:
+            sys.stderr.write(f"release: {error}\n")
+            return 1
     return 0
 
 

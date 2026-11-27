@@ -71,6 +71,8 @@ ignore = [
   "S603", # trusted subprocess calls in test fixtures
   "S607", # executable names without absolute paths in test subprocess calls
 ]
+# Test-only templates materialized under tests/bdd/ inherit tests/** subprocess ignores.
+"skills/python/references/testing/templates/**" = ["S101", "S603", "S607"]
 
 [lint.isort]
 known-first-party = ["dot_tasks", "fmind_dot", "repo_helpers"]

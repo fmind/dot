@@ -70,6 +70,16 @@ def test_register_agy_projects(tmp_path: Path) -> None:
     assert json.loads(extra[0].read_text())["projectResources"]["resources"][0]["folderUri"] == under.as_uri()
     assert register_agy_projects([dash, under], ["~/work/*"], home=home) == []
 
+    # Trailing slash or symlinked folderUri in existing registry deduplicates against canonical path.
+    trailing = home / "work/trailing"
+    (trailing / ".git").mkdir(parents=True)
+    alias_link = home / "work/trailing-alias"
+    alias_link.symlink_to(trailing, target_is_directory=True)
+    (reg / "trailing.json").write_text(
+        json.dumps({"projectResources": {"resources": [{"folderUri": f"{alias_link.as_uri()}/"}]}})
+    )
+    assert register_agy_projects([trailing], ["~/work/*"], home=home) == []
+
 
 @pytest.mark.parametrize(
     ("origin", "expected"),

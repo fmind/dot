@@ -1,156 +1,49 @@
 from __future__ import annotations
 
-import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from dot_tasks import completions as completions_module
-from dot_tasks.completions import run_completion
 from fmind_dot import auth as auth_module
-from fmind_dot import auth_probes as auth_probes_module
 from fmind_dot import system as system_module
 from fmind_dot.cli import app
-from fmind_dot.config import WORKSPACE_APIS, AuthConfig, Config
-from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
+from fmind_dot.config import AuthConfig, Config
+from fmind_dot.errors import CommandTimeoutError, DotError
 from fmind_dot.process import CommandResult
 from fmind_dot.state import State
 from fmind_dot.system import available_memory_bytes, headroom_results, run_doctor
-from tests.fakes import CliRunner, ScriptedRunner, TerminalIO, buf, doctor_sections, make_state
+from tests.fakes import CliRunner, ScriptedRunner, doctor_sections, make_state
 
 
-def test_run_completion_check_install_pruning_and_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(completions_module, "COMPLETION_TOOLS", ("dot", "uv", "missing"))
-    comp_dir = tmp_path / ".config/fish/completions"
-    comp_dir.mkdir(parents=True)
-    (comp_dir / "stale.fish").write_text("# stale", encoding="utf-8")
-
-    runner = ScriptedRunner(
-        {"uv", "fish"},
-        run=lambda *_a: CommandResult("complete -c uv\n", "", 0),
-    )
-    run_completion(make_state(runner), check_only=True)
-    assert (comp_dir / "stale.fish").exists()
-
-    run_completion(make_state(runner))
-    assert (comp_dir / "dot.fish").is_file()
-    assert (comp_dir / "uv.fish").is_file()
-    assert not (comp_dir / "stale.fish").exists()
-
-    bad = ScriptedRunner(
-        {"uv", "fish"},
-        run=lambda cmd, *_a: CommandResult("", "syntax", 1) if cmd[0] == "fish" else CommandResult("bad", "", 0),
-    )
-    with pytest.raises(DotError, match="completion generation failed"):
-        run_completion(make_state(bad), check_only=True)
+def _setup_healthy_agents(tmp_path: Path) -> Path:
+    shared = tmp_path / ".agents/skills"
+    (shared / "s").mkdir(parents=True, exist_ok=True)
+    (shared / "s/SKILL.md").write_text("---\nname: s\ndescription: s\nlicense: MIT\n---\n", encoding="utf-8")
+    (tmp_path / ".agents/AGENTS.md").write_text("# P\n", encoding="utf-8")
+    for persona_path, skills_path in system_module._AGENT_HOSTS.values():  # noqa: SLF001
+        pp = system_module.expand_path(persona_path)
+        pp.parent.mkdir(parents=True, exist_ok=True)
+        if not pp.exists() and not pp.is_symlink():
+            pp.symlink_to(tmp_path / ".agents/AGENTS.md")
+        if skills_path:
+            sp = system_module.expand_path(skills_path)
+            sp.parent.mkdir(parents=True, exist_ok=True)
+            if not sp.exists() and not sp.is_symlink():
+                sp.symlink_to(shared)
+    for rev_dir, rev_glob in system_module._AGENT_REVIEWERS.values():  # noqa: SLF001
+        rd = system_module.expand_path(rev_dir)
+        rd.mkdir(parents=True, exist_ok=True)
+        (rd / rev_glob.replace("*", "code")).write_text("---\nname: fmind-review-code\n---\n", encoding="utf-8")
+    return shared
 
 
-def test_is_gce_vm_handles_non_utf8_dmi_bytes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    dmi = tmp_path / "product_name"
-    dmi.write_bytes(b"\xff\xfeOEM Board\n")
-    monkeypatch.setattr(auth_probes_module, "GCE_DMI_PRODUCT_PATH", dmi)
-    assert auth_probes_module.is_gce_vm() is False
-    dmi.write_bytes(b"\xffGoogle Compute Engine\n")
-    assert auth_probes_module.is_gce_vm() is True
-
-
-def test_completion_packages_env_mise_shims_and_cli_main(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    mise_bin = tmp_path / "mise"
-    mise_bin.write_text("#!/bin/sh\n", encoding="utf-8")
-    lsd_dir = tmp_path / "pkgs/lsd"
-    (lsd_dir / "completions").mkdir(parents=True)
-    (lsd_dir / "completions/lsd.fish").write_text("complete -c lsd\n", encoding="utf-8")
-    yazi_dir = tmp_path / "pkgs/yazi"
-    yazi_dir.mkdir(parents=True)
-    ya_dir = tmp_path / "pkgs/ya"
-    ya_dir.mkdir(parents=True)
-    (ya_dir / "ya.fish").write_bytes(b"\xff\xfe")
-
-    class ShimRunner(ScriptedRunner):
-        def which(self, command: str) -> Path | None:
-            if command in {"mise", "rg", "fd", "bat"}:
-                return mise_bin
-            return super().which(command)
-
-    def handle_run(cmd: list[str], *_a: object) -> CommandResult:
-        if cmd == ["mise", "which", "rg"]:
-            return CommandResult("", "rg is not currently active", 1)
-        if cmd == ["mise", "which", "fd"]:
-            return CommandResult("", "unexpected", 1)
-        if cmd == ["mise", "which", "bat"]:
-            return CommandResult("/opt/bat\n", "", 0)
-        if cmd == ["mise", "where", "--", "lsd"]:
-            return CommandResult(f"{lsd_dir}\n", "", 0)
-        if cmd == ["mise", "where", "--", "zoxide"]:
-            return CommandResult("relative/path\n", "", 0)
-        if cmd == ["mise", "where", "--", "yazi"]:
-            return CommandResult(f"{yazi_dir}\n", "", 0)
-        if cmd == ["mise", "where", "--", "ya"]:
-            return CommandResult(f"{ya_dir}\n", "", 0)
-        if cmd[0] == "uv":
-            return CommandResult("   \n", "", 0)
-        if cmd[0] == "gh":
-            return CommandResult("", "err", 1)
-        if cmd[0] == "atuin":
-            return CommandResult("\n", "", 0)
-        return CommandResult("complete -c tool\n", "", 0)
-
-    monkeypatch.setattr(
-        completions_module,
-        "COMPLETION_TOOLS",
-        ("rg", "fd", "bat", "lsd", "zoxide", "yazi", "ya", "hf", "git-lfs", "uv", "gh"),
-    )
-    monkeypatch.setitem(completions_module._COMPLETION_PACKAGES, "ya", "ya")  # noqa: SLF001
-    runner = ShimRunner({"fish", "env", "lsd", "zoxide", "yazi", "ya", "hf", "git-lfs", "uv", "gh"}, run=handle_run)
-    with pytest.raises(DotError) as exc_info:
-        run_completion(make_state(runner), check_only=True)
-    message = str(exc_info.value)
-    assert "rg:" not in message
-    assert "failed to resolve mise completion executable for fd" in message
-    assert "bat:" not in message
-    assert ["bat", "--completion", "fish"] in runner.calls
-    assert "lsd:" not in message
-    assert ["env", "_HF_COMPLETE=fish_source", "hf"] in runner.calls
-    assert "hf:" not in message
-    assert "invalid completion package directory for zoxide" in message
-    assert "expected one bundled Fish completion for yazi, found 0" in message
-    assert "bundled Fish completion for ya is not UTF-8" in message
-    assert "completion generator for git-lfs is not installed: git" in message
-    assert "failed to generate completions for uv: empty output" in message
-    assert "failed to generate completions for gh" in message
-
-    monkeypatch.setattr(completions_module, "COMPLETION_TOOLS", ("uv",))
-    monkeypatch.setattr(
-        completions_module,
-        "State",
-        lambda: make_state(ScriptedRunner({"uv", "fish"}, run=lambda *_a: CommandResult("complete -c uv\n", "", 0))),
-    )
-    assert completions_module.main(["--check"]) == 0
-
-    monkeypatch.setattr(
-        completions_module,
-        "State",
-        lambda: make_state(
-            ScriptedRunner(
-                {"uv", "fish"},
-                run=lambda cmd, *_a: CommandResult("", "err", 1) if cmd[0] == "uv" else CommandResult("", "", 0),
-            )
-        ),
-    )
-    assert completions_module.main(["--check"]) == 1
-    assert "completions: completion generation failed:" in capsys.readouterr().err
-
-
-def test_secrets_tools_docker_install_and_headroom(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_secrets_tools_docker_and_install_checks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(system_module, "DOCTOR_TOOLS", ("git", "broken", "missing", "timed"))
     monkeypatch.setattr(system_module, "DOCTOR_SECRETS", ("~/.ssh/id_ed25519_signing", "~/.private.env"))
@@ -194,63 +87,122 @@ def test_secrets_tools_docker_install_and_headroom(tmp_path: Path, monkeypatch: 
     (src / "pyproject.toml").write_text('[project]\nversion = "1.0.0"\n', encoding="utf-8")
     assert system_module._install_results(st)[0].status == "pass"  # noqa: SLF001
 
+    # _inspect_secret edge cases
+    secret_file = tmp_path / "sec"
+    secret_file.write_text("k", encoding="utf-8")
+    secret_file.chmod(0o644)
+    assert system_module._inspect_secret(str(secret_file), fix=False).status == "fail"  # noqa: SLF001
+    secret_file.chmod(0o600)
+    assert system_module._inspect_secret(str(secret_file), fix=False).status == "pass"  # noqa: SLF001
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "getuid", lambda: 99999)
+        assert "not owned" in system_module._inspect_secret(str(secret_file), fix=False).details  # noqa: SLF001
+    with monkeypatch.context() as mp:
+        mp.setattr(Path, "lstat", lambda _self: (_ for _ in ()).throw(PermissionError("denied")))
+        assert "unable to inspect" in system_module._inspect_secret(str(secret_file), fix=False).details  # noqa: SLF001
+    secret_file.chmod(0o644)
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "fchmod", lambda *_a: (_ for _ in ()).throw(PermissionError("ro")))
+        assert "repair failed" in system_module._inspect_secret(str(secret_file), fix=True).details  # noqa: SLF001
+    fchmod_calls: list[int] = []
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "fstat", lambda _fd: SimpleNamespace(st_mode=0o040755, st_uid=os.getuid()))
+        mp.setattr(os, "fchmod", lambda fd, _m: fchmod_calls.append(fd))
+        assert "not a regular file" in system_module._inspect_secret(str(secret_file), fix=True).details  # noqa: SLF001
+        assert fchmod_calls == []
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "fstat", lambda _fd: SimpleNamespace(st_mode=0o100644, st_uid=99999))
+        mp.setattr(os, "fchmod", lambda fd, _m: fchmod_calls.append(fd))
+        assert "not owned" in system_module._inspect_secret(str(secret_file), fix=True).details  # noqa: SLF001
+        assert fchmod_calls == []
+    if os.geteuid() != 0:
+        secret_file.chmod(0o244)
+        repaired = system_module._inspect_secret(str(secret_file), fix=True)  # noqa: SLF001
+        assert repaired.status == "pass"
+        assert secret_file.stat().st_mode & 0o777 == 0o600
+
+    # _probe OSError and _docker_results timeout
+    err_runner = ScriptedRunner(
+        {"docker", "gh"},
+        run=lambda cmd, *_a: (_ for _ in ()).throw(CommandTimeoutError("t") if cmd[0] == "docker" else OSError("io")),
+    )
+    st_err = make_state(err_runner)
+    assert system_module._probe(st_err, ["gh"]) == "failed"  # noqa: SLF001
+    assert system_module._docker_results(st_err)[0].status == "fail"  # noqa: SLF001
+
+    # _install_results branches
+    st_chez_bad = make_state(ScriptedRunner({"chezmoi"}, run=lambda *_a: CommandResult("", "err", 1)))
+    assert system_module._install_results(st_chez_bad)[0].status == "warn"  # noqa: SLF001
+    non_dot = tmp_path / "non_dot"
+    non_dot.mkdir()
+    st_nondot = make_state(ScriptedRunner({"chezmoi"}, run=lambda *_a: CommandResult(str(non_dot), "", 0)))
+    assert system_module._install_results(st_nondot)[0].status == "skip"  # noqa: SLF001
+    src_dot = tmp_path / "src_dot"
+    (src_dot / "dot/src/fmind_dot").mkdir(parents=True)
+    (src_dot / "dot/pyproject.toml").write_text("[bad toml", encoding="utf-8")
+    st_srcdot = make_state(ScriptedRunner({"chezmoi"}, run=lambda *_a: CommandResult(str(src_dot), "", 0)))
+    with monkeypatch.context() as mp:
+        mp.setattr(system_module, "PACKAGE_DIRECTORY", src_dot / "dot/src/fmind_dot")
+        assert "source checkout" in system_module._install_results(st_srcdot)[0].details  # noqa: SLF001
+    with monkeypatch.context() as mp:
+        mp.setattr(system_module, "PACKAGE_DIRECTORY", tmp_path / "site/fmind_dot")
+        assert system_module._install_results(st_srcdot)[0].status == "fail"  # noqa: SLF001
+
+
+def test_available_memory_bytes_and_headroom_results(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mem = tmp_path / "meminfo"
     mem.write_text("MemTotal: 1000 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
     assert available_memory_bytes(mem) == 8388608 * 1024
+
+    bad_mem = tmp_path / "bad_mem"
+    bad_mem.write_text("MemAvailable: bad\n", encoding="utf-8")
+    assert available_memory_bytes(bad_mem) is None
+
+    vm_stat_out = (
+        "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n"
+        "Pages free:                                1000.\n"
+        "Pages active:                             50000.\n"
+        "Pages inactive:                           20000.\n"
+        "Pages speculative:                          500.\n"
+    )
+    with monkeypatch.context() as mp:
+        mp.setattr(sys, "platform", "darwin")
+        mp.setattr(subprocess, "run", lambda *_a, **_k: subprocess.CompletedProcess(["vm_stat"], 0, vm_stat_out, ""))
+        assert available_memory_bytes() == (1000 + 20000 + 500) * 16384
+        mp.setattr(subprocess, "run", lambda *_a, **_k: subprocess.CompletedProcess(["vm_stat"], 1, "", "err"))
+        assert available_memory_bytes() is None
+        mp.setattr(subprocess, "run", lambda *_a, **_k: subprocess.CompletedProcess(["vm_stat"], 0, "unexpected\n", ""))
+        assert available_memory_bytes() is None
+        mp.setattr(subprocess, "run", lambda *_a, **_k: (_ for _ in ()).throw(OSError("missing")))
+        assert available_memory_bytes() is None
+
+    with monkeypatch.context() as mp:
+        mp.setattr(sys, "platform", "win32")
+        assert available_memory_bytes() is None
+
     hr = headroom_results([tmp_path, tmp_path / "missing"], memory=512 * 1024**2)
     assert {r.name: r.status for r in hr}["memory"] == "fail"
 
+    with monkeypatch.context() as mp:
+        mp.setattr(system_module, "available_memory_bytes", lambda: None)
+        mp.setattr(shutil, "disk_usage", lambda _p: (_ for _ in ()).throw(OSError("no disk")))
+        hr_warn = headroom_results([tmp_path])
+        assert {r.name: r.status for r in hr_warn} == {"disk": "warn", "memory": "warn"}
 
-def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    with monkeypatch.context() as mp:
+        mp.setattr(Path, "resolve", lambda _self: (_ for _ in ()).throw(OSError("loop")))
+        hr_res = headroom_results([tmp_path], memory=8 * 1024**3)
+        assert hr_res[0].status == "warn"
+
+
+def test_doctor_agents_and_agy_isolation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(system_module, "DOCTOR_TOOLS", ("git",))
     monkeypatch.setattr(system_module, "DOCTOR_SECRETS", ())
-    shared = tmp_path / ".agents/skills"
-    (shared / "s").mkdir(parents=True)
-    (shared / "s/SKILL.md").write_text("---\nname: s\ndescription: s\nlicense: MIT\n---\n", encoding="utf-8")
-    (tmp_path / ".agents/AGENTS.md").write_text("# P\n", encoding="utf-8")
-    for p, sk in system_module._AGENT_HOSTS.values():  # noqa: SLF001
-        pp = system_module.expand_path(p)
-        pp.parent.mkdir(parents=True, exist_ok=True)
-        pp.symlink_to(tmp_path / ".agents/AGENTS.md")
-        if sk:
-            sp = system_module.expand_path(sk)
-            sp.parent.mkdir(parents=True, exist_ok=True)
-            sp.symlink_to(shared)
-    for rev_dir, rev_glob in system_module._AGENT_REVIEWERS.values():  # noqa: SLF001
-        rd = system_module.expand_path(rev_dir)
-        rd.mkdir(parents=True, exist_ok=True)
-        (rd / rev_glob.replace("*", "code")).write_text("---\nname: fmind-review-code\n---\n", encoding="utf-8")
+    _setup_healthy_agents(tmp_path)
 
-    def auth_run(cmd: list[str], *_a: object) -> CommandResult:
-        if cmd[0] == "gh":
-            return CommandResult(
-                json.dumps(
-                    {
-                        "hosts": {
-                            "github.com": [
-                                {
-                                    "active": True,
-                                    "state": "success",
-                                    "scopes": ", ".join(auth_module.GITHUB_SCOPES),
-                                    "tokenSource": "/x/hosts.yml",
-                                }
-                            ]
-                        }
-                    }
-                ),
-                "",
-                0,
-            )
-        if cmd[0] == "gcloud" and "application-default" in cmd:
-            raise CommandTimeoutError("timeout")
-        if cmd[0] == "gcloud":
-            return CommandResult("tok\n", "", 0)
-        return CommandResult("ok\n", "", 0)
-
-    cfg = Config(auth=AuthConfig(login=["github", "gcp"]))
-    st = make_state(ScriptedRunner({"git", "gh", "gcloud"}, run=auth_run), cfg)
-    sec = doctor_sections(run_doctor(st, fix=False, deep=True))
+    st = make_state(ScriptedRunner({"git"}, run=lambda *_a: CommandResult("ok\n", "", 0)))
+    sec = doctor_sections(run_doctor(st, fix=False))
     assert {a["name"] for a in sec["agents"]} == {"agy", "copilot"}
     assert all(a["status"] == "pass" for a in sec["agents"])
 
@@ -298,39 +250,52 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
         json.dumps({"entries": [{"path": "~/.agents/skills", "exclude": ["unused"]}]}), encoding="utf-8"
     )
     skills_json.chmod(0o600)
-    allowed_only = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert allowed_only["agy"]["status"] == "pass"
+    assert system_module._inspect_agent("agy").status == "pass"  # noqa: SLF001
 
     skills_json.write_bytes(b"\xff\xfeinvalid-utf8")
     skills_json.chmod(0o600)
-    bad_utf8 = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert bad_utf8["agy"]["status"] == "warn"
-    assert "unreadable or invalid JSON" in bad_utf8["agy"]["details"]
+    bad_utf8 = system_module._inspect_agent("agy")  # noqa: SLF001
+    assert bad_utf8.status == "warn"
+    assert "unreadable or invalid JSON" in bad_utf8.details
 
     symlink_target = tmp_path / "external_skills.json"
     symlink_target.write_text("{}", encoding="utf-8")
     symlink_target.chmod(0o644)
     skills_json.unlink()
     skills_json.symlink_to(symlink_target)
-    sym_warn = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert sym_warn["agy"]["status"] == "warn"
-    assert "unreadable or symlink" in sym_warn["agy"]["details"]
+    sym_warn = system_module._inspect_agent("agy")  # noqa: SLF001
+    assert sym_warn.status == "warn"
+    assert "unreadable or symlink" in sym_warn.details
     skills_json.unlink()
 
     plugins_json = tmp_path / ".gemini/config/plugins.json"
     plugins_json.write_text(json.dumps({"entries": [{"path": "~/client-secret/plugins"}]}), encoding="utf-8")
     plugins_json.chmod(0o600)
-    plugin_leak = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert plugin_leak["agy"]["status"] == "warn"
-    assert "plugins.json registers 1 external path(s)" in plugin_leak["agy"]["details"]
-    assert "client-secret" not in plugin_leak["agy"]["details"]
+    plugin_leak = system_module._inspect_agent("agy")  # noqa: SLF001
+    assert plugin_leak.status == "warn"
+    assert "plugins.json registers 1 external path(s)" in plugin_leak.details
+    assert "client-secret" not in plugin_leak.details
     plugins_json.unlink()
 
-    hook_script = tmp_path / ".local/share/demo/hook.py"
-    hook_script.parent.mkdir(parents=True, exist_ok=True)
+    for manifest_name, kind in (("agents.json", "agents"), ("rules.json", "rules")):
+        manifest = tmp_path / ".gemini/config" / manifest_name
+        manifest.write_text(json.dumps({"entries": [{"path": f"~/client-secret/{kind}"}]}), encoding="utf-8")
+        manifest.chmod(0o600)
+        leak = system_module._inspect_agent("agy")  # noqa: SLF001
+        assert leak.status == "warn"
+        assert leak.condition == "insecure"
+        assert f"{manifest_name} registers 1 external path(s)" in leak.details
+        assert "client-secret" not in leak.details
+        manifest.unlink()
+
+    safe_dir = tmp_path / ".local/share/demo"
+    safe_dir.mkdir(parents=True, exist_ok=True)
+    for ancestor in (tmp_path, tmp_path / ".local", tmp_path / ".local/share", safe_dir):
+        ancestor.chmod(0o755)
+    hook_script = safe_dir / "hook.py"
     hook_script.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
     hook_script.chmod(0o755)
-    fake_py = tmp_path / ".local/share/demo/python3"
+    fake_py = safe_dir / "python3"
     fake_py.write_text("#!/bin/sh\n", encoding="utf-8")
     fake_py.chmod(0o777)
     hooks_json = tmp_path / ".gemini/config/hooks.json"
@@ -340,9 +305,13 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
                 "demo": {
                     "SessionStart": [
                         {"command": f"python3 {hook_script}"},
-                        {"command": f"uv run --locked --script {hook_script} --arg"},
+                        {"command": f"uv run --no-config --locked --script {hook_script} --arg"},
+                        {"command": f"uv run --no-config --no-project python3 {hook_script}"},
+                        {"command": f"uv run --no-config --no-project --with requests python3 {hook_script}"},
+                        {"command": f"uv run --project {safe_dir} python3 {hook_script}"},
                         {"command": f"env -u FOO python3 -W ignore {hook_script}"},
-                        {"command": "python3 -m demo.hook"},
+                        {"command": f"SAFE_FLAG=1 python3 {hook_script}"},
+                        {"command": "python3 -I -m demo.hook"},
                         {"command": ["python3", str(hook_script)]},
                     ]
                 }
@@ -351,34 +320,104 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
         encoding="utf-8",
     )
     hooks_json.chmod(0o600)
-    clean_hook = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert clean_hook["agy"]["status"] == "pass"
+    assert system_module._inspect_agent("agy").status == "pass"  # noqa: SLF001
 
     hook_script.chmod(0o777)
     hooks_json.chmod(0o644)
-    bad_hook = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert bad_hook["agy"]["status"] == "warn"
-    assert "permissions too open" in bad_hook["agy"]["details"]
-    assert "4 invalid, relative, missing, or writable" in bad_hook["agy"]["details"]
+    bad_hook = system_module._inspect_agent("agy")  # noqa: SLF001
+    assert bad_hook.status == "warn"
+    assert "permissions too open" in bad_hook.details
+    assert "8 invalid, relative, missing, or writable" in bad_hook.details
     hook_script.chmod(0o755)
+
+    writable_dir = tmp_path / ".local/share/writable-proj"
+    writable_dir.mkdir(parents=True, exist_ok=True)
+    writable_dir.chmod(0o777)
+    hooks_json.write_text(
+        json.dumps({"demo": {"SessionStart": [{"command": f"uv run --project {writable_dir} python3 {hook_script}"}]}}),
+        encoding="utf-8",
+    )
+    hooks_json.chmod(0o600)
+    writable_proj_warn = system_module._inspect_agent("agy")  # noqa: SLF001
+    assert writable_proj_warn.status == "warn"
+    assert "1 invalid, relative, missing, or writable" in writable_proj_warn.details
+
+    # Script inside a writable parent directory and traversal ending in ".." or "/" fail closed.
+    script_in_writable = writable_dir / "owned.py"
+    script_in_writable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    script_in_writable.chmod(0o755)
+    uid = os.getuid()
+    assert system_module._path_owned_and_unwritable(str(script_in_writable), uid, expect_dir=False) is False  # noqa: SLF001
+    assert system_module._path_owned_and_unwritable(f"{safe_dir}/..", uid, expect_dir=False) is False  # noqa: SLF001
+    assert system_module._path_owned_and_unwritable("/", uid, expect_dir=False) is False  # noqa: SLF001
+    assert system_module._path_owned_and_unwritable(f"{writable_dir}/sub/..", uid, expect_dir=True) is False  # noqa: SLF001
+    assert system_module._path_owned_and_unwritable(f"{safe_dir}/..", uid, expect_dir=True) is True  # noqa: SLF001
+
+    # Symlink hop owned by another UID fails closed even when target file is owned and 0755.
+    hook_link = safe_dir / "hook-link.py"
+    hook_link.symlink_to(hook_script)
+    real_lstat = Path.lstat
+    with monkeypatch.context() as mp:
+        mp.setattr(
+            Path,
+            "lstat",
+            lambda p: SimpleNamespace(st_uid=99999, st_mode=0o120777) if p == hook_link else real_lstat(p),
+        )
+        assert system_module._path_owned_and_unwritable(str(hook_link), uid, expect_dir=False) is False  # noqa: SLF001
 
     bypass_cmds: list[object] = [
         "./relative-hook.sh",
+        "~otheruser/hook.py",
         "unclosed 'quote",
-        f"uv run --locked --script={tmp_path / 'missing.py'}",
+        "python3 hook.py",
+        "python3 -m demo.hook",
+        "uv run --no-config --script hook.py",
+        "uv run --no-config -s hook.py",
+        f"uv run --locked --script {hook_script}",
+        f"uv run --no-project python3 {hook_script}",
+        f"uv run --no-config --script --with-editable ./evil {hook_script}",
+        "uv run --no-config --no-project --gui-script evil",
+        f"uv run --no-config --no-project --active python3 {hook_script}",
+        f"VIRTUAL_ENV=.venv uv run --no-config --no-project python3 {hook_script}",
+        "uv run hook.py",
+        f"uv run python3 {hook_script}",
+        f"uv run --project {safe_dir} hook.py",
+        f"uv run --with-editable {safe_dir} python3 {hook_script}",
+        f"uv run --no-config --no-project --python ./evil.sh python3 {hook_script}",
+        f"uv run --no-config --no-project -p {fake_py} python3 {hook_script}",
+        f"uv run --no-config --no-project --with evil-0.1-py3-none-any.whl python3 {hook_script}",
+        f"uv run --no-config --no-project --with evil.tar.gz[dev] python3 {hook_script}",
+        f"uv run --no-config --no-project --with evil.tar.bz2 python3 {hook_script}",
+        f"uv run --no-project --with requests python3 {hook_script}",
+        "uv tool run --from ./evil evil",
+        f"uv run --no-config --locked --script={tmp_path / 'missing.py'}",
         f"uv run --project ./rel python3 {hook_script}",
         f"uv run -C./rel python3 {hook_script}",
         "uv -q run ./relative-hook.sh",
         f"uv --directory ./rel run python3 {hook_script}",
         "env -iS 'python3 -c import os'",
+        "env -- PYTHONPATH=. sh -c id",
+        f"env -C./evil={safe_dir} python3 {hook_script}",
+        f"env HOME=. zsh {hook_script}",
+        f"env XDG_CONFIG_HOME=. fish {hook_script}",
+        f"env BASH_ENV=./evil.sh bash {hook_script}",
+        f"env -iu FOO bash {hook_script}",
         f"env ./python3 {hook_script}",
         f"env {fake_py} {hook_script}",
+        "X=1 ./relative-hook.sh",
+        "BASH_ENV=evil.sh bash /bin/true",
+        "python3 $HOME/hook.py",
         "bash -c 'echo bad'",
+        "bash +e -c id",
+        "bash -O extglob -c id",
         f"fish -C 'echo bad' {hook_script}",
         "sh -m ./relative-hook.sh",
         "python3 -uc 'import os' safe",
         "node -e'process.exit(1)' safe",
         "node -pe '1+1'",
+        "node --input-type module -e 1",
+        f"eval {hook_script}",
+        f"uvx {hook_script}",
         f"(python3 {fake_py})",
         f"python3 {hook_script} arg;id",
         f"foo#bar ; {fake_py}",
@@ -393,11 +432,48 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
         encoding="utf-8",
     )
     hooks_json.chmod(0o600)
-    rel_hook = {a["name"]: a for a in doctor_sections(run_doctor(st, fix=False))["agents"]}
-    assert rel_hook["agy"]["status"] == "warn"
-    assert f"{len(bypass_cmds)} invalid, relative, missing, or writable" in rel_hook["agy"]["details"]
+    rel_hook = system_module._inspect_agent("agy")  # noqa: SLF001
+    assert rel_hook.status == "warn"
+    assert f"{len(bypass_cmds)} invalid, relative, missing, or writable" in rel_hook.details
     hooks_json.unlink()
 
+
+def test_doctor_deep_auth_and_workspace_project_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("GWS_PROJECT", raising=False)
+    monkeypatch.setattr(system_module, "DOCTOR_TOOLS", ("git",))
+    monkeypatch.setattr(system_module, "DOCTOR_SECRETS", ())
+    _setup_healthy_agents(tmp_path)
+
+    def auth_run(cmd: list[str], *_a: object) -> CommandResult:
+        if cmd[0] == "gh":
+            return CommandResult(
+                json.dumps(
+                    {
+                        "hosts": {
+                            "github.com": [
+                                {
+                                    "active": True,
+                                    "state": "success",
+                                    "scopes": ", ".join(auth_module.GITHUB_SCOPES),
+                                    "tokenSource": "/x/hosts.yml",
+                                }
+                            ]
+                        }
+                    }
+                ),
+                "",
+                0,
+            )
+        if cmd[0] == "gcloud" and "application-default" in cmd:
+            raise CommandTimeoutError("timeout")
+        if cmd[0] == "gcloud":
+            return CommandResult("tok\n", "", 0)
+        return CommandResult("ok\n", "", 0)
+
+    cfg = Config(auth=AuthConfig(login=["github", "gcp"]))
+    st = make_state(ScriptedRunner({"git", "gh", "gcloud"}, run=auth_run), cfg)
+    sec = doctor_sections(run_doctor(st, fix=False, deep=True))
     assert {r["name"]: r["status"] for r in sec["auth"]} == {
         "gh": "warn",
         "gcloud": "pass",
@@ -405,592 +481,61 @@ def test_doctor_agents_deep_auth_and_cli_options(tmp_path: Path, monkeypatch: py
         "gws": "skip",
     }
 
-    monkeypatch.setattr(shutil, "disk_usage", lambda _p: SimpleNamespace(free=200 * 1024**3))
-    monkeypatch.setattr(system_module, "available_memory_bytes", lambda: 8 * 1024**3)
-    res_pass = CliRunner().invoke(app, ["doctor", "--headroom", "--json"])
-    assert res_pass.exit_code == 0
-    assert json.loads(res_pass.stdout)["scope"] == "headroom"
-    txt_pass = CliRunner().invoke(app, ["doctor", "--headroom"])
-    assert txt_pass.exit_code == 0
-    assert "PASS · headroom:" in txt_pass.stdout
-
-    monkeypatch.setattr(shutil, "disk_usage", lambda _p: SimpleNamespace(free=1 * 1024**3))
-    monkeypatch.setattr(system_module, "available_memory_bytes", lambda: 0)
-    res_fail = CliRunner().invoke(app, ["doctor", "--headroom"])
-    assert res_fail.exit_code == 1
-    assert "FAIL · headroom:" in res_fail.stdout
-    bad = CliRunner().invoke(app, ["doctor", "--headroom", "--fix"])
-    assert bad.exit_code == 2
-
-
-def test_probe_json_github_and_gcp_login_flows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-    with pytest.raises(DotError, match="github authentication state is unknown"):
-        auth_probes_module.github_entry(
-            {"hosts": {"github.com": [{"active": True, "state": "error", "error": "boom"}]}}
-        )
-    assert (
-        auth_probes_module.github_entry(
-            {"hosts": {"github.com": [{"active": True, "state": "error", "error": "(HTTP 401)"}]}}
-        )
-        is None
-    )
-
-    st_dry = make_state(ScriptedRunner({"gh"}))
-    auth_module.login_github(st_dry, dry_run=True, grants=["write:ssh_signing_key"])
-    dry_out = buf(st_dry.stdout)
-    assert "--web --clipboard" in dry_out
-    assert "gh auth refresh" in dry_out
-    assert "--remove-scopes admin:enterprise" in dry_out
-    assert "delete_repo" not in dry_out
-    with pytest.raises(UsageError, match="forbidden by security policy"):
-        auth_module.login_github(make_state(ScriptedRunner({"gh"})), dry_run=True, grants=["admin:enterprise"])
-    entry_forb = {
-        "active": True,
-        "state": "success",
-        "scopes": ", ".join([*auth_module.GITHUB_SCOPES, "admin:enterprise"]),
-    }
-    assert auth_module.github_ready(entry_forb, reconcile=False) is False
-    entry_disc = {
-        "active": True,
-        "state": "success",
-        "scopes": ", ".join(s for s in [*auth_module.GITHUB_SCOPES, "write:discussion"] if s != "read:discussion"),
-    }
-    assert auth_module.github_ready(entry_disc, reconcile=True) is True
-
-    monkeypatch.setenv("GH_TOKEN", "tok")
-    with pytest.raises(DotError, match="environment token"):
-        auth_module.login_github(make_state(ScriptedRunner({"gh"})), force=True)
-    monkeypatch.delenv("GH_TOKEN")
-
-    gh_calls: list[str] = []
-    entry_ok = {"active": True, "state": "success", "scopes": ", ".join(auth_module.GITHUB_SCOPES)}
-    gh_runner = ScriptedRunner(
-        {"gh"},
-        run=lambda *_a: CommandResult(json.dumps({"hosts": {"github.com": [entry_ok] if gh_calls else []}}), "", 0),
-    )
-    monkeypatch.setattr(gh_runner, "interactive", lambda args, **_k: (gh_calls.append(" ".join(args)), 0)[1])
-    st_gh = make_state(gh_runner)
-    auth_module.login_github(st_gh)
-    assert len(gh_calls) == 1
-    assert "--web --clipboard" in gh_calls[0]
-
-    dirty_calls: list[str] = []
-    entry_dirty = {"active": True, "state": "success", "scopes": ", ".join([*auth_module.GITHUB_SCOPES, "delete_repo"])}
-    dirty_runner = ScriptedRunner(
-        {"gh"},
-        run=lambda *_a: CommandResult(
-            json.dumps(
-                {
-                    "hosts": {
-                        "github.com": [] if not dirty_calls else [entry_dirty] if len(dirty_calls) == 1 else [entry_ok]
-                    }
-                }
-            ),
-            "",
-            0,
-        ),
-    )
-    monkeypatch.setattr(dirty_runner, "interactive", lambda args, **_k: (dirty_calls.append(" ".join(args)), 0)[1])
-    auth_module.login_github(make_state(dirty_runner))
-    assert len(dirty_calls) == 2
-    assert "--remove-scopes" in dirty_calls[1]
-
-    st_gcp_dry = make_state()
-    auth_module.login_gcp(st_gcp_dry, dry_run=True)
-    assert "application-default login" in buf(st_gcp_dry.stdout)
-
-    gcp_runner = ScriptedRunner(
-        {"gcloud"},
-        responses={
-            ("gcloud", "auth", "print-access-token"): [
-                CommandResult("", "Reauthentication", 1),
-                CommandResult("t\n", "", 0),
-            ]
-        },
-    )
-    auth_module.login_gcp(make_state(gcp_runner))
-    assert any("login" in c for c in gcp_runner.calls)
-
-
-def test_workspace_login_machine_and_check_cli_guards(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", raising=False)
-    monkeypatch.delenv("GWS_PROJECT", raising=False)
-    gws_dir = tmp_path / ".config/gws"
-    gws_dir.mkdir(parents=True)
-    (gws_dir / "token_cache.json").write_text("{}", encoding="utf-8")
-
-    cfg = Config(auth=AuthConfig(login=["gcp", "workspace"]))
-    cfg.auth.workspace.project = "my-proj-1"
-    status_seq = [
-        CommandResult(json.dumps({"client_config_exists": False, "enabled_apis": []}), "", 0),
-        CommandResult(
-            json.dumps(
-                {
-                    "client_config_exists": True,
-                    "project_id": "my-proj-1",
-                    "enabled_apis": ["drive.googleapis.com"],
-                    "auth_method": "none",
-                }
-            ),
-            "",
-            0,
-        ),
-        CommandResult(
-            json.dumps(
-                {
-                    "token_valid": True,
-                    "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/youtube.readonly"],
-                }
-            ),
-            "",
-            0,
-        ),
-    ]
-    runner = ScriptedRunner({"gcloud", "gws"}, responses={("gws", "auth", "status"): status_seq})
-    st = make_state(runner, cfg)
-    auth_module.login_workspace(st, grants=["youtube.readonly"])
-    assert not (gws_dir / "token_cache.json").exists()
-    assert "One-off Workspace scopes" in buf(st.stderr)
-    enable_calls = [c for c in runner.calls if c[:3] == ["gcloud", "services", "enable"]]
-    assert len(enable_calls) == 1
-    assert [api for c in enable_calls for api in c[3:-3]] == list(WORKSPACE_APIS)
-
-    many_apis = tuple(f"svc{i}.googleapis.com" for i in range(25))
-    monkeypatch.setattr(auth_module, "WORKSPACE_APIS", many_apis)
-    batch_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(
-                    json.dumps({"client_config_exists": True, "project_id": "my-proj-1", "enabled_apis": []}), "", 0
-                )
-            ]
-        },
-    )
-    auth_module.setup_workspace(make_state(batch_runner, cfg), "my-proj-1")
-    batch_enables = [c[3:-3] for c in batch_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
-    assert len(batch_enables) == 2
-    assert all(1 <= len(batch) <= 20 for batch in batch_enables)
-    assert [api for batch in batch_enables for api in batch] == list(many_apis)
-    monkeypatch.setattr(auth_module, "WORKSPACE_APIS", WORKSPACE_APIS)
-
-    partial_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(
-                    json.dumps(
-                        {
-                            "client_config_exists": True,
-                            "project_id": "my-proj-1",
-                            "enabled_apis": list(WORKSPACE_APIS[:15]),
-                        }
-                    ),
-                    "",
-                    0,
-                )
-            ]
-        },
-    )
-    auth_module.setup_workspace(make_state(partial_runner, cfg), "my-proj-1")
-    partial_enables = [c[3:-3] for c in partial_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
-    assert all(len(batch) <= 20 for batch in partial_enables)
-    assert [api for batch in partial_enables for api in batch] == list(WORKSPACE_APIS[15:])
-
-    force_runner = ScriptedRunner(
-        {"gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(
-                    json.dumps(
-                        {
-                            "client_config_exists": True,
-                            "project_id": "my-proj-1",
-                            "enabled_apis": [],
-                            "token_valid": True,
-                        }
-                    ),
-                    "",
-                    0,
-                ),
-                CommandResult(json.dumps({"token_valid": True, "scopes": list(cfg.auth.workspace.scopes)}), "", 0),
-            ]
-        },
-    )
-    auth_module.login_workspace(make_state(force_runner, cfg), force=True, project="my-proj-1")
-    assert not any(c[:3] == ["gcloud", "services", "enable"] for c in force_runner.calls)
-
-    forb_runner = ScriptedRunner(
-        {"gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(
-                    json.dumps(
-                        {
-                            "token_valid": True,
-                            "scopes": [*cfg.auth.workspace.scopes, "https://www.googleapis.com/auth/cloud-platform"],
-                        }
-                    ),
-                    "",
-                    0,
-                )
-            ]
-        },
-    )
-    assert auth_module.workspace_ready(make_state(forb_runner, cfg)) is False
-    for bad_grant in ("cloud-platform", "https://mail.google.com", "HTTPS://MAIL.GOOGLE.COM/"):
-        with pytest.raises(UsageError, match="forbidden by security policy"):
-            auth_module.login_workspace(make_state(forb_runner, cfg), dry_run=True, grants=[bad_grant])
-    with pytest.raises(UsageError, match="--setup requires a project ID"):
-        auth_module.login_workspace(make_state(forb_runner), dry_run=True, setup=True)
-
-    denied_err = "ERROR: (gcloud.services.enable) Permission denied to enable service [admin.googleapis.com] reason: AUTH_PERMISSION_DENIED"
-    perm_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        run=lambda cmd, *_a: (
-            CommandResult(
-                json.dumps(
-                    {
-                        "client_config_exists": True,
-                        "project_id": "my-proj-1",
-                        "enabled_apis": ["drive.googleapis.com"],
-                    }
-                ),
-                "",
-                0,
-            )
-            if cmd[:3] == ["gws", "auth", "status"]
-            else CommandResult("", denied_err, 1)
-        ),
-    )
-    st_perm = make_state(perm_runner, cfg)
-    auth_module.setup_workspace(st_perm, "my-proj-1")
-    assert "using pre-enabled APIs" in buf(st_perm.stderr)
-
-    unconfigured_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        run=lambda cmd, *_a: (
-            CommandResult(json.dumps({"client_config_exists": False}), "", 0)
-            if cmd[:3] == ["gws", "auth", "status"]
-            else CommandResult("", denied_err, 1)
-        ),
-    )
-    with pytest.raises(DotError, match="command failed"):
-        auth_module.setup_workspace(make_state(unconfigured_runner, cfg), "my-proj-1")
-
-    ready_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(
-                    json.dumps(
-                        {
-                            "client_config_exists": True,
-                            "project_id": "my-proj-1",
-                            "enabled_apis": [],
-                            "token_valid": True,
-                            "scopes": list(cfg.auth.workspace.scopes),
-                        }
-                    ),
-                    "",
-                    0,
-                )
-            ]
-        },
-    )
-    st_ready = make_state(ready_runner, cfg)
-    auth_module.login_workspace(st_ready, project="my-proj-1")
-    assert ready_runner.calls == [["gws", "auth", "status"]]
-    assert "already authenticated" in buf(st_ready.stderr)
-
-    # Existing valid client for a different or unknown project fails closed unless --setup is explicit.
+    # doctor --deep catches Workspace OAuth client project mismatch and invalid GWS_PROJECT via provider_ready.
+    cfg_ws = Config(auth=AuthConfig(login=["workspace"]))
+    cfg_ws.auth.workspace.project = "my-proj-1"
     mismatch_status = json.dumps(
         {
             "client_config_exists": True,
             "project_id": "other-proj",
-            "enabled_apis": list(WORKSPACE_APIS),
             "token_valid": True,
-            "scopes": list(cfg.auth.workspace.scopes),
+            "scopes": list(cfg_ws.auth.workspace.scopes),
         }
     )
-    mismatch_runner = ScriptedRunner({"gcloud", "gws"}, run=lambda *_a: CommandResult(mismatch_status, "", 0))
-    with pytest.raises(DotError, match="configured for project 'other-proj', not 'my-proj-1'"):
-        auth_module.login_workspace(make_state(mismatch_runner, cfg), project="my-proj-1")
-    assert mismatch_runner.calls == [["gws", "auth", "status"]]
-
-    mismatch_runner.calls.clear()
-    with pytest.raises(
-        DotError, match="run dot login workspace --project other-proj or run dot login workspace --setup"
-    ):
-        auth_module.login_workspace(make_state(mismatch_runner, cfg), force=True, project="my-proj-1")
-    assert mismatch_runner.calls == [["gws", "auth", "status"]]
-
-    for unknown_payload in (
-        {"client_config_exists": True, "enabled_apis": []},
-        {"client_config_exists": True, "project_id": None, "enabled_apis": []},
-        {"client_config_exists": True, "project_id": "", "enabled_apis": []},
-    ):
-        unk_runner = ScriptedRunner(
-            {"gcloud", "gws"}, run=lambda *_a, p=unknown_payload: CommandResult(json.dumps(p), "", 0)
-        )
-        with pytest.raises(DotError, match="unknown project, not 'my-proj-1'; update the project setting"):
-            auth_module.login_workspace(make_state(unk_runner, cfg), project="my-proj-1")
-        assert unk_runner.calls == [["gws", "auth", "status"]]
-
-    bad_id_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        run=lambda *_a: CommandResult(json.dumps({"client_config_exists": True, "project_id": "BAD\nID"}), "", 0),
+    st_ws_mismatch = make_state(
+        ScriptedRunner({"gws"}, run=lambda *_a: CommandResult(mismatch_status, "", 0)),
+        cfg_ws,
     )
-    with pytest.raises(DotError, match="update the project setting or run dot login workspace --setup") as bad_id_err:
-        auth_module.login_workspace(make_state(bad_id_runner, cfg), project="my-proj-1")
-    assert "--project" not in str(bad_id_err.value)
+    gws_res = next(r for r in system_module._auth_results(st_ws_mismatch) if r.name == "gws")  # noqa: SLF001
+    assert gws_res.status == "fail"
+    assert "other-proj" in gws_res.details
 
     with monkeypatch.context() as mp:
-        mp.setenv("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", str(tmp_path / "gws-alt"))
-        mismatch_runner.calls.clear()
-        with pytest.raises(
-            DotError,
-            match="GOOGLE_WORKSPACE_CLI_CONFIG_DIR is set\\); unset GOOGLE_WORKSPACE_CLI_CONFIG_DIR, run dot login workspace --project other-proj",
-        ):
-            auth_module.login_workspace(make_state(mismatch_runner, cfg), project="my-proj-1")
-        assert mismatch_runner.calls == [["gws", "auth", "status"]]
+        mp.setenv("GWS_PROJECT", "BAD")
+        gws_bad_proj = next(r for r in system_module._auth_results(st_ws_mismatch) if r.name == "gws")  # noqa: SLF001
+        assert gws_bad_proj.status == "fail"
+        assert "PROJECT" in gws_bad_proj.details
 
-        # Matching --project succeeds even under GOOGLE_WORKSPACE_CLI_CONFIG_DIR.
-        mismatch_runner.calls.clear()
-        st_match_alt = make_state(mismatch_runner, cfg)
-        auth_module.login_workspace(st_match_alt, project="other-proj")
-        assert mismatch_runner.calls == [["gws", "auth", "status"]]
-        assert "already authenticated" in buf(st_match_alt.stderr)
-
-        st_chk_mismatch = make_state(mismatch_runner, cfg)
-        with pytest.raises(SystemExit) as mismatch_exit:
-            auth_module.check_logins(st_chk_mismatch, ["workspace"], "dot login", force=False, dry_run=False)
-        assert mismatch_exit.value.code == 1
-        assert "GOOGLE_WORKSPACE_CLI_CONFIG_DIR is set" in buf(st_chk_mismatch.stdout)
-
-    # --check mirrors login_workspace readiness when the client config is missing or corrupt despite a valid token.
-    for unready_client in (
-        {"client_config_exists": False, "token_valid": True, "scopes": list(cfg.auth.workspace.scopes)},
-        {
-            "client_config_exists": True,
-            "client_config_error": "invalid json",
-            "project_id": "my-proj-1",
-            "token_valid": True,
-            "scopes": list(cfg.auth.workspace.scopes),
-        },
-    ):
-        unready_runner = ScriptedRunner({"gws"}, run=lambda *_a, p=unready_client: CommandResult(json.dumps(p), "", 0))
-        st_chk_unready = make_state(unready_runner, cfg)
-        with pytest.raises(SystemExit) as unready_exit:
-            auth_module.check_logins(st_chk_unready, ["workspace"], "dot login", force=False, dry_run=False)
-        assert unready_exit.value.code == 1
-        assert "workspace: login needed" in buf(st_chk_unready.stdout)
-
-    reconfig_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(mismatch_status, "", 0),
-                CommandResult(
-                    json.dumps(
-                        {
-                            "client_config_exists": True,
-                            "project_id": "my-proj-1",
-                            "enabled_apis": list(WORKSPACE_APIS),
-                            "token_valid": True,
-                            "scopes": list(cfg.auth.workspace.scopes),
-                        }
-                    ),
-                    "",
-                    0,
-                ),
-            ]
-        },
+    cfg_all = Config(auth=AuthConfig(login=["github", "gcp", "workspace"]))
+    st_auth_fail = make_state(
+        ScriptedRunner({"gh", "gcloud"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {}}), "", 0)), cfg_all
     )
-    auth_module.login_workspace(make_state(reconfig_runner, cfg), setup=True, project="my-proj-1")
-    reconfig_enables = [c for c in reconfig_runner.calls if c[:3] == ["gcloud", "services", "enable"]]
-    assert [api for c in reconfig_enables for api in c[3:-3]] == list(WORKSPACE_APIS)
-    assert all(c[-3:] == ["--project", "my-proj-1", "--quiet"] for c in reconfig_enables)
-    assert ["gws", "auth", "setup", "--project", "my-proj-1"] in reconfig_runner.calls
+    monkeypatch.setattr(system_module, "github_ready", lambda *_a, **_kw: False)
+    monkeypatch.setattr(system_module, "gcloud_ready", lambda *_a, **_kw: (_ for _ in ()).throw(DotError("boom")))
+    monkeypatch.setattr(system_module, "adc_ready", lambda *_a, **_kw: True)
+    auth_map = {r.name: r.status for r in system_module._auth_results(st_auth_fail)}  # noqa: SLF001
+    assert auth_map == {"gh": "fail", "gcloud": "fail", "gcloud-adc": "pass", "gws": "skip"}
 
-    corrupt_runner = ScriptedRunner(
-        {"gcloud", "gws"},
-        responses={
-            ("gws", "auth", "status"): [
-                CommandResult(
-                    json.dumps(
-                        {
-                            "client_config_exists": True,
-                            "client_config_error": "invalid json",
-                            "project_id": "other-proj",
-                            "enabled_apis": [],
-                        }
-                    ),
-                    "",
-                    0,
-                ),
-                CommandResult(
-                    json.dumps(
-                        {
-                            "client_config_exists": True,
-                            "project_id": "my-proj-1",
-                            "enabled_apis": list(WORKSPACE_APIS),
-                            "token_valid": True,
-                            "scopes": list(cfg.auth.workspace.scopes),
-                        }
-                    ),
-                    "",
-                    0,
-                ),
-            ]
-        },
-    )
-    auth_module.login_workspace(make_state(corrupt_runner, cfg), project="my-proj-1")
-    assert ["gws", "auth", "setup", "--project", "my-proj-1"] in corrupt_runner.calls
+    monkeypatch.setattr(system_module, "github_ready", lambda *_a, **_kw: True)
+    monkeypatch.setattr(system_module, "github_token_plaintext", lambda _e: False)
+    assert next(r for r in system_module._auth_results(st_auth_fail) if r.name == "gh").status == "pass"  # noqa: SLF001
 
-    with pytest.raises(UsageError, match="invalid scope"):
-        auth_probes_module.one_off_scopes(["not valid!"], [])
-    for bad_grant in ("", "/", "-bad", "https://www.googleapis.com/auth/"):
-        with pytest.raises(UsageError, match="invalid scope"):
-            auth_module.login_workspace(make_state(runner, cfg), dry_run=True, grants=[bad_grant])
-    with pytest.raises(UsageError, match="PROJECT"):
-        auth_module.login_workspace(make_state(runner, cfg), project="BAD", dry_run=True)
-
-    st_chk = make_state(ScriptedRunner({"gh", "gcloud", "gws"}, run=lambda *_a: CommandResult("", "bad", 1)), cfg)
-    with pytest.raises(SystemExit):
-        auth_module.login_machine(st_chk, force=False, dry_run=False, check=True)
-    assert "login needed" in buf(st_chk.stdout) or "unknown" in buf(st_chk.stdout)
-
-    seen_force: list[bool] = []
-    with monkeypatch.context() as mp:
-        mp.setattr(auth_module, "login_gcp", lambda _s, *, force=False, **_k: seen_force.append(force))
-        mp.setattr(auth_module, "login_workspace", lambda *_a, **_k: None)
-        auth_module.login_machine(
-            make_state(ScriptedRunner({"gcloud", "gws"}), cfg), force=True, dry_run=False, check=False
-        )
-    assert seen_force == [True]
-
-    monkeypatch.setattr("fmind_dot.state.State.config", cfg)
-    # Verify --force/--dry-run/--check before provider behave identically to after provider.
-    monkeypatch.setattr(
-        "fmind_dot.state.State",
-        lambda **_kw: State(
-            runner=ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("tok\n", "", 0)),
-        ),
-    )
-    assert CliRunner().invoke(app, ["login", "--check", "gcp"]).exit_code == 0
-    assert "gcloud auth login" in CliRunner().invoke(app, ["login", "--force", "gcp", "--dry-run"]).stdout
-    for argv in (
-        ["login", "--force", "gcp", "--check"],
-        ["login", "gcp", "--check", "--force"],
-        ["login", "github", "--check", "--grant", "repo"],
-        ["login", "workspace", "--check", "--setup"],
-        ["login", "workspace", "--check", "--project", "bogus-project"],
-        ["login", "--check", "workspace", "--project", "bogus-project"],
-        ["login", "workspace", "--check", "--project", ""],
-    ):
-        res = CliRunner().invoke(app, argv)
-        assert res.exit_code == 2
-        if any(flag in argv for flag in ("--grant", "--project", "--setup")):
-            assert "--check cannot be combined with --grant, --project, or --setup" in res.stderr
-
-
-def test_completions_batched_mise_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-    mise_bin = tmp_path / "bin/mise"
-    mise_bin.parent.mkdir(parents=True)
-    mise_bin.write_text("#!/bin/sh\n", encoding="utf-8")
-    mise_bin.chmod(0o755)
-    active_bin = tmp_path / "mise-bins"
-    active_bin.mkdir()
-    for tool in ("zoxide", "rg", "uv"):
-        p = active_bin / tool
-        p.write_text("#!/bin/sh\n", encoding="utf-8")
-        p.chmod(0o755)
-    zoxide_dir = tmp_path / "pkgs/zoxide"
-    (zoxide_dir / "completions").mkdir(parents=True)
-    (zoxide_dir / "completions/zoxide.fish").write_text("complete -c zoxide\n", encoding="utf-8")
-
-    class BatchRunner(ScriptedRunner):
-        def which(self, command: str) -> Path | None:
-            if command in {"mise", "zoxide", "rg", "uv"}:
-                return mise_bin
-            return super().which(command)
-
-    def handle_run(cmd: list[str], *_a: object) -> CommandResult:
-        if cmd == ["mise", "ls", "--current", "--json"]:
-            return CommandResult(
-                json.dumps(
-                    {
-                        "zoxide": [{"active": True, "installed": True, "install_path": str(zoxide_dir)}],
-                        "lsd": [{"active": False, "installed": True, "install_path": "/bad"}],
-                    }
-                ),
-                "",
-                0,
-            )
-        if cmd == ["mise", "bin-paths"]:
-            return CommandResult(f"{active_bin}\n", "", 0)
-        if cmd == ["mise", "which", "rg"] or cmd[:2] == ["mise", "where"]:
-            raise AssertionError(f"unexpected unbatched mise call: {cmd}")
-        return CommandResult("complete -c tool\n", "", 0)
-
-    monkeypatch.setattr(completions_module, "COMPLETION_TOOLS", ("zoxide", "rg", "uv"))
-    runner = BatchRunner({"fish"}, run=handle_run)
-    run_completion(make_state(runner))
-    comp_dir = tmp_path / ".config/fish/completions"
-    assert (comp_dir / "zoxide.fish").is_file()
-    assert (comp_dir / "rg.fish").is_file()
-    assert (comp_dir / "uv.fish").is_file()
-    uv_env = runner.envs[("uv", "generate-shell-completion", "fish")]
-    assert uv_env is not None
-    assert uv_env["PATH"].startswith(str(active_bin))
-
-    # _parse_install_paths handles malformed JSON, non-dict payloads, and inactive entries cleanly
-    parse_paths = completions_module._parse_install_paths  # noqa: SLF001
-    assert parse_paths("{not-json") == {}
-    assert parse_paths("[]") == {}
-    assert parse_paths(
-        json.dumps(
-            {
-                "bad-entries": "not-a-list",
-                "inactive": [{"active": False, "installed": True, "install_path": "/bad"}],
-                "uninstalled": [{"active": True, "installed": False, "install_path": "/bad"}],
-                "empty-path": [{"active": True, "installed": True, "install_path": ""}],
-                "good": ["bad-entry", {"active": True, "installed": True, "install_path": "/ok/tool"}],
-            }
-        )
-    ) == {"good": Path("/ok/tool")}
+    monkeypatch.setattr(system_module, "github_token_plaintext", lambda _e: True)
+    monkeypatch.setattr(system_module, "github_plaintext_headless_ok", lambda _e: True)
+    gh_headless = next(r for r in system_module._auth_results(st_auth_fail) if r.name == "gh")  # noqa: SLF001
+    assert gh_headless.status == "pass"
+    assert "headless" in gh_headless.details
 
 
 def test_doctor_quiet_and_headroom_modes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(system_module, "DOCTOR_TOOLS", ("git", "broken"))
     monkeypatch.setattr(system_module, "DOCTOR_SECRETS", ())
-    shared = tmp_path / ".agents/skills"
-    (shared / "s").mkdir(parents=True)
-    (shared / "s/SKILL.md").write_text("---\nname: s\ndescription: s\nlicense: MIT\n---\n")
-    (tmp_path / ".agents/AGENTS.md").write_text("# P\n")
-    for p, sk in system_module._AGENT_HOSTS.values():  # noqa: SLF001
-        pp = system_module.expand_path(p)
-        pp.parent.mkdir(parents=True, exist_ok=True)
-        pp.symlink_to(tmp_path / ".agents/AGENTS.md")
-        if sk:
-            sp = system_module.expand_path(sk)
-            sp.parent.mkdir(parents=True, exist_ok=True)
-            sp.symlink_to(shared)
-    for rev_dir, rev_glob in system_module._AGENT_REVIEWERS.values():  # noqa: SLF001
-        rd = system_module.expand_path(rev_dir)
-        rd.mkdir(parents=True, exist_ok=True)
-        (rd / rev_glob.replace("*", "code")).write_text("---\nname: fmind-review-code\n---\n")
+    _setup_healthy_agents(tmp_path)
 
     assert system_module._inspect_agent("agy").status == "pass"  # noqa: SLF001
     assert system_module._inspect_agent("copilot").status == "pass"  # noqa: SLF001
 
-    # CLI doctor output: default passing-tools collapse, -q text, -q --json, --headroom -q --json
     def doc_run(cmd: list[str], *_a: object) -> CommandResult:
         return CommandResult("", "err", 1) if Path(cmd[0]).name == "broken" else CommandResult("ok\n", "", 0)
 
@@ -1016,6 +561,13 @@ def test_doctor_quiet_and_headroom_modes(tmp_path: Path, monkeypatch: pytest.Mon
     assert qdoc["passed"] is False
     assert all(c["status"] in {"fail", "warn"} for c in qdoc["checks"])
 
+    res_pass = CliRunner().invoke(app, ["doctor", "--headroom", "--json"])
+    assert res_pass.exit_code == 0
+    assert json.loads(res_pass.stdout)["scope"] == "headroom"
+    txt_pass = CliRunner().invoke(app, ["doctor", "--headroom"])
+    assert txt_pass.exit_code == 0
+    assert "PASS · headroom:" in txt_pass.stdout
+
     monkeypatch.setattr(system_module, "DOCTOR_TOOLS", ("git",))
     monkeypatch.setattr(
         "fmind_dot.state.State",
@@ -1034,7 +586,6 @@ def test_doctor_quiet_and_headroom_modes(tmp_path: Path, monkeypatch: pytest.Mon
     assert res_hr_qj.exit_code == 0
     assert json.loads(res_hr_qj.stdout)["checks"] == []
 
-    # --headroom -q text mode omits passing details when healthy and hides passing items when failing
     res_hr_q_pass = CliRunner().invoke(app, ["doctor", "--headroom", "-q"])
     assert res_hr_q_pass.exit_code == 0
     assert res_hr_q_pass.stdout.strip().startswith("PASS · headroom:")
@@ -1047,409 +598,9 @@ def test_doctor_quiet_and_headroom_modes(tmp_path: Path, monkeypatch: pytest.Mon
     assert "FAIL · headroom: memory" in res_hr_q_fail.stdout
     assert "GiB free" not in res_hr_q_fail.stdout
 
-
-def test_system_and_auth_coverage_branches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
-
-    # _inspect_secret edge cases
-    sec = tmp_path / "sec"
-    sec.write_text("k", encoding="utf-8")
-    sec.chmod(0o644)
-    assert system_module._inspect_secret(str(sec), fix=False).status == "fail"  # noqa: SLF001
-    sec.chmod(0o600)
-    assert system_module._inspect_secret(str(sec), fix=False).status == "pass"  # noqa: SLF001
-    with monkeypatch.context() as mp:
-        mp.setattr(os, "getuid", lambda: 99999)
-        assert "not owned" in system_module._inspect_secret(str(sec), fix=False).details  # noqa: SLF001
-    with monkeypatch.context() as mp:
-        mp.setattr(Path, "lstat", lambda _self: (_ for _ in ()).throw(PermissionError("denied")))
-        assert "unable to inspect" in system_module._inspect_secret(str(sec), fix=False).details  # noqa: SLF001
-    sec.chmod(0o644)
-    with monkeypatch.context() as mp:
-        mp.setattr(os, "fchmod", lambda *_a: (_ for _ in ()).throw(PermissionError("ro")))
-        assert "repair failed" in system_module._inspect_secret(str(sec), fix=True).details  # noqa: SLF001
-    # Verify fstat re-checks file type and ownership before fchmod on the opened fd.
-    fchmod_calls: list[int] = []
-    with monkeypatch.context() as mp:
-        mp.setattr(os, "fstat", lambda _fd: SimpleNamespace(st_mode=0o040755, st_uid=os.getuid()))
-        mp.setattr(os, "fchmod", lambda fd, _m: fchmod_calls.append(fd))
-        assert "not a regular file" in system_module._inspect_secret(str(sec), fix=True).details  # noqa: SLF001
-        assert fchmod_calls == []
-    with monkeypatch.context() as mp:
-        mp.setattr(os, "fstat", lambda _fd: SimpleNamespace(st_mode=0o100644, st_uid=99999))
-        mp.setattr(os, "fchmod", lambda fd, _m: fchmod_calls.append(fd))
-        assert "not owned" in system_module._inspect_secret(str(sec), fix=True).details  # noqa: SLF001
-        assert fchmod_calls == []
-    if os.geteuid() != 0:
-        sec.chmod(0o244)
-        repaired = system_module._inspect_secret(str(sec), fix=True)  # noqa: SLF001
-        assert repaired.status == "pass"
-        assert sec.stat().st_mode & 0o777 == 0o600
-
-    # _probe OSError, _docker_results timeout, _auth_results failure branches
-    err_runner = ScriptedRunner(
-        {"docker", "gh"},
-        run=lambda cmd, *_a: (_ for _ in ()).throw(CommandTimeoutError("t") if cmd[0] == "docker" else OSError("io")),
-    )
-    st_err = make_state(err_runner)
-    assert system_module._probe(st_err, ["gh"]) == "failed"  # noqa: SLF001
-    assert system_module._docker_results(st_err)[0].status == "fail"  # noqa: SLF001
-
-    cfg = Config(auth=AuthConfig(login=["github", "gcp", "workspace"]))
-    st_auth_fail = make_state(
-        ScriptedRunner({"gh", "gcloud"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {}}), "", 0)), cfg
-    )
-    monkeypatch.setattr(system_module, "github_ready", lambda *_a, **_kw: False)
-    monkeypatch.setattr(system_module, "gcloud_ready", lambda *_a, **_kw: (_ for _ in ()).throw(DotError("boom")))
-    monkeypatch.setattr(system_module, "adc_ready", lambda *_a, **_kw: True)
-    auth_map = {r.name: r.status for r in system_module._auth_results(st_auth_fail)}  # noqa: SLF001
-    assert auth_map == {"gh": "fail", "gcloud": "fail", "gcloud-adc": "pass", "gws": "skip"}
-
-    monkeypatch.setattr(system_module, "github_ready", lambda *_a, **_kw: True)
-    monkeypatch.setattr(system_module, "github_token_plaintext", lambda _e: False)
-    assert next(r for r in system_module._auth_results(st_auth_fail) if r.name == "gh").status == "pass"  # noqa: SLF001
-
-    # _install_results branches
-    st_chez_bad = make_state(ScriptedRunner({"chezmoi"}, run=lambda *_a: CommandResult("", "err", 1)))
-    assert system_module._install_results(st_chez_bad)[0].status == "warn"  # noqa: SLF001
-    non_dot = tmp_path / "non_dot"
-    non_dot.mkdir()
-    st_nondot = make_state(ScriptedRunner({"chezmoi"}, run=lambda *_a: CommandResult(str(non_dot), "", 0)))
-    assert system_module._install_results(st_nondot)[0].status == "skip"  # noqa: SLF001
-    src_dot = tmp_path / "src_dot"
-    (src_dot / "dot/src/fmind_dot").mkdir(parents=True)
-    (src_dot / "dot/pyproject.toml").write_text("[bad toml", encoding="utf-8")
-    st_srcdot = make_state(ScriptedRunner({"chezmoi"}, run=lambda *_a: CommandResult(str(src_dot), "", 0)))
-    with monkeypatch.context() as mp:
-        mp.setattr(system_module, "PACKAGE_DIRECTORY", src_dot / "dot/src/fmind_dot")
-        assert "source checkout" in system_module._install_results(st_srcdot)[0].details  # noqa: SLF001
-    with monkeypatch.context() as mp:
-        mp.setattr(system_module, "PACKAGE_DIRECTORY", tmp_path / "site/fmind_dot")
-        assert system_module._install_results(st_srcdot)[0].status == "fail"  # noqa: SLF001
-
-    # _inspect_agent healthy check
-    (tmp_path / ".agents/skills/s").mkdir(parents=True, exist_ok=True)
-    (tmp_path / ".agents/AGENTS.md").write_text("# P\n")
-    (tmp_path / ".agents/skills/s/SKILL.md").write_text("---\nname: s\ndescription: s\nlicense: MIT\n---\n")
-    pp = system_module.expand_path(system_module._AGENT_HOSTS["copilot"][0])  # noqa: SLF001
-    pp.parent.mkdir(parents=True, exist_ok=True)
-    if not pp.exists():
-        pp.symlink_to(tmp_path / ".agents/AGENTS.md")
-    cr = system_module.expand_path(system_module._AGENT_REVIEWERS["copilot"][0])  # noqa: SLF001
-    cr.mkdir(parents=True, exist_ok=True)
-    (cr / "fmind-review-code.agent.md").write_text("---\nname: fmind-review-code\n---\n")
-    assert system_module._inspect_agent("copilot").status == "pass"  # noqa: SLF001
-
-    # available_memory_bytes & headroom_results edge cases
-    with monkeypatch.context() as mp:
-        mp.setattr(sys, "platform", "darwin")
-        assert available_memory_bytes() is None
-    bad_mem = tmp_path / "bad_mem"
-    bad_mem.write_text("MemAvailable: bad\n", encoding="utf-8")
-    assert available_memory_bytes(bad_mem) is None
-    with monkeypatch.context() as mp:
-        mp.setattr(system_module, "available_memory_bytes", lambda: None)
-        mp.setattr(shutil, "disk_usage", lambda _p: (_ for _ in ()).throw(OSError("no disk")))
-        hr = headroom_results([tmp_path])
-        assert {r.name: r.status for r in hr} == {"disk": "warn", "memory": "warn"}
-    with monkeypatch.context() as mp:
-        mp.setattr(Path, "resolve", lambda _self: (_ for _ in ()).throw(OSError("loop")))
-        hr_res = headroom_results([tmp_path], memory=8 * 1024**3)
-        assert hr_res[0].status == "warn"
-
-    # auth.py branches
-    monkeypatch.setenv("GOOGLE_WORKSPACE_CLI_CLIENT_ID", "cid")
-    monkeypatch.setenv("GOOGLE_WORKSPACE_CLI_CLIENT_SECRET", "csec")
-    assert auth_module._has_env_workspace_client() is True  # noqa: SLF001
-    st_ws_bad = make_state(ScriptedRunner({"gws"}, run=lambda *_a: CommandResult("[]", "", 0)))
-    with pytest.raises(DotError, match="client configuration state is unknown"):
-        auth_module._workspace_client(st_ws_bad, "p1")  # noqa: SLF001
-    st_ws_dry = make_state()
-    auth_module.login_workspace(st_ws_dry, dry_run=True, project="my-proj-1")
-    assert "gws auth setup" in buf(st_ws_dry.stdout)
-
-    st_en = make_state(ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("", "boom\n", 1)))
-    with pytest.raises(DotError, match="command failed"):
-        auth_module._enable_workspace_apis(st_en, ["drive.googleapis.com"], "my-proj-1", allow_permission_denied=False)  # noqa: SLF001
-    assert "boom" in buf(st_en.stderr)
-
-    monkeypatch.setattr(auth_module, "WORKSPACE_SCOPE_LIMIT", 1)
-    with pytest.raises(DotError, match="scope limit"):
-        auth_module.login_workspace(make_state(config=cfg))
-    monkeypatch.setattr(auth_module, "WORKSPACE_SCOPE_LIMIT", 50)
-
-    monkeypatch.delenv("GWS_PROJECT", raising=False)
-    monkeypatch.delenv("GOOGLE_WORKSPACE_CLI_CLIENT_ID")
-    st_no_proj = make_state(
-        ScriptedRunner({"gws"}, run=lambda *_a: CommandResult(json.dumps({"token_valid": False}), "", 0))
-    )
-    with pytest.raises(DotError, match="did not satisfy"):
-        auth_module.login_workspace(st_no_proj)
-    assert "Skipping Workspace setup" in buf(st_no_proj.stderr)
-
-    st_setup_ready = make_state(
-        ScriptedRunner(
-            {"gcloud", "gws"},
-            responses={
-                ("gws", "auth", "status"): [
-                    CommandResult(json.dumps({"client_config_exists": False, "enabled_apis": []}), "", 0),
-                    CommandResult(
-                        json.dumps(
-                            {
-                                "client_config_exists": True,
-                                "project_id": "my-proj-1",
-                                "enabled_apis": [],
-                                "token_valid": True,
-                                "scopes": list(cfg.auth.workspace.scopes),
-                            }
-                        ),
-                        "",
-                        0,
-                    ),
-                ]
-            },
-        ),
-        cfg,
-    )
-    auth_module.login_workspace(st_setup_ready, setup=True, project="my-proj-1")
-    assert "already authenticated" in buf(st_setup_ready.stderr)
-
-    st_incomplete = make_state(
-        ScriptedRunner(
-            {"gcloud", "gws"},
-            run=lambda *_a: CommandResult(json.dumps({"client_config_exists": False, "enabled_apis": []}), "", 0),
-        )
-    )
-    with pytest.raises(DotError, match="setup is incomplete"):
-        auth_module.setup_workspace(st_incomplete, "my-proj-1")
-
-    # login_github, login_gcp, provider_ready, check_logins, login_machine, CLI login --dry-run
-    gh_ok = {"active": True, "state": "success", "scopes": ", ".join(auth_module.GITHUB_SCOPES)}
-    st_gh_ready = make_state(
-        ScriptedRunner({"gh"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {"github.com": [gh_ok]}}), "", 0))
-    )
-    auth_module.login_github(st_gh_ready)
-    assert "already authenticated" in buf(st_gh_ready.stderr)
-
-    st_gh_fail = make_state(
-        ScriptedRunner({"gh"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {"github.com": []}}), "", 0))
-    )
-    monkeypatch.setattr(st_gh_fail.runner, "interactive", lambda *_a, **_k: 0)
-    with pytest.raises(DotError, match="did not satisfy"):
-        auth_module.login_github(st_gh_fail)
-
-    gh_grant_entry = {
-        "active": True,
-        "state": "success",
-        "scopes": ", ".join([*auth_module.GITHUB_SCOPES, "write:ssh_signing_key"]),
-    }
-    gh_grant_runner = ScriptedRunner(
-        {"gh"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {"github.com": [gh_grant_entry]}}), "", 0)
-    )
-    monkeypatch.setattr(gh_grant_runner, "interactive", lambda *_a, **_k: 0)
-    st_gh_grant = make_state(gh_grant_runner)
-    auth_module.login_github(st_gh_grant, force=True, grants=["write:ssh_signing_key"])
-    assert "One-off GitHub scopes granted" in buf(st_gh_grant.stderr)
-
-    st_gcp_ok = make_state(ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("tok\n", "", 0)))
-    auth_module.login_gcp(st_gcp_ok)
-    assert "already provide usable" in buf(st_gcp_ok.stderr)
-
-    # GCE metadata service account must not satisfy user gcloud/ADC readiness, while non-GCE SA logins still pass.
-    sa_responses = {
-        tuple(auth_module.GCLOUD_CLI_TOKEN): [CommandResult("sa-tok\n", "", 0)],
-        tuple(auth_probes_module.GCLOUD_ACTIVE_ACCOUNT): [CommandResult("vm@example.iam.gserviceaccount.com\n", "", 0)],
-    }
-    monkeypatch.setattr(auth_probes_module, "is_gce_vm", lambda: False)
-    assert (
-        auth_module.gcloud_ready(
-            make_state(ScriptedRunner({"gcloud"}, responses=sa_responses)), auth_module.GCLOUD_CLI_TOKEN
-        )
-        is True
-    )
-    monkeypatch.setattr(auth_probes_module, "is_gce_vm", lambda: True)
-    assert (
-        auth_module.gcloud_ready(
-            make_state(ScriptedRunner({"gcloud"}, responses=sa_responses)), auth_module.GCLOUD_CLI_TOKEN
-        )
-        is False
-    )
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    assert (
-        auth_module.adc_ready(make_state(ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("t\n", "", 0))))
-        is False
-    )
-    monkeypatch.setattr(auth_probes_module, "is_gce_vm", lambda: False)
-
-    # Headless SSH and display-less Linux (e.g., Remote Control daemon) pass --no-launch-browser.
-    monkeypatch.setenv("SSH_TTY", "/dev/pts/0")
-    st_ssh_dry = make_state()
-    auth_module.login_gcp(st_ssh_dry, dry_run=True)
-    assert buf(st_ssh_dry.stdout).count("--no-launch-browser") == 2
-    monkeypatch.delenv("SSH_TTY", raising=False)
-    monkeypatch.delenv("SSH_CONNECTION", raising=False)
-    monkeypatch.delenv("DISPLAY", raising=False)
-    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
-    with monkeypatch.context() as mp:
-        mp.setattr(sys, "platform", "linux")
-        assert auth_probes_module.is_headless_ssh() is True
-        mp.setenv("DISPLAY", ":0")
-        assert auth_probes_module.is_headless_ssh() is False
-
-    # Headless GCE accepts 0600 gh hosts.yml without false keyring warnings, but still flags 0644.
-    hosts_file = tmp_path / "hosts.yml"
-    hosts_file.write_text("github.com:\n", encoding="utf-8")
-    hosts_file.chmod(0o600)
-    with monkeypatch.context() as mp:
-        mp.setattr(auth_probes_module, "is_gce_vm", lambda: True)
-        mp.setattr(auth_probes_module, "is_headless_ssh", lambda: True)
-        assert auth_probes_module.github_plaintext_headless_ok({"tokenSource": str(hosts_file)}) is True
-        hosts_file.chmod(0o644)
-        assert auth_probes_module.github_plaintext_headless_ok({"tokenSource": str(hosts_file)}) is False
-
-    adc_probe_key = tuple(auth_module._adc_cmd("print-access-token"))  # noqa: SLF001
-    gcp_adc_runner = ScriptedRunner(
-        {"gcloud"},
-        responses={
-            ("gcloud", "auth", "print-access-token"): [CommandResult("t\n", "", 0), CommandResult("t\n", "", 0)],
-            adc_probe_key: [
-                CommandResult("", "Reauthentication", 1),
-                CommandResult("t\n", "", 0),
-            ],
-        },
-    )
-    auth_module.login_gcp(make_state(gcp_adc_runner))
-    assert any("application-default" in c and "login" in c for c in gcp_adc_runner.calls)
-
-    gcp_fail = ScriptedRunner(
-        {"gcloud"},
-        run=lambda cmd, *_a: (
-            CommandResult("", "Reauthentication", 1) if "print-access-token" in cmd else CommandResult("", "", 0)
-        ),
-    )
-    with pytest.raises(DotError, match="did not provide usable CLI and ADC"):
-        auth_module.login_gcp(make_state(gcp_fail))
-
-    assert auth_module.provider_ready(st_gh_ready, "github") is True
-    st_all_ready = make_state(
-        ScriptedRunner({"gh"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {"github.com": [gh_ok]}}), "", 0))
-    )
-    auth_module.check_logins(st_all_ready, ["github"], "dot login", force=False, dry_run=False)
-    assert "github: ready" in buf(st_all_ready.stdout)
-
-    cfg_gh = Config(auth=AuthConfig(login=["github"]))
-    st_lm = make_state(
-        ScriptedRunner({"gh"}, run=lambda *_a: CommandResult(json.dumps({"hosts": {"github.com": [gh_ok]}}), "", 0)),
-        cfg_gh,
-    )
-    auth_module.login_machine(st_lm, force=False, dry_run=False, check=True)
-    auth_module.login_machine(st_lm, force=False, dry_run=True, check=False)
-    assert "gh auth login" in buf(st_lm.stdout)
-
-    monkeypatch.setattr("fmind_dot.state.State.config", cfg_gh)
-    res_cli_login = CliRunner().invoke(app, ["login", "github", "--dry-run"])
-    assert res_cli_login.exit_code == 0
-    assert "gh auth login" in res_cli_login.stdout
-
-    # Non-TTY interactive login fails closed immediately instead of hanging (both stdin and stdout must be TTYs)
-    from fmind_dot.process import Runner
-
-    non_tty_runner = Runner()
-    monkeypatch.setattr(non_tty_runner, "which", lambda _cmd: Path("/bin/gh"))
-    non_tty_state = make_state(non_tty_runner)
-    with pytest.raises(DotError, match="requires a terminal"):
-        auth_probes_module.execute(non_tty_state, ["gh", "auth", "login"])
-
-    for stdin_stream, stdout_stream in (
-        (io.StringIO(), TerminalIO()),
-        (TerminalIO(), io.StringIO()),
-    ):
-        half_tty = State(runner=non_tty_runner, stdin=stdin_stream, stdout=stdout_stream, stderr=io.StringIO())
-        with pytest.raises(DotError, match="requires a terminal"):
-            auth_probes_module.execute(half_tty, ["gh", "auth", "login"])
-
-    tty_calls: list[list[str]] = []
-    monkeypatch.setattr(non_tty_runner, "interactive", lambda args, **_k: (tty_calls.append(list(args)), 0)[1])
-    full_tty = State(runner=non_tty_runner, stdin=TerminalIO(), stdout=TerminalIO(), stderr=io.StringIO())
-    auth_probes_module.execute(full_tty, ["gh", "auth", "login"])
-    assert tty_calls == [["gh", "auth", "login"]]
-
-    # Non-TTY setup_workspace / login_workspace fail closed BEFORE mutating GCP via gcloud services enable
-    cfg_ws = Config(auth=AuthConfig(login=["workspace"]))
-    ws_calls: list[list[str]] = []
-
-    def ws_probe(cmd: list[str], *_a: object, **_kw: object) -> CommandResult:
-        ws_calls.append(list(cmd))
-        return CommandResult(json.dumps({"client_config_exists": False, "enabled_apis": []}), "", 0)
-
-    monkeypatch.setattr(non_tty_runner, "which", lambda cmd: Path("/bin") / cmd)
-    monkeypatch.setattr(non_tty_runner, "run", ws_probe)
-    for action in (
-        lambda st: auth_module.setup_workspace(st, "my-proj-1"),
-        lambda st: auth_module.login_workspace(st, project="my-proj-1"),
-    ):
-        ws_calls.clear()
-        with pytest.raises(DotError, match="requires a terminal"):
-            action(make_state(non_tty_runner, cfg_ws))
-        assert ws_calls == [["gws", "auth", "status"]]
-
-    # Configured client + --setup + logged out fails closed BEFORE gcloud services enable in non-TTY
-    ws_calls.clear()
-    ws_logged_out = json.dumps(
-        {"client_config_exists": True, "project_id": "my-proj-1", "enabled_apis": [], "token_valid": False}
-    )
-    monkeypatch.setattr(
-        non_tty_runner,
-        "run",
-        lambda cmd, *_a, **_kw: (ws_calls.append(list(cmd)), CommandResult(ws_logged_out, "", 0))[1],
-    )
-    with pytest.raises(DotError, match="requires a terminal"):
-        auth_module.login_workspace(make_state(non_tty_runner, cfg_ws), project="my-proj-1", setup=True)
-    assert ws_calls == [["gws", "auth", "status"]]
-
-    # Non-TTY headless login fails closed BEFORE printing interactive SSH curl instructions.
-    with monkeypatch.context() as mp:
-        mp.setenv("SSH_TTY", "/dev/pts/0")
-        st_headless_non_tty = make_state(non_tty_runner, cfg_ws)
-        with pytest.raises(DotError, match="requires a terminal"):
-            auth_module.login_workspace(st_headless_non_tty, project="my-proj-1")
-        assert "Headless SSH detected" not in buf(st_headless_non_tty.stderr)
-
-    # --dry-run and --check continue to work without a TTY
-    dry_non_tty = make_state(non_tty_runner, cfg_ws)
-    auth_module.login_workspace(dry_non_tty, project="my-proj-1", dry_run=True)
-    assert "gcloud services enable" in buf(dry_non_tty.stdout)
-    with pytest.raises(SystemExit) as chk_exit:
-        auth_module.check_logins(
-            make_state(non_tty_runner, cfg_ws), ["workspace"], "dot login workspace", force=False, dry_run=False
-        )
-    assert chk_exit.value.code == 1
-
-    # GCE VM probes fail closed when `gcloud auth list` fails, and `adc_ready` honors CLOUDSDK_CONFIG.
-    monkeypatch.setattr(auth_probes_module, "is_gce_vm", lambda: True)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    monkeypatch.delenv("CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", raising=False)
-    monkeypatch.delenv("CLOUDSDK_AUTH_ACCESS_TOKEN", raising=False)
-
-    def gce_fail_list(cmd: list[str], *_a: object) -> CommandResult:
-        if cmd == auth_probes_module.GCLOUD_ACTIVE_ACCOUNT:
-            return CommandResult("", "broken", 1)
-        return CommandResult("tok\n", "", 0)
-
-    with pytest.raises(DotError, match="authentication state is unknown"):
-        auth_probes_module.gcloud_ready(
-            make_state(ScriptedRunner({"gcloud"}, run=gce_fail_list)), auth_probes_module.GCLOUD_CLI_TOKEN
-        )
-
-    custom_gcloud = tmp_path / "custom-gcloud"
-    custom_gcloud.mkdir()
-    monkeypatch.setenv("CLOUDSDK_CONFIG", str(custom_gcloud))
-    st_adc = make_state(ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("tok\n", "", 0)))
-    assert auth_probes_module.adc_ready(st_adc) is False
-    (custom_gcloud / "application_default_credentials.json").write_text("{}", encoding="utf-8")
-    assert (
-        auth_probes_module.adc_ready(
-            make_state(ScriptedRunner({"gcloud"}, run=lambda *_a: CommandResult("tok\n", "", 0)))
-        )
-        is True
-    )
+    monkeypatch.setattr(shutil, "disk_usage", lambda _p: SimpleNamespace(free=1 * 1024**3))
+    res_fail = CliRunner().invoke(app, ["doctor", "--headroom"])
+    assert res_fail.exit_code == 1
+    assert "FAIL · headroom:" in res_fail.stdout
+    bad = CliRunner().invoke(app, ["doctor", "--headroom", "--fix"])
+    assert bad.exit_code == 2

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import importlib
 import os
-import signal
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -13,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from fmind_dot.command import COMPLETE_VARIABLE, Handler, Parser, add_json, add_quiet, candidates
 from fmind_dot.errors import DotError, UsageError, flush_stdout_on_error, suppress_broken_pipe_stdout
+from fmind_dot.process import sigterm_as_keyboard_interrupt
 
 if TYPE_CHECKING:
     from fmind_dot.state import State
@@ -248,32 +248,26 @@ def app(arguments: Sequence[str] | None = None) -> None:
         args.parser.error(str(error))
 
 
-def _interrupt_on_sigterm(_signum: int, _frame: object) -> None:
-    raise KeyboardInterrupt
-
-
 def main() -> None:
-    previous_sigterm = signal.signal(signal.SIGTERM, _interrupt_on_sigterm)
-    try:
+    with sigterm_as_keyboard_interrupt():
         try:
-            if (current := os.environ.get(COMPLETE_VARIABLE)) is not None:
-                for value, description in candidates(build_parser(), [*sys.argv[1:], current]):
-                    sys.stdout.write(f"{value}\t{description}\n" if description else f"{value}\n")
-            else:
-                app()
-        except SystemExit:
+            try:
+                if (current := os.environ.get(COMPLETE_VARIABLE)) is not None:
+                    for value, description in candidates(build_parser(), [*sys.argv[1:], current]):
+                        sys.stdout.write(f"{value}\t{description}\n" if description else f"{value}\n")
+                else:
+                    app()
+            except SystemExit:
+                sys.stdout.flush()
+                raise
             sys.stdout.flush()
-            raise
-        sys.stdout.flush()
-    except BrokenPipeError:
-        suppress_broken_pipe_stdout()
-    except KeyboardInterrupt:
-        flush_stdout_on_error()
-        sys.stderr.write("Cancelled.\n")
-        raise SystemExit(130) from None
-    except (DotError, OSError, ValueError) as error:
-        flush_stdout_on_error()
-        sys.stderr.write(f"dot: {error}\n")
-        raise SystemExit(1) from error
-    finally:
-        signal.signal(signal.SIGTERM, previous_sigterm)
+        except BrokenPipeError:
+            suppress_broken_pipe_stdout()
+        except KeyboardInterrupt:
+            flush_stdout_on_error()
+            sys.stderr.write("Cancelled.\n")
+            raise SystemExit(130) from None
+        except (DotError, OSError, ValueError) as error:
+            flush_stdout_on_error()
+            sys.stderr.write(f"dot: {error}\n")
+            raise SystemExit(1) from error

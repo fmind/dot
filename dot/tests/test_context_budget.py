@@ -468,6 +468,117 @@ def test_subagent_duplicates_symlinks_and_fail_closed_validation(tmp_path: Path)
         context_report(project, global_root=global_root)
 
 
+def test_compiled_host_agents_shadowing_global_subagents_fail_check(tmp_path: Path) -> None:
+    global_root, project = tmp_path / ".agents", tmp_path / "project"
+    g_sub = subagent(global_root, "fmind-review-code")
+    # Legitimate project-local compiled agents with non-global names must pass cleanly.
+    local_agy = project / ".agents/agents/acme-review-domain.md"
+    local_agy.parent.mkdir(parents=True)
+    local_agy.write_text("---\nname: acme-review-domain\ndescription: Local domain audit.\n---\n")
+    local_cop = project / ".github/agents/acme-review-domain.agent.md"
+    local_cop.parent.mkdir(parents=True)
+    local_cop.write_text("---\nname: acme-review-domain\ndescription: Local domain audit.\n---\n")
+    clean = context_report(project, global_root=global_root)
+    assert clean["passed"] is True
+    assert clean["duplicate_subagents"] == []
+
+    # Shadowing via .agents/agents/<name>.md, <name>/agent.md, frontmatter rename, underscore/dot/uppercase, or .github/agents fails.
+    shadow_cases = [
+        (project / ".agents/agents/fmind-review-code.md", "---\nname: fmind-review-code\n---\n"),
+        (project / ".agents/agents/fmind-review-code/agent.md", "# Unparsed shadowing body\n"),
+        (project / ".agents/agents/innocent.md", "--- \nname: fmind-review-code\ndescription: Spoofed.\n--- \n"),
+        (project / ".agents/agents/_shadow.md", "---\nname: fmind-review-code\n---\n"),
+        (project / ".agents/agents/_sub/fmind-review-code.md", "# Nested underscore dir\n"),
+        (project / ".agents/agents/.hidden.md", "---\nname: fmind-review-code\n---\n"),
+        (project / ".agents/agents/FMIND-REVIEW-CODE.MD", "# Case-insensitive macOS collision\n"),
+        (project / ".agents/agents/bom.md", "\ufeff---\nname: fmind-review-code\n---\n"),
+        (
+            project / ".agents/agents/merge.md",
+            "---\nbase: &b\n  name: fmind-review-code\n<<: *b\n---\n",
+        ),
+        (project / ".github/agents/fmind-review-code.agent.md", "---\nname: fmind-review-code\n---\n"),
+    ]
+    for shadow_path, body in shadow_cases:
+        shadow_path.parent.mkdir(parents=True, exist_ok=True)
+        shadow_path.write_text(body)
+        report = context_report(project, global_root=global_root)
+        assert report["passed"] is False, f"expected shadowing failure for {shadow_path}"
+        assert report["duplicate_subagents"] == [{"name": "fmind-review-code", "paths": [str(g_sub), str(shadow_path)]}]
+        shadow_path.unlink()
+        if shadow_path.parent.name in {"fmind-review-code", "_sub"}:
+            shadow_path.parent.rmdir()
+
+    # Case-insensitive collision inside .agents/supagents/ also fails consistently.
+    upper_sup = subagent(project / ".agents", "FMIND-REVIEW-CODE")
+    upper_rep = context_report(project, global_root=global_root)
+    assert upper_rep["passed"] is False
+    assert upper_rep["duplicate_subagents"] == [{"name": "fmind-review-code", "paths": [str(g_sub), str(upper_sup)]}]
+    upper_sup.unlink()
+
+    # Duplicate YAML keys, unhashable keys, or malformed frontmatter in compiled host agents fail closed with DotError.
+    for bad_fm in (
+        "---\nname: fmind-review-code\nname: innocent\n---\n",
+        "---\n[a]: 1\n---\n",
+        "---\n!!map 'not-a-map'\n---\n",
+    ):
+        bad_agent = project / ".agents/agents/bad.md"
+        bad_agent.write_text(bad_fm)
+        with pytest.raises(DotError, match="invalid frontmatter"):
+            context_report(project, global_root=global_root)
+        bad_agent.unlink()
+
+    # .agents/agents.json registers in-repo dirs safely when clean, catches shadowing, and rejects escapes/inherits/dups.
+    manifest = project / ".agents/agents.json"
+    team_dir = project / "team-agents"
+    team_dir.mkdir()
+    (team_dir / "acme-local.md").write_text("---\nname: acme-local\n---\n")
+    manifest.write_text(json.dumps({"entries": [{"path": "../team-agents"}]}))
+    assert context_report(project, global_root=global_root)["passed"] is True
+
+    spoofed = team_dir / "hidden.md"
+    spoofed.write_text("---\nname: fmind-review-code\n---\n")
+    shadowed = context_report(project, global_root=global_root)
+    assert shadowed["passed"] is False
+    assert shadowed["duplicate_subagents"] == [{"name": "fmind-review-code", "paths": [str(g_sub), str(spoofed)]}]
+    spoofed.unlink()
+
+    for bad_manifest in (
+        json.dumps({"inherits": ["../other/agents.json"]}),
+        json.dumps({"entries": [{"path": "../../outside"}]}),
+        json.dumps({"entries": [{"path": "../team-agents", "dir": "../../outside"}]}),
+        '{"entries": [{"path": "../team-agents"}], "entries": []}',
+        "{invalid-json",
+    ):
+        manifest.write_text(bad_manifest)
+        with pytest.raises(DotError, match="agents"):
+            context_report(project, global_root=global_root)
+
+    # Project-root symlink escaping the repo must fail closed even when .agents/<rel> does not exist,
+    # including symlink+dotdot traversals like s/../../target that lexically collapse outside project.
+    outside_dir = tmp_path / "outside-agents"
+    (outside_dir / "x/y").mkdir(parents=True)
+    (project / "external-agents").symlink_to(outside_dir, target_is_directory=True)
+    manifest.write_text(json.dumps({"entries": [{"path": "external-agents"}]}))
+    with pytest.raises(DotError, match="points outside the repository"):
+        context_report(project, global_root=global_root)
+    (project / "external-agents").unlink()
+
+    (project / "s").symlink_to(outside_dir / "x/y", target_is_directory=True)
+    manifest.write_text(json.dumps({"entries": [{"path": "s/../../target"}]}))
+    with pytest.raises(DotError, match="points outside the repository"):
+        context_report(project, global_root=global_root)
+    (project / "s").unlink()
+
+    # Valid .agents/<sub> directory must not false-fail when project/<sub> is an unrelated regular file.
+    (project / ".agents/local-dir").mkdir()
+    (project / ".agents/local-dir/acme-ok.md").write_text("---\nname: acme-ok\n---\n")
+    (project / "local-dir").write_text("unrelated file\n")
+    manifest.write_text(json.dumps({"entries": [{"path": "local-dir"}]}))
+    assert context_report(project, global_root=global_root)["passed"] is True
+    (project / "local-dir").unlink()
+    manifest.unlink()
+
+
 def test_narrow_terminal_large_deficits_help_and_unresolvable_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

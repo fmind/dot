@@ -161,11 +161,17 @@ def _xdg_dir(name: str, default: str) -> Path:
     return Path.home() / default
 
 
+def _mise_data_dir() -> Path:
+    if (raw := os.environ.get("MISE_DATA_DIR")) and (candidate := expand_path(os.path.expandvars(raw))).is_absolute():
+        return candidate
+    return _xdg_dir("XDG_DATA_HOME", ".local/share") / "mise"
+
+
 def main() -> int:
     """Retire stale graphs and hash-suffixed installs next to a deployed global lock."""
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
     parser.add_argument("lock", type=Path, help="deployed global mise.lock")
-    lock, installs = parser.parse_args().lock, _xdg_dir("MISE_DATA_DIR", ".local/share/mise") / "installs"
+    lock, installs = parser.parse_args().lock, _mise_data_dir() / "installs"
     try:
         for path in [*(lock.parent / rel for rel in retire(lock)), *retire_installs(lock, installs)]:
             sys.stdout.write(f"Retired {path}\n")

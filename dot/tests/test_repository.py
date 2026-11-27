@@ -215,3 +215,21 @@ def test_status_operations_worktree_attention_and_errors(tmp_path: Path, monkeyp
     cli = CliRunner().invoke(app, ["status", "--json"])
     assert cli.exit_code != 0
     assert json.loads(cli.stdout)["complete"] is False
+
+    # Detached HEAD with branch.oid skips rev-parse --short HEAD and direct .git dir skips rev-parse --absolute-git-dir.
+    direct = ws / "direct"
+    (direct / ".git").mkdir(parents=True)
+    oid_runner = ScriptedRunner(
+        {"git"},
+        responses={
+            V2: [
+                CommandResult(
+                    "# branch.oid 1234567890abcdef1234567890abcdef12345678\n# branch.head (detached)\n", "", 0
+                )
+            ]
+        },
+    )
+    [det] = gather_status(make_state(oid_runner, Config(pull=PullConfig(directories=[str(direct)]))))
+    assert det.branch == "1234567"
+    assert not any(c[:2] == ["git", "rev-parse"] and "--short" in c for c in oid_runner.calls)
+    assert not any("--absolute-git-dir" in c for c in oid_runner.calls)

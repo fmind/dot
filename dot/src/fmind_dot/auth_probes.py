@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import json
 import os
-import re
-import shlex
 import stat
 import sys
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path, PurePath
 from typing import Any
 
@@ -17,13 +15,12 @@ from fmind_dot.config import (
     GITHUB_FORBIDDEN_SCOPES,
     GITHUB_REMOVE_SCOPES,
     GITHUB_SCOPES,
-    SCOPE_RE,
     WORKSPACE_FORBIDDEN_SCOPES,
     env_path,
     expand_google_scope,
     policy,
 )
-from fmind_dot.errors import DotError, UsageError
+from fmind_dot.errors import DotError
 from fmind_dot.process import CommandResult
 from fmind_dot.state import State, require_tools
 
@@ -39,44 +36,6 @@ PROBE_TIMEOUT_SECONDS = 45.0
 def adc_cmd(verb: str) -> list[str]:
     """Return the gcloud application-default command with configured ADC scopes."""
     return ["gcloud", "auth", "application-default", verb, f"--scopes={','.join(GCP_ADC_SCOPES)}"]
-
-
-def _stream_isatty(stream: object) -> bool:
-    isatty = getattr(stream, "isatty", None)
-    if not callable(isatty):
-        return False
-    try:
-        return bool(isatty())
-    except OSError, ValueError:
-        return False
-
-
-def require_tty(state: State, tool: str) -> None:
-    """Fail closed before mutating state when interactive authentication lacks a terminal."""
-    if state.runner.requires_tty and not (_stream_isatty(state.stdin) and _stream_isatty(state.stdout)):
-        raise DotError(
-            f"interactive authentication for {tool} requires a terminal (TTY); run in a terminal or use --check / --dry-run"
-        )
-
-
-def execute(state: State, args: Sequence[str], *, open_url: re.Pattern[str] | None = None) -> None:
-    """Run an interactive auth command and invalidate cached readiness probes."""
-    require_tools(state, [list(args)])
-    require_tty(state, args[0])
-    try:
-        code = state.runner.interactive(
-            args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, open_url=open_url
-        )
-        if code != 0:
-            raise DotError(f"command failed ({code}): {args[0]}")
-    finally:
-        state.clear_probes()
-
-
-def dry_run_cmds(state: State, *commands: Sequence[str]) -> None:
-    """Print shell-quoted dry-run commands to stdout."""
-    for args in commands:
-        state.stdout.write(f"$ {shlex.join(args)}\n")
 
 
 def probe(state: State, args: list[str], timeout: float = PROBE_TIMEOUT_SECONDS) -> CommandResult:
@@ -104,12 +63,6 @@ def unknown_provider(provider: str) -> DotError:
     )
 
 
-def reject_env(names: Sequence[str], message: str) -> None:
-    """Fail when an overriding credential environment variable is active."""
-    if any(os.environ.get(n) for n in names):
-        raise DotError(message)
-
-
 def workspace_token_valid(status: object) -> bool | None:
     """Return whether parsed `gws auth status` JSON reports a valid token."""
     if not isinstance(status, dict):
@@ -117,31 +70,6 @@ def workspace_token_valid(status: object) -> bool | None:
     if status.get("auth_method") == "none" or status.get("token_valid") is False:
         return False
     return True if status.get("token_valid") is True else None
-
-
-def one_off_scopes(
-    grants: Sequence[str],
-    configured: Sequence[str],
-    *,
-    expand: Callable[[str], str] | None = None,
-    validate: Callable[[str], bool] | None = None,
-    forbidden: Collection[str] = (),
-) -> list[str]:
-    """Validate and deduplicate one-off `--grant` scopes against configured defaults."""
-    forbidden_lower = {f.lower() for f in forbidden}
-    scopes: list[str] = []
-    for grant in grants:
-        if not SCOPE_RE.fullmatch(grant):
-            raise UsageError(f"--grant: invalid scope {grant!r}")
-        scope = expand(grant) if expand else grant
-        valid = validate(scope) if validate else bool(SCOPE_RE.fullmatch(scope))
-        if not valid:
-            raise UsageError(f"--grant: invalid scope {grant!r}")
-        if scope.lower() in forbidden_lower:
-            raise UsageError(f"--grant: scope {grant!r} is forbidden by security policy")
-        if scope not in configured and scope not in scopes:
-            scopes.append(scope)
-    return scopes
 
 
 def norm_google(scopes: Iterable[str]) -> set[str]:
@@ -231,13 +159,6 @@ def github_plaintext_headless_ok(entry: dict[str, Any] | None) -> bool:
     except OSError:
         return False
     return stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and (stat.S_IMODE(info.st_mode) & ~0o600 == 0)
-
-
-def warn_plaintext(state: State, entry: dict[str, Any] | None) -> None:
-    """Warn on stderr if GitHub CLI stores its token in plaintext hosts.yml."""
-    if github_token_plaintext(entry) and not github_plaintext_headless_ok(entry):
-        msg = "Warning: the GitHub token is stored in plaintext hosts.yml; unlock the system keyring, then run gh auth logout and dot login github to move it to the keyring."
-        print(msg, file=state.stderr)
 
 
 def is_gce_vm() -> bool:

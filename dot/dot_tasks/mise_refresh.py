@@ -8,11 +8,12 @@ import subprocess
 import sys
 import tempfile
 import tomllib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from dot_tasks import ROOT
 from dot_tasks.mise_locks import bundle, capture
+from fmind_dot.process import deferred_launch_interrupts, sigterm_as_keyboard_interrupt, terminate_process
 
 _CHECKSUM_PREFIXES = ("sha256:", "sha512:", "blake3:")
 
@@ -57,6 +58,22 @@ def undeclared(root: Path, tools: Sequence[str]) -> str:
     return f"undeclared tools {', '.join(unknown)}: pass [tools] keys from dot_config/mise/config.toml without @VERSION, or declare the tool there first"
 
 
+def _run_lock(cmd: Sequence[str], *, cwd: Path, env: Mapping[str, str], timeout: float = 1800.0) -> None:
+    """Run ``mise lock`` in its own process group so timeout/SIGTERM cleans up child resolvers too."""
+    args = list(cmd)
+    proc: subprocess.Popen[bytes] | None = None
+    try:
+        with deferred_launch_interrupts():
+            proc = subprocess.Popen(args, cwd=cwd, env=env, start_new_session=True)  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+        returncode = proc.wait(timeout=timeout)
+    except BaseException:
+        if proc is not None:
+            terminate_process(proc, group=True)
+        raise
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, args)
+
+
 def refresh(root: Path, *, bump: bool = False, tools: Sequence[str] = ()) -> None:
     """Resolve the managed configuration in isolation and publish its complete bundle."""
     if bump and tools:
@@ -81,7 +98,7 @@ def refresh(root: Path, *, bump: bool = False, tools: Sequence[str] = ()) -> Non
             "MISE_LOCKED": "0",
         }
         cmd = ["mise", "lock", "--global", "--yes", *(["--bump"] if bump or tools else []), *tools]
-        subprocess.run(cmd, cwd=ws, env=env, check=True, timeout=1800)  # noqa: S603 # nosemgrep: dangerous-subprocess-use-audit
+        _run_lock(cmd, cwd=ws, env=env, timeout=1800)
         validate(cfg)
         capture(cfg / "mise.lock", source / "mise.lock")
 
@@ -94,13 +111,16 @@ def main() -> int:
     sel.add_argument("--bump", action="store_true", help="resolve latest versions instead of retaining locked versions")
     sel.add_argument("--tool", action="extend", nargs="+", default=[], metavar="TOOL", help="resolve only named tools")
     args = parser.parse_args()
-    try:
-        if problem := undeclared(ROOT, args.tool):
-            parser.error(problem)
-        refresh(ROOT, bump=args.bump, tools=args.tool)
-    except (OSError, ValueError, KeyError, TypeError, IndexError, subprocess.SubprocessError) as error:
-        sys.stderr.write(f"Cannot refresh mise lockfiles: {error}\n")
-        return 1
+    with sigterm_as_keyboard_interrupt():
+        try:
+            if problem := undeclared(ROOT, args.tool):
+                parser.error(problem)
+            refresh(ROOT, bump=args.bump, tools=args.tool)
+        except KeyboardInterrupt:
+            return 130
+        except (OSError, ValueError, KeyError, TypeError, IndexError, subprocess.SubprocessError) as error:
+            sys.stderr.write(f"Cannot refresh mise lockfiles: {error}\n")
+            return 1
     return 0
 
 

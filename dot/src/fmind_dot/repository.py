@@ -100,7 +100,13 @@ def git_root(state: State, cwd: Path | None = None) -> Path:
 def find_git_repositories(state: State, paths: Sequence[Path] = ()) -> list[Path]:
     """Resolve explicit repositories or direct children of configured workspaces."""
     if paths:
-        return sorted({git_root(state, expand_path(p)).resolve() for p in paths})
+        resolved = run_parallel(
+            state.runner,
+            lambda p: git_root(state, expand_path(p)).resolve(),
+            list(paths),
+            _PULL_CONCURRENCY,
+        )
+        return sorted(set(resolved))
     repositories: set[Path] = set()
     for configured in state.config.pull.directories:
         root = expand_path(configured).resolve()
@@ -126,7 +132,7 @@ def find_git_repositories(state: State, paths: Sequence[Path] = ()) -> list[Path
 
 
 def _branch_status(state: State, path: Path, deadline: float) -> tuple[str, bool, str, int, int]:
-    branch = upstream = ""
+    branch = upstream = oid = ""
     counts: list[str] | None = None
     dirty = False
     for line in _git(state, path, _STATUS_BRANCH, deadline).splitlines():
@@ -134,7 +140,9 @@ def _branch_status(state: State, path: Path, deadline: float) -> tuple[str, bool
             dirty = dirty or bool(line.strip())
             continue
         key, _, value = line[2:].partition(" ")
-        if key == "branch.head":
+        if key == "branch.oid":
+            oid = value.strip()
+        elif key == "branch.head":
             branch = value.strip()
         elif key == "branch.upstream":
             upstream = value.strip()
@@ -143,7 +151,11 @@ def _branch_status(state: State, path: Path, deadline: float) -> tuple[str, bool
     if not branch:
         raise DotError("failed to parse branch status")
     if branch == "(detached)":
-        branch = _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
+        branch = (
+            oid[:7]
+            if oid and oid != "(initial)"
+            else _git(state, path, ["rev-parse", "--short", "HEAD"], deadline).strip()
+        )
     if counts is None:
         return branch, dirty, "", 0, 0
     if len(counts) != 2 or not counts[0].startswith("+") or not counts[1].startswith("-"):
@@ -155,14 +167,14 @@ def _branch_status(state: State, path: Path, deadline: float) -> tuple[str, bool
 
 
 def _pull_repository(state: State, path: Path) -> RepoResult:
-    deadline = monotonic() + _PULL_TIMEOUT_SECONDS
     branch, dirty = "", False
     try:
-        branch, dirty, *_ = _branch_status(state, path, deadline)
+        branch, dirty, *_ = _branch_status(state, path, monotonic() + _STATUS_TIMEOUT_SECONDS)
         if dirty:
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
-        _fetch(state, path, deadline)
-        branch, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
+        _fetch(state, path, monotonic() + _PULL_TIMEOUT_SECONDS)
+        local_deadline = monotonic() + _STATUS_TIMEOUT_SECONDS
+        branch, dirty, upstream, ahead, behind = _branch_status(state, path, local_deadline)
         if dirty:
             return RepoResult(path=path, branch=branch, dirty=True, skipped="dirty worktree")
         if not upstream:
@@ -175,7 +187,7 @@ def _pull_repository(state: State, path: Path) -> RepoResult:
                 error=f"diverged from upstream ({ahead} ahead, {behind} behind); merge or rebase it yourself",
             )
         if behind:
-            _git(state, path, ["merge", "--ff-only", "@{u}"], deadline)
+            _git(state, path, ["merge", "--ff-only", "@{u}"], local_deadline)
         return RepoResult(path=path, branch=branch, commits=behind, ahead=ahead, dirty=dirty)
     except (DotError, OSError) as error:
         return RepoResult(path=path, branch=branch, dirty=dirty, error=str(error))
@@ -218,15 +230,31 @@ def run_pull(state: State, *, paths: Sequence[Path] = (), as_json: bool = False)
     return results
 
 
+def _resolve_git_dir(state: State, path: Path, deadline: float) -> Path:
+    dot_git = path / ".git"
+    try:
+        if dot_git.is_dir():
+            return dot_git
+        if dot_git.is_file():
+            first = dot_git.read_text(encoding="utf-8").splitlines()[0].strip()
+            if first.startswith("gitdir:") and (raw := first.removeprefix("gitdir:").strip()):
+                candidate = Path(raw)
+                return candidate if candidate.is_absolute() else (path / candidate).resolve()
+    except OSError, UnicodeError, IndexError:
+        pass
+    if not (git_dir := _git(state, path, ["rev-parse", "--absolute-git-dir"], deadline).strip()):
+        raise DotError("Git returned an empty metadata directory")
+    return Path(git_dir)
+
+
 def _repository_status(state: State, path: Path, *, fetch: bool = False) -> RepositoryStatus:
-    deadline = monotonic() + (_PULL_TIMEOUT_SECONDS if fetch else _STATUS_TIMEOUT_SECONDS)
     try:
         if fetch:
-            _fetch(state, path, deadline)
-        branch, dirty, upstream, ahead, behind = _branch_status(state, path, deadline)
-        if not (git_dir := _git(state, path, ["rev-parse", "--absolute-git-dir"], deadline).strip()):
-            raise DotError("Git returned an empty metadata directory")
-        operation = next((label for marker, label in _OPS if (Path(git_dir) / marker).exists()), "")
+            _fetch(state, path, monotonic() + _PULL_TIMEOUT_SECONDS)
+        local_deadline = monotonic() + _STATUS_TIMEOUT_SECONDS
+        branch, dirty, upstream, ahead, behind = _branch_status(state, path, local_deadline)
+        git_dir = _resolve_git_dir(state, path, local_deadline)
+        operation = next((label for marker, label in _OPS if (git_dir / marker).exists()), "")
         return RepositoryStatus(
             path.name,
             path.parent.name,

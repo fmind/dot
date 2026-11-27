@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import IO, Any, Literal
 
 import yaml
+from yaml.constructor import ConstructorError
+from yaml.resolver import BaseResolver
 
 from fmind_dot.errors import DotError, UsageError
 from fmind_dot.reporting import display_path, write_json, write_report_line
@@ -62,13 +66,48 @@ def _read(path: Path) -> str:
         raise DotError(f"cannot read context input: {path}; check its link, permissions, and UTF-8 encoding") from error
 
 
+_FRONTMATTER_FENCE_RE = re.compile(r"---[ \t]*")
+
+
+class UniqueKeySafeLoader(yaml.SafeLoader):
+    """Reject duplicate YAML mapping keys so shadowed frontmatter names fail closed."""
+
+
+def _construct_unique_mapping(loader: UniqueKeySafeLoader, node: yaml.Node, deep: bool = False) -> dict[Any, Any]:
+    if not isinstance(node, yaml.MappingNode):
+        raise ConstructorError(None, None, f"expected a mapping node, but found {type(node).__name__}", node.start_mark)
+    loader.flatten_mapping(node)
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=True)
+        try:
+            seen = key in mapping
+        except TypeError as error:
+            raise ConstructorError(
+                "while constructing a mapping", node.start_mark, "found unhashable key", key_node.start_mark
+            ) from error
+        if seen:
+            raise ConstructorError(
+                "while constructing a mapping", node.start_mark, f"duplicate YAML key {key!r}", key_node.start_mark
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+UniqueKeySafeLoader.add_constructor(BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
+
+
 def parse_frontmatter(text: str, path: Path | str) -> tuple[dict[str, Any], str]:
-    normalized = text.replace("\r\n", "\n") + ("\n" if text.replace("\r\n", "\n").endswith("\n---") else "")
-    if not normalized.startswith("---\n") or "\n---\n" not in normalized[4:]:
+    lines = text.removeprefix("\ufeff").replace("\r\n", "\n").splitlines()
+    if not lines or _FRONTMATTER_FENCE_RE.fullmatch(lines[0]) is None:
         raise DotError(f"{path}: frontmatter must be bounded by --- lines")
-    raw, body = normalized[4:].split("\n---\n", 1)
+    closing = next((i for i in range(1, len(lines)) if _FRONTMATTER_FENCE_RE.fullmatch(lines[i])), None)
+    if closing is None:
+        raise DotError(f"{path}: frontmatter must be bounded by --- lines")
+    raw = "\n".join(lines[1:closing])
+    body = "\n".join(lines[closing + 1 :])
     try:
-        metadata = yaml.safe_load(raw)
+        metadata = yaml.load(raw, Loader=UniqueKeySafeLoader)  # noqa: S506 - SafeLoader subclass
     except (yaml.YAMLError, RecursionError) as error:
         raise DotError(f"{path}: invalid frontmatter; repair its YAML") from error
     if not isinstance(metadata, dict) or not all(isinstance(key, str) for key in metadata):
@@ -102,7 +141,12 @@ def _subagent_entry(path: Path, scope: Scope) -> ContextEntry:
 
 
 def _walk_catalog(
-    root: Path, label: str, *, skip_dirs: frozenset[str] = frozenset(), skip_underscore: bool = False
+    root: Path,
+    label: str,
+    *,
+    skip_dirs: frozenset[str] = frozenset(),
+    skip_underscore: bool = False,
+    include_hidden: bool = False,
 ) -> Iterator[Path]:
     if not root.exists() and not root.is_symlink():
         return
@@ -118,7 +162,7 @@ def _walk_catalog(
         except OSError as error:
             raise DotError(f"cannot inspect {label} directory: {directory}; check its permissions") from error
         for path in children:
-            if path.name.startswith(".") or path.name in skip_dirs:
+            if (not include_hidden and path.name.startswith(".")) or path.name in skip_dirs:
                 continue
             if path.is_symlink() and not path.exists():
                 raise DotError(f"broken {label} link: {path}; repair or remove the retired link")
@@ -180,6 +224,136 @@ def _duplicates(entries: list[ContextEntry], kind: EntryKind) -> list[dict[str, 
     return [{"name": name, "paths": paths} for name, paths in sorted(by_name.items()) if len(paths) > 1]
 
 
+def _host_agent_names(path: Path, root: Path) -> set[str]:
+    """Infer host-discovered agent identifiers from filename convention and strict frontmatter."""
+    names: set[str] = set()
+    lower_name = path.name.lower()
+    if lower_name.endswith(".agent.md"):
+        names.add(path.name[: -len(".agent.md")])
+    elif lower_name == "agent.md" and path.parent != root:
+        names.add(path.parent.name)
+    else:
+        names.add(path.stem)
+    text = _read(path)
+    lines = text.removeprefix("\ufeff").replace("\r\n", "\n").splitlines()
+    if lines and _FRONTMATTER_FENCE_RE.fullmatch(lines[0]):
+        meta, _ = parse_frontmatter(text, path)
+        declared = meta.get("name")
+        if isinstance(declared, str) and declared.strip():
+            names.add(declared.strip())
+    return names
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    obj: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in obj:
+            raise DotError(f"duplicate JSON key {key!r} in agents manifest")
+        obj[key] = value
+    return obj
+
+
+def _project_agents_manifest_dirs(project: Path) -> list[Path]:
+    """Inspect .agents/agents.json fail-closed and return declared in-repo agent directories."""
+    manifest = project / ".agents/agents.json"
+    if not manifest.exists() and not manifest.is_symlink():
+        return []
+    if manifest.is_symlink() or not manifest.is_file():
+        raise DotError(f"{manifest}: invalid or symlinked agents manifest; inspect or remove it")
+    try:
+        parsed = json.loads(_read(manifest), object_pairs_hook=_reject_duplicate_json_keys)
+    except json.JSONDecodeError as error:
+        raise DotError(f"{manifest}: invalid JSON in agents manifest; inspect or remove it") from error
+
+    if isinstance(parsed, dict):
+        unknown = set(parsed) - {"entries", "directories"}
+        if unknown:
+            raise DotError(f"{manifest}: unsupported agents.json keys ({', '.join(sorted(unknown))}); inspect it")
+        raw_items: list[Any] = []
+        for key in ("entries", "directories"):
+            val = parsed.get(key)
+            if val is not None:
+                if not isinstance(val, list):
+                    raise DotError(f"{manifest}: {key} must be a list")
+                raw_items.extend(val)
+    elif isinstance(parsed, list):
+        raw_items = parsed
+    else:
+        raise DotError(f"{manifest}: agents.json must be a JSON object or array")
+
+    project_resolved = project.resolve()
+    dirs: list[Path] = []
+    for item in raw_items:
+        raw_path: object
+        if isinstance(item, str):
+            raw_path = item
+        elif isinstance(item, dict):
+            extra = set(item) - {"path", "dir", "include_only", "exclude"}
+            if extra:
+                raise DotError(f"{manifest}: unsupported entry keys ({', '.join(sorted(extra))})")
+            if "path" in item and "dir" in item:
+                raise DotError(f"{manifest}: entry must not specify both 'path' and 'dir'")
+            raw_path = item.get("path") if "path" in item else item.get("dir")
+        else:
+            raise DotError(f"{manifest}: invalid entry in agents.json")
+        if not isinstance(raw_path, str) or not raw_path.strip() or raw_path.startswith("~"):
+            raise DotError(f"{manifest}: agents.json path must stay relative inside the repository")
+        candidate = Path(raw_path)
+        parts = tuple(p for p in candidate.parts if p != ".")
+        pure_manifest_parent = bool(parts) and parts[0] == ".." and ".." not in parts[1:]
+        manifest_dir = manifest.parent
+        bases: tuple[Path | None, ...] = (manifest_dir, project) if not candidate.is_absolute() else (None,)
+        manifest_exists = False
+        for base in bases:
+            target = (base / candidate) if base is not None else candidate
+            try:
+                resolved = target.resolve(strict=False)
+            except OSError as error:
+                raise DotError(f"{manifest}: cannot resolve agents.json path") from error
+            if not resolved.is_relative_to(project_resolved):
+                if base != project or not pure_manifest_parent:
+                    raise DotError(f"{manifest}: agents.json points outside the repository; inspect or remove it")
+                continue
+            if base == manifest_dir:
+                manifest_exists = target.exists() or target.is_symlink()
+            elif manifest_exists and target.exists() and not target.is_dir():
+                continue
+            if resolved not in dirs:
+                dirs.append(resolved)
+    return dirs
+
+
+def _duplicate_subagents(project: Path, entries: list[ContextEntry]) -> list[dict[str, Any]]:
+    """Detect duplicate subagent names across supagents/ catalogs and repo-local host agent directories/manifests."""
+    display_by_lower: dict[str, str] = {}
+    by_lower: dict[str, list[str]] = {}
+    resolved_by_lower: dict[str, set[Path]] = {}
+    for entry in entries:
+        if entry.kind == "subagent":
+            low = entry.name.lower()
+            display_by_lower.setdefault(low, entry.name)
+            by_lower.setdefault(low, []).append(entry.path)
+            resolved_by_lower.setdefault(low, set()).add(Path(entry.path).resolve())
+    global_lowers = {entry.name.lower() for entry in entries if entry.kind == "subagent" and entry.scope == "global"}
+    if global_lowers:
+        host_dirs = [project / ".agents/agents", project / ".github/agents", *_project_agents_manifest_dirs(project)]
+        for host_dir in host_dirs:
+            for path in _walk_catalog(host_dir, "host agent", skip_underscore=False, include_hidden=True):
+                if path.suffix.lower() != ".md":
+                    continue
+                resolved = path.resolve()
+                matched = {low for name in _host_agent_names(path, host_dir) if (low := name.lower()) in global_lowers}
+                for low in sorted(matched):
+                    if resolved not in resolved_by_lower[low]:
+                        resolved_by_lower[low].add(resolved)
+                        by_lower[low].append(str(path))
+    return [
+        {"name": display_by_lower[low], "paths": paths}
+        for low, paths in sorted(by_lower.items(), key=lambda pair: display_by_lower[pair[0]])
+        if len(paths) > 1
+    ]
+
+
 def _budget(estimated: int, limit: int) -> dict[str, Any]:
     return {
         "limit_exclusive": limit,
@@ -221,7 +395,7 @@ def context_report(project: Path, *, global_root: Path | None = None, source: Pa
     seen = {Path(e.path).resolve(): e for e in reversed([*global_entries, *local_entries])}
     combined = list(reversed(list(seen.values())))
     duplicates = _duplicates(combined, "skill")
-    duplicate_subagents = _duplicates(combined, "subagent")
+    duplicate_subagents = _duplicate_subagents(project, combined)
     totals = {"global": _totals(global_entries), "local": _totals(local_entries), "combined": _totals(combined)}
     budgets = {s: _budget(totals[s]["context_estimated_tokens"], CONTEXT_TOKEN_LIMIT) for s in ("global", "local")}
     subagent_budgets = {

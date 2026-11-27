@@ -25,6 +25,8 @@ class State:
     stderr: IO[str] = field(default_factory=lambda: sys.stderr)
     _config: Config | None = field(default=None, init=False, repr=False)
     _probes: dict[tuple[str, ...], CommandResult | DotError] = field(default_factory=dict, init=False, repr=False)
+    _inflight: dict[tuple[str, ...], threading.Event] = field(default_factory=dict, init=False, repr=False)
+    _probe_generation: int = field(default=0, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     @property
@@ -38,26 +40,50 @@ class State:
 
     def run_probe(self, key: tuple[str, ...], execute: Callable[[], CommandResult]) -> CommandResult:
         """Reuse readiness probe outcomes within one invocation; logins invalidate cached results."""
-        with self._lock:
-            cached = self._probes.get(key)
-        if cached is not None:
-            if isinstance(cached, DotError):
-                raise cached
-            return cached
+        while True:
+            with self._lock:
+                if (cached := self._probes.get(key)) is not None:
+                    if isinstance(cached, DotError):
+                        raise cached
+                    return cached
+                if (pending := self._inflight.get(key)) is None:
+                    event = threading.Event()
+                    self._inflight[key] = event
+                    generation = self._probe_generation
+                    break
+            pending.wait()
         try:
             result = execute()
         except DotError as error:
             with self._lock:
-                self._probes[key] = error
+                if self._probe_generation == generation:
+                    self._probes[key] = error
+                if self._inflight.get(key) is event:
+                    del self._inflight[key]
+                event.set()
+            raise
+        except BaseException:
+            with self._lock:
+                if self._inflight.get(key) is event:
+                    del self._inflight[key]
+                event.set()
             raise
         with self._lock:
-            self._probes[key] = result
+            if self._probe_generation == generation:
+                self._probes[key] = result
+            if self._inflight.get(key) is event:
+                del self._inflight[key]
+            event.set()
         return result
 
     def clear_probes(self) -> None:
         """Discard cached probe results after an authentication state change."""
         with self._lock:
+            self._probe_generation += 1
             self._probes.clear()
+            for event in self._inflight.values():
+                event.set()
+            self._inflight.clear()
 
 
 def validated_config(path: Path | None) -> Config:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dot_tasks.mise_locks import _xdg_dir, bundle, capture, retire, retire_installs
+from dot_tasks.mise_locks import _mise_data_dir, _xdg_dir, bundle, capture, retire, retire_installs
 
 
 @pytest.mark.parametrize(
@@ -16,6 +16,19 @@ def test_xdg_dir_resolution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, val
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("MISE_DATA_DIR", value)
     assert _xdg_dir("MISE_DATA_DIR", ".local/share/mise") == tmp_path / suffix
+
+
+def test_mise_data_dir_honors_mise_data_dir_then_xdg_data_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("MISE_DATA_DIR", raising=False)
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    assert _mise_data_dir() == tmp_path / ".local/share/mise"
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg-data"))
+    assert _mise_data_dir() == tmp_path / "xdg-data/mise"
+
+    monkeypatch.setenv("MISE_DATA_DIR", str(tmp_path / "custom-mise"))
+    assert _mise_data_dir() == tmp_path / "custom-mise"
 
 
 def _lock(root: Path, version: str = "1.0", backend: str = "uv") -> Path:

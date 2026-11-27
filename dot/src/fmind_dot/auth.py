@@ -4,7 +4,8 @@ import argparse
 import itertools
 import os
 import re
-from collections.abc import Sequence
+import shlex
+from collections.abc import Callable, Collection, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -14,24 +15,21 @@ from fmind_dot.auth_probes import (
     WORKSPACE_STATUS,
     adc_ready,
     gcloud_ready,
+    github_plaintext_headless_ok,
     github_ready,
     github_status,
+    github_token_plaintext,
     is_headless_ssh,
-    one_off_scopes,
     probe_json,
     workspace_ready,
 )
 from fmind_dot.auth_probes import adc_cmd as _adc_cmd
-from fmind_dot.auth_probes import dry_run_cmds as _dry_run
-from fmind_dot.auth_probes import execute as _execute
-from fmind_dot.auth_probes import reject_env as _reject_env
-from fmind_dot.auth_probes import require_tty as _require_tty
-from fmind_dot.auth_probes import warn_plaintext as _warn_plaintext
 from fmind_dot.config import (
     GITHUB_FORBIDDEN_SCOPES,
     GITHUB_REMOVE_SCOPES,
     GITHUB_SCOPES,
     PROJECT_RE,
+    SCOPE_RE,
     WORKSPACE_APIS,
     WORKSPACE_FORBIDDEN_SCOPES,
     WORKSPACE_SCOPE_LIMIT,
@@ -46,6 +44,85 @@ from fmind_dot.state import State, require_tools
 
 LOGIN_ORDER: tuple[LoginProvider, ...] = ("github", "gcp", "workspace")
 _GOOGLE_OAUTH_URL_RE = re.compile(r"https://accounts\.google\.com/o/oauth2/[^\s<>\"'`()\[\]{}\x00-\x1f\x7f]+")
+
+
+def _stream_isatty(stream: object) -> bool:
+    isatty = getattr(stream, "isatty", None)
+    if not callable(isatty):
+        return False
+    try:
+        return bool(isatty())
+    except OSError, ValueError:
+        return False
+
+
+def _require_tty(state: State, tool: str) -> None:
+    """Fail closed before mutating state when interactive authentication lacks a terminal."""
+    if state.runner.requires_tty and not (_stream_isatty(state.stdin) and _stream_isatty(state.stdout)):
+        raise DotError(
+            f"interactive authentication for {tool} requires a terminal (TTY); run in a terminal or use --check / --dry-run"
+        )
+
+
+def execute(state: State, args: Sequence[str], *, open_url: re.Pattern[str] | None = None) -> None:
+    """Run an interactive auth command and invalidate cached readiness probes."""
+    require_tools(state, [list(args)])
+    _require_tty(state, args[0])
+    try:
+        code = state.runner.interactive(
+            args, stdin=state.stdin, stdout=state.stdout, stderr=state.stderr, open_url=open_url
+        )
+        if code != 0:
+            raise DotError(f"command failed ({code}): {args[0]}")
+    finally:
+        state.clear_probes()
+
+
+def _dry_run(state: State, *commands: Sequence[str]) -> None:
+    """Print shell-quoted dry-run commands to stdout."""
+    for args in commands:
+        state.stdout.write(f"$ {shlex.join(args)}\n")
+
+
+def _reject_env(names: Sequence[str], message: str) -> None:
+    """Fail when an overriding credential environment variable is active."""
+    if any(os.environ.get(n) for n in names):
+        raise DotError(message)
+
+
+def one_off_scopes(
+    grants: Sequence[str],
+    configured: Sequence[str],
+    *,
+    expand: Callable[[str], str] | None = None,
+    validate: Callable[[str], bool] | None = None,
+    forbidden: Collection[str] = (),
+) -> list[str]:
+    """Validate and deduplicate one-off `--grant` scopes against configured defaults."""
+    forbidden_lower = {f.lower() for f in forbidden}
+    scopes: list[str] = []
+    for grant in grants:
+        if not SCOPE_RE.fullmatch(grant):
+            raise UsageError(f"--grant: invalid scope {grant!r}")
+        scope = expand(grant) if expand else grant
+        valid = validate(scope) if validate else bool(SCOPE_RE.fullmatch(scope))
+        if not valid:
+            raise UsageError(f"--grant: invalid scope {grant!r}")
+        if scope.lower() in forbidden_lower:
+            raise UsageError(f"--grant: scope {grant!r} is forbidden by security policy")
+        if scope not in configured and scope not in scopes:
+            scopes.append(scope)
+    return scopes
+
+
+def _warn_plaintext(state: State, entry: dict[str, Any] | None) -> None:
+    """Warn on stderr if GitHub CLI stores its token in plaintext hosts.yml."""
+    if github_token_plaintext(entry) and not github_plaintext_headless_ok(entry):
+        msg = "Warning: the GitHub token is stored in plaintext hosts.yml; unlock the system keyring, then run gh auth logout and dot login github to move it to the keyring."
+        print(msg, file=state.stderr)
+
+
+_execute = execute
 
 
 def _has_env_workspace_client() -> bool:
@@ -156,7 +233,12 @@ def setup_workspace(state: State, project: str, *, dry_run: bool = False) -> Non
 
 
 def _resolve_workspace_project(state: State, project: str | None) -> str | None:
-    if not (raw := project or os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project):
+    raw = (
+        project
+        if project is not None
+        else (os.environ.get("GWS_PROJECT") or state.config.auth.workspace.project or None)
+    )
+    if raw is None:
         return None
     if PROJECT_RE.fullmatch(raw) is None:
         raise UsageError("PROJECT: set a valid project ID through --project, GWS_PROJECT, or auth.workspace.project")
@@ -315,6 +397,8 @@ def check_logins(
 ) -> None:
     if force or dry_run:
         raise UsageError("--check cannot be combined with --force or --dry-run")
+    if "workspace" in providers:
+        _resolve_workspace_project(state, None)
 
     def inspect(provider: LoginProvider) -> str:
         try:

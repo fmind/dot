@@ -8,9 +8,7 @@ import re
 import socket
 import stat
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-import yaml
+from typing import IO, TYPE_CHECKING, Any
 
 from fmind_dot.config import yaml_error_location
 from fmind_dot.errors import DotError
@@ -80,6 +78,7 @@ SAFE_HOST_TOKENS = {
     "local",
     "localhost",
     "mederic",
+    "personal",
     "ubuntu",
 }
 _EMAIL_HINT = "use fmind.dev, fmind.ai, or RFC 2606 domains (@example.com, @example.test)"
@@ -111,16 +110,22 @@ def _listdir(directory: Path) -> list[Path] | None:
 
 def _load_dot_yaml_mapping(dot_yaml: Path, *, required: bool = False) -> dict[str, Any] | None:
     try:
-        config = yaml.safe_load(dot_yaml.read_text(encoding="utf-8"))
+        raw_text = dot_yaml.read_text(encoding="utf-8")
     except FileNotFoundError as error:
         if required:
             raise _privacy_error(dot_yaml, "file not found") from error
         return None
+    except (OSError, UnicodeError) as error:
+        raise _privacy_error(dot_yaml, f"fix or remove the file ({error.__class__.__name__})") from error
+    import yaml
+
+    try:
+        config = yaml.safe_load(raw_text)
     except yaml.YAMLError as error:
         # Never format yaml.YAMLError directly: PyYAML embeds raw lines from untracked dot.yaml.
         loc = yaml_error_location(error) or "invalid YAML"
         raise _privacy_error(dot_yaml, f"fix or remove the file ({loc})") from error
-    except (OSError, UnicodeError, RecursionError) as error:
+    except RecursionError as error:
         raise _privacy_error(dot_yaml, f"fix or remove the file ({error.__class__.__name__})") from error
     if config is not None and not isinstance(config, dict):
         raise _privacy_error(dot_yaml, "expected a YAML mapping")
@@ -187,6 +192,10 @@ def _workstation_tokens(
                             _add(parts[-1])
                     else:
                         _add(val)
+
+    for entry in _listdir(cfg_dir) or ():
+        if entry.name.startswith("gws-"):
+            _add(entry.name.removeprefix("gws-"))
 
     git_configs: list[Path] = [
         p
@@ -375,27 +384,107 @@ def _scan_text(rel: str, text: str, token_pat: re.Pattern[str] | None) -> list[s
     return findings
 
 
-def _scan_staged_blob(runner: Runner, root: Path, rel: str, sha: str, token_pat: re.Pattern[str] | None) -> list[str]:
-    try:
-        blob = runner.run_bytes(
-            ["git", "-C", str(root), "cat-file", "blob", sha], timeout=_GIT_TIMEOUT_SECONDS, check=False
-        )
-    except (DotError, OSError) as error:
-        return [f"{rel}: unreadable staged blob ({error.__class__.__name__})"]
-    if blob.returncode != 0:
-        detail = diagnostic_line(blob.stderr.decode("utf-8", errors="replace")) or f"exit {blob.returncode}"
-        return [f"{rel}: unreadable staged blob ({detail})"]
+def _scan_blob_bytes(rel: str, raw: bytes, token_pat: re.Pattern[str] | None) -> list[str]:
     if rel.endswith(".age"):
-        if not blob.stdout[:64].startswith(_AGE_HEADERS_BYTES):
+        if not raw[:64].startswith(_AGE_HEADERS_BYTES):
             return [f"{rel}: .age source is not age-encrypted ciphertext"]
         return []
-    if b"\x00" in blob.stdout[:8192]:
+    if b"\x00" in raw[:8192]:
         return []
     try:
-        text = blob.stdout.decode("utf-8")
+        text = raw.decode("utf-8")
     except UnicodeDecodeError:
         return []
     return _scan_text(rel, text, token_pat)
+
+
+def _read_exact(stream: IO[bytes], count: int) -> bytes:
+    if count <= 0:
+        return b""
+    chunks: list[bytes] = []
+    remaining = count
+    while remaining > 0:
+        chunk = stream.read(remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _drain_exact(stream: IO[bytes], count: int) -> bool:
+    remaining = count
+    while remaining > 0:
+        chunk = stream.read(min(65536, remaining))
+        if not chunk:
+            return False
+        remaining -= len(chunk)
+    return True
+
+
+def _scan_batch_stream(
+    stream: IO[bytes], ordered_shas: list[tuple[str, list[str]]], token_pat: re.Pattern[str] | None
+) -> list[str]:
+    findings: list[str] = []
+    for _, rels in ordered_shas:
+        header_line = stream.readline()
+        if not header_line.endswith(b"\n"):
+            return [*findings, f"{rels[0]}: unreadable staged blob (truncated git cat-file stream)"]
+        header = header_line[:-1].decode("utf-8", errors="replace")
+        if header.endswith(" missing"):
+            findings.extend(f"{rel}: unreadable staged blob (missing)" for rel in rels)
+            continue
+        parts = header.split()
+        if len(parts) != 3 or not parts[2].isdigit():
+            return [*findings, f"{rels[0]}: unreadable staged blob (unexpected git cat-file header)"]
+        size = int(parts[2])
+        all_age = all(rel.endswith(".age") for rel in rels)
+        peek_len = min(size, 64 if all_age else 8192)
+        head = _read_exact(stream, peek_len)
+        if len(head) != peek_len:
+            return [*findings, f"{rels[0]}: unreadable staged blob (truncated git cat-file payload)"]
+        remaining = size - peek_len
+        if all_age or b"\x00" in head:
+            if not _drain_exact(stream, remaining) or _read_exact(stream, 1) != b"\n":
+                return [*findings, f"{rels[0]}: unreadable staged blob (truncated git cat-file payload)"]
+            findings.extend(
+                f"{rel}: .age source is not age-encrypted ciphertext"
+                for rel in rels
+                if rel.endswith(".age") and not head[:64].startswith(_AGE_HEADERS_BYTES)
+            )
+            continue
+        tail = _read_exact(stream, remaining)
+        if len(tail) != remaining or _read_exact(stream, 1) != b"\n":
+            return [*findings, f"{rels[0]}: unreadable staged blob (truncated git cat-file payload)"]
+        raw = head + tail
+        for rel in rels:
+            findings.extend(_scan_blob_bytes(rel, raw, token_pat))
+    return findings
+
+
+def _scan_staged_blobs(
+    runner: Runner, root: Path, blobs: list[tuple[str, str]], token_pat: re.Pattern[str] | None
+) -> list[str]:
+    if not blobs:
+        return []
+    grouped: dict[str, list[str]] = {}
+    for rel, sha in sorted(blobs):
+        grouped.setdefault(sha, []).append(rel)
+    ordered_shas = list(grouped.items())
+    stdin = "".join(f"{sha}\n" for sha, _ in ordered_shas).encode("ascii")
+    try:
+        findings, returncode, stderr_bytes = runner.stream_stdout(
+            ["git", "-C", str(root), "cat-file", "--batch"],
+            lambda stdout: _scan_batch_stream(stdout, ordered_shas, token_pat),
+            input_bytes=stdin,
+            timeout=_GIT_TIMEOUT_SECONDS,
+        )
+    except (DotError, OSError) as error:
+        return [_git_error("cat-file --batch", error.__class__.__name__)]
+    if returncode != 0:
+        detail = diagnostic_line(stderr_bytes.decode("utf-8", errors="replace")) or f"exit {returncode}"
+        return [_git_error("cat-file --batch", detail)]
+    return findings
 
 
 def _scan_staged_files(runner: Runner, root: Path, token_pat: re.Pattern[str] | None) -> list[str]:
@@ -442,13 +531,7 @@ def _scan_staged_files(runner: Runner, root: Path, token_pat: re.Pattern[str] | 
                 findings.append(f"{rel}: encrypted .age source must be a regular file")
             continue
         blobs.append((rel, new_sha))
-    for blob_findings in run_parallel(
-        runner,
-        lambda item: _scan_staged_blob(runner, root, item[0], item[1], token_pat),
-        sorted(blobs),
-        _PRIVACY_CONCURRENCY,
-    ):
-        findings.extend(blob_findings)
+    findings.extend(_scan_staged_blobs(runner, root, blobs, token_pat))
     return findings
 
 
@@ -513,13 +596,15 @@ def _scan_root(
         if not stat.S_ISREG(info.st_mode):
             continue
         try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
+            with path.open("rb") as stream:
+                head = stream.read(8192)
+                if b"\x00" in head:
+                    continue
+                raw = head + stream.read()
         except OSError as error:
             findings.append(f"{rel}: unreadable file ({error.__class__.__name__})")
             continue
-        findings.extend(_scan_text(rel, text, token_pat))
+        findings.extend(_scan_blob_bytes(rel, raw, token_pat))
 
     if has_git:
         findings.extend(_scan_git_commits(runner, root, token_pat))

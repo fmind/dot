@@ -163,6 +163,7 @@ def test_with_secret_failures_and_security_checks(
 
     cases: list[tuple[bytes, int, str]] = [
         (b"ok\n", 0o644, "chmod 600"),
+        (b"ok\n", 0o700, "chmod 600"),
         (b"a" * 65_537, 0o600, "exceeds 64 KiB"),
         (b"a\x00b", 0o600, "NUL byte"),
         (b"\xff\xfe", 0o600, "UTF-8"),
@@ -175,6 +176,17 @@ def test_with_secret_failures_and_security_checks(
             main(["TEST_API_KEY", sys.executable])
         assert stopped.value.code == 1
         assert msg in capsys.readouterr().err
+
+    # Sticky/setuid bits on the secrets directory are also rejected.
+    _setup_secret(tmp_path, "TEST_API_KEY", b"ok\n", 0o600)
+    secrets_dir.chmod(0o1700)
+    try:
+        with pytest.raises(SystemExit) as stopped:
+            main(["TEST_API_KEY", sys.executable])
+        assert stopped.value.code == 1
+        assert "chmod 700" in capsys.readouterr().err
+    finally:
+        secrets_dir.chmod(0o700)
 
     _setup_secret(tmp_path, "TEST_API_KEY", b"synthetic-valid\n", 0o600)
 

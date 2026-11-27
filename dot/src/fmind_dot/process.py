@@ -8,6 +8,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Callable, Generator, Mapping, Sequence
@@ -70,32 +71,82 @@ def diagnostic_line(text: str, limit: int = 160) -> str:
 
 def _signal(process: subprocess.Popen[Any], signum: signal.Signals, *, group: bool = True) -> None:
     if group:
-        with suppress(ProcessLookupError, PermissionError):
+        try:
             os.killpg(process.pid, signum)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
             return
-    with suppress(ProcessLookupError):
+        else:
+            return
+    with suppress(ProcessLookupError, PermissionError):
         process.send_signal(signum)
 
 
-def _terminate(process: subprocess.Popen[Any], *, group: bool = True) -> None:
+def terminate_process(process: subprocess.Popen[Any], *, group: bool = True, close_streams: bool = True) -> None:
+    """Terminate a process (or its process group) with SIGTERM grace before SIGKILL and reap it."""
+    timed_out = False
+    group_alive = group
+    deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
     try:
-        _signal(process, signal.SIGTERM, group=group)
-        with suppress(subprocess.TimeoutExpired):
-            process.wait(timeout=_TERMINATION_GRACE_SECONDS)
+        if process.returncode is None or group:
+            _signal(process, signal.SIGTERM, group=group)
+        if process.returncode is None:
+            try:
+                process.wait(timeout=_TERMINATION_GRACE_SECONDS)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+        if group and not timed_out:
+            # Leader may exit on SIGTERM while children in its PGID are still running; poll PGID until grace expires.
+            while True:
+                try:
+                    os.killpg(process.pid, 0)
+                except ProcessLookupError, PermissionError:
+                    group_alive = False
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(0.05, remaining))
     finally:
-        _signal(process, signal.SIGKILL, group=group)
-        for stream in (process.stdin, process.stdout, process.stderr):
-            if stream is not None:
-                with suppress(OSError):
-                    stream.close()
-        try:
-            process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            process.kill()
+        if timed_out or process.returncode is None or (group and group_alive):
+            _signal(process, signal.SIGKILL, group=group)
+        if close_streams:
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream is not None:
+                    with suppress(OSError):
+                        stream.close()
+        if process.returncode is None:
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                with suppress(ProcessLookupError, PermissionError):
+                    process.kill()
+
+
+_terminate = terminate_process
+
+
+def _interrupt_on_sigterm(_signum: int, _frame: object) -> None:
+    raise KeyboardInterrupt
 
 
 @contextmanager
-def _deferred_launch_interrupts() -> Generator[None]:
+def sigterm_as_keyboard_interrupt() -> Generator[None]:
+    """Translate SIGTERM into KeyboardInterrupt on the main thread so cleanup runs cleanly."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = signal.signal(signal.SIGTERM, _interrupt_on_sigterm)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
+@contextmanager
+def deferred_launch_interrupts() -> Generator[None]:
+    """Defer SIGINT/SIGTERM while launching and recording a child process so cleanup cannot be skipped."""
     if threading.current_thread() is not threading.main_thread():
         yield
         return
@@ -104,12 +155,15 @@ def _deferred_launch_interrupts() -> Generator[None]:
         with ExitStack() as restore:
             for sig in (signal.SIGINT, signal.SIGTERM):
                 if callable(prev := signal.getsignal(sig)):
-                    signal.signal(sig, lambda s, _f: pending.append(s))
                     restore.callback(signal.signal, sig, prev)
+                    signal.signal(sig, lambda s, _f: pending.append(s))
             yield
     finally:
         for sig in pending:
             signal.raise_signal(sig)
+
+
+_deferred_launch_interrupts = deferred_launch_interrupts
 
 
 @contextmanager
@@ -182,19 +236,30 @@ class Runner:
     def __init__(self) -> None:
         self._cancelled = threading.Event()
         self._process_lock = threading.Lock()
+        self._process_done = threading.Condition(self._process_lock)
         self._processes: set[subprocess.Popen[Any]] = set()
 
     def cancel(self) -> None:
         self._cancelled.set()
-        with self._process_lock:
-            processes = tuple(self._processes)
-        for proc in processes:
-            _signal(proc, signal.SIGTERM)
-        deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
-        while time.monotonic() < deadline and any(p.poll() is None for p in processes):
-            time.sleep(0.05)
-        for proc in processes:
-            _signal(proc, signal.SIGKILL)
+        with self._process_done:
+            processes = [proc for proc in self._processes if proc.returncode is None]
+        alive = processes
+        try:
+            for proc in processes:
+                _signal(proc, signal.SIGTERM)
+            deadline = time.monotonic() + _TERMINATION_GRACE_SECONDS
+            with self._process_done:
+                while True:
+                    alive = [proc for proc in processes if proc in self._processes and proc.returncode is None]
+                    remaining = deadline - time.monotonic()
+                    if not alive or remaining <= 0:
+                        break
+                    self._process_done.wait(timeout=remaining)
+        finally:
+            with self._process_done:
+                remaining_alive = [proc for proc in alive if proc in self._processes and proc.returncode is None]
+            for proc in remaining_alive:
+                _signal(proc, signal.SIGKILL)
 
     def which(self, command: str) -> Path | None:
         return Path(resolved) if (resolved := shutil.which(command)) else None
@@ -242,8 +307,9 @@ class Runner:
             raise
         finally:
             if process is not None:
-                with self._process_lock:
+                with self._process_done:
                     self._processes.discard(process)
+                    self._process_done.notify_all()
         return stdout, stderr, process.returncode
 
     def run(
@@ -268,13 +334,154 @@ class Runner:
         args: Sequence[str],
         *,
         cwd: Path | None = None,
+        input_bytes: bytes | None = None,
         timeout: float | None = None,
         check: bool = True,
     ) -> BytesResult:
-        stdout, stderr, returncode = self._run_raw(args, cwd=cwd, timeout=timeout, binary=True)
+        stdout, stderr, returncode = self._run_raw(args, cwd=cwd, input_data=input_bytes, timeout=timeout, binary=True)
         if check and returncode != 0:
             raise DotError(f"command failed ({returncode}): {args[0]}")
         return BytesResult(stdout=stdout, stderr=stderr, returncode=returncode)
+
+    def stream_stdout[T](
+        self,
+        args: Sequence[str],
+        handler: Callable[[IO[bytes]], T],
+        *,
+        cwd: Path | None = None,
+        input_bytes: bytes | None = None,
+        timeout: float | None = None,
+    ) -> tuple[T, int, bytes]:
+        """Run a command with an unlinked temp stdin file and stream raw stdout through ``handler``."""
+        if not args:
+            raise DotError("cannot run an empty command")
+        if self._cancelled.is_set():
+            raise DotError("command cancelled")
+        done_lock = threading.Lock()
+        done = threading.Event()
+        timed_out = False
+        failed = False
+        process: subprocess.Popen[bytes] | None = None
+        timer: threading.Timer | None = None
+        stderr_chunks: list[bytes] = []
+        stderr_thread: threading.Thread | None = None
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        with ExitStack() as stack:
+            stdin_handle: IO[bytes] | int = subprocess.DEVNULL
+            if input_bytes is not None:
+                tmp = stack.enter_context(tempfile.TemporaryFile())
+                tmp.write(input_bytes)
+                tmp.seek(0)
+                stdin_handle = tmp
+            try:
+                with _deferred_launch_interrupts():
+                    process = subprocess.Popen(  # noqa: S603
+                        list(args),
+                        cwd=cwd,
+                        stdin=stdin_handle,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        start_new_session=True,
+                    )
+                    with self._process_done:
+                        cancelled = self._cancelled.is_set()
+                        if not cancelled:
+                            self._processes.add(process)
+                if cancelled:
+                    raise DotError("command cancelled")
+                if process.stdout is None or process.stderr is None:
+                    raise DotError(f"pipe unavailable: {args[0]}")
+
+                def _drain_stderr(stream: IO[bytes]) -> None:
+                    kept = 0
+                    with suppress(OSError, ValueError):
+                        while chunk := stream.read(8192):
+                            if kept < 4096:
+                                piece = chunk[: 4096 - kept]
+                                stderr_chunks.append(piece)
+                                kept += len(piece)
+
+                stderr_thread = threading.Thread(target=_drain_stderr, args=(process.stderr,), daemon=True)
+                stderr_thread.start()
+
+                if timeout is not None:
+
+                    def _on_timeout() -> None:
+                        nonlocal timed_out
+                        with done_lock:
+                            if done.is_set() or (process is not None and process.returncode is not None):
+                                return
+                            timed_out = True
+                            if process is not None:
+                                _signal(process, signal.SIGTERM)
+                        if process is not None and not done.wait(_TERMINATION_GRACE_SECONDS):
+                            with done_lock:
+                                if not done.is_set():
+                                    _signal(process, signal.SIGKILL)
+
+                    timer = threading.Timer(timeout, _on_timeout)
+                    timer.daemon = True
+                    timer.start()
+
+                value = handler(process.stdout)
+                # Close stdout immediately so early-returning handlers signal EPIPE instead of deadlocking.
+                with suppress(OSError):
+                    process.stdout.close()
+                remaining = max(0.0, deadline - time.monotonic()) if deadline is not None else None
+                process.wait(timeout=remaining)
+                with done_lock:
+                    done.set()
+                if timer is not None:
+                    timer.cancel()
+                stderr_thread.join(timeout=2.0)
+            except subprocess.TimeoutExpired as error:
+                failed = True
+                raise CommandTimeoutError(f"command timed out after {timeout:g}s: {args[0]}") from error
+            except KeyboardInterrupt:
+                failed = True
+                raise
+            except Exception as error:
+                failed = True
+                with done_lock:
+                    done.set()
+                    did_timeout = timed_out
+                if did_timeout:
+                    raise CommandTimeoutError(f"command timed out after {timeout:g}s: {args[0]}") from error
+                raise
+            finally:
+                with done_lock:
+                    done.set()
+                    did_timeout = timed_out
+                if timer is not None:
+                    timer.cancel()
+                if process is not None:
+                    needs_cleanup = (
+                        process.returncode is None
+                        or failed
+                        or did_timeout
+                        or (stderr_thread is not None and stderr_thread.is_alive())
+                    )
+                    if needs_cleanup:
+                        _terminate(process, close_streams=False)
+                    if process.stdout is not None:
+                        with suppress(OSError):
+                            process.stdout.close()
+                if stderr_thread is not None:
+                    stderr_thread.join(timeout=2.0)
+                if (
+                    process is not None
+                    and process.stderr is not None
+                    and (stderr_thread is None or not stderr_thread.is_alive())
+                ):
+                    with suppress(OSError):
+                        process.stderr.close()
+                if process is not None:
+                    with self._process_done:
+                        self._processes.discard(process)
+                        self._process_done.notify_all()
+            if did_timeout:
+                raise CommandTimeoutError(f"command timed out after {timeout:g}s: {args[0]}")
+            return value, process.returncode, b"".join(stderr_chunks)
 
     def interactive(
         self,
@@ -311,6 +518,7 @@ class Runner:
                         stdout=stdout,
                         stderr=subprocess.PIPE if open_url is not None else stderr,
                         text=True,
+                        encoding="utf-8",
                         errors="replace",
                         process_group=0 if detached else None,
                     )

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import contextlib
 import os
 import re
 import shutil
@@ -34,6 +36,10 @@ _REQ_META = ("author", "source", "created", "updated")
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_SUPAGENT_REF = re.compile(r"\bfmind-review-[a-z0-9-]+\b")
+_TASK_GUIDES_HEADING = re.compile(r"^## Task guides\b", re.MULTILINE)
+_DOT_SOURCE_PREFIX = "github.com/fmind/dot/tree/main/"
+_SCRIPT_MIN_PY = (3, 10)
 _GIT_ENV_STRIP = frozenset(
     {
         "GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -135,16 +141,25 @@ def _reachable_resources(
     cached_targets: Mapping[Path, tuple[str, ...]] | None = None,
 ) -> set[Path]:
     """Follow document-relative disclosures; disconnected reference cycles stay orphaned."""
+    resolved_resources = {res: res.resolve() for res in resources}
     reached, pending = {skill}, [skill]
     while pending:
         doc = pending.pop()
-        targets = cached_targets[doc] if cached_targets and doc in cached_targets else _document_targets(texts[doc])
+        doc_text = texts[doc]
+        targets = cached_targets[doc] if cached_targets and doc in cached_targets else _document_targets(doc_text)
         urls = (urlsplit(t) for t in targets)
         linked = {(doc.parent / unquote(u.path)).resolve() for u in urls if not u.scheme and not u.netloc and u.path}
         for res in resources - reached:
-            rel_esc = re.escape(Path(os.path.relpath(res, doc.parent)).as_posix())
-            pat = rf"(?<![A-Za-z0-9_.+\-/])(?:\./)?{rel_esc}(?![A-Za-z0-9_.+\-/])"
-            if res.resolve() in linked or re.search(pat, texts[doc]):
+            if resolved_resources[res] in linked:
+                hit = True
+            else:
+                rel_str = Path(os.path.relpath(res, doc.parent)).as_posix()
+                if rel_str not in doc_text:
+                    hit = False
+                else:
+                    pat = rf"(?<![A-Za-z0-9_.+\-/])(?:\./)?{re.escape(rel_str)}(?![A-Za-z0-9_.+\-/])"
+                    hit = bool(re.search(pat, doc_text))
+            if hit:
                 reached.add(res)
                 if res in texts and res.suffix == ".md" and "templates" not in res.relative_to(skill.parent).parts[:-1]:
                     pending.append(res)
@@ -241,6 +256,69 @@ def _guide_findings(
     return findings
 
 
+def _script_findings(rel: str, path: Path, text: str) -> list[str]:
+    """Enforce Python 3.10+ portability and bytecode hygiene on bundled stdlib scripts."""
+    findings: list[str] = []
+    try:
+        tree = ast.parse(text, filename=rel, feature_version=_SCRIPT_MIN_PY)
+    except SyntaxError as error:
+        return [f"{rel}: requires Python >3.10 syntax (line {error.lineno}): {error.msg}"]
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else fn.id if isinstance(fn, ast.Name) else ""
+            if name == "ArgumentParser" and any(kw.arg == "suggest_on_error" for kw in node.keywords):
+                findings.append(
+                    f"{rel}: avoid ArgumentParser(suggest_on_error=True) directly; guard via hasattr(parser, 'suggest_on_error') for Python 3.10+ portability"
+                )
+    siblings = {p.stem for p in path.parent.glob("*.py") if p != path and p.stem != "__init__"}
+    if not siblings:
+        return findings
+    bytecode_disabled_line: int | None = None
+    sibling_import_lines = [
+        node.lineno
+        for node in ast.walk(tree)
+        if (isinstance(node, ast.Import) and any(alias.name.split(".", 1)[0] in siblings for alias in node.names))
+        or (isinstance(node, ast.ImportFrom) and node.module and node.module.split(".", 1)[0] in siblings)
+    ]
+    sibling_import_line = min(sibling_import_lines, default=None)
+    for stmt in tree.body:
+        if isinstance(stmt, ast.Assign):
+            for tgt in stmt.targets:
+                if (
+                    isinstance(tgt, ast.Attribute)
+                    and isinstance(tgt.value, ast.Name)
+                    and tgt.value.id == "sys"
+                    and tgt.attr == "dont_write_bytecode"
+                    and isinstance(stmt.value, ast.Constant)
+                    and stmt.value.value is True
+                ):
+                    bytecode_disabled_line = bytecode_disabled_line or stmt.lineno
+    if sibling_import_line is not None and (
+        bytecode_disabled_line is None or bytecode_disabled_line > sibling_import_line
+    ):
+        findings.append(f"{rel}: set sys.dont_write_bytecode = True before importing sibling scripts")
+    return findings
+
+
+def _supagent_names(root: Path) -> set[str] | None:
+    found: set[str] = set()
+    has_dir = False
+    for rel in ("dot_agents/supagents", ".agents/supagents"):
+        d = root / rel
+        if d.is_dir():
+            has_dir = True
+            found.update(p.stem for p in d.glob("fmind-review-*.md") if p.is_file())
+    return found if has_dir else None
+
+
+def _supagent_ref_findings(rel: str, text: str, valid_supagents: set[str] | None) -> list[str]:
+    if valid_supagents is None:
+        return []
+    unknown = sorted({m.group(0) for m in _SUPAGENT_REF.finditer(text) if m.group(0) not in valid_supagents})
+    return [f"{rel}: unknown reviewer supagent reference {name!r}" for name in unknown]
+
+
 def _resource_findings(
     root: Path,
     skill: Path,
@@ -248,6 +326,7 @@ def _resource_findings(
     skill_body: str,
     skill_targets: tuple[str, ...],
     guide_paths: set[Path],
+    valid_supagents: set[str] | None = None,
 ) -> list[str]:
     directory, rel_skill = skill.parent, _relative(root, skill)
     texts = {skill: skill_body}
@@ -281,8 +360,21 @@ def _resource_findings(
                 findings.extend(read_errors)
                 if text is not None:
                     is_ref = first == "references" and path.suffix == ".md" and "templates" not in parent_parts
-                    if is_ref and path not in guide_paths:
-                        findings.extend(_token_errors(rel, text))
+                    if is_ref:
+                        findings.extend(_supagent_ref_findings(rel, text, valid_supagents))
+                        if _TASK_GUIDES_HEADING.search(text):
+                            findings.append(
+                                f"{rel}: reserve '## Task guides' for synced SKILL.md indexes; use '## References'"
+                            )
+                        if path not in guide_paths:
+                            if text.startswith(("---\n", "---\r\n")):
+                                findings.append(
+                                    f"{rel}: supporting reference must not include YAML frontmatter; "
+                                    "index it as a guide or remove frontmatter"
+                                )
+                            findings.extend(_token_errors(rel, text))
+                    elif "scripts" in parent_parts and "templates" not in parent_parts and path.suffix == ".py":
+                        findings.extend(_script_findings(rel, path, text))
                     texts[path] = text
     unreachable = sorted(
         resources - _reachable_resources(skill, texts, resources, cached_targets={skill: skill_targets})
@@ -310,7 +402,7 @@ def _parse_iso_date(value: Any) -> date | None:
         return None
 
 
-def _metadata_findings(relative: str, metadata: Any) -> list[str]:
+def _metadata_findings(relative: str, metadata: Any, *, expected_dir: str | None = None) -> list[str]:
     if not isinstance(metadata, dict):
         return [f"{relative}: metadata must be a mapping"]
     findings: list[str] = []
@@ -320,6 +412,14 @@ def _metadata_findings(relative: str, metadata: Any) -> list[str]:
         findings.append(f"{relative}: metadata.kind must be connector, task, or collection")
     bad = [f for f in _REQ_META if not isinstance(v := metadata.get(f), str) or not v.strip()]
     findings.extend(f"{relative}: metadata.{f} must be a non-empty string" for f in bad)
+    source = metadata.get("source")
+    if (
+        expected_dir
+        and isinstance(source, str)
+        and source.startswith(_DOT_SOURCE_PREFIX)
+        and source != (expected_source := f"{_DOT_SOURCE_PREFIX}{expected_dir}")
+    ):
+        findings.append(f"{relative}: metadata.source ({source!r}) must match {expected_source!r}")
     dates: dict[str, date] = {}
     for field in ("created", "updated"):
         if field not in bad:
@@ -357,28 +457,78 @@ def _skill_dir_for_rel(rel_path: str) -> str | None:
     return None
 
 
+def _git_batch_show(root: Path, specs: Sequence[str]) -> dict[str, str]:
+    if not specs or (git := shutil.which("git")) is None:
+        return {}
+    env = {k: v for k, v in os.environ.items() if k not in _GIT_ENV_STRIP}
+    stdin = "".join(f"{spec}\n" for spec in specs).encode("utf-8")
+    try:
+        res = subprocess.run(  # noqa: S603
+            [git, "-C", str(root), "cat-file", "--batch"],
+            input=stdin,
+            capture_output=True,
+            check=False,
+            env=env,
+            timeout=15,
+        )
+    except OSError, subprocess.SubprocessError:
+        return {}
+    if res.returncode != 0:
+        return {}
+    data, pos, out = res.stdout, 0, {}
+    for spec in specs:
+        nl = data.find(b"\n", pos)
+        if nl == -1:
+            break
+        header = data[pos:nl].decode("utf-8", errors="replace")
+        pos = nl + 1
+        if header.endswith(" missing"):
+            continue
+        parts = header.split()
+        if len(parts) != 3 or not parts[2].isdigit():
+            break
+        size = int(parts[2])
+        end = pos + size
+        if end >= len(data) or data[end : end + 1] != b"\n":
+            break
+        with contextlib.suppress(UnicodeDecodeError):
+            out[spec] = data[pos:end].decode("utf-8")
+        pos = end + 1
+    return out
+
+
 def _stale_updated_findings(root: Path, discovered: Sequence[tuple[str, Path]]) -> list[str]:
     """Flag skills modified since the latest v* tag whose metadata.updated was not bumped."""
     if not (root / ".git").exists():
         return []
     base_tag = _git_output(root, "describe", "--tags", "--abbrev=0", "--match", "v*", "HEAD")
     if not base_tag:
+        if os.environ.get("CI") and _git_output(root, "rev-parse", "--is-shallow-repository") == "true":
+            return ["skills: cannot verify metadata.updated freshness on a shallow CI clone (set fetch-depth: 0)"]
         return []
-    diff_since_tag = (_git_output(root, "diff", "--name-only", base_tag) or "").splitlines()
-    untracked = (_git_output(root, "ls-files", "--others", "--exclude-standard") or "").splitlines()
+    diff_since_tag = (
+        _git_output(root, "-c", "core.quotePath=false", "diff", "--name-only", base_tag) or ""
+    ).splitlines()
+    untracked = (
+        _git_output(root, "-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard") or ""
+    ).splitlines()
     touched = {d for p in (*diff_since_tag, *untracked) if (d := _skill_dir_for_rel(p))}
     if not touched:
         return []
-    dirty_since_head = (_git_output(root, "diff", "--name-only", "HEAD") or "").splitlines()
+    dirty_since_head = (
+        _git_output(root, "-c", "core.quotePath=false", "diff", "--name-only", "HEAD") or ""
+    ).splitlines()
     dirty_dirs = {d for p in (*dirty_since_head, *untracked) if (d := _skill_dir_for_rel(p))}
     today = datetime.now().astimezone().date().isoformat()
+    touched_skills = [
+        (rel_dir, _relative(root, skill_path), skill_path)
+        for _, skill_path in discovered
+        if (rel_dir := _relative(root, skill_path.parent)) in touched
+    ]
+    base_texts = _git_batch_show(root, [f"{base_tag}:{rel_skill}" for _, rel_skill, _ in touched_skills])
     findings: list[str] = []
-    for _, skill_path in discovered:
-        rel_dir = _relative(root, skill_path.parent)
-        if rel_dir not in touched:
-            continue
-        rel_skill = _relative(root, skill_path)
-        base_text = _git_output(root, "show", f"{base_tag}:{rel_skill}")
+    for rel_dir, rel_skill, skill_path in touched_skills:
+        base_text = base_texts.get(f"{base_tag}:{rel_skill}")
         if base_text is None:
             continue
         try:
@@ -405,7 +555,7 @@ def _stale_updated_findings(root: Path, discovered: Sequence[tuple[str, Path]]) 
     return findings
 
 
-def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
+def _skill_findings(root: Path, name: str, path: Path, *, valid_supagents: set[str] | None = None) -> list[str]:
     rel = _relative(root, path)
     meta, body, findings = _frontmatter(path, root)
     if meta is None:
@@ -423,12 +573,20 @@ def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
         findings.append(f"{rel}: description must contain 1-{MAX_DESCRIPTION} characters")
     if meta.get("license") != "MIT":
         findings.append(f"{rel}: license must be MIT")
-    findings.extend(_metadata_findings(rel, meta.get("metadata")))
+    findings.extend(_metadata_findings(rel, meta.get("metadata"), expected_dir=_relative(root, path.parent)))
+    findings.extend(_supagent_ref_findings(rel, body, valid_supagents))
     targets = _document_targets(body)
     entries, entry_errors = _guide_entries(path.parent, root)
     findings.extend(_guide_findings(root, path, body, targets=targets, entries=entries, entry_errors=entry_errors))
     findings.extend(
-        _resource_findings(root, path, skill_body=body, skill_targets=targets, guide_paths={p for p, _ in entries})
+        _resource_findings(
+            root,
+            path,
+            skill_body=body,
+            skill_targets=targets,
+            guide_paths={p for p, _ in entries},
+            valid_supagents=valid_supagents,
+        )
     )
     return findings
 
@@ -436,8 +594,9 @@ def _skill_findings(root: Path, name: str, path: Path) -> list[str]:
 def _repository_check(root: Path) -> tuple[list[str], int]:
     root = root.resolve()
     discovered, findings = _discover_skills(root)
+    valid_supagents = _supagent_names(root)
     for name, path in sorted(discovered):
-        findings.extend(_skill_findings(root, name, path))
+        findings.extend(_skill_findings(root, name, path, valid_supagents=valid_supagents))
     findings.extend(_stale_updated_findings(root, sorted(discovered)))
     try:
         context = cb.context_report(root, source=root)

@@ -3,9 +3,11 @@
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
 import stat
+import subprocess
 import sys
 import tomllib
 from collections.abc import Callable, Sequence
@@ -13,6 +15,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from fmind_dot import __version__
+from fmind_dot.auth import provider_ready
 from fmind_dot.auth_probes import (
     GCLOUD_CLI_TOKEN,
     PROBE_TIMEOUT_SECONDS,
@@ -22,7 +25,6 @@ from fmind_dot.auth_probes import (
     github_ready,
     github_status,
     github_token_plaintext,
-    workspace_ready,
 )
 from fmind_dot.config import expand_path, policy
 from fmind_dot.errors import CommandTimeoutError, DotError, UsageError
@@ -46,6 +48,8 @@ _AGENT_REVIEWERS: dict[str, tuple[str, str]] = {
 }
 _AGY_SKILLS_JSON = "~/.gemini/config/skills.json"
 _AGY_PLUGINS_JSON = "~/.gemini/config/plugins.json"
+_AGY_AGENTS_JSON = "~/.gemini/config/agents.json"
+_AGY_RULES_JSON = "~/.gemini/config/rules.json"
 _AGY_HOOKS_JSON = "~/.gemini/config/hooks.json"
 
 _DOCTOR_GROUPS = (
@@ -155,7 +159,7 @@ def _auth_results(state: State) -> list[CheckResult]:
         "gh": ("gh", "github" in configured, github),
         "gcloud": ("gcloud", "gcp" in configured, lambda: gcloud_ready(state, GCLOUD_CLI_TOKEN)),
         "gcloud-adc": ("gcloud", "gcp" in configured, lambda: adc_ready(state)),
-        "gws": ("gws", "workspace" in configured, lambda: workspace_ready(state)),
+        "gws": ("gws", "workspace" in configured, lambda: provider_ready(state, "workspace")),
     }
 
     def run(item: tuple[str, tuple[str, bool, Callable[[], CheckResult | bool]]]) -> CheckResult:
@@ -168,7 +172,9 @@ def _auth_results(state: State) -> list[CheckResult]:
             ready = check()
         except CommandTimeoutError:
             return CheckResult(label, "fail", "auth check timed out; state unknown", str(path), "broken")
-        except DotError, OSError:
+        except (DotError, UsageError) as error:
+            return CheckResult(label, "fail", f"auth check failed ({error})", str(path), "broken")
+        except OSError:
             return CheckResult(label, "fail", "auth check failed; state unknown", str(path), "broken")
         if isinstance(ready, CheckResult):
             return replace(ready, path=str(path))
@@ -221,28 +227,120 @@ def _same_file(path: Path, target: Path) -> bool:
 
 _SKILL_PATH_KEYS = frozenset({"path", "paths", "inherits", "directories", "dirs", "entries"})
 _MANIFEST_IGNORED_KEYS = frozenset({"$schema", "include_only", "exclude"})
-_INTERPRETER_WRAPPERS = frozenset({"env", "sh", "bash", "zsh", "fish", "node", "python", "python3"})
-_SHELL_WRAPPERS = frozenset({"sh", "bash", "zsh", "fish"})
-_UV_RUN_VALUE_FLAGS = frozenset(
+_SHELL_WRAPPERS = frozenset({"sh", "bash", "zsh"})
+_INTERPRETER_WRAPPERS = frozenset({"sh", "bash", "zsh", "fish", "node", "python", "python3"})
+_DISALLOWED_HOOK_BINARIES = frozenset(
     {
-        "--project",
-        "--directory",
-        "-C",
-        "-p",
-        "--python",
-        "-w",
-        "--with",
-        "--with-editable",
-        "--with-requirements",
-        "--group",
-        "--only-group",
-        "--extra",
-        "--env-file",
-        "--config-file",
+        ".",
+        "builtin",
+        "command",
+        "eval",
+        "exec",
+        "nice",
+        "nohup",
+        "npx",
+        "pipx",
+        "source",
+        "stdbuf",
+        "timeout",
+        "uvx",
+        "xargs",
     }
 )
-_UV_RUN_PATH_FLAGS = frozenset(
-    {"--project", "--directory", "-C", "--with-editable", "--with-requirements", "--env-file", "--config-file"}
+_DANGEROUS_HOOK_ENV = frozenset(
+    {
+        "BASH_ENV",
+        "CDPATH",
+        "CONDA_PREFIX",
+        "ENV",
+        "FPATH",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_EXEC_PATH",
+        "GIT_SSH_COMMAND",
+        "GLOBIGNORE",
+        "HOME",
+        "IFS",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "PATH",
+        "PERL5OPT",
+        "RUBYOPT",
+        "SHELLOPTS",
+        "VIRTUAL_ENV",
+        "XDG_CONFIG_HOME",
+        "ZDOTDIR",
+    }
+)
+_DANGEROUS_HOOK_ENV_PREFIXES = ("BASH_FUNC_", "DYLD_", "LD_", "PYTHON", "UV_")
+_ENV_BOOL_FLAGS = frozenset({"-i", "--ignore-environment", "-0", "--null"})
+_UV_SCRIPT_FLAGS = frozenset({"-s", "--script", "--gui-script"})
+_UV_SAFE_BOOL_FLAGS = frozenset(
+    {
+        "-q",
+        "--quiet",
+        "-v",
+        "--verbose",
+        "--isolated",
+        "--locked",
+        "--frozen",
+        "--offline",
+        "--no-sync",
+        "--no-project",
+        "--no-config",
+        "--no-dev",
+        "--no-editable",
+        "--no-cache",
+        "--managed-python",
+        "--no-managed-python",
+        "--no-python-downloads",
+        "--no-env-file",
+        "--exact",
+        "--all-extras",
+        "--all-groups",
+        "--all-packages",
+        "--refresh",
+    }
+)
+_UV_ISOLATING_DIR_FLAGS = frozenset({"--project", "--directory", "-C"})
+_UV_DIR_FLAGS = _UV_ISOLATING_DIR_FLAGS | {"--with-editable"}
+_UV_FILE_FLAGS = frozenset({"--with-requirements", "--env-file", "--config-file"})
+_UV_OTHER_VALUE_FLAGS = frozenset(
+    {"-p", "--python", "-w", "--with", "--group", "--only-group", "--extra", "--package", "--color"}
+)
+_UV_VALUE_FLAGS = _UV_DIR_FLAGS | _UV_FILE_FLAGS | _UV_OTHER_VALUE_FLAGS
+_UV_PEP508_RE = re.compile(
+    r"^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?(?:\[[A-Za-z0-9,._-]+\])?"
+    r"(?:[<>=!~]=?[A-Za-z0-9.*+_!-]+(?:,[<>=!~]=?[A-Za-z0-9.*+_!-]+)*)?$"
+)
+_UV_ARCHIVE_SUFFIXES = (
+    ".whl",
+    ".zip",
+    ".egg",
+    ".tar",
+    ".tgz",
+    ".tbz",
+    ".tbz2",
+    ".txz",
+    ".tzst",
+    ".tlz",
+    ".tar.gz",
+    ".tar.bz2",
+    ".tar.xz",
+    ".tar.zst",
+    ".tar.lz",
+    ".tar.lzma",
+)
+_MAX_SYMLINK_HOPS = 40
+_PY_BOOL_FLAGS = frozenset("BEIOPqSsuv")
+_PY_VALUE_FLAGS = frozenset({"-W", "-X"})
+_PY_MODULE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
+_ENV_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_SH_BOOL_FLAGS = frozenset("abefhknpuvx")
+_SH_SAFE_OPTS = frozenset({"errexit", "noglob", "nounset", "pipefail", "verbose", "xtrace"})
+_FISH_SAFE_FLAGS = frozenset({"-N", "--no-config", "-P", "--private"})
+_NODE_SAFE_FLAGS = frozenset(
+    {"--no-warnings", "--no-deprecation", "--trace-warnings", "--enable-source-maps", "--experimental-strip-types"}
 )
 _SHELL_OP_CHARS = frozenset({";", "&", "|", "<", ">", "(", ")"})
 _MAX_AGY_JSON_BYTES = 1024 * 1024
@@ -324,12 +422,12 @@ def _load_agy_json(path: Path, label: str, expected_types: type | tuple[type, ..
 
 
 def _parse_hook_command(cmd: object) -> list[str] | None:
-    """Parse a hook command string or argv list; fail closed on shell operators or invalid shapes."""
+    """Parse a hook command string or argv list; fail closed on shell operators, expansions, or invalid shapes."""
     if isinstance(cmd, list):
         return list(cmd) if cmd and all(isinstance(t, str) for t in cmd) else None
     if not isinstance(cmd, str) or not cmd.strip():
         return None
-    if any(seq in cmd for seq in ("\n", "\r", "`", "$(")):
+    if any(seq in cmd for seq in ("\n", "\r", "`", "$")):
         return None
     try:
         lexer = shlex.shlex(cmd, posix=True, punctuation_chars=True)
@@ -344,190 +442,345 @@ def _parse_hook_command(cmd: object) -> list[str] | None:
         return None
 
 
-def _hook_target_paths(tokens: list[str]) -> tuple[list[str], bool]:
-    """Return local script/executable paths to verify plus whether the command is invalid or relative."""
+def _is_abs_or_home(value: str) -> bool:
+    return value.startswith(("/", "~/")) or value == "~"
+
+
+def _is_safe_env_assignment(token: str) -> bool:
+    var = token.partition("=")[0]
+    upper = var.upper()
+    return (
+        bool(_ENV_VAR_RE.fullmatch(var))
+        and upper not in _DANGEROUS_HOOK_ENV
+        and not upper.startswith(_DANGEROUS_HOOK_ENV_PREFIXES)
+    )
+
+
+def _consume_uv_flag(
+    tokens: list[str], idx: int, *, allow_script: bool
+) -> tuple[int, bool, str | None, str | None, bool, bool] | None:
+    """Parse one allowlisted `uv` flag.
+
+    Returns ``(next_idx, script_mode, file_path, dir_path, isolates_project, isolates_config)`` or ``None``.
+    """
+    arg = tokens[idx]
+    if allow_script and arg in _UV_SCRIPT_FLAGS:
+        return idx + 1, True, None, None, True, False
+    if arg in _UV_SAFE_BOOL_FLAGS:
+        return idx + 1, False, None, None, arg == "--no-project", arg == "--no-config"
+    if arg.startswith("-C") and len(arg) > 2:
+        flag, val, next_idx = "-C", arg[2:], idx + 1
+    elif "=" in arg:
+        flag, _, val = arg.partition("=")
+        next_idx = idx + 1
+    elif arg in _UV_VALUE_FLAGS:
+        if idx + 1 >= len(tokens):
+            return None
+        flag, val, next_idx = arg, tokens[idx + 1], idx + 2
+    else:
+        return None
+    if not val:
+        return None
+    if flag in _UV_DIR_FLAGS:
+        isolates = flag in _UV_ISOLATING_DIR_FLAGS
+        return (next_idx, False, None, val, isolates, isolates) if _is_abs_or_home(val) else None
+    if flag in _UV_FILE_FLAGS:
+        return (next_idx, False, val, None, False, flag == "--config-file") if _is_abs_or_home(val) else None
+    if flag in {"-p", "--python"}:
+        if _is_abs_or_home(val):
+            return next_idx, False, val, None, False, False
+        if "/" in val or "\\" in val or val.startswith("."):
+            return None
+        return next_idx, False, None, None, False, False
+    if flag in {"-w", "--with"}:
+        if not _UV_PEP508_RE.fullmatch(val):
+            return None
+        base_pkg = re.split(r"[\[<>=!~]", val, maxsplit=1)[0].lower()
+        if base_pkg.endswith(_UV_ARCHIVE_SUFFIXES):
+            return None
+        return next_idx, False, None, None, False, False
+    if flag in _UV_OTHER_VALUE_FLAGS:
+        return next_idx, False, None, None, False, False
+    return None
+
+
+def _consume_env_wrapper(tokens: list[str], idx: int, file_targets: list[str], dir_targets: list[str]) -> int | None:
+    tok = tokens[idx]
+    if _is_abs_or_home(tok):
+        file_targets.append(tok)
+    elif "/" in tok or tok.startswith("."):
+        return None
+    idx += 1
+    options_done = False
+    while idx < len(tokens):
+        arg = tokens[idx]
+        if not options_done:
+            if arg == "--":
+                options_done = True
+                idx += 1
+                continue
+            if arg in _ENV_BOOL_FLAGS:
+                idx += 1
+                continue
+            if arg in {"-u", "--unset"}:
+                if idx + 1 >= len(tokens) or not tokens[idx + 1]:
+                    return None
+                idx += 2
+                continue
+            if arg.startswith("--unset="):
+                if not arg.partition("=")[2]:
+                    return None
+                idx += 1
+                continue
+            if arg in {"-C", "--chdir"}:
+                if idx + 1 >= len(tokens) or not _is_abs_or_home(tokens[idx + 1]):
+                    return None
+                dir_targets.append(tokens[idx + 1])
+                idx += 2
+                continue
+            if arg.startswith(("--chdir=", "-C")):
+                val = arg.partition("=")[2] if arg.startswith("--chdir=") else arg[2:]
+                if not _is_abs_or_home(val):
+                    return None
+                dir_targets.append(val)
+                idx += 1
+                continue
+            if arg.startswith(("-", "+")):
+                return None
+        if "=" in arg:
+            options_done = True
+            if not _is_safe_env_assignment(arg):
+                return None
+            idx += 1
+            continue
+        break
+    return idx
+
+
+def _consume_uv_wrapper(
+    tokens: list[str], idx: int, file_targets: list[str], dir_targets: list[str]
+) -> tuple[int, bool] | None:
+    tok = tokens[idx]
+    if _is_abs_or_home(tok):
+        file_targets.append(tok)
+    elif "/" in tok or tok.startswith("."):
+        return None
+    idx += 1
+    isolated = False
+    script_mode = False
+    config_isolated = False
+    while idx < len(tokens) and tokens[idx].startswith(("-", "+")):
+        parsed = _consume_uv_flag(tokens, idx, allow_script=False)
+        if parsed is None:
+            return None
+        idx, _, file_path, dir_path, flag_isolates, flag_cfg = parsed
+        if file_path is not None:
+            file_targets.append(file_path)
+        if dir_path is not None:
+            dir_targets.append(dir_path)
+        isolated = isolated or flag_isolates
+        config_isolated = config_isolated or flag_cfg
+    if idx >= len(tokens) or tokens[idx] != "run":
+        return None
+    idx += 1
+    while idx < len(tokens) and tokens[idx].startswith(("-", "+")):
+        if tokens[idx] == "--":
+            idx += 1
+            break
+        parsed = _consume_uv_flag(tokens, idx, allow_script=True)
+        if parsed is None:
+            return None
+        idx, flag_script, file_path, dir_path, flag_isolates, flag_cfg = parsed
+        if file_path is not None:
+            file_targets.append(file_path)
+        if dir_path is not None:
+            dir_targets.append(dir_path)
+        script_mode = script_mode or flag_script
+        isolated = isolated or flag_isolates
+        config_isolated = config_isolated or flag_cfg
+    if not config_isolated:
+        return None
+    if script_mode:
+        if idx >= len(tokens) or not _is_abs_or_home(tokens[idx]):
+            return None
+        file_targets.append(tokens[idx])
+        return idx + 1, True
+    if not isolated:
+        return None
+    return idx, False
+
+
+def _consume_interpreter(tokens: list[str], idx: int, base: str, file_targets: list[str]) -> bool:
+    tok = tokens[idx]
+    if _is_abs_or_home(tok):
+        file_targets.append(tok)
+    elif "/" in tok or tok.startswith("."):
+        return False
+    is_python = base in {"python", "python3"} or base.startswith("python3.")
+    isolated_sys_path = False
+    idx += 1
+    while idx < len(tokens) and tokens[idx].startswith(("-", "+")):
+        arg = tokens[idx]
+        if arg == "--":
+            idx += 1
+            break
+        if is_python:
+            if arg == "-m" or (arg.startswith("-m") and len(arg) > 2):
+                if not isolated_sys_path:
+                    return False
+                if arg == "-m":
+                    if idx + 1 >= len(tokens):
+                        return False
+                    mod = tokens[idx + 1]
+                else:
+                    mod = arg[2:]
+                return _PY_MODULE_RE.fullmatch(mod) is not None
+            if arg in _PY_VALUE_FLAGS:
+                if idx + 1 >= len(tokens):
+                    return False
+                idx += 2
+            elif len(arg) > 2 and arg[:2] in _PY_VALUE_FLAGS:
+                idx += 1
+            elif len(arg) >= 2 and arg[0] == "-" and not arg.startswith("--") and set(arg[1:]) <= _PY_BOOL_FLAGS:
+                if "I" in arg[1:] or "P" in arg[1:]:
+                    isolated_sys_path = True
+                idx += 1
+            else:
+                return False
+        elif base in _SHELL_WRAPPERS:
+            if arg == "-o":
+                if idx + 1 >= len(tokens) or tokens[idx + 1] not in _SH_SAFE_OPTS:
+                    return False
+                idx += 2
+            elif len(arg) >= 2 and arg[0] == "-" and not arg.startswith("--") and set(arg[1:]) <= _SH_BOOL_FLAGS:
+                idx += 1
+            else:
+                return False
+        elif base == "fish":
+            if arg not in _FISH_SAFE_FLAGS:
+                return False
+            idx += 1
+        elif arg in _NODE_SAFE_FLAGS:
+            idx += 1
+        else:
+            return False
+    if idx >= len(tokens) or not _is_abs_or_home(tokens[idx]):
+        return False
+    file_targets.append(tokens[idx])
+    return True
+
+
+def _hook_target_paths(tokens: list[str]) -> tuple[list[str], list[str], bool]:
+    """Return local executable/script files and directory targets to verify plus whether the command is invalid."""
     if not tokens or not tokens[0]:
-        return [], True
-    candidates: list[str] = []
+        return [], [], True
+    file_targets: list[str] = []
+    dir_targets: list[str] = []
     idx = 0
     done = False
+    after_uv_run = False
     while idx < len(tokens):
         tok = tokens[idx]
         if not tok:
-            return [], True
+            return [], [], True
+        if not after_uv_run and "=" in tok and not tok.startswith(("-", "+", "/", "~", ".")):
+            if not _is_safe_env_assignment(tok):
+                return [], [], True
+            idx += 1
+            continue
         base = Path(tok).name
         if base == "env":
-            candidates.append(tok)
-            idx += 1
-            while idx < len(tokens):
-                arg = tokens[idx]
-                if arg == "--":
-                    idx += 1
-                    break
-                if (
-                    arg in {"-S", "--split-string"}
-                    or arg.startswith(("-S", "--split-string="))
-                    or (arg.startswith("-") and not arg.startswith("--") and "S" in arg[1:])
-                ):
-                    return [], True
-                if arg in {"-u", "--unset", "-C", "--chdir"}:
-                    if idx + 1 >= len(tokens):
-                        return [], True
-                    if arg in {"-C", "--chdir"} and not tokens[idx + 1].startswith(("/", "~")):
-                        return [], True
-                    idx += 2
-                elif arg.startswith(("--chdir=", "-C")):
-                    val = arg.partition("=")[2] if "=" in arg else arg[2:]
-                    if not val.startswith(("/", "~")):
-                        return [], True
-                    idx += 1
-                elif arg.startswith("-") or "=" in arg:
-                    idx += 1
-                else:
-                    break
+            next_idx = _consume_env_wrapper(tokens, idx, file_targets, dir_targets)
+            if next_idx is None:
+                return [], [], True
+            idx = next_idx
             continue
         if base == "uv":
-            candidates.append(tok)
-            idx += 1
-            while idx < len(tokens) and tokens[idx].startswith("-"):
-                arg = tokens[idx]
-                if arg in _UV_RUN_VALUE_FLAGS:
-                    if idx + 1 >= len(tokens):
-                        return [], True
-                    if arg in _UV_RUN_PATH_FLAGS and not tokens[idx + 1].startswith(("/", "~")):
-                        return [], True
-                    idx += 2
-                elif arg.startswith(
-                    (
-                        "--project=",
-                        "--directory=",
-                        "-C",
-                        "--with-editable=",
-                        "--with-requirements=",
-                        "--env-file=",
-                        "--config-file=",
-                    )
-                ):
-                    val = arg.partition("=")[2] if "=" in arg else arg[2:]
-                    if not val.startswith(("/", "~")):
-                        return [], True
-                    idx += 1
-                else:
-                    idx += 1
-            if idx >= len(tokens) or tokens[idx] != "run":
-                done = idx < len(tokens)
-                break
-            idx += 1
-            script_target: str | None = None
-            while idx < len(tokens) and tokens[idx].startswith("-"):
-                arg = tokens[idx]
-                if arg == "--":
-                    idx += 1
-                    break
-                if arg == "--script":
-                    if idx + 1 >= len(tokens):
-                        return [], True
-                    script_target = tokens[idx + 1]
-                    idx += 2
-                    break
-                if arg.startswith("--script="):
-                    val = arg.partition("=")[2]
-                    if not val:
-                        return [], True
-                    script_target = val
-                    idx += 1
-                    break
-                if arg in _UV_RUN_VALUE_FLAGS:
-                    if idx + 1 >= len(tokens):
-                        return [], True
-                    if arg in _UV_RUN_PATH_FLAGS and not tokens[idx + 1].startswith(("/", "~")):
-                        return [], True
-                    idx += 2
-                elif arg.startswith(
-                    (
-                        "--project=",
-                        "--directory=",
-                        "-C",
-                        "--with-editable=",
-                        "--with-requirements=",
-                        "--env-file=",
-                        "--config-file=",
-                    )
-                ):
-                    val = arg.partition("=")[2] if "=" in arg else arg[2:]
-                    if not val.startswith(("/", "~")):
-                        return [], True
-                    idx += 1
-                else:
-                    idx += 1
-            if script_target is not None:
-                candidates.append(script_target)
-                done = True
-                break
-            continue
-        if base in _INTERPRETER_WRAPPERS or base.startswith("python3."):
-            is_python = base in {"python", "python3"} or base.startswith("python3.")
-            candidates.append(tok)
-            idx += 1
-            while idx < len(tokens) and tokens[idx].startswith("-"):
-                arg = tokens[idx]
-                if arg == "--":
-                    idx += 1
-                    break
-                if (
-                    (is_python and not arg.startswith(("--", "-W", "-X", "-m")) and "c" in arg[1:])
-                    or (
-                        base == "node"
-                        and (
-                            arg in {"-e", "-p", "--eval", "--print"}
-                            or arg.startswith(("-e", "-p", "--eval=", "--print="))
-                            or (not arg.startswith("--") and any(c in arg[1:] for c in "ep"))
-                        )
-                    )
-                    or (base in _SHELL_WRAPPERS and not arg.startswith("--") and "c" in arg[1:])
-                    or (
-                        base == "fish"
-                        and (
-                            arg in {"-C", "--command", "--init-command"}
-                            or arg.startswith(("-C", "--command=", "--init-command="))
-                        )
-                    )
-                ):
-                    return [], True
-                if is_python and arg == "-m":
-                    if idx + 1 >= len(tokens) or not tokens[idx + 1]:
-                        return [], True
-                    idx += 2
-                    done = True
-                    break
-                if is_python and arg.startswith("-m") and len(arg) > 2:
-                    idx += 1
-                    done = True
-                    break
-                if arg in {"-W", "-X", "-o"}:
-                    if idx + 1 >= len(tokens):
-                        return [], True
-                    idx += 2
-                else:
-                    idx += 1
+            uv_res = _consume_uv_wrapper(tokens, idx, file_targets, dir_targets)
+            if uv_res is None:
+                return [], [], True
+            idx, done = uv_res
             if done:
                 break
+            after_uv_run = True
             continue
-        candidates.append(tok)
+        if base in _INTERPRETER_WRAPPERS or base.startswith("python3."):
+            if not _consume_interpreter(tokens, idx, base, file_targets):
+                return [], [], True
+            done = True
+            break
+        if tok.startswith(("-", "+")) or "=" in tok or base in _DISALLOWED_HOOK_BINARIES:
+            return [], [], True
+        if _is_abs_or_home(tok):
+            file_targets.append(tok)
+        elif "/" in tok or tok.startswith(".") or (after_uv_run and "." in tok):
+            return [], [], True
         done = True
         break
     if not done:
-        return [], True
-    targets: list[str] = []
-    is_invalid = False
-    for tok in candidates:
-        if not tok:
-            is_invalid = True
-        elif tok.startswith(("/", "~")):
-            targets.append(tok)
-        elif "/" in tok or tok.startswith("."):
-            is_invalid = True
-    return targets, is_invalid
+        return [], [], True
+    return file_targets, dir_targets, False
+
+
+def _dir_trusted(info: os.stat_result, uid: int, *, allow_root_sticky: bool) -> bool:
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, uid):
+        return False
+    if stat.S_IMODE(info.st_mode) & 0o022 == 0:
+        return True
+    return allow_root_sticky and info.st_uid == 0 and bool(info.st_mode & stat.S_ISVTX)
+
+
+def _path_owned_and_unwritable(raw: str, uid: int, *, expect_dir: bool) -> bool:
+    path = expand_path(raw)
+    if not path.is_absolute():
+        return False
+    try:
+        root_info = Path("/").lstat()
+        if not _dir_trusted(root_info, uid, allow_root_sticky=True):
+            return False
+        cur = Path("/")
+        remaining = list(path.parts[1:])
+        hops = 0
+        while remaining:
+            part = remaining.pop(0)
+            if not part or part == ".":
+                continue
+            if part == "..":
+                cur = cur.parent
+                continue
+            candidate = cur / part
+            linfo = candidate.lstat()
+            if linfo.st_uid not in (0, uid):
+                return False
+            if stat.S_ISLNK(linfo.st_mode):
+                hops += 1
+                if hops > _MAX_SYMLINK_HOPS:
+                    return False
+                target = candidate.readlink()
+                if target.is_absolute():
+                    cur = Path("/")
+                    remaining = [*target.parts[1:], *remaining]
+                else:
+                    remaining = [*target.parts, *remaining]
+                continue
+            if remaining and not _dir_trusted(linfo, uid, allow_root_sticky=True):
+                return False
+            cur = candidate
+        # Validate the resolved final target unconditionally (handles "/", trailing "..", and symlink targets ending in "."/"..").
+        final_info = cur.lstat()
+        mode_ok = stat.S_ISDIR(final_info.st_mode) if expect_dir else stat.S_ISREG(final_info.st_mode)
+        if not (mode_ok and final_info.st_uid in (0, uid) and stat.S_IMODE(final_info.st_mode) & 0o022 == 0):
+            return False
+        # Immediate parent of the final target must never be group/world-writable, even with sticky bit.
+        parent = cur.parent
+        if parent != cur and not _dir_trusted(parent.lstat(), uid, allow_root_sticky=False):
+            return False
+        for ancestor in parent.parents:
+            if not _dir_trusted(ancestor.lstat(), uid, allow_root_sticky=True):
+                return False
+    except OSError:
+        return False
+    return True
 
 
 def _inspect_agy_manifest(path: Path, label: str, kind: str, *, allowed_target: Path | None) -> list[str]:
@@ -546,6 +799,8 @@ def _inspect_agy_manifest(path: Path, label: str, kind: str, *, allowed_target: 
 def _inspect_agy_isolation(shared_skills: Path) -> list[str]:
     issues = _inspect_agy_manifest(expand_path(_AGY_SKILLS_JSON), "skills.json", "skills", allowed_target=shared_skills)
     issues.extend(_inspect_agy_manifest(expand_path(_AGY_PLUGINS_JSON), "plugins.json", "plugins", allowed_target=None))
+    issues.extend(_inspect_agy_manifest(expand_path(_AGY_AGENTS_JSON), "agents.json", "agents", allowed_target=None))
+    issues.extend(_inspect_agy_manifest(expand_path(_AGY_RULES_JSON), "rules.json", "rules", allowed_target=None))
 
     parsed_hooks, hook_issues = _load_agy_json(expand_path(_AGY_HOOKS_JSON), "hooks.json", dict)
     issues.extend(hook_issues)
@@ -557,23 +812,13 @@ def _inspect_agy_isolation(shared_skills: Path) -> list[str]:
             if tokens is None:
                 bad_hooks += 1
                 continue
-            targets, is_invalid = _hook_target_paths(tokens)
-            if is_invalid:
+            file_targets, dir_targets, is_invalid = _hook_target_paths(tokens)
+            if (
+                is_invalid
+                or not all(_path_owned_and_unwritable(p, uid, expect_dir=False) for p in file_targets)
+                or not all(_path_owned_and_unwritable(p, uid, expect_dir=True) for p in dir_targets)
+            ):
                 bad_hooks += 1
-                continue
-            for raw_target in targets:
-                try:
-                    cmd_info = expand_path(raw_target).stat()
-                except OSError:
-                    bad_hooks += 1
-                    break
-                if (
-                    not stat.S_ISREG(cmd_info.st_mode)
-                    or cmd_info.st_uid not in (0, uid)
-                    or stat.S_IMODE(cmd_info.st_mode) & 0o022 != 0
-                ):
-                    bad_hooks += 1
-                    break
         if bad_hooks:
             issues.append(f"hooks.json references {bad_hooks} invalid, relative, missing, or writable command(s)")
     return issues
@@ -597,9 +842,38 @@ def _inspect_agent(name: str) -> CheckResult:
     return CheckResult(name, "pass", "persona, skills, and reviewers configured", condition="healthy")
 
 
-def available_memory_bytes(meminfo: Path = Path("/proc/meminfo")) -> int | None:
-    if sys.platform != "linux" and meminfo == Path("/proc/meminfo"):
+_VM_STAT_PAGE_SIZE_RE = re.compile(r"page size of (\d+) bytes")
+_VM_STAT_AVAILABLE_KEYS = frozenset({"Pages free", "Pages inactive", "Pages speculative"})
+
+
+def _parse_vm_stat_bytes(text: str) -> int | None:
+    if (match := _VM_STAT_PAGE_SIZE_RE.search(text)) is None:
         return None
+    page_size = int(match.group(1))
+    pages = 0
+    matched = 0
+    try:
+        for line in text.splitlines():
+            key, sep, value = line.partition(":")
+            if sep and key.strip() in _VM_STAT_AVAILABLE_KEYS:
+                pages += int(value.strip().rstrip("."))
+                matched += 1
+    except ValueError:
+        return None
+    return pages * page_size if matched else None
+
+
+def available_memory_bytes(meminfo: Path | None = None) -> int | None:
+    if meminfo is None:
+        if sys.platform == "darwin":
+            try:
+                res = subprocess.run(["/usr/bin/vm_stat"], capture_output=True, text=True, check=False, timeout=5)
+            except OSError, subprocess.SubprocessError:
+                return None
+            return _parse_vm_stat_bytes(res.stdout) if res.returncode == 0 else None
+        if sys.platform != "linux":
+            return None
+        meminfo = Path("/proc/meminfo")
     try:
         return next(
             (

@@ -18,7 +18,7 @@ def _write_skill(
     root: Path, *, name: str = "fixture", description: str = "Validate a compact fixture. Use for contract tests."
 ) -> Path:
     d = root / "skills" / name
-    (d / "references").mkdir(parents=True)
+    (d / "references").mkdir(parents=True, exist_ok=True)
     skill = d / "SKILL.md"
     skill.write_text(
         f"---\nname: {name}\ndescription: {description}\nlicense: MIT\nmetadata:\n  kind: task\n"
@@ -85,6 +85,11 @@ def test_skills_contract_checks_explicit_invocation_boolean(tmp_path: Path, valu
         ("  author: Fixture Author", "  author: 42", "metadata keys and values must be strings"),
         ("  author: Fixture Author", '  author: ""', "metadata.author must be a non-empty string"),
         ("  source: github.com/fmind/dot/tree/main/skills/fixture", "  source: null", "metadata.source"),
+        (
+            "  source: github.com/fmind/dot/tree/main/skills/fixture",
+            "  source: github.com/fmind/dot/tree/main/skills/other",
+            "metadata.source",
+        ),
         ('  created: "2026-10-01"', "  created: 2026-10-01", "metadata keys and values must be strings"),
         ('  updated: "2026-10-12"\n', "", "metadata.updated must be a non-empty string"),
         ('  updated: "2026-10-12"', '  updated: "2026-13-40"', "must be a valid YYYY-MM-DD date"),
@@ -105,8 +110,19 @@ def test_skills_contract_rejects_invalid_frontmatter_and_metadata(
     assert any(expected in f for f in checker.repository_findings(root))
 
 
-def test_skills_contract_flags_stale_updated_date_since_release_tag(tmp_path: Path) -> None:
+def test_skills_contract_flags_stale_updated_date_since_release_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = _repo(tmp_path)
+    local_skill = root / ".agents/skills/local-helper"
+    (local_skill / "references").mkdir(parents=True)
+    (local_skill / "SKILL.md").write_text(
+        "---\nname: local-helper\ndescription: Local repo helper.\nlicense: MIT\nmetadata:\n  kind: task\n"
+        "  author: Fixture Author\n  source: github.com/fmind/dot/tree/main/.agents/skills/local-helper\n"
+        '  created: "2026-10-01"\n  updated: "2026-10-12"\n---\n\n# Local\n\n- [Ref](references/ref.md)\n',
+        encoding="utf-8",
+    )
+    (local_skill / "references/ref.md").write_text("# Ref\n", encoding="utf-8")
     env = {
         **{k: v for k, v in os.environ.items() if k not in {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"}},
         "GIT_CONFIG_NOSYSTEM": "1",
@@ -117,8 +133,10 @@ def test_skills_contract_flags_stale_updated_date_since_release_tag(tmp_path: Pa
         "GIT_COMMITTER_EMAIL": "fixture@example.com",
     }
 
-    def git(*args: str) -> None:
-        res = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False, env=env)
+    def git(*args: str, extra_env: dict[str, str] | None = None) -> None:
+        res = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, check=False, env=env | (extra_env or {})
+        )
         assert res.returncode == 0, res.stderr
 
     git("init", "-q", "-b", "main")
@@ -127,18 +145,50 @@ def test_skills_contract_flags_stale_updated_date_since_release_tag(tmp_path: Pa
     git("tag", "v1.0.0")
     assert checker.repository_findings(root) == []
 
-    # Editing a reference without bumping metadata.updated must fail.
+    # Editing a reference without bumping metadata.updated must fail (both skills/ and .agents/skills/).
     (root / "skills/fixture/references/guide.md").write_text("# Guide\n\nUpdated guidance.\n", encoding="utf-8")
+    (local_skill / "references/ref.md").write_text("# Ref\n\nUpdated local.\n", encoding="utf-8")
     stale = checker.repository_findings(root)
     assert any("skills/fixture/SKILL.md: metadata.updated ('2026-10-12') must be bumped" in f for f in stale)
+    assert any(
+        ".agents/skills/local-helper/SKILL.md: metadata.updated ('2026-10-12') must be bumped" in f for f in stale
+    )
 
-    # Bumping metadata.updated clears the finding, both uncommitted and committed.
-    skill = root / "skills/fixture/SKILL.md"
-    skill.write_text(skill.read_text(encoding="utf-8").replace("2026-10-12", "2026-11-24"), encoding="utf-8")
+    # Committed stale edit on a later commit date still fails; same-day edit does not.
+    git("add", "skills/fixture/references/guide.md")
+    git(
+        "commit",
+        "-q",
+        "-m",
+        "docs(skills): stale commit",
+        extra_env={"GIT_AUTHOR_DATE": "2026-10-15T12:00:00Z", "GIT_COMMITTER_DATE": "2026-10-15T12:00:00Z"},
+    )
+    committed_stale = checker.repository_findings(root)
+    assert any("skills/fixture/SKILL.md: metadata.updated ('2026-10-12') must be bumped" in f for f in committed_stale)
+
+    # New skill added since v1.0.0 is exempt (no base tag entry).
+    _write_skill(root, name="brand-new")
+
+    # Bumping metadata.updated clears the findings, both uncommitted and committed.
+    for path in (root / "skills/fixture/SKILL.md", local_skill / "SKILL.md"):
+        path.write_text(path.read_text(encoding="utf-8").replace("2026-10-12", "2026-11-24"), encoding="utf-8")
     assert checker.repository_findings(root) == []
     git("add", ".")
     git("commit", "-q", "-m", "docs(skills): update fixture")
     assert checker.repository_findings(root) == []
+
+    # Shallow CI clone missing v* tags fails closed instead of silently skipping freshness checks.
+    shallow = tmp_path / "shallow"
+    res = subprocess.run(
+        ["git", "clone", "--depth", "1", "--no-tags", f"file://{root}", str(shallow)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert res.returncode == 0, res.stderr
+    monkeypatch.setenv("CI", "true")
+    assert any("shallow CI clone" in f for f in checker.repository_findings(shallow))
 
 
 @pytest.mark.parametrize(
@@ -214,7 +264,15 @@ def test_repository_skills_have_individual_chezmoi_links() -> None:
 def test_skills_contract_budgets_and_duplicate_names(tmp_path: Path, scope: str, relative: str) -> None:
     root = _repo(tmp_path)
     (root / ".agents/skills").mkdir(parents=True)
-    (root / "skills/fixture-helper").rename(root / ".agents/skills/fixture-helper")
+    moved = root / ".agents/skills/fixture-helper"
+    (root / "skills/fixture-helper").rename(moved)
+    moved_skill = moved / "SKILL.md"
+    moved_skill.write_text(
+        moved_skill.read_text(encoding="utf-8").replace(
+            "tree/main/skills/fixture-helper", "tree/main/.agents/skills/fixture-helper"
+        ),
+        encoding="utf-8",
+    )
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("x" * 20_000)
@@ -327,6 +385,82 @@ def test_skills_markdown_budgets_and_sync_fail_closed(
     assert checker.main() == 1
     assert "cannot read UTF-8 text" in capsys.readouterr().err
     assert skill.read_text(encoding="utf-8") == seeded
+
+    # Happy-path `--sync` rewrites a stale guide index and returns 0.
+    _write_skill(root, name="fixture-helper")
+    assert checker.main() == 0
+    assert "- [guide](references/guide.md): Sync." in skill.read_text(encoding="utf-8")
+
+    # Disconnected reference cycle stays orphaned and flagged as unreachable.
+    (refs / "cycle_a.md").write_text("[B](cycle_b.md)\n", encoding="utf-8")
+    (refs / "cycle_b.md").write_text("[A](cycle_a.md)\n", encoding="utf-8")
+    cycle_findings = checker.repository_findings(root)
+    assert any("cycle_a.md: resource is not reachable" in f for f in cycle_findings)
+    assert any("cycle_b.md: resource is not reachable" in f for f in cycle_findings)
+
+
+def test_skills_contract_rejects_stray_frontmatter_headings_supagents_and_script_hazards(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    sub_dir = root / "dot_agents/supagents"
+    sub_dir.mkdir(parents=True)
+    (sub_dir / "fmind-review-code.md").write_text("---\nname: fmind-review-code\ndescription: Review code.\n---\n# R\n")
+
+    skill = root / "skills/fixture/SKILL.md"
+    refs = skill.parent / "references"
+    scripts = skill.parent / "scripts"
+    scripts.mkdir()
+
+    # Plain reference with stray frontmatter, manual ## Task guides, and unknown supagent ref.
+    (refs / "guide.md").write_text(
+        "---\ntitle: Stray\n---\n\n# Guide\n\n## Task guides\n\nRun `fmind-review-ghost` and `fmind-review-code`.\n",
+        encoding="utf-8",
+    )
+    # Scripts with Python >3.10 syntax, unguarded suggest_on_error, and missing sys.dont_write_bytecode.
+    (scripts / "helper.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (scripts / "tool.py").write_text(
+        "import argparse\nimport helper\n"
+        "def run():\n"
+        "    try:\n"
+        "        return argparse.ArgumentParser(suggest_on_error=True)\n"
+        "    except ValueError, TypeError:\n"
+        "        return helper.VALUE\n",
+        encoding="utf-8",
+    )
+    skill.write_text(
+        skill.read_text(encoding="utf-8") + "\nRun [tool](scripts/tool.py) with [helper](scripts/helper.py).\n",
+        encoding="utf-8",
+    )
+    findings = checker.repository_findings(root)
+    assert any("supporting reference must not include YAML frontmatter" in f for f in findings), findings
+    assert any("reserve '## Task guides'" in f for f in findings), findings
+    assert any("unknown reviewer supagent reference 'fmind-review-ghost'" in f for f in findings), findings
+    assert not any("fmind-review-code" in f for f in findings), findings
+    assert any("requires Python >3.10 syntax" in f for f in findings), findings
+
+    # Fix syntax -> now unguarded suggest_on_error and missing dont_write_bytecode must fire.
+    (scripts / "tool.py").write_text(
+        "import argparse\nimport helper\n"
+        "def run():\n"
+        "    try:\n"
+        "        return argparse.ArgumentParser(suggest_on_error=True)\n"
+        "    except (ValueError, TypeError):\n"
+        "        return helper.VALUE\n",
+        encoding="utf-8",
+    )
+    findings2 = checker.repository_findings(root)
+    assert any("avoid ArgumentParser(suggest_on_error=True)" in f for f in findings2), findings2
+    assert any("sys.dont_write_bytecode = True" in f for f in findings2), findings2
+
+    # Fix all issues -> zero findings.
+    (refs / "guide.md").write_text("# Guide\n\n## References\n\nRun `fmind-review-code`.\n", encoding="utf-8")
+    (scripts / "tool.py").write_text(
+        "import argparse\nimport sys\nsys.dont_write_bytecode = True\nimport helper\n"
+        "def run():\n"
+        '    kw = {"suggest_on_error": True} if sys.version_info >= (3, 14) else {}\n'
+        "    return argparse.ArgumentParser(**kw), helper.VALUE\n",
+        encoding="utf-8",
+    )
+    assert checker.repository_findings(root) == []
 
 
 def test_python_only_owned_sources_and_fzf_and_mise_locks(tmp_path: Path) -> None:

@@ -29,6 +29,18 @@ def test_font_installation_targets(platform: str, prefix: str, tmp_path: Path) -
         assert "/releases/download/v" in entry["url"]
     assert f"{prefix}/GoogleSans-OFL.txt" in targets
     assert "OFL.txt" in targets[f"{prefix}/GoogleSansCodeOfficial"]["include"]
+    # Every rendered external (themes, fonts, licenses) must pin https:// + 64-hex SHA256 + immutable URL.
+    assert targets
+    for target, entry in targets.items():
+        url = entry["url"]
+        assert url.startswith("https://"), f"{target}: non-https external URL {url!r}"
+        assert "refreshPeriod" not in entry, f"{target}: unexpected refreshPeriod"
+        assert re.fullmatch(r"[0-9a-f]{64}", entry.get("checksum", {}).get("sha256", "")), (
+            f"{target}: missing 64-hex checksum.sha256"
+        )
+        assert re.search(r"/[0-9a-f]{40}/", url) or "/releases/download/v" in url, (
+            f"{target}: unpinned external URL {url!r}"
+        )
 
 
 def test_theme_externals_are_pinned_to_one_commit_with_checksums(tmp_path: Path) -> None:
@@ -236,3 +248,108 @@ def test_theme_pin_handles_fetch_limits_resolution_and_main_failures(
     assert sha in pinned_text
     assert theme_pin.main() == 0
     assert ext_file.read_text(encoding="utf-8") == pinned_text
+
+
+def test_keepalive_fetcher_handles_404_redirects_oversize_and_proxies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class FakeResp:
+        def __init__(self, status: int, body: bytes = b"", *, length: int | None = 0) -> None:
+            self.status = status
+            self._body = body
+            self.length = length
+
+        def read(self, amt: int | None = None) -> bytes:
+            return self._body if amt is None else self._body[:amt]
+
+    class FakeConn:
+        def __init__(self, responses: list[FakeResp]) -> None:
+            self._responses = responses
+            self.requests = 0
+            self.closed = False
+
+        def request(self, *_a: object, **_kw: object) -> None:
+            self.requests += 1
+
+        def getresponse(self) -> FakeResp:
+            return self._responses.pop(0)
+
+        def close(self) -> None:
+            self.closed = True
+
+    # Non-retryable 404 fails on the first attempt without retrying and is caught cleanly by main() (_PIN_ERRORS).
+    conn_404 = FakeConn([FakeResp(404)])
+    pool = theme_pin._KeepAliveFetcher()  # noqa: SLF001
+    monkeypatch.setattr(pool, "_connection", lambda _h, _p: conn_404)
+    with pytest.raises(theme_pin._NonRetryableHTTPError, match="HTTP 404"):  # noqa: SLF001
+        pool("https://example.test/missing")
+    assert conn_404.requests == 1
+
+    sha = "d" * 40
+    (tmp_path / ".chezmoiexternal.toml.tmpl").write_text("", encoding="utf-8")
+    with monkeypatch.context() as mp:
+        mp.setattr(theme_pin, "ROOT", tmp_path)
+        mp.setattr("sys.argv", ["theme_pin", "--revision", sha])
+        mp.setattr(
+            theme_pin,
+            "prefetch",
+            lambda *_a: (_ for _ in ()).throw(theme_pin._NonRetryableHTTPError("HTTP 404 for https://example.test/x")),  # noqa: SLF001
+        )
+        assert theme_pin.main() == 1
+        assert "Cannot pin fmind/theme: HTTP 404" in capsys.readouterr().err
+
+    # Truncated Content-Length (resp.length > 0 after read) raises IncompleteRead and retries instead of corrupting SHA-256.
+    conn_trunc = FakeConn([FakeResp(200, b"partial", length=10), FakeResp(200, b"complete", length=0)])
+    pool_trunc = theme_pin._KeepAliveFetcher()  # noqa: SLF001
+    monkeypatch.setattr(pool_trunc, "_connection", lambda _h, _p: conn_trunc)
+    monkeypatch.setattr(pool_trunc, "_sleep", lambda _attempt: None)
+    assert pool_trunc("https://example.test/trunc") == b"complete"
+    assert conn_trunc.requests == 2
+
+    # Oversize 200 resets the keep-alive socket before raising.
+    resets: list[tuple[str, int | None]] = []
+    conn_big = FakeConn([FakeResp(200, b"x" * (theme_pin.MAX_BYTES + 1))])
+    pool_big = theme_pin._KeepAliveFetcher()  # noqa: SLF001
+    monkeypatch.setattr(pool_big, "_connection", lambda _h, _p: conn_big)
+    monkeypatch.setattr(pool_big, "_reset", lambda h, p: resets.append((h, p)))
+    with pytest.raises(ValueError, match="exceeds"):
+        pool_big("https://example.test/big")
+    assert resets == [("example.test", None)]
+
+    # 302 redirect delegates to fetch() outside the retry loop (no 3x amplification on fetch failure).
+    conn_redir = FakeConn([FakeResp(302)])
+    pool_redir = theme_pin._KeepAliveFetcher()  # noqa: SLF001
+    monkeypatch.setattr(pool_redir, "_connection", lambda _h, _p: conn_redir)
+    fetch_calls = 0
+
+    def failing_fetch(_url: str) -> bytes:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        raise OSError("redirect target failed")
+
+    monkeypatch.setattr(theme_pin, "fetch", failing_fetch)
+    with pytest.raises(OSError, match="redirect target failed"):
+        pool_redir("https://example.test/redir")
+    assert conn_redir.requests == 1
+    assert fetch_calls == 1
+
+    # Proxy configuration bypasses raw HTTPSConnection pool and uses urllib fetch().
+    monkeypatch.setattr(theme_pin.urllib.request, "getproxies", lambda: {"https": "http://proxy.example.test:8080"})
+    monkeypatch.setattr(theme_pin, "COPIED", {})
+    monkeypatch.setattr(theme_pin, "RAW_COPIES", {})
+    tmpl = (
+        '{{ $base := "https://raw.githubusercontent.com/fmind/theme/'
+        + "a" * 40
+        + '" }}\n["t"]\n    type = "file"\n    url = "{{ $base }}/DESIGN.md"\n'
+        + f'    checksum.sha256 = "{"0" * 64}"\n'
+    )
+    proxy_urls: list[str] = []
+
+    def proxy_fetch(url: str) -> bytes:
+        proxy_urls.append(url)
+        return b"proxied"
+
+    monkeypatch.setattr(theme_pin, "fetch", proxy_fetch)
+    cached = theme_pin.prefetch("b" * 40, tmpl, theme_pin.fetch)
+    assert len(proxy_urls) == 1
+    assert cached(proxy_urls[0]) == b"proxied"

@@ -122,7 +122,12 @@ def _agy_project_folders(path: Path, text: str) -> set[str]:
         git_folder = entry.get("gitFolder")
         uri = entry.get("folderUri") or (git_folder.get("folderUri") if isinstance(git_folder, dict) else None)
         if isinstance(uri, str) and uri.startswith("file://"):
-            folders.add(unquote(urlparse(uri).path))
+            raw_path = unquote(urlparse(uri).path)
+            if raw_path:
+                try:
+                    folders.add(str(Path(raw_path).resolve()))
+                except OSError:
+                    folders.add(raw_path.rstrip("/") or "/")
     return folders
 
 

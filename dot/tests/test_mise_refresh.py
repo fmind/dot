@@ -84,14 +84,11 @@ def test_refresh_uses_portable_source_and_isolated_config(
         args: list[str],
         *,
         env: dict[str, str],
-        check: bool,
-        timeout: int,
-        cwd: Path | None = None,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check
+        timeout: float,
+        cwd: Path,
+    ) -> None:
         assert timeout > 0
         commands.append(args)
-        assert cwd is not None
         assert cwd != root
         staging.append(cwd)
         configuration = Path(env["MISE_CONFIG_DIR"])
@@ -117,9 +114,8 @@ def test_refresh_uses_portable_source_and_isolated_config(
             (configuration / "config.toml").resolve()
         ]
         write_bundle(configuration, b"refreshed graph\n")
-        return subprocess.CompletedProcess(args, 0)
 
-    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(mise_refresh, "_run_lock", run)
     mise_refresh.refresh(root, bump=bump, tools=tools)
 
     assert commands[-1] == ["mise", "lock", "--global", "--yes", *expected]
@@ -142,13 +138,10 @@ def test_refresh_failure_preserves_the_managed_bundle(
         args: list[str],
         *,
         env: dict[str, str],
-        check: bool,
-        timeout: int,
-        cwd: Path | None = None,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check
+        timeout: float,
+        cwd: Path,
+    ) -> None:
         assert timeout > 0
-        assert cwd is not None
         staging.append(cwd)
         configuration = Path(env["MISE_CONFIG_DIR"])
         write_bundle(configuration, b"new graph\n")
@@ -163,9 +156,8 @@ def test_refresh_failure_preserves_the_managed_bundle(
             lock.write_text("\n".join(line for line in lock.read_text().splitlines() if not line.startswith("uv =")))
         else:
             (configuration / "locks/example/1.0/uv.lock").write_bytes(b"corrupt\n")
-        return subprocess.CompletedProcess(args, 0)
 
-    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(mise_refresh, "_run_lock", run)
     with pytest.raises((ValueError, subprocess.CalledProcessError)):
         mise_refresh.refresh(tmp_path)
     assert bundle(source / "mise.lock") == before
@@ -222,11 +214,9 @@ def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
         args: list[str],
         *,
         env: dict[str, str],
-        check: bool,
-        timeout: int,
-        cwd: Path | None = None,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check
+        timeout: float,
+        cwd: Path,
+    ) -> None:
         assert timeout > 0
         assert cwd is not None
         assert args[-2:] == ["--bump", "pypi:example"]
@@ -239,9 +229,8 @@ def test_refresh_tool_moves_only_its_entry_and_retires_the_old_graph(
         lock = configuration / "mise.lock"
         lock.write_text(lock.read_text().replace('"1.0"\nuv', '"2.0"\nuv', 1).replace("example/1.0", "example/2.0"))
         assert hashlib.sha256(content).hexdigest() in lock.read_text()
-        return subprocess.CompletedProcess(args, 0)
 
-    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(mise_refresh, "_run_lock", run)
     mise_refresh.refresh(tmp_path, tools=["pypi:example"])
 
     lock = (source / "mise.lock").read_text()
@@ -270,10 +259,10 @@ def test_main_rejects_invalid_selections_before_resolving(
     write_bundle(source)
     before = bundle(source / "mise.lock")
 
-    def run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def run(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("invalid input must not reach mise")
 
-    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(mise_refresh, "_run_lock", run)
     monkeypatch.setattr(mise_refresh, "ROOT", tmp_path)
     monkeypatch.setattr(sys, "argv", ["mise_refresh", *arguments])
     with pytest.raises(SystemExit) as exit_info:
@@ -316,19 +305,94 @@ def test_refresh_resolves_symlinked_tempdir_for_mise_trust(tmp_path: Path, monke
         args: list[str],
         *,
         env: dict[str, str],
-        check: bool,
-        timeout: int,
-        cwd: Path | None = None,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check
+        timeout: float,
+        cwd: Path,
+    ) -> None:
         assert timeout > 0
         seen.append((cwd, env["MISE_TRUSTED_CONFIG_PATHS"]))
         write_bundle(Path(env["MISE_CONFIG_DIR"]), b"resolved graph\n")
-        return subprocess.CompletedProcess(args, 0)
+        del args
 
     monkeypatch.setattr(mise_refresh.tempfile, "TemporaryDirectory", FakeTempDir)
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(mise_refresh, "_run_lock", fake_run)
     mise_refresh.refresh(tmp_path)
 
     resolved = real_tmp.resolve()
     assert seen == [(resolved, str(resolved))]
+
+
+def test_run_lock_kills_process_group_on_timeout_and_raises_on_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+    import signal
+    import threading
+    import time
+
+    from fmind_dot import process as process_module
+
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
+        mise_refresh._run_lock([sys.executable, "-c", "raise SystemExit(4)"], cwd=tmp_path, env=dict(os.environ))  # noqa: SLF001
+    assert exc_info.value.returncode == 4
+
+    monkeypatch.setattr(process_module, "_TERMINATION_GRACE_SECONDS", 0.2)
+    with pytest.raises(subprocess.TimeoutExpired):
+        mise_refresh._run_lock(  # noqa: SLF001
+            [sys.executable, "-c", "import time; time.sleep(30)"], cwd=tmp_path, env=dict(os.environ), timeout=0.15
+        )
+
+    # Leader uses default SIGTERM (exits immediately) while grandchild installs SIG_IGN and atomically publishes its PID.
+    # Waiting for readiness avoids fixed startup races and verifies terminate_process still SIGKILLs surviving PGID members.
+    child_pid_file = tmp_path / "child.pid"
+    grandchild_code = (
+        "import os, pathlib, signal, time\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"dst = pathlib.Path({str(child_pid_file)!r})\n"
+        "tmp = dst.with_suffix('.tmp')\n"
+        "tmp.write_text(str(os.getpid()), encoding='utf-8')\n"
+        "os.replace(tmp, dst)\n"
+        "time.sleep(60)\n"
+    )
+    parent_code = (
+        f"import subprocess, sys, time\nsubprocess.Popen([sys.executable, '-c', {grandchild_code!r}])\ntime.sleep(60)\n"
+    )
+    ready_timeout_hit = False
+
+    def trigger_sigterm_when_ready() -> None:
+        nonlocal ready_timeout_hit
+        wait_until = time.monotonic() + 10.0
+        while time.monotonic() < wait_until:
+            if child_pid_file.is_file():
+                signal.raise_signal(signal.SIGTERM)
+                return
+            time.sleep(0.02)
+        ready_timeout_hit = True
+        signal.raise_signal(signal.SIGTERM)
+
+    watcher = threading.Thread(target=trigger_sigterm_when_ready, daemon=True)
+    watcher.start()
+    child_pid: int | None = None
+    try:
+        with pytest.raises(KeyboardInterrupt), process_module.sigterm_as_keyboard_interrupt():
+            mise_refresh._run_lock(  # noqa: SLF001
+                [sys.executable, "-c", parent_code], cwd=tmp_path, env=dict(os.environ), timeout=30.0
+            )
+        watcher.join(timeout=2.0)
+        assert not ready_timeout_hit
+        assert child_pid_file.is_file()
+        child_pid = int(child_pid_file.read_text(encoding="utf-8").strip())
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
+    finally:
+        if child_pid is not None:
+            from contextlib import suppress
+
+            with suppress(ProcessLookupError):
+                os.kill(child_pid, signal.SIGKILL)

@@ -42,7 +42,7 @@ def _read_secret_file(name: str) -> str:
         _fail(f"{name}: personal secret directory must be an owner-only directory (chmod 700)")
     try:
         dir_st = os.fstat(dir_fd)
-        if dir_st.st_uid != os.getuid() or (stat.S_IMODE(dir_st.st_mode) & 0o077) != 0:
+        if dir_st.st_uid != os.getuid() or (stat.S_IMODE(dir_st.st_mode) & ~0o700) != 0:
             _fail(f"{name}: personal secret directory must be an owner-only directory (chmod 700)")
         try:
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
@@ -52,7 +52,7 @@ def _read_secret_file(name: str) -> str:
             _fail(f"{name}: personal secret must be an owner-only regular file (chmod 600)")
         try:
             st = os.fstat(fd)
-            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or (stat.S_IMODE(st.st_mode) & 0o077) != 0:
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or (stat.S_IMODE(st.st_mode) & ~0o600) != 0:
                 _fail(f"{name}: personal secret must be an owner-only regular file (chmod 600)")
             chunks: list[bytes] = []
             remaining = _MAX_SECRET_BYTES + 1

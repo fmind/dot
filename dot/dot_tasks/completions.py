@@ -15,14 +15,25 @@ from fmind_dot.command import FISH_COMPLETION
 from fmind_dot.config import expand_path
 from fmind_dot.errors import DotError
 from fmind_dot.private_files import write_atomic_file
-from fmind_dot.process import CommandResult, run_parallel
+from fmind_dot.process import CommandResult, run_parallel, sigterm_as_keyboard_interrupt
 from fmind_dot.state import State, require_tools
 
 _COMPLETION_TIMEOUT_SECONDS = 60.0
 _PROBE_CONCURRENCY = 8
 COMPLETIONS_PATH = "~/.config/fish/completions"
 
-_PLAIN_COMPLETIONS = ("betterleaks", "chezmoi", "copilot", "databricks", "dot", "genie", "mise", "trivy")
+_PLAIN_COMPLETIONS = (
+    "agentsview",
+    "betterleaks",
+    "chezmoi",
+    "copilot",
+    "databricks",
+    "dot",
+    "genie",
+    "lazygit",
+    "mise",
+    "trivy",
+)
 _COMPLETION_PACKAGES: dict[str, str] = {"lsd": "lsd", "ya": "yazi", "yazi": "yazi", "zoxide": "zoxide"}
 _COMPLETION_ENV: dict[str, str] = {"hf": "_HF_COMPLETE=fish_source"}
 _COMPLETION_COMMANDS: dict[str, tuple[str, ...]] = (
@@ -36,7 +47,7 @@ _COMPLETION_COMMANDS: dict[str, tuple[str, ...]] = (
         "fd": ("fd", "--gen-completions", "fish"),
         "gh": ("gh", "completion", "-s", "fish"),
         "git-lfs": ("git", "lfs", "completion", "fish"),
-        "lazygit": ("lazygit", "completion", "fish"),
+        "openspec": ("openspec", "completion", "generate", "fish"),
         "tree-sitter": ("tree-sitter", "complete", "--shell", "fish"),
         "usage": ("usage", "--completions", "fish"),
         "uvx": ("uvx", "--generate-shell-completion", "fish"),
@@ -49,13 +60,15 @@ COMPLETION_TOOLS: frozenset[str] = (
 )
 
 
-def _write_validated_fish(state: State, path: Path, content: str, mode: int) -> None:
+def _write_validated_fish(
+    state: State, path: Path, content: str, mode: int, *, env: Mapping[str, str] | None = None
+) -> None:
     if not content.strip():
         raise DotError(f"generated Fish script is empty: {path.name}")
     require_tools(state, [["fish"]])
     try:
         state.runner.run(
-            ["fish", "--no-config", "--no-execute"], input_text=content, timeout=_COMPLETION_TIMEOUT_SECONDS
+            ["fish", "--no-config", "--no-execute"], input_text=content, env=env, timeout=_COMPLETION_TIMEOUT_SECONDS
         )
     except (DotError, OSError) as error:
         raise DotError(f"generated Fish script failed syntax validation: {path.name}") from error
@@ -216,7 +229,7 @@ def _run_completion(state: State, directory: Path) -> list[str]:
                     mise_bin_path=mise_bin_path,
                     run_env=run_env,
                 )
-                _write_validated_fish(state, directory / f"{tool}.fish", script, 0o644)
+                _write_validated_fish(state, directory / f"{tool}.fish", script, 0o644, env=run_env)
                 return f"  ✓ Generated completions for {tool}", None
             except FileNotFoundError:
                 return f"  ○ {tool} is not installed or active, skipping", None
@@ -253,13 +266,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Validate generators in a temporary directory without installing scripts",
     )
     args = parser.parse_args(argv)
-    try:
-        run_completion(State(), check_only=args.check_only)
-    except KeyboardInterrupt:
-        return 130
-    except (DotError, OSError) as error:
-        sys.stderr.write(f"completions: {error}\n")
-        return 1
+    with sigterm_as_keyboard_interrupt():
+        try:
+            run_completion(State(), check_only=args.check_only)
+        except KeyboardInterrupt:
+            return 130
+        except (DotError, OSError) as error:
+            sys.stderr.write(f"completions: {error}\n")
+            return 1
     return 0
 
 

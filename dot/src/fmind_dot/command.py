@@ -24,7 +24,7 @@ complete --command dot --no-files --condition __dot_prepare_candidates --argumen
 
 class _HelpFormatter(argparse.HelpFormatter):
     def __init__(self, prog: str, **kwargs: Any) -> None:
-        width = shutil.get_terminal_size().columns - 2 if sys.stdout.isatty() else 160
+        width = max(40, shutil.get_terminal_size().columns - 2) if sys.stdout.isatty() else 160
         super().__init__(prog, max_help_position=28, width=width, **kwargs)
 
     def _fill_text(self, text: str, width: int, indent: str) -> str:
