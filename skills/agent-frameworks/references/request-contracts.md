@@ -13,7 +13,10 @@ Shared model tiers and cross-provider request invariants for [agent-frameworks](
 
 ## Cross-provider contracts
 
-- **Gemini 4 (`Hydrogen`, `Neon`, `Argon`, `Carbon`)**: unified `1,048,576` input+output window with `65,536` foreground output segment (`32,768` non-streaming on Carbon); use `v1beta1` `continuation_token` or Interactions API `background=true` for longer decodes. Set `thinking_level` only (`MINIMAL` and `thinking_budget` return HTTP 400). Custom `temperature`/`top_p`/`top_k` are ignored. Implicit durable caching applies at `>= 4,096` tokens (explicit caching unsupported; TTL controls start Jan 12, 2027). Accepts native Microsoft Office (`.docx`/`.dotx`/`.doc`/`.pptx`/`.ppt`/`.xlsx`/`.xls`) and OpenDocument (`.odt`/`.odp`/`.ods`) inputs.
+- **Gemini 4 (`Hydrogen`, `Neon`, `Argon`, `Carbon`)**:
+  - Unified `1,048,576` input+output window with `65,536` foreground output segment (`32,768` non-streaming on Carbon); use `v1beta1` `continuation_token` or Interactions API `background=true` for longer decodes.
+  - Set `thinking_level` only (`MINIMAL` and `thinking_budget` return HTTP 400); custom `temperature`/`top_p`/`top_k` are ignored.
+  - Implicit durable caching applies at `>= 4,096` tokens (explicit caching unsupported; TTL controls start Jan 12, 2027); accepts native Office (`.docx`/`.dotx`/`.doc`/`.pptx`/`.ppt`/`.xlsx`/`.xls`) and OpenDocument (`.odt`/`.odp`/`.ods`) inputs.
 - **Claude 5.x (`Opus 5.5`, `Sonnet 5.5`, `Haiku 5.5`, `Fable 5.2`)**: omit sampling params and trailing assistant prefills (HTTP 400). Keep `tool_choice: {"type": "auto"}` with `strict: true` (HTTP 400 on `any` or named tool). Keep system/tool prefixes byte-stable (`cache_control: {"type": "ephemeral"}`) and turns append-only (mutating prior turns invalidates thinking blocks with HTTP 400).
 - **OpenAI (`Responses API`)**: omit legacy `chat.completions` for new reasoning or structured workloads; use `text_format`, `reasoning={"effort": ...}`, `strict: true`, `store=False` by default, and fail closed when `output_parsed is None`.
 

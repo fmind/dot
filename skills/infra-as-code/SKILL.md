@@ -1,42 +1,43 @@
 ---
 name: infra-as-code
-description: "Manage OpenTofu/Terraform modules, providers, state, plans."
+description: "Manage OpenTofu/Terraform modules, providers, state/KMS encryption, plans, and tests (tofu, tflint, terraform-docs, tftest)."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/infra-as-code
   created: "2026-09-16"
-  updated: "2026-11-23"
+  updated: "2026-11-27"
 ---
 
 # Infrastructure as Code
 
-Manage infrastructure with OpenTofu (`tofu`); pin HashiCorp `terraform` in `mise.toml` only when a BSL-only feature or client mandate requires it, documenting why.
+Manage infrastructure with OpenTofu (`tofu`); pin `terraform` in `mise.toml` only when a BSL-only feature or client mandate requires it. Audit modules, IAM, and spend before apply with `fmind-review-terraform`, `fmind-review-security`, and `fmind-review-finops` ([subagent](../subagent/SKILL.md)).
 
 ## Defaults
 
-- **Pin project tools in `mise.toml`**: declare `opentofu`, `tflint`, and `terraform-docs` via `mise use --pin <tool>` ([mise.toml](templates/mise.toml); check compatibility before migrating from Terraform).
-- **Align tasks, hooks, and docs**: [mise.toml](templates/mise.toml) and [lefthook.yml](templates/lefthook.yml) wire format, validate, `tflint`, `trivy`, and `betterleaks` ([mise](../mise/SKILL.md), [lefthook](../github/references/lefthook.md)); `mise run build` injects `TF_DOCS` tables into `README.md` offline via [terraform-docs.yml](templates/terraform-docs.yml).
-- **Use keyless auth**: ADC locally and Workload Identity Federation in CI ([cloud-run bootstrap](../gcloud/references/cloud-run/references/bootstrap.md)).
+- **Pin tools & hooks**: declare `opentofu`, `tflint`, and `terraform-docs` via `mise use --pin` ([mise.toml](templates/mise.toml), [lefthook.yml](templates/lefthook.yml), [mise](../mise/SKILL.md), [lefthook](../git-delivery/references/lefthook.md)); `mise run build` updates `README.md` via [terraform-docs.yml](templates/terraform-docs.yml).
+- **Use keyless auth**: ADC locally and WIF in CI ([cloud-run bootstrap](../gcloud/references/cloud-run/references/bootstrap.md)).
 
 ## Workflow
 
-1. **Confirm target and initialize**: verify root module, backend, `tofu workspace show`, cloud project, credentials, and scope; run `mise run install` on fresh clones (`tofu init` + `tflint --init`).
-1. **Isolate state per concern**: edit the smallest owning root module with a distinct GCS `prefix` per module ([in-app layout](references/scaffold.md#opentofu-inside-an-application-repository) for `infra/` inside an app repo).
-1. **Gate offline first**: run `mise run check` and `mise run test` (`tests/*.tftest.hcl` use `command = plan` with `mock_provider` as in [main.tftest.hcl](templates/main.tftest.hcl); unmocked plan tests hit cloud APIs/state). Encode invariants as `check:scan` Trivy checks or plan assertions.
-1. **Plan on demand**: run `mise run plan` (`tmp/plan.tfplan`), keeping `plan` and `apply` out of hooks/CI gates.
-1. **Apply reviewed plans only when authorized**: highlight replacements, destroys, IAM, and cost in `tofu show tmp/plan.tfplan`, run `tofu apply tmp/plan.tfplan`, delete `tmp/plan.tfplan`, and verify `tofu plan -input=false -detailed-exitcode` exits 0.
+1. **Confirm scope & init**: check root module, backend, `tofu workspace show`, project, and auth; run `mise run install` on fresh clones.
+1. **Isolate state**: edit the smallest root module with a unique GCS `prefix` ([in-app layout](references/scaffold.md#opentofu-inside-an-application-repository)).
+1. **Gate offline**: run `mise run check` and `mise run test` (`command = plan` + `mock_provider` per [main.tftest.hcl](templates/main.tftest.hcl)).
+1. **Plan & CI**: run `mise run plan` (`tmp/plan.tfplan`), never in Git hooks. In CI ([tofu.yml](templates/tofu.yml)), run uncredentialed `validate` on PRs, WIF `plan` on `main`, and `apply` only via `workflow_dispatch` (`apply=true`) behind `environment: production`.
+1. **Apply authorized plans**: inspect replacements, destroys, IAM, and cost in `tofu show tmp/plan.tfplan`, run `tofu apply tmp/plan.tfplan`, delete `tmp/plan.tfplan`, and confirm `tofu plan -input=false -detailed-exitcode` exits 0.
 
-## State and secrets
+## HCL Rules
 
-- **Versioned remote state**: never commit `.tfstate`; store shared state in versioned GCS (add OpenTofu client-side KMS encryption per [state-encryption](references/state-encryption.md) only when compliance or threat model requires it beyond GCS default encryption).
-- **Keep secrets out of tfvars and `.tfplan`**: gitignore `*.tfvars` (commit only `*.example.tfvars`), inject `TF_VAR_<name>` via scoped secret launchers into `tofu` only, and declare secret variables `ephemeral = true` bound solely to write-only attributes (e.g. `secret_data_wo` + `secret_data_wo_version`), re-supplying them at `tofu apply tmp/plan.tfplan`.
+- **Prefer `for_each` over `count`**: keyed maps avoid cascading destroy/recreate on list shifts.
+- **Refactor declaratively**: use `moved`, `import`, and `removed` blocks instead of manual `tofu state` edits.
+- **Keep child `modules/` pure**: zero `local-exec`/`remote-exec` provisioners, no `backend`/`provider` blocks inside child `modules/`, and `lifecycle { prevent_destroy = true }` on stateful prod resources (DBs, KMS keys, state buckets).
 
-## Gotchas
+## State, Secrets & Gotchas
 
-- **Pass `GITHUB_TOKEN` in CI for `tflint --init`** ([tflint.hcl](templates/tflint.hcl)) and run `tofu init -backend=false` + `tflint --init` before `mise run all` in [ci.yml](../github/references/ci-cd/templates/ci.yml).
-- **Review provider major upgrades**: [versions.tf](templates/versions.tf) constrains Google to `~> 8.0`; read provider upgrade guides when bumping majors via [upgrade-tools](../mise/references/upgrade-tools/GUIDE.md).
+- **Remote state & encryption**: never commit `.tfstate`; use versioned GCS (add KMS encryption per [state-encryption](references/state-encryption.md) when required).
+- **Secret hygiene**: gitignore `*.tfvars` (commit `*.example.tfvars`), inject `TF_VAR_<name>` via scoped launchers, and mark secret vars `ephemeral = true` bound to write-only attributes (`secret_data_wo` + `secret_data_wo_version`).
+- **CI `tflint` & providers**: pass `GITHUB_TOKEN` to `tflint --init` ([tflint.hcl](templates/tflint.hcl)) and run `tofu init -backend=false` + `tflint --init` before `mise run all` in [ci.yml](../github/references/ci-cd/templates/ci.yml). Review major bumps (`~> 8.0` in [versions.tf](templates/versions.tf)) via [upgrade-tools](../mise/references/upgrade-tools/GUIDE.md).
 
 ## Task guides
 
@@ -49,6 +50,5 @@ Manage infrastructure with OpenTofu (`tofu`); pin HashiCorp `terraform` in `mise
 
 ## Documentation
 
-- [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [terraform-docs](https://terraform-docs.io) · [State encryption](https://opentofu.org/docs/language/state/encryption/) · [releases](https://github.com/opentofu/opentofu/releases)
-- Upstream: `hashicorp/agent-skills` via [vendor-skill policy](../agent-harnesses/references/vendor-skills.md).
-- Companion skills: [mise](../mise/SKILL.md), [github/ci-cd](../github/references/ci-cd/GUIDE.md), [code-security](../code-security/references/code-review/GUIDE.md), [gcloud](../gcloud/SKILL.md).
+- [OpenTofu](https://opentofu.org/docs/) · [tflint](https://github.com/terraform-linters/tflint) · [trivy config](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [State encryption](https://opentofu.org/docs/language/state/encryption/) · [releases](https://github.com/opentofu/opentofu/releases)
+- Upstream: `hashicorp/agent-skills` ([vendor-skill policy](../agent-harnesses/references/vendor-skills.md)). Companions: [mise](../mise/SKILL.md), [github/ci-cd](../github/references/ci-cd/GUIDE.md), [code-security](../code-security/references/code-review/GUIDE.md), [gcloud](../gcloud/SKILL.md).

@@ -1,13 +1,13 @@
 ---
 name: git-delivery
-description: "Commit, push, release (Conventional Commits, git-cliff), branches, worktrees, conflicts, hooks."
+description: "Commit, push, release (Conventional Commits, git-cliff), branches, worktrees, conflicts, Lefthook hooks."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/git-delivery
   created: "2026-09-16"
-  updated: "2026-11-23"
+  updated: "2026-11-25"
 ---
 
 # Git Delivery
@@ -33,6 +33,7 @@ Deliver only authorized changes while preserving the index, branch state, and en
 
 - [git-add-commit-push](references/git-add-commit-push.md): Stage, commit, push, and recover hook failures within the authorized scope.
 - [git-worktree](references/git-worktree/GUIDE.md): Create Git branches, worktrees, or isolated snapshots of uncommitted work.
+- [lefthook](references/lefthook.md): Configure local Lefthook Git hooks via mise tasks.
 - [release](references/release/GUIDE.md): Prepare, publish when requested, or verify versioned releases.
 - [resolve-conflicts](references/resolve-conflicts.md): Resolve Git merge or rebase conflicts by both sides' intent; verify the result.
 

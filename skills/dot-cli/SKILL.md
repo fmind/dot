@@ -1,13 +1,13 @@
 ---
 name: dot-cli
-description: "Run dot/with-secret (context, doctor, login, privacy, pull, status, trust), check auth, manage timers."
+description: "Run dot/with-secret (context, doctor, login, privacy, pull, status, trust), audit auth/disk space, manage systemd/launchd timers."
 license: MIT
 metadata:
-  kind: connector
+  kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/dot-cli
   created: "2026-07-31"
-  updated: "2026-11-24"
+  updated: "2026-11-25"
 ---
 
 # Dot CLI

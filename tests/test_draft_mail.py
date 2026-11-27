@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
-import shutil
 from email import message_from_bytes
 from email.message import EmailMessage
 from email.policy import default as default_policy
@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from repo_helpers import ROOT, load_script
+from repo_helpers import ROOT, load_script, native_binary
 
 SCRIPT = ROOT / "skills/draft/references/mail/scripts/draft_email.py"
 
@@ -638,17 +638,24 @@ def test_cli_vale_blocks_errors_and_surfaces_advisory_warnings(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    if shutil.which("vale") is None:
+    vale_bin = native_binary("vale")
+    if vale_bin is None:
+        if os.environ.get("CI"):
+            pytest.fail("Vale binary must be installed in CI via mise.toml")
         pytest.skip("Vale binary is required for draft_email prose gate verification")
+    monkeypatch.setenv("PATH", f"{vale_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
 
     # Point global config fallback to the repository's Vale config.
     monkeypatch.chdir(tmp_path)
-    (tmp_path / ".vale.ini").write_text(
+    tmp_path.chmod(0o700)
+    vale_ini = tmp_path / ".vale.ini"
+    vale_ini.write_text(
         f"StylesPath = {Path(__file__).resolve().parents[1] / 'dot_config/vale/styles'}\n"
         "MinAlertLevel = warning\nIgnoredScopes = code, tt\nSkippedScopes = script, style, pre, figure\n"
         "[*.{md,mdx,txt,html}]\nBasedOnStyles = Fmind\n",
         encoding="utf-8",
     )
+    vale_ini.chmod(0o600)
 
     slop_html = tmp_path / "slop.html"
     slop_html.write_text("<p>We delve into updates &mdash; ready now.</p>", encoding="utf-8")
@@ -667,3 +674,128 @@ def test_cli_vale_blocks_errors_and_surfaces_advisory_warnings(
     assert any("Fmind.SlopStyle" in item for item in payload["proseWarnings"])
     assert any("Fmind.Wordiness" in item for item in payload["proseWarnings"])
     assert "draft_email warning:" in captured.err
+
+
+def test_recipient_specials_crlf_quotes_and_vale_hardening(
+    mod: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import subprocess
+    import sys
+
+    # RFC 5322 specials `.[]` in display names must be quoted so SMTP headers stay defect-free.
+    built = mod.compose_draft_payload(
+        "<p>Hello team.</p>",
+        send_as=SAMPLE_SEND_AS,
+        to_flags=['"Team [FR]" <team@example.com>', '"Dr. Smith" <dr@example.com>'],
+        cc_flags=[],
+        bcc_flags=[],
+        remove_flags=[],
+        subject="Specials test",
+    )
+    mime_msg = _decode_raw_mime(built["draft"]["message"]["raw"])
+    assert not mime_msg["To"].defects
+    assert "team@example.com" in mime_msg["To"]
+    assert "dr@example.com" in mime_msg["To"]
+
+    # CRLF plain-text parent quote converts cleanly without residual \r before <br>.
+    parent_crlf: dict[str, Any] = {
+        "id": "m1",
+        "threadId": "t1",
+        "payload": {
+            "mimeType": "text/plain",
+            "headers": [
+                {"name": "From", "value": "Alice <alice@example.com>"},
+                {"name": "To", "value": "github@fmind.dev"},
+                {"name": "Subject", "value": "CRLF"},
+                {"name": "Message-ID", "value": "<m1@example.com>"},
+            ],
+            "body": {"data": _b64url("Line 1\r\nLine 2\r\n")},
+        },
+    }
+    ctx = mod.extract_reply_context(parent_crlf)
+    assert "\r" not in ctx["quotedHtml"]
+    assert "Line 1<br>Line 2" in ctx["quotedHtml"]
+
+    # Invalid recipient flags (missing '@', empty angle addr, double '@', invalid --from) fail before calling gws.
+    html_file = tmp_path / "body.html"
+    html_file.write_text("<p>Hello.</p>", encoding="utf-8")
+    for bad_argv in (
+        [str(html_file), "--to", "not-an-email", "--subject", "Hi"],
+        [str(html_file), "--to", "alice@example.com", "--cc", "Bob <>", "--subject", "Hi"],
+        [str(html_file), "--to", "a@b@c", "--subject", "Hi"],
+        [str(html_file), "--to", "alice@example.com", "--from", "@", "--subject", "Hi"],
+    ):
+        assert mod.main(bad_argv) == 1
+        assert "valid email address" in capsys.readouterr().err
+
+    # Vale config discovery refuses world/group-writable parent dirs; exit-1 without findings and timeout fail closed.
+    mail_mime = sys.modules["mail_mime"]
+    world_dir = tmp_path / "world"
+    world_dir.mkdir()
+    world_cfg = world_dir / ".vale.ini"
+    world_cfg.write_text("MinAlertLevel = error\n", encoding="utf-8")
+    world_cfg.chmod(0o600)
+    for bad_mode in (0o777, 0o775):
+        world_dir.chmod(bad_mode)
+        try:
+            assert mail_mime._is_trusted_vale_config(world_cfg) is False  # noqa: SLF001
+        finally:
+            world_dir.chmod(0o700)
+
+    tmp_path.chmod(0o700)
+    safe_cfg = tmp_path / ".vale.ini"
+    safe_cfg.write_text("MinAlertLevel = error\n", encoding="utf-8")
+    safe_cfg.chmod(0o600)
+    monkeypatch.setattr(mail_mime.shutil, "which", lambda name: "/bin/vale" if name == "vale" else None)
+    monkeypatch.setattr(
+        mail_mime.subprocess,
+        "run",
+        lambda *_a, **_kw: subprocess.CompletedProcess(["vale"], 1, stdout="", stderr="config error"),
+    )
+    with pytest.raises(RuntimeError, match="vale failed"):
+        mail_mime.check_prose_with_vale("<p>hi</p>", cwd=tmp_path)
+
+    monkeypatch.setattr(
+        mail_mime.subprocess,
+        "run",
+        lambda *_a, **_kw: subprocess.CompletedProcess(["vale"], 1, stdout="{}", stderr=""),
+    )
+    with pytest.raises(RuntimeError, match="without error findings"):
+        mail_mime.check_prose_with_vale("<p>hi</p>", cwd=tmp_path)
+
+    monkeypatch.setattr(
+        mail_mime.subprocess,
+        "run",
+        lambda *_a, **_kw: (_ for _ in ()).throw(subprocess.TimeoutExpired(["vale"], 20)),
+    )
+    with pytest.raises(RuntimeError, match="vale timed out"):
+        mail_mime.check_prose_with_vale("<p>hi</p>", cwd=tmp_path)
+
+    # Untrusted parent HTML in replies must strip scripts/handlers and balance breakout tags.
+    evil_parent: dict[str, Any] = {
+        "id": "m2",
+        "threadId": "t2",
+        "payload": {
+            "mimeType": "text/html",
+            "headers": [
+                {"name": "From", "value": "Mallory <mallory@example.com>"},
+                {"name": "To", "value": "github@fmind.dev"},
+                {"name": "Subject", "value": "XSS"},
+                {"name": "Message-ID", "value": "<m2@example.com>"},
+            ],
+            "body": {
+                "data": _b64url(
+                    '</blockquote></div><script>alert(1)</script><p onclick="evil()">Hi '
+                    '<a href="javascript:alert(2)">click</a> <a href="https://example.com">ok</a>'
+                )
+            },
+        },
+    }
+    evil_ctx = mod.extract_reply_context(evil_parent)
+    assert "<script" not in evil_ctx["quotedHtml"].lower()
+    assert "alert(1)" not in evil_ctx["quotedHtml"]
+    assert "onclick" not in evil_ctx["quotedHtml"].lower()
+    assert "javascript:" not in evil_ctx["quotedHtml"].lower()
+    assert "</blockquote>" not in evil_ctx["quotedHtml"].lower()
+    assert 'href="https://example.com"' in evil_ctx["quotedHtml"]
+    assert evil_ctx["quotedHtml"].endswith("</p>")

@@ -1,6 +1,6 @@
 ---
 name: charts
-description: "Quantitative data charts with Altair/vl-convert and Matplotlib: honest scales, CVD palettes, direct labels, PNG/SVG export."
+description: "Plot quantitative data charts with Altair/vl-convert and Matplotlib: honest scales, CVD palettes, PNG/SVG."
 ---
 
 # Quantitative Data Charts

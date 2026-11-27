@@ -15,18 +15,44 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 NS = "{http://www.w3.org/2000/svg}"
+SVG_NS = "http://www.w3.org/2000/svg"
 XLINK = "{http://www.w3.org/1999/xlink}href"
 MIN_FONT_PX = 12.0
-FORBIDDEN = {"script", "foreignObject", "iframe", "object", "embed"}
-# Only px or unitless sizes compare with the floor; relative units (em, rem, %, pt) are skipped.
-FONT_SIZE = re.compile(r"font-size\s*:\s*([0-9.]+)(?:px)?\s*(?=[;}\s!]|$)", re.IGNORECASE)
+FORBIDDEN = {
+    "script",
+    "foreignobject",
+    "iframe",
+    "object",
+    "embed",
+    "handler",
+    "animate",
+    "set",
+    "animatemotion",
+    "animatetransform",
+}
+_UNSAFE_CSS_RE = re.compile(
+    r"\\|@import|@font-face|(?:(?:-webkit-)?image-set|src)\s*\(|url\(\s*['\"]?\s*(?!#)",
+    re.IGNORECASE,
+)
+_UNSAFE_ATTR_URL_RE = re.compile(r"url\(\s*['\"]?\s*(?!#)", re.IGNORECASE)
+_UNSAFE_PI_RE = re.compile(r"<\?(?!xml(?:\s|\?>))", re.IGNORECASE)
+_UNSAFE_DTD_RE = re.compile(r"<!(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
+# Check px, unitless (SVG user units == px), and pt (* 4/3); relative units (em, rem, %) are skipped.
+FONT_SIZE = re.compile(r"font-size\s*:\s*([0-9.]+)(px|pt)?\s*(?=[;}\s!]|$)", re.IGNORECASE)
 BRAND_FONTS = re.compile(r'"Google Sans( Text| Code)?",\s*')
 CHROMES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
 MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 
+def _split_tag(tag: str) -> tuple[str, str]:
+    if tag.startswith("{") and "}" in tag:
+        ns, name = tag[1:].split("}", 1)
+        return ns, name
+    return "", tag
+
+
 def local(tag: str) -> str:
-    return tag.removeprefix(NS)
+    return _split_tag(tag)[1]
 
 
 def view_box(root: ET.Element) -> tuple[float, float] | None:
@@ -54,9 +80,16 @@ def check(path: Path, width: float) -> list[str]:
         root = ET.fromstring(text)  # noqa: S314 - local first-party file; no entity expansion in ElementTree
     except ET.ParseError as error:
         return [f"not well-formed XML: {error}"]
-    if local(root.tag) != "svg":
-        return [f"root element is <{local(root.tag)}>, not <svg>"]
+    root_ns, root_name = _split_tag(root.tag)
+    if root_name != "svg":
+        return [f"root element is <{root_name}>, not <svg>"]
     problems: list[str] = []
+    if root_ns != SVG_NS:
+        problems.append(f'root <svg> needs xmlns="{SVG_NS}"')
+    if _UNSAFE_PI_RE.search(text):
+        problems.append("XML processing instruction (such as <?xml-stylesheet?>) is forbidden in SVG files")
+    if _UNSAFE_DTD_RE.search(text):
+        problems.append("<!DOCTYPE> or <!ENTITY> declaration is forbidden in SVG files")
     size = view_box(root)
     if size is None:
         problems.append("missing or invalid viewBox")
@@ -77,33 +110,60 @@ def check(path: Path, width: float) -> list[str]:
         problems.append("root <svg> needs aria-labelledby pointing at its <title> and <desc>")
     problems += [f"aria-labelledby references missing id {ref!r}" for ref in labelled if ref not in ids]
     for element in root.iter():
-        tag = local(element.tag)
-        if tag in FORBIDDEN:
+        ns, tag = _split_tag(element.tag)
+        if ns and ns != SVG_NS:
+            problems.append(f"<{tag}> uses non-SVG namespace {ns!r}; remove foreign XML content")
+        if tag.lower() in FORBIDDEN:
             problems.append(f"<{tag}> is ignored or unsafe when the SVG is embedded through <img>")
         for attribute, value in element.attrib.items():
             name = attribute.rsplit("}", 1)[-1]
-            if name.lower().startswith("on"):
+            lower_name = name.lower()
+            if lower_name.startswith("on"):
                 problems.append(f"<{tag}> has event-handler attribute {name!r}; remove executable content")
             # XML entities are already decoded; also catch whitespace-obfuscated schemes.
-            if re.sub(r"[\x00-\x20]", "", value).lower().startswith("javascript:"):
-                problems.append(f"<{tag}> has a javascript: URL in {name!r}; remove executable content")
-        href = element.get("href") or element.get(XLINK) or ""
-        if tag in {"image", "use", "feImage"} and href and not href.startswith("#"):
-            problems.append(f"<{tag}> loads {href[:60]!r}; inline the shape instead of external or raster content")
-        css = "".join(element.itertext()) if tag == "style" else (element.get("style") or "")
-        if tag == "style" and re.search(r"@import|@font-face|url\(\s*['\"]?(https?:|data:)", css, re.IGNORECASE):
-            problems.append("<style> imports, embeds fonts, or loads remote URLs; <img> sandboxing drops them")
-        sizes = FONT_SIZE.findall(css)
+            compact = re.sub(r"[\x00-\x20]", "", value).lower()
+            bad_scheme = (
+                "javascript"
+                if compact.startswith("javascript:")
+                else "vbscript"
+                if compact.startswith("vbscript:")
+                else "data"
+                if lower_name == "href" and compact.startswith("data:")
+                else "file"
+                if lower_name == "href" and compact.startswith("file:")
+                else ""
+            )
+            if bad_scheme:
+                problems.append(f"<{tag}> has a {bad_scheme}: URL in {name!r}; remove executable or data URI content")
+            elif lower_name == "href" and tag.lower() != "a" and value.strip() and not value.strip().startswith("#"):
+                # Note: internal <a href> links are inert/stripped under <img> (see svg/GUIDE.md);
+                # executable/data/file schemes on <a> are still rejected above, and outer HTML <a href> handles zoom.
+                problems.append(
+                    f"<{tag}> loads {value.strip()[:60]!r}; inline the shape instead of external or raster content"
+                )
+            elif lower_name != "style" and _UNSAFE_ATTR_URL_RE.search(value):
+                problems.append(f"<{tag}> attribute {name!r} loads a non-fragment URL; use local #id references only")
+        style_text = "".join(element.itertext()) if tag.lower() == "style" else ""
+        inline_style = element.get("style") or ""
+        if style_text and _UNSAFE_CSS_RE.search(style_text):
+            problems.append("<style> imports, escapes, embeds fonts, or loads non-fragment URLs; <img> drops them")
+        if inline_style and _UNSAFE_CSS_RE.search(inline_style):
+            problems.append(
+                f"<{tag}> style attribute imports, escapes, embeds fonts, or loads non-fragment URLs; <img> drops them"
+            )
+        css = f"{style_text}\n{inline_style}" if style_text and inline_style else (style_text or inline_style)
+        sizes: list[tuple[str, str]] = list(FONT_SIZE.findall(css))
         attribute = element.get("font-size")
         if attribute:
-            match = re.fullmatch(r"\s*([0-9.]+)(px)?\s*", attribute)
-            sizes += [match.group(1)] if match else []
-        for value in sizes:
+            match = re.fullmatch(r"\s*([0-9.]+)(px|pt)?\s*", attribute, re.IGNORECASE)
+            sizes += [(match.group(1), match.group(2) or "")] if match else []
+        for value, unit in sizes:
             try:
-                px = float(value)
+                raw_num = float(value)
             except ValueError:
                 problems.append(f"<{tag}> uses invalid font-size {value!r}")
                 continue
+            px = raw_num * (4.0 / 3.0) if unit.lower() == "pt" else raw_num
             if px < MIN_FONT_PX:
                 problems.append(f"<{tag}> uses font-size {px:g}px, below {MIN_FONT_PX:g}px")
     return problems
@@ -206,7 +266,12 @@ def render(path: Path, out: Path) -> list[Path]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        allow_abbrev=False,
+    )
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument("svg", nargs="+", type=Path, help="SVG files to check")
     parser.add_argument("--width", type=float, default=960, help="expected viewBox width; 0 skips the check")
     parser.add_argument("--render", type=Path, metavar="DIR", help="also write brand and fallback-font PNGs to DIR")

@@ -4,6 +4,7 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
+    # Replace `directory: /` with `directories: ["/", "/.github/actions/**/*"]` when local composite actions exist.
     directory: /
     schedule:
       interval: weekly

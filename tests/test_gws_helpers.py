@@ -61,9 +61,13 @@ def test_chat_markdown_is_explicit_and_preserves_body(tmp_path: Path) -> None:
         ("**bold**", (), "--syntax markdown"),
         ("[link](https://example.com)", (), "--syntax markdown"),
         ("```python\npass\n```", (), "language label"),
+        ("```\npass\n```extra", (), "fence"),
+        ("~~~python\npass\n~~~", (), "fence"),
         ("```\nmissing end", (), "Close"),
         ("😀" * 7501, (), "30000-byte"),
+        ("Ready", ("--thread", ""), "Thread"),
         ("Ready", ("--thread", "spaces/example/messages/wrong"), "Thread"),
+        ("Ready", ("--thread", "spaces/a/threads/b?x=1"), "Thread"),
     ],
 )
 def test_chat_rejects_broken_requests(tmp_path: Path, text: str, args: tuple[str, ...], diagnostic: str) -> None:
@@ -426,7 +430,20 @@ def test_drive_upload_create_and_verify_with_mocked_gws(tmp_path: Path, monkeypa
     with pytest.raises(ValueError, match="non-empty"):
         mod.upload_file(empty, drive_folder="folder_12345678")
 
-    # Fail closed on MD5 mismatch during read-back.
+    # Fail closed on missing or mismatched MD5/size during read-back and invalid MIME types.
+    def missing_md5_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        res = fake_run_gws(args, cwd=cwd)
+        if args[:3] == ["drive", "files", "get"]:
+            res.pop("md5Checksum", None)
+        return res
+
+    monkeypatch.setattr(mod, "run_gws", missing_md5_gws)
+    with pytest.raises(RuntimeError, match="MD5 missing or mismatch"):
+        mod.upload_file(pdf, drive_folder="folder_12345678")
+
+    with pytest.raises(ValueError, match="Invalid --content-type"):
+        mod.upload_file(pdf, drive_folder="folder_12345678", content_type="not a mime", dry_run=True)
+
     def bad_md5_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
         res = fake_run_gws(args, cwd=cwd)
         if args[:3] == ["drive", "files", "get"]:
@@ -434,5 +451,91 @@ def test_drive_upload_create_and_verify_with_mocked_gws(tmp_path: Path, monkeypa
         return res
 
     monkeypatch.setattr(mod, "run_gws", bad_md5_gws)
-    with pytest.raises(RuntimeError, match="MD5 mismatch"):
+    with pytest.raises(RuntimeError, match="MD5 missing or mismatch"):
         mod.upload_file(pdf, drive_folder="folder_12345678")
+
+    # _parse_json rejects exit-0 API error envelopes, truncated JSON, and non-object payloads; incompleteSearch fails closed.
+    assert mod._parse_json('[INFO] using {keyring}\n{"id": "ok_12345678"}\n') == {"id": "ok_12345678"}  # noqa: SLF001
+    with pytest.raises(RuntimeError, match="Google API error"):
+        mod._parse_json('{"error": {"code": 403, "message": "Forbidden"}}')  # noqa: SLF001
+    for bad_payload in (
+        '{"id": "ok"} trailing',
+        '{"error": {\n{"code": 403}',
+        '{"error": {"code": 403}',
+        "",
+        "[]",
+    ):
+        with pytest.raises(RuntimeError, match=r"did not return a JSON object|empty output"):
+            mod._parse_json(bad_payload)  # noqa: SLF001
+
+    monkeypatch.setattr(
+        mod,
+        "run_gws",
+        lambda _args, **_kw: {"files": [], "incompleteSearch": True},
+    )
+    with pytest.raises(RuntimeError, match="incomplete"):
+        mod.upload_file(pdf, drive_folder="folder_12345678")
+
+
+def test_docs_text_handles_null_or_empty_text_run(tmp_path: Path) -> None:
+    document = {
+        "body": {
+            "content": [
+                {
+                    "paragraph": {
+                        "elements": [
+                            {"textRun": None},
+                            {"textRun": {}},
+                            {"textRun": {"content": "safe"}},
+                            {"footnoteReference": {"footnoteId": "fn1", "footnoteNumber": "1"}},
+                            {"textRun": {"content": "\n"}},
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+    result = run_helper(tmp_path, "docs_text", json.dumps(document))
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["sections"][0]["text"] == "safe[footnote: 1]\n"
+
+
+def test_pages_accepts_explicit_json_null_fields(tmp_path: Path) -> None:
+    payload = json.dumps({"files": [{"id": "1"}], "nextPageToken": None, "incompleteSearch": None})
+    result = run_helper(tmp_path, "pages", payload, "--items", "files")
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["complete"] is True
+
+
+def test_drive_upload_verifies_protect_copy_on_readback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import hashlib
+
+    mod = load_script("gws_drive_upload_protect", SCRIPTS / "drive_upload.py")
+    pdf = tmp_path / "brief.pdf"
+    content = b"%PDF-1.7\nbody\n"
+    pdf.write_bytes(content)
+    digest = hashlib.md5(content).hexdigest()  # noqa: S324
+
+    def fake_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
+        assert cwd.is_dir()
+        if args[:3] == ["drive", "files", "list"]:
+            return {"files": []}
+        if args[:3] == ["drive", "files", "create"]:
+            return {"id": "file_12345678"}
+        if args[:3] == ["drive", "files", "get"]:
+            params = json.loads(args[args.index("--params") + 1])
+            assert "copyRequiresWriterPermission" in params["fields"]
+            return {
+                "id": "file_12345678",
+                "name": "brief.pdf",
+                "mimeType": "application/pdf",
+                "trashed": False,
+                "md5Checksum": digest,
+                "size": str(len(content)),
+                "copyRequiresWriterPermission": False,
+            }
+        return {}
+
+    monkeypatch.setattr(mod, "run_gws", fake_gws)
+    with pytest.raises(RuntimeError, match="copyRequiresWriterPermission"):
+        mod.upload_file(pdf, drive_folder="folder_12345678", protect_copy=True)

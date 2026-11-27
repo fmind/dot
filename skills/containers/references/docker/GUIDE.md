@@ -39,7 +39,7 @@ Never auto-start a daemon or VM, mutate the default context, or touch existing c
 - **Distro Buildx lags upstream**: Debian ships Buildx 0.13; check `docker buildx version` before passing newer flags like `--check`.
 - **Exit 137 != guaranteed OOM**: inspect `.State.OOMKilled` and container/Colima VM memory limits before assuming OOM.
 
-## Task guides
+## References
 
 - [colima](references/colima.md): Run Docker on macOS through Colima: VM start, socket, memory limits, and mounts.
 - [cosign](references/cosign.md): Sign, verify, and attest image digests with keyless Sigstore.

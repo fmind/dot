@@ -1,13 +1,13 @@
 ---
 name: cloud-ops
-description: "Operate cloud/SaaS CLIs: acli (Jira/Confluence), aws, cf (Cloudflare), databricks, hf, pup (Datadog)."
+description: "Operate non-GCP cloud/SaaS CLIs: acli (Jira/Confluence), aws, cf (Cloudflare), databricks/genie, hf, pup (Datadog)."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/cloud-ops
   created: "2026-11-21"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Cloud & Service CLIs

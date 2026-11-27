@@ -1,6 +1,6 @@
 ---
 name: mermaid
-description: "Technical-doc diagrams in Markdown and GitHub: syntax, validation, and rendering."
+description: "Author portable Mermaid diagrams in Markdown and GitHub: frontmatter config, validation, and rendering."
 ---
 
 # Mermaid Diagram Standard

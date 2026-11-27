@@ -91,8 +91,8 @@ async def evaluate_cases[R: (str, TrialResult)](
         raise ValueError("require k >= 1")
     if concurrency < 1:
         raise ValueError("require concurrency >= 1")
-    if trial_timeout_s is not None and trial_timeout_s <= 0:
-        raise ValueError("require trial_timeout_s > 0")
+    if trial_timeout_s is not None and (not math.isfinite(trial_timeout_s) or trial_timeout_s <= 0):
+        raise ValueError("require trial_timeout_s to be finite and > 0")
     seen_ids: set[str] = set()
     for case in cases:
         if case.case_id in seen_ids:
@@ -208,13 +208,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.trials < 1:
+        parser.error("--trials must be >= 1")
+    if args.k is not None and args.k < 1:
+        parser.error("--k must be >= 1")
+    if args.concurrency < 1:
+        parser.error("--concurrency must be >= 1")
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        parser.error("--timeout must be a finite number > 0")
     try:
         cases = _load_cases(args.dataset, trials=args.trials)
 
         async def baseline_echo(case: EvalCase, _trial: int) -> str:
             return case.expected
 
+        sys.stderr.write(
+            "Note: running built-in baseline_echo stub; replace baseline_echo with your real candidate runner.\n"
+        )
         summary = asyncio.run(
             evaluate_cases(
                 cases,

@@ -44,14 +44,17 @@ Prefer the repository's native release task when defined; use this fallback only
    gh run list --commit "$release_sha" --limit 100 --json databaseId,workflowName,headSha,status,conclusion,url
    ```
 
-1. **Publish via the single owner**: if CI owns releases, wait for it and run [verify.md](verify.md). For CLI-owned releases, stage a draft first because immutable releases freeze tags and assets upon publication, curate human-facing notes per [humanize](../../../../humanize/SKILL.md) (highlights + upgrade impact over raw commit noise), and gate with `vale` + `betterleaks stdin --redact`:
+1. **Publish via the single owner**: if CI owns releases, wait for it and run [verify.md](verify.md). For CLI-owned releases via [github](../../../../github/SKILL.md), stage a draft first because immutable releases freeze tags and assets upon publication, curate human-facing notes per [humanize](../../../../humanize/SKILL.md) (highlights + upgrade impact over raw commit noise), and gate with `vale` + `betterleaks stdin --redact`:
 
    ```bash
+   umask 077
    release_tmp=$(mktemp -d)
    git-cliff --latest --strip all > "$release_tmp/release-notes.md"
    # Curate $release_tmp/release-notes.md per humanize (outcome highlights + upgrade notes), then gate:
-   vale_cfg=(); [ -f .vale.ini ] || vale_cfg=(--config ~/.config/vale/.vale.ini)
-   vale --no-global "${vale_cfg[@]}" --output=JSON "$release_tmp/release-notes.md"
+   if command -v vale >/dev/null 2>&1; then
+     if [ -f .vale.ini ]; then vale --no-global --output=JSON "$release_tmp/release-notes.md"
+     elif [ -f ~/.config/vale/.vale.ini ]; then vale --no-global --config ~/.config/vale/.vale.ini --output=JSON "$release_tmp/release-notes.md"; fi
+   fi
    betterleaks stdin --redact < "$release_tmp/release-notes.md" >/dev/null
    gh release create "$tag" --verify-tag --draft --title "$tag" --notes-file "$release_tmp/release-notes.md"
    ```

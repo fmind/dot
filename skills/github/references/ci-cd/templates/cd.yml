@@ -34,6 +34,7 @@ jobs:
           install_args: --locked
           cache: false
       - name: Validate the tagged revision
+        # Precondition: `mise run all` builds `dist/*.whl` and `dist/*.tar.gz` when ENABLE_DEPLOY_PYPI is true.
         run: mise run all
       - name: Verify no changes
         run: git status --short && [ -z "$(git status --porcelain)" ]
@@ -165,7 +166,6 @@ jobs:
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
           IMAGE_REPOSITORY: ${{ steps.image.outputs.repository }}
-        shell: bash
         run: |
           [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf 'IMAGE=%s@%s\n' "$IMAGE_REPOSITORY" "$DIGEST" >> "$GITHUB_ENV"
@@ -173,7 +173,7 @@ jobs:
       - name: Resolve platform digests
         run: |
           docker buildx imagetools inspect "$IMAGE" --raw > "$RUNNER_TEMP/index.json"
-          python3 .github/scripts/image-platforms.py "$RUNNER_TEMP/index.json" "$PLATFORMS" > "$RUNNER_TEMP/platforms.tsv"
+          python3 -I .github/scripts/image-platforms.py "$RUNNER_TEMP/index.json" "$PLATFORMS" > "$RUNNER_TEMP/platforms.tsv"
       - name: Scan every platform
         run: |
           while IFS=$'\t' read -r platform digest; do
@@ -202,7 +202,6 @@ jobs:
         env:
           IMAGE_REPOSITORY: ${{ steps.image.outputs.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        shell: bash
         run: |
           [[ "$RELEASE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || { echo "Invalid image release tag" >&2; exit 1; }
           docker buildx imagetools create --prefer-index=false --tag "$IMAGE_REPOSITORY:$RELEASE_TAG" --tag "$IMAGE_REPOSITORY:latest" "$IMAGE"

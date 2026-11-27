@@ -238,7 +238,7 @@ if name == "cosign" and args[0] == "verify-attestation" and args[-1].endswith(os
     source = helper.read_text(encoding="utf-8")
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source
-    assert "suggest_on_error=True" in source
+    assert "suggest_on_error" in source
     (scripts / helper.name).write_bytes(helper.read_bytes())
     for step in steps[start:]:
         result = subprocess.run(

@@ -1,0 +1,36 @@
+# Docs: https://openspec.dev/
+schema: spec-driven
+
+# Repo constraints agents cannot infer from code alone.
+# Keep always-on invariants, mise tasks, and security rules in AGENTS.md.
+context: |
+  Follow AGENTS.md for stack, mise tasks, priorities, and security invariants.
+  Keep specs concise, falsifiable, and focused on observable contracts.
+
+rules:
+  proposal:
+    - State the concrete problem, first testable slice, and explicit Out of Scope items.
+    - Keep proposals under 1 page; skip formal OpenSpec changes for trivial bug fixes unless behavior contracts change.
+  specs:
+    - Write verifiable SHALL/MUST requirements with concrete GIVEN/WHEN/THEN scenarios covering normal, boundary, and failure cases.
+    # Opt-in pytest-bdd repos: uncomment to avoid duplicating Gherkin Examples tables.
+    # - When features/<capability>.feature exists, keep 1-2 canonical scenarios here and link to the feature file.
+  design:
+    - Cover architecture boundaries, failure modes, security/privacy constraints, and rollback when non-trivial.
+    - Run read-only fmind-review-spec and fmind-review-architecture before implementation on non-trivial changes.
+  tasks:
+    - Break work into verifiable slices ending with local mise gates and normal, boundary, and failure tests.
+
+operations:
+  apply:
+    guidance:
+      - Implement against approved tasks, update checkboxes as slices finish, and keep code, tests, and docs in sync.
+      - Run full local mise gates before requesting review.
+  archive:
+    guidance:
+      - Run fmind-review-completeness (plus domain reviewers for risky changes) before archiving.
+      - Verify all tasks are checked off, replace any new spec TBD Purpose placeholder, run dprint fmt, and pass check:specs.
+      # Opt-in pytest-bdd repos: uncomment to gate stakeholder acceptance reports alongside specs.
+      # - Run check:bdd and mise run report:bdd before archiving so features/ and openspec/specs/ stay aligned.
+      # Opt-in C4 / module-boundary repos: uncomment to prevent architecture drift.
+      # - Update architecture/*.c4 (or docs/architecture.d2) and tach.toml whenever containers, external dependencies, or module boundaries change.

@@ -1,6 +1,6 @@
 ---
 name: svg
-description: "Self-contained SVG logos, geometric marks, and live-text visual checks."
+description: "Author self-contained SVG logos, geometric marks, and live-text visual checks."
 ---
 
 # SVG Illustration Standard
@@ -31,10 +31,10 @@ Hand-authored, diffable `<svg>` files for geometric logos/marks (`96–128 px`),
 ## Gotchas
 
 - **SVG `<text>` never wraps**: break lines manually and leave ~15% horizontal slack for wider fallback fonts.
-- **Design for `<img>` sandboxing**: GitHub and docs strip scripts, external fonts/stylesheets, links, and remote images; never use `<foreignObject>`, raster embeds, or base64 fonts.
+- **Design for `<img>` sandboxing**: GitHub and docs strip scripts, external fonts/stylesheets, internal SVG `<a href>` links, and remote images; never use `<foreignObject>`, raster embeds, or base64 fonts (wrap `<img>` in an outer HTML `<a href>` for clickable zoom).
 - **Preview isolation is not sanitization**: `check_svg.py` blocks scripts and network in Chrome previews, not OS egress; keep its Chrome flags paired.
 - **Mask lines behind captions**: place a canvas-colored `<rect>` under text instead of detouring paths.
-- **Floor and contrast**: ≥12px type at 960px width and ≥4.5:1 contrast against actual fills; the `<a href>` link handles mobile zoom.
+- **Floor and contrast**: ≥12px type (`>= 9pt`) at 960px width and ≥4.5:1 contrast against actual fills; the outer HTML `<a href>` link handles mobile zoom.
 
 ## Documentation
 

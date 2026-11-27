@@ -15,7 +15,7 @@ Register only the MCP capability a task needs using the host's native CLI. [MCP]
 
 ## Native host commands
 
-Python stdio examples (for HTTP, pass a bare URL in Antigravity or `--transport http <url>` in Copilot):
+Python stdio examples (for HTTP, pass a bare URL in Antigravity or `copilot mcp add --transport http <name> <url>` in Copilot):
 
 ```bash
 agy mcp add --env KEY=value <name> -- uvx --from '<package>==<version>' <command>      # Antigravity: user scope only; flags must precede <name>

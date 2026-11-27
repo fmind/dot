@@ -20,5 +20,6 @@ Rules for coding agents in `<slug>` (<1-2 sentences on what this project does>).
 ## Layout
 
 - `<path>`: <purpose>.
+- `openspec/specs/`, `openspec/changes/`: living capability specs and active change deltas (default unless opted out).
 - `.agents/skills/`: project skills (when used).
 - `.agents/supagents/`: static read-only project reviewers (when used; producers remain dynamic).

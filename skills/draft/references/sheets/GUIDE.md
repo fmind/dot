@@ -28,7 +28,7 @@ Google Sheets plumbing via [gws](../../../gws/SKILL.md) (`gws sheets`) and [`dri
    - Use `USER_ENTERED` only on dedicated formula cells you authored explicitly.
    - Keep `values` rectangular and quote sheet names with spaces (`'Cost Model'!A1:F20`).
 1. **Apply structure & format**: use `spreadsheets.batchUpdate` for `frozenRowCount`, bold header row, explicit `numberFormat` (`CURRENCY`, `PERCENT`, `NUMBER`, `DATE`), and `autoResizeDimensions`.
-1. **Read back & verify**: fetch written ranges with `spreadsheets.values.get` (`valueRenderOption: FORMATTED_VALUE`), fail closed on any spreadsheet error token (`#REF!`, `#NAME?`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#ERROR!`), optionally export `.xlsx` via `drive.files.export` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`), and run `fmind-review-factcheck` / `proposal` / `finops` on numeric models ([subagent](../../../subagent/SKILL.md)).
+1. **Read back & verify**: fetch written ranges with `spreadsheets.values.get` (`valueRenderOption: FORMATTED_VALUE`), fail closed on any spreadsheet error token (`#REF!`, `#NAME?`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NUM!`, `#ERROR!`), optionally export `.xlsx` via `drive.files.export` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`), and run `fmind-review-factcheck`, `fmind-review-proposal`, or `fmind-review-finops` on numeric models ([subagent](../../../subagent/SKILL.md)).
 1. **Hand off**: return `[<Title>](https://docs.google.com/spreadsheets/d/<ID>/edit)` and never widen Drive sharing without explicit approval.
 
 ## Gotchas

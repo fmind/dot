@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from repo_helpers import ROOT
+
 TEMPLATES = ROOT / "skills/python/references/argparse/templates"
 SCRIPT = ROOT / "skills/python/references/script/templates/script.py"
 # The packaged template reads its version from installed metadata; unpackaged runs borrow pytest's.
@@ -114,6 +115,8 @@ def test_concrete_python_templates_pass_repo_ruff_checks() -> None:
         "skills/draft/references/sheets/templates/draft_sheets.py",
         "skills/gcloud/references/cloud-run/templates/verify-private.py",
         "skills/gcloud/references/cloud-run/templates/probe-candidate.py",
+        "skills/python/references/testing/templates/bdd-conftest.py",
+        "skills/python/references/testing/templates/report_bdd.py",
     ]
     for subcommand in (["check"], ["format", "--check"]):
         result = subprocess.run(

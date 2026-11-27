@@ -1,6 +1,6 @@
 # Docs: https://docs.cloud.google.com/run/docs/reference/yaml/v1
 # Declarative Cloud Run service: apply with
-#   gcloud run services replace service.yaml --region=<region>
+#   gcloud run services replace service.yaml --project=<project> --region=<region>
 # Prefer this over imperative flags once a service has more than a couple of
 # settings — the file is reviewable and diffs in pull requests.
 apiVersion: serving.knative.dev/v1

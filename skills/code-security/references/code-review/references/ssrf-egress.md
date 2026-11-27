@@ -31,10 +31,11 @@ URL string parsing (`urllib.parse.urlsplit`) never prevents Server-Side Request 
        if not infos:
            msg = f"No DNS records for {host}"
            raise ValueError(msg)
-       return [str(assert_public_ip(info[4][0])) for info in infos]
+       return list(dict.fromkeys(str(assert_public_ip(info[4][0])) for info in infos))
    ```
 
-1. **Bind validation to the actual socket connection (anti-rebinding)**: never call `resolve_public_ips()` and then let the HTTP client re-resolve DNS independently. Connect via a custom transport/socket hook (`httpx2.AsyncBaseTransport` on `httpx2`, or `httpcore.AsyncNetworkBackend` on legacy `httpx`) that resolves once and dials the validated IP while preserving TLS `sni_hostname=host`, `Host: <host>`, and explicit `context.minimum_version = ssl.TLSVersion.TLSv1_2`, or route untrusted fetches through a dedicated egress proxy that blocks RFC 1918, loopback, link-local (`169.254.0.0/16`, `fe80::/10`), CGNAT (`100.64.0.0/10`), NAT64 (`64:ff9b::/96`), and cloud metadata (`169.254.169.254`, `fd00:ec2::254`) at L3/L4.
+1. **Pin DNS resolution to the socket dial (anti-rebinding)**: never call `resolve_public_ips()` and then let the HTTP client re-resolve DNS independently. Connect through a custom transport/socket hook (`httpx2.AsyncBaseTransport` on `httpx2`, or `httpcore.AsyncNetworkBackend` on legacy `httpx`) that resolves once and dials the validated IP while preserving TLS `sni_hostname=host`, `Host: <host>`, and `context.minimum_version = ssl.TLSVersion.TLSv1_2`.
+1. **Or isolate via a dedicated egress proxy**: route untrusted fetches through an L3/L4 egress proxy that blocks RFC 1918, loopback, link-local (`169.254.0.0/16`, `fe80::/10`), CGNAT (`100.64.0.0/10`), NAT64 (`64:ff9b::/96`), and cloud metadata (`169.254.169.254`, `fd00:ec2::254`).
 1. **Bound time and bytes**: enforce short connect/read timeouts, stream responses with a hard byte ceiling before decoding, and strip credentials/headers on any cross-origin call.
 
 ## Documentation

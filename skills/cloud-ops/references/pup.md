@@ -21,9 +21,10 @@ DD_SITE=datadoghq.eu pup --read-only monitors list --limit 25
 
 ## Guardrails
 
-- **Always bound windows and counts**: specify `--from`/`--to` and `--limit` on `logs`, `traces`, `ddsql`, `rum`, and `llm-obs` queries before summarizing.
+- **Always bound windows and counts**: specify `--from`/`--to` and `--limit` on `logs`, `traces`, `rum`, and `pup llm-obs spans search`—and SQL `LIMIT` inside `ddsql` queries—before summarizing.
 - **Never auto-trust unknown gateways**: only pass `--trust-site` after the user explicitly verifies a non-Datadog gateway host.
-- **Never dump credentials**: never inspect `~/.config/pup/` or print secrets from `pup api-keys` / `pup app-keys`.
+- **Never dump credentials**: never inspect `~/.config/pup/` or print secrets from `pup auth token`, `pup api-keys`, or `pup app-keys`.
+- **Gate vendor-skill installs**: never run `pup skills install` or `pup setup` unapproved; audit upstream skills statically per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md).
 - **Ask before writes or external AI routing**: require approval before `-y`, creating/mutating `monitors`, `downtime`, `incidents`, `dashboards`, `workflows`, `data-deletion`, or sending internal context to `pup bits` / `pup acp`.
 
 ## Documentation

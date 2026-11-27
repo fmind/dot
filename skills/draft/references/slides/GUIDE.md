@@ -10,8 +10,15 @@ Native editable Google Slides plumbing via [gws](../../../gws/SKILL.md) (`gws sl
 ## Authoring Paths
 
 1. **Client template copy + `replaceAllText` (preferred when a brand master exists)**: copy the template via `gws drive files copy` with explicit `parents: ["<FOLDER_ID>"]` (overrides source ACLs), then patch placeholders via `gws slides presentations batchUpdate`.
-1. **Native Slides API (`presentations.create` + `batchUpdate`)**: adapt the starter [draft_slides.py](templates/draft_slides.py) to create a presentation, move/target a folder, apply `batchUpdate` requests (`createSlide`, `createShape`, `insertText`, `updateTextStyle`), and read back slide count.
-1. **Private local images in editable Slides**: `gws slides` `createImage` requires a public HTTPS URL—never publish private figures. Build an editable `.pptx` with `uv run --with python-pptx` embedding local PNGs, then convert privately via [`drive_upload.py`](../../../gws/scripts/drive_upload.py) (`--target-mime application/vnd.google-apps.presentation`).
+1. **Native Slides API (`presentations.create` + `batchUpdate`)**: adapt the starter [draft_slides.py](templates/draft_slides.py) to create a presentation, move to `--drive-folder`, remove the empty default slide, apply `batchUpdate` requests (`createSlide`, `createShape`, `insertText`, `updateTextStyle`), and read back slide count.
+1. **Private local images & custom visual decks (`python-pptx` -> Slides)**: `gws slides` `createImage` requires a public HTTPS URL—never publish private figures. Build an editable `.pptx` with `uv run --with python-pptx` embedding local PNGs and native shapes, then convert privately via [`drive_upload.py`](../../../gws/scripts/drive_upload.py) (`--target-mime application/vnd.google-apps.presentation`).
+
+## Slide Grammar (High Signal, Low Clutter)
+
+Follow [humanize deck outlines](../../../humanize/references/outlines.md#decks-612-slides-scaled-to-evidence) instead of bare `TITLE_AND_BODY` bullet dumps:
+
+- **Top bar + 1 focal visual**: kicker pill, assertion title (`<= 10`w), 1-line takeaway (`<= 15`w), hairline divider, and one clean spatial pattern (step strip, 2–4 anchor cards, flow diagram, 2x2 matrix, or `1–3`w/cell verdict-grouped comparison table) with zero prose paragraphs (`<= 10–15`w/card).
+- **Two-layer disclosure**: keep pricing tiers, caveats, and deep rationale in **Speaker Notes**, and group primary references onto a closing 2-card **`Annex · Sources`** slide (`Entity · clickable domain` / 1-line scope tags + 1 bottom verification-date note).
 
 ## Workflow
 

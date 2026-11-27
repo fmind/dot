@@ -10,9 +10,10 @@ Browser automation and E2E testing ([python/testing](../../python/references/tes
 ## Workflow
 
 1. **Match tool to surface**: use [xh](../../full-review/references/http-probing.md) for pure HTTP/JSON diagnostics; whenever UI rendering, visual layout, responsive viewports, interactive state transitions (empty, loading, error, populated), or accessibility matter, verify in a real browser targeting semantic roles/labels and asserting state after every action.
-1. **Pin Python packages**: `uv add --dev playwright pytest-playwright` (`uv.lock`), then `uv run playwright install chromium`. Report missing OS libraries instead of running privileged `install-deps`.
+1. **Pin Python packages**: `uv add --dev playwright pytest-playwright pytest-timeout` (`uv.lock`), then `uv run playwright install chromium`. Report missing OS libraries instead of running privileged `install-deps`.
 1. **Record and capture**: `uv run playwright codegen --target python-pytest <url>`, `uv run playwright screenshot --viewport-size=1440,900 --full-page <url> <desktop.png>`, `uv run playwright screenshot --viewport-size=390,844 --full-page <url> <mobile.png>` (always read the captured PNGs visually to inspect layout, wrapping, and contrast), and `uv run playwright pdf <url> <file>`. Outside projects that lock Playwright, run `uvx --from playwright==<version> playwright` (installing `chromium` first) instead of polluting `pyproject.toml`.
-1. **Wire opt-in `test:e2e` and run**: keep default `test` filtering `-m "not integration and not e2e"`. Add `[tasks."test:e2e"]` running `uv run --locked pytest -q -m e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure --timeout=120`, and serve the ASGI app on an ephemeral `127.0.0.1:0` loopback socket inside a `tests/e2e/conftest.py` thread/uvicorn-free Granian fixture. Inspect traces via `uv run playwright trace open <trace.zip>`, `trace --help` subcommands, and `trace close` (`show-trace` opens the GUI). For live CLI debugging, run one test with `--playwright-debug=cli -s`, attach via `uv run playwright cli attach <session>`, then stop and remove `.playwright-cli/`.
+1. **Wire opt-in `test:e2e` and run**: keep default `test` filtering `-m "not integration and not e2e"`. Add `[tasks."test:e2e"]` running `uv run --locked pytest -q -m e2e --browser chromium --tracing retain-on-failure --screenshot only-on-failure --timeout=120`, serving the ASGI app on an ephemeral `127.0.0.1:0` loopback socket inside a `tests/e2e/conftest.py` thread/uvicorn-free Granian fixture.
+1. **Inspect traces & debug live**: inspect failed runs via `uv run playwright trace open <trace.zip>`, `trace --help` subcommands, and `trace close` (`show-trace` opens the GUI). For live CLI debugging, run one test with `--playwright-debug=cli -s`, attach via `uv run playwright cli attach <session>`, then `detach` or `close` the session and remove `.playwright-cli/`.
 
 ## Gotchas
 
@@ -23,7 +24,7 @@ Browser automation and E2E testing ([python/testing](../../python/references/tes
 
 ## Official Skills
 
-Upstream `microsoft/playwright-cli` (`playwright-cli` only; collides with `openai/skills` `playwright` — see [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md#name-collisions)). Audit `allowed-tools` on bundled CLI skills (`playwright <1.64` and `playwright-cli <0.1.22` pre-approve broad `npx`/`npm`).
+Upstream `microsoft/playwright-cli` (`playwright-cli` only; avoid overlapping-trigger `openai/skills` `playwright` installs per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md)). Audit `allowed-tools` on bundled CLI skills (`playwright <1.64` and `playwright-cli <0.1.22` pre-approve broad `npx`/`npm`).
 
 ## Documentation
 

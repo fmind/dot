@@ -67,7 +67,9 @@ def test_cli_transport_selection(
     assert seen == [expected]
 
 
-def test_http_env_defaults_and_invalid_port(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_http_env_defaults_and_invalid_port(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     seen: list[tuple[str, dict[str, object]]] = []
     monkeypatch.setattr(server, "run", lambda *, transport="stdio", **kwargs: seen.append((transport, kwargs)))
     monkeypatch.setenv("HOST", "::1")
@@ -80,6 +82,19 @@ def test_http_env_defaults_and_invalid_port(monkeypatch: pytest.MonkeyPatch, cap
         main(["--transport", "streamable-http"])
     assert raised.value.code == 1
     assert "Error: invalid PORT" in capsys.readouterr().err
+
+    for bad_env_port in ("0", "65536"):
+        monkeypatch.setenv("PORT", bad_env_port)
+        with pytest.raises(SystemExit) as raised:
+            main(["--transport", "streamable-http"])
+        assert raised.value.code == 1
+        assert "Error: invalid PORT" in capsys.readouterr().err
+
+    for bad_cli_port in ("0", "65536"):
+        with pytest.raises(SystemExit) as raised:
+            main(["--transport", "streamable-http", "--port", bad_cli_port])
+        assert raised.value.code == 2
+        assert "--port" in capsys.readouterr().err
 
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:

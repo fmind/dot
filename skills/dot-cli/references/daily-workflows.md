@@ -14,7 +14,7 @@ dot doctor --json
 dot doctor --headroom
 ```
 
-`dot doctor` emits `dot.diagnostics/v1` across secret file modes (`~/.config/chezmoi/key.txt`, `~/.ssh/id_ed25519_signing`), Docker, disk headroom, core CLI tools, installation freshness, and agent harnesses (persona, skills, reviewers, and multi-tenant `agy` `skills.json`/`plugins.json`/`hooks.json` isolation).
+`dot doctor` emits `dot.diagnostics/v1` across secret file modes (`~/.config/chezmoi/key.txt`, `~/.ssh/id_ed25519_signing`), Docker, disk headroom, core CLI tools, installation freshness, and agent harnesses (persona, skills, reviewers, and multi-tenant `agy` `skills.json`/`plugins.json`/`agents.json`/`rules.json`/`hooks.json` isolation).
 
 - `--fix`: repair local secret-file permissions (`0600`).
 - `-q`/`--quiet`: show only `fail`/`warn` items and a verdict (`--json -q` filters `.checks[]`).
@@ -33,7 +33,10 @@ dot privacy --staged -q                # scan staged Git index blobs and commits
 dot pull .                             # authorized: fast-forward clean repo
 ```
 
-Explicit paths bypass workspace discovery. `status` inspects cached refs unless `--fetch` runs `git fetch --prune` (no Git LFS); inspection failures set `complete: false` and exit `1`. `privacy [PATH...]` scans working files (or staged index blobs with `--staged`) and Git commit emails against allowed public domains (`fmind.dev`, `fmind.ai`, `github.com`, RFC 2606) plus dynamic workstation/client tokens loaded from untracked `~/.config/dot*.yaml` and `~/.config/git/config.*` (`--json` emits `dot.privacy/v1`; `-q` suppresses clean targets). Keep `dot privacy` workstation-local; other repositories must not depend on `dot`. `pull` skips dirty repos and branches without an upstream, fast-forwards only (never merging or rebasing), disables credential prompts, and exits `1` on any fetch failure or diverged branch.
+- **Path targeting**: explicit paths bypass workspace discovery.
+- **`dot status`**: inspects cached refs unless `--fetch` runs `git fetch --prune` (no Git LFS); inspection failures set `complete: false` and exit `1`.
+- **`dot privacy [PATH...]`**: scans working files (or staged index blobs with `--staged`) and Git commit emails against allowed public domains (`fmind.dev`, `fmind.ai`, `github.com`, RFC 2606) plus dynamic workstation/client tokens from untracked `~/.config/dot*.yaml` and `~/.config/git/config.*` (`--json` emits `dot.privacy/v1`; `-q` suppresses clean targets). Keep `dot privacy` workstation-local; other repositories must not depend on `dot`.
+- **`dot pull`**: skips dirty repos and branches without an upstream, fast-forwards only (never merging or rebasing), disables credential prompts, and exits `1` on any fetch failure or diverged branch.
 
 ## Folder trust
 
@@ -42,7 +45,8 @@ dot trust                               # authorized: trust current repo
 dot trust all ~/.local/share/chezmoi    # authorized: allowlisted workspace repos + dot checkout (run by chezmoi apply)
 ```
 
-`dot trust [PATH...]` additively trusts repo roots (refusing `$HOME` and ancestors) in Antigravity (adding `trust.agy_projects` to Remote Control as `local-<slug>`). `all` trusts direct Git repos under `pull.directories` whose `github.com` origin matches `trust.github_owners` (default `fmind`; explicit `dot trust PATH` trusts any folder or repo). Mise trust stays separate (`mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`).
+- **Antigravity trust & Remote Control**: `dot trust [PATH...]` additively trusts repo roots (refusing `$HOME` and ancestors) in Antigravity and registers trusted Git repositories matching `trust.agy_projects` in Remote Control as `local-<slug>`.
+- **Allowlisted `all` mode**: trusts direct Git repos under `pull.directories` whose `github.com` origin matches `trust.github_owners` (default `fmind`; explicit `dot trust PATH` trusts any folder or repo). Mise trust stays separate (`mise trust` or unmanaged `~/.config/mise/conf.d/trust.toml`).
 
 ## Fish completions
 

@@ -19,12 +19,12 @@ Pass `--project=<project>` with the approved account per [gcloud](../../../SKILL
    gcloud iam workload-identity-pools providers create-oidc github-actions \
      --project=<project> --location=global --workload-identity-pool=github \
      --issuer-uri="https://token.actions.githubusercontent.com" \
-     --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.workflow_ref=assertion.workflow_ref" \
-     --attribute-condition="assertion.repository_owner_id=='<owner_id>' && assertion.repository_id=='<repository_id>' && assertion.ref.startsWith('refs/tags/v') && assertion.workflow_ref.startsWith('<owner>/<repo>/.github/workflows/cd.yml@')"
+     --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.workflow_ref=assertion.workflow_ref,attribute.environment=assertion.environment,attribute.repo_env=assertion.repository_id + ':' + assertion.environment" \
+     --attribute-condition="assertion.repository_owner_id=='<owner_id>' && assertion.repository_id=='<repository_id>' && assertion.environment=='production' && assertion.ref.startsWith('refs/tags/v') && assertion.workflow_ref.startsWith('<owner>/<repo>/.github/workflows/cd.yml@')"
    gcloud iam service-accounts create <slug>-deployer --project=<project>
    gcloud iam service-accounts add-iam-policy-binding "<slug>-deployer@<project>.iam.gserviceaccount.com" \
      --project=<project> --role=roles/iam.workloadIdentityUser \
-     --member="principalSet://iam.googleapis.com/projects/<project_number>/locations/global/workloadIdentityPools/github/attribute.repository_id/<repository_id>"
+     --member="principalSet://iam.googleapis.com/projects/<project_number>/locations/global/workloadIdentityPools/github/attribute.repo_env/<repository_id>:production"
    ```
 
    Protect `refs/tags/v*` with a GitHub [tag ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) restricting tag create/update/delete to release maintainers ([repository](../../../../github/references/repository/GUIDE.md) protects only the default branch).

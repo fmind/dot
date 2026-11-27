@@ -3,20 +3,20 @@ name: fmind
 description: "Query fmind.dev via fmind: bio, articles, papers, projects, news, consulting."
 license: MIT
 metadata:
+  kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/fmind
   created: "2026-11-14"
-  updated: "2026-11-20"
-  kind: connector
+  updated: "2026-11-24"
 ---
 
 # Fmind (`fmind`)
 
-Live read-only client for Médéric Hurier's public site (`https://www.fmind.dev`), installed globally via `pypi:fmind`.
+Live read-only client for Médéric Hurier's public site (`https://www.fmind.dev`), installed globally via `pypi:fmind` (`FMIND_PROFILE_URL` overrides the origin).
 
 - **Profile & track record**: `fmind --json whoami` (or `about`, `skills`, `experiences`, `certifications`, `community`, `papers`, `projects`, `sites`, `hire`). Bound `projects` with `--limit <N>`.
-- **Writing & news**: `fmind --json tags`, `fmind --json search <query...> [--tag <tag>] [--limit <N>]`, `fmind --json articles`, `fmind --json read <slug> [--raw]`, and `fmind --json news [query...] [--limit <N>]` (`news` defaults to 1 edition without terms, 10 with terms).
-- **MCP bridge**: `fmind mcp` serves the website's remote MCP tools, resources, and prompts over stdio when an agent host needs MCP instead of CLI calls.
+- **Writing & news**: `fmind --json tags`, `fmind --json articles [--limit <N>]`, `fmind --json search [query...] [--tag <tag>] [--limit <N>]`, `fmind --json read <slug>` (structured JSON) vs `fmind read <slug> --raw` (raw Markdown), and `fmind --json news [query...] [--limit <N>]` (`news` defaults to 1 edition without terms, 10 with terms).
+- **MCP bridge**: `fmind mcp` serves the website's remote MCP tools, resources, and prompts over stdio when an agent host needs MCP instead of CLI calls (`fmind mcp` rejects `--json`).
 
 ## Boundaries
 

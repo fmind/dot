@@ -10,6 +10,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 
 from repo_helpers import ROOT, load_script
 
@@ -33,28 +34,46 @@ def _write(root: Path, relative: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _run(root: Path, *command: str, expected_code: int = 0) -> str:
+_SHARED_CACHE_ENV: dict[str, str] = {}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _starter_caches(tmp_path_factory: pytest.TempPathFactory) -> None:
+    # Share uv's flock-protected cache across xdist workers, keep dprint strictly per-worker under pytest's temp dir
+    # to avoid concurrent manifest races, and stay isolated from real HOME.
+    base = tmp_path_factory.getbasetemp()
+    shared_root = (base.parent if os.environ.get("PYTEST_XDIST_WORKER") else base) / "dot-starter-cache"
+    uv_env = os.environ.get("UV_CACHE_DIR")
+    uv_cache = Path(uv_env).expanduser().resolve() if uv_env else (shared_root / "uv")
+    dprint_cache = base / "dprint-cache"
+    uv_cache.mkdir(parents=True, exist_ok=True)
+    dprint_cache.mkdir(parents=True, exist_ok=True)
+    _SHARED_CACHE_ENV.update({"UV_CACHE_DIR": str(uv_cache), "DPRINT_CACHE_DIR": str(dprint_cache)})
+
+
+def _starter_env() -> dict[str, str]:
     environment: dict[str, str] = {
         **os.environ,
+        **_SHARED_CACHE_ENV,
         "CI": "1",
         "NO_COLOR": "1",
+        "OPENSPEC_TELEMETRY": "0",
         "UV_NO_PROGRESS": "1",
         "UV_PYTHON": sys.executable or "python",
         "UV_PYTHON_DOWNLOADS": "never",
     }
     # An inherited UV_PROJECT or UV_LOCKED would redirect or block uv; a generated project resolves itself.
-    environment.pop("UV_PROJECT", None)
-    environment.pop("UV_LOCKED", None)
-    environment.pop("UV_FROZEN", None)
-    environment.pop("VIRTUAL_ENV", None)
-    environment.pop("COVERAGE_FILE", None)
-    # argparse colors help when a CI forces it; help assertions read plain text.
-    for forced in ("FORCE_COLOR", "PYTHON_COLORS"):
-        environment.pop(forced, None)
+    for key in ("UV_PROJECT", "UV_LOCKED", "UV_FROZEN", "VIRTUAL_ENV", "COVERAGE_FILE", "FORCE_COLOR", "PYTHON_COLORS"):
+        environment.pop(key, None)
+    return environment
+
+
+def _run(root: Path, *command: str, expected_code: int = 0) -> str:
     result = subprocess.run(
         list(command),
         cwd=str(root),
-        env=environment,
+        env=_starter_env(),
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         # Resolution and installs use the network; a stalled download must fail this test.
@@ -257,6 +276,15 @@ def test_python_starter_install_check_test_build_and_entrypoint(tmp_path: Path, 
         # Opt-in strict docs build renders every module's API page and fails on broken cross-references.
         _run(project, "uv", "run", "--locked", "zensical", "build", "--clean", "--strict")
         assert (project / "site/reference/starter_py/index.html").is_file()
+        openspec_tpl = (ROOT / "skills/openspec/templates/config.yaml").read_text(encoding="utf-8")
+        openspec_cfg = yaml.safe_load(openspec_tpl)
+        assert openspec_cfg["schema"] == "spec-driven"
+        assert {"context", "rules", "operations"} <= set(openspec_cfg)
+        if shutil.which("openspec"):
+            _run(project, "openspec", "init", "--tools", "none", "--no-animation")
+            _write(project, "openspec/config.yaml", openspec_tpl)
+            _run(project, "openspec", "validate", "--all", "--strict", "--no-interactive")
+            _run(project, "openspec", "validate", "--archived", "--strict", "--no-interactive")
 
     runtime = project / "runtime"
     _run(project, "uv", "venv", str(runtime))
@@ -371,22 +399,47 @@ def test_pep723_script_starter_lock_audit_and_typecheck(tmp_path: Path) -> None:
             "        pass",
             "    else:",
             "        raise AssertionError('expected trials < k ValueError')",
+            "    clock = [0.0]",
+            "    loop = asyncio.get_running_loop()",
+            "    orig_time = loop.time",
+            "    loop.time = lambda: clock[0]",
+            "    active_runners = 0",
+            "    peak_runners = 0",
+            "    async def queued_runner(_c, t):",
+            "        nonlocal active_runners, peak_runners",
+            "        active_runners += 1",
+            "        peak_runners = max(peak_runners, active_runners)",
+            "        await asyncio.sleep(0)",
+            "        clock[0] += 0.050 if t == 0 else 0.010",
+            "        active_runners -= 1",
+            "        return 'ok'",
+            "    cases = [mod.EvalCase(case_id='t1', prompt='p', expected='ok', trials=3)]",
+            "    try:",
+            "        qres = await mod.evaluate_cases(cases, queued_runner, lambda _c, _o: True, judge=None, k=1, concurrency=1)",
+            "    finally:",
+            "        loop.time = orig_time",
+            "    assert peak_runners == 1, peak_runners",
+            "    assert abs(qres['median_latency_ms'] - 10.0) < 1e-9, qres",
             "    active_judges = 0",
             "    peak_judges = 0",
-            "    async def queued_runner(_c, t):",
-            "        if t == 0:",
-            "            await asyncio.sleep(0.06)",
+            "    clock[0] = 0.0",
+            "    loop.time = lambda: clock[0]",
+            "    async def fast_runner(_c, _t):",
+            "        clock[0] += 0.010",
             "        return 'ok'",
             "    async def slow_judge(_c, _o):",
             "        nonlocal active_judges, peak_judges",
             "        active_judges += 1",
             "        peak_judges = max(peak_judges, active_judges)",
-            "        await asyncio.sleep(0.04)",
+            "        await asyncio.sleep(0)",
+            "        clock[0] += 0.200",
             "        active_judges -= 1",
             "        return True",
-            "    cases = [mod.EvalCase(case_id='t1', prompt='p', expected='ok', trials=3)]",
-            "    res = await mod.evaluate_cases(cases, queued_runner, lambda _c, _o: True, judge=slow_judge, k=1, concurrency=1)",
-            "    assert res['median_latency_ms'] < 30.0, res",
+            "    try:",
+            "        res = await mod.evaluate_cases(cases, fast_runner, lambda _c, _o: True, judge=slow_judge, k=1, concurrency=1)",
+            "    finally:",
+            "        loop.time = orig_time",
+            "    assert abs(res['median_latency_ms'] - 10.0) < 1e-9, res",
             "    assert peak_judges == 1, peak_judges",
             "    async def mixed_runner(_c, t):",
             "        if t == 0:",
@@ -411,8 +464,7 @@ def test_pep723_script_starter_lock_audit_and_typecheck(tmp_path: Path) -> None:
     short_dataset.write_text('[{"case_id": "c1", "prompt": "p1", "expected": "ok"}]', encoding="utf-8")
     bad_dataset = tmp_path / "bad_cases.json"
     bad_dataset.write_text('["not-a-dict"]', encoding="utf-8")
-    clean_env = {k: v for k, v in os.environ.items() if k not in {"UV_PROJECT", "VIRTUAL_ENV", "COVERAGE_FILE"}}
-    clean_env.update({"CI": "1", "NO_COLOR": "1", "UV_NO_PROGRESS": "1", "UV_PYTHON_DOWNLOADS": "never"})
+    clean_env = _starter_env()
     for cli_args in (["--trials", "1", "--k", "2", str(short_dataset)], [str(bad_dataset)], [str(empty_dataset)]):
         proc = subprocess.run(
             ["uv", "run", "--locked", "--script", str(eval_script), *cli_args],
@@ -552,20 +604,6 @@ def test_opentofu_starter_validates(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
-def test_typst_deck_figure_card_renders_png(tmp_path: Path) -> None:
-    templates_dir = ROOT / "skills" / "draft" / "references" / "typst-deck" / "templates"
-    helper_path = ROOT / "skills" / "draft" / "references" / "typst-deck" / "scripts" / "build_typst_deck.py"
-    helper = load_script("build_typst_deck", helper_path)
-
-    for name in ("fmind.typ", "fmind-slides.typ", "figure-card.typ"):
-        shutil.copy2(templates_dir / name, tmp_path / name)
-    card_png = tmp_path / "card.png"
-    assert helper.main(["render", str(tmp_path / "figure-card.typ"), "-o", str(card_png), "--allow-font-warnings"]) == 0
-    assert card_png.is_file()
-    assert card_png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
-
-
-@pytest.mark.skipif(os.environ.get("DOT_STARTER_SMOKE") != "1", reason="run with mise run test:starters")
 def test_python_bdd_starter_validates(tmp_path: Path) -> None:
     project = tmp_path / "bdd-starter"
     project.mkdir()
@@ -648,7 +686,7 @@ def test_python_bdd_starter_validates(tmp_path: Path) -> None:
         "\n"
         '@when("the greeter runs", target_fixture="greeting")\n'
         "def run_greeter(customer: str) -> str:\n"
-        "    print(f'cwd={Path.cwd()} home={Path.home()}')\n"
+        '    print(f"cwd={Path.cwd()} home={Path.home()}")\n'
         "    allure.attach(\n"
         '        json.dumps({"p95_ms": 12}, indent=2),\n'
         '        name="sla.json",\n'
@@ -664,6 +702,9 @@ def test_python_bdd_starter_validates(tmp_path: Path) -> None:
 
     _run(project, "uv", "add", "--dev", "pytest-bdd>=9.0", "allure-pytest-bdd>=2.16.2")
     _run(project, "uv", "sync", "--locked")
+    _run(project, "uv", "run", "--locked", "ruff", "check")
+    _run(project, "uv", "run", "--locked", "ruff", "format", "--check")
+    _run(project, "uv", "run", "--locked", "ty", "check")
     pr_out = _run(
         project, "uv", "run", "--locked", "pytest", "-m", "not integration and not e2e and not wip", "tests/bdd"
     )

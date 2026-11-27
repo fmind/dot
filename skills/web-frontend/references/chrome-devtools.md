@@ -21,7 +21,7 @@ Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, scree
 
 1. **Run via pinned package**: `npm exec --yes --package=chrome-devtools-mcp@1.13.0 -- chrome-devtools <command>` (check `--help` and `start --help`).
 1. **Respect running daemons**: check `status` first; never stop or hijack another task's daemon.
-1. **Start scoped**: `start --workspace="$PWD" --no-usage-statistics --no-performance-crux` (auto-start on first tool call grants unrestricted file access).
+1. **Start scoped**: `start --workspace="$PWD" --isolated --no-usage-statistics --no-performance-crux --redact-network-headers` (auto-start on first tool call grants unrestricted file access).
 1. **Tear down**: close task-owned pages and `stop` only daemons started by this task.
 
 ## Workflow
@@ -39,7 +39,7 @@ Keep debugging on loopback in a dedicated profile (pages, bodies, cookies, scree
 
 ## Official Skills
 
-Upstream: `ChromeDevTools/chrome-devtools-mcp` (`chrome-devtools-cli`, `a11y-debugging`, `memory-leak-debugging` — preview only and never install colliding `chrome-devtools` per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md#name-collisions)).
+Upstream: `ChromeDevTools/chrome-devtools-mcp` (`chrome-devtools-cli`, `a11y-debugging`, `memory-leak-debugging` — preview only and avoid overlapping-trigger `chrome-devtools` installs per [vendor-skill policy](../../agent-harnesses/references/vendor-skills.md)).
 
 ## Documentation
 

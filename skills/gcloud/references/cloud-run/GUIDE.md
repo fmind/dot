@@ -1,11 +1,11 @@
 ---
 name: cloud-run
-description: Deploy private Python services to Cloud Run via Artifact Registry and OIDC.
+description: "Deploy private Python services to Cloud Run via Artifact Registry and OIDC."
 ---
 
 # Cloud Run Deployment
 
-Deploy Python services to Cloud Run via immutable `@sha256:` digests, private IAM, keyless OIDC CD, and dedicated runtime service accounts. [containerize](../../../containers/references/containerize/GUIDE.md) owns images; [gcloud](../../SKILL.md) owns account, project, and region selection.
+Deploy Python services to Cloud Run via immutable `@sha256:` digests, private IAM, keyless OIDC CD, and dedicated runtime service accounts. [containerize](../../../containers/references/containerize/GUIDE.md) owns images; [gcloud](../../SKILL.md) owns account, project, and region selection. Audit service manifests, rollouts, IAM, and scaling costs with `fmind-review-sre`, `fmind-review-security`, and `fmind-review-finops` ([subagent](../../../subagent/SKILL.md)).
 
 ## Workflow
 
@@ -23,7 +23,7 @@ Deploy Python services to Cloud Run via immutable `@sha256:` digests, private IA
 - **Keep `minScale: 0` unless cold starts justify idle spend**: for hard ceilings, propose a Cloud Billing [spend cap](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps) (requires billing authority, lags slightly, and halts Cloud Run when exceeded).
 - **Co-locate service and Artifact Registry** in the same project and region; WIF pools stay `global`.
 
-## Task guides
+## References
 
 - [bootstrap](references/bootstrap.md): Bootstrap Cloud Run project APIs, Artifact Registry, service accounts, and WIF.
 - [deployment](references/deployment.md): Build, scan, sign, deploy private Cloud Run revisions, and verify IAM.

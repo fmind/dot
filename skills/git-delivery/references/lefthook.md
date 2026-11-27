@@ -15,7 +15,7 @@ Thin Git hooks delegating every check to `mise run <task>` so local hooks and CI
 
 ## Principles
 
-- **pre-commit** (fast, offline): format `{staged_files}` (`stage_fixed: true`), then `check:local` (including `check:leaks`).
+- **pre-commit** (fast, offline): format `{staged_files}` (`stage_fixed: true`), run `check:leaks:staged`, then `check:local` (including `check:leaks`).
 - **pre-push** (parallel): `test` plus `check:network` (online vulnerability/misconfiguration DBs).
 - **post-commit** (optional): rebuild/reinstall local CLI packages when build inputs changed (non-blocking).
 - **Delegate only**: every job runs `mise run <task>` with descriptive `name` (`format Python`, `check`, `test`); formatters accept `{staged_files}` via [argument forwarding](../../mise/references/task-conventions.md#conventions) while `check` and `test` inspect the full tree.
@@ -26,9 +26,9 @@ Thin Git hooks delegating every check to `mise run <task>` so local hooks and CI
 - **Prefer `jobs` over legacy `commands`**: `jobs` run sequentially in list order so formatters finish before checks.
 - **Partial staging hides unstaged hunks**: Lefthook stashes unstaged hunks during `pre-commit` and restores them afterwards.
 - **Scrub Git hook env vars for Git-creating tests**: Git sets `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_COMMON_DIR`, and `GIT_OBJECT_DIRECTORY` during hooks, which hijacks tests that initialize temporary Git repos or worktrees unless stripped in test fixtures or the `pre-push` command (`env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY mise run test`).
-- **Never pass `--no-verify`**: heal hook failures per [git-add-commit-push](../../git-delivery/references/git-add-commit-push.md).
+- **Never pass `--no-verify`**: heal hook failures per [git-add-commit-push](git-add-commit-push.md).
 
 ## Documentation
 
 - [Lefthook](https://lefthook.dev) · [Config reference](https://github.com/evilmartians/lefthook/tree/master/docs/configuration) · [releases](https://github.com/evilmartians/lefthook/releases) · [changelog](https://github.com/evilmartians/lefthook/blob/master/CHANGELOG.md)
-- Companion skills: [mise](../../mise/SKILL.md), [ci-cd](ci-cd/GUIDE.md), [betterleaks](../../code-security/references/betterleaks.md).
+- Companion skills: [mise](../../mise/SKILL.md), [ci-cd](../../github/references/ci-cd/GUIDE.md), [betterleaks](../../code-security/references/betterleaks.md).

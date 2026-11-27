@@ -20,9 +20,14 @@ def build_body(text: str, syntax: str, thread: str | None = None) -> dict[str, A
         raise ValueError("Text exceeds the helper's 30000-byte budget; shorten it or link a document.")
     fence = False
     for line in text.splitlines():
-        if line.lstrip().startswith("```"):
-            if not fence and line.strip() != "```":
-                raise ValueError("Use bare triple-backtick fences without a language label in Chat.")
+        stripped = line.lstrip()
+        if not fence and stripped.startswith("~~~"):
+            raise ValueError("Use bare triple-backtick fences instead of tilde fences in Chat.")
+        if stripped.startswith("```"):
+            if line.strip() != "```":
+                if not fence:
+                    raise ValueError("Use bare triple-backtick fences without a language label in Chat.")
+                raise ValueError("Close the triple-backtick code block with a bare closing fence.")
             fence = not fence
             continue
         if fence:
@@ -42,15 +47,16 @@ def build_body(text: str, syntax: str, thread: str | None = None) -> dict[str, A
         "text": text,
         "markupSyntax": "MARKUP_SYNTAX_MARKDOWN" if syntax == "markdown" else "MARKUP_SYNTAX_CHAT",
     }
-    if thread:
-        if not re.fullmatch(r"spaces/[^/\s]+/threads/[^/\s]+", thread):
+    if thread is not None:
+        if not re.fullmatch(r"spaces/[A-Za-z0-9_-]+/threads/[A-Za-z0-9_.-]+", thread):
             raise ValueError("Thread must be an observed spaces/SPACE/threads/THREAD resource name.")
         body["thread"] = {"name": thread}
     return body
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser_kwargs: dict[str, Any] = {"suggest_on_error": True} if sys.version_info >= (3, 14) else {}
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, **parser_kwargs)
     parser.add_argument("input", help="UTF-8 text file, or - for stdin")
     parser.add_argument("--syntax", choices=("chat", "markdown"), default="chat")
     parser.add_argument("--thread", help="Existing thread resource; also set messageReplyOption in --params")

@@ -16,7 +16,7 @@ Encrypt state and `.tfplan` files client-side with GCP KMS as sketched in [versi
    gcloud kms keys add-iam-policy-binding state --keyring=tofu --location="<region>" --member="serviceAccount:<apply-sa>" --role="roles/cloudkms.cryptoKeyEncrypterDecrypter" --project="<project-id>"
    ```
 1. **Enable on fresh state**: uncomment `encryption` with `enforced = true` on `state` and `plan`, then run `tofu init` and a reviewed `plan`.
-1. **Migrate existing plaintext state**: add `method "unencrypted" "migrate" {}`, temporarily swap `state` `enforced` for `fallback { method = method.unencrypted.migrate }`, run one authorized `apply`, then remove both fallback and `migrate` and restore `enforced = true`.
+1. **Migrate existing plaintext state**: add `method "unencrypted" "migrate" {}`, temporarily swap `state` `enforced` for `fallback { method = method.unencrypted.migrate }`, run one authorized `tofu apply -refresh-only` (rewrites state ciphertext without mutating cloud resources), then remove both fallback and `migrate` and restore `enforced = true`.
 1. **Verify**: confirm the stored GCS object is ciphertext and `tofu plan` succeeds for operators and CI.
 
 ## Gotchas

@@ -11,7 +11,7 @@ Keep human and agent docs aligned with live code, with one canonical owner per c
 
 1. **Inventory**: find `README.md`, root/nested `AGENTS.md`, `docs/`, `.github/*.md`, generated help, and `.agents/skills/*/SKILL.md` (plus any repo skill catalog).
 1. **Verify against code**: check entry points, source, tests, manifests, `mise` tasks, hooks, CI, and `--help` for every path, flag, version, and example.
-1. **Route by audience**: apply [humanize](../../../humanize/SKILL.md) + [README guidance](references/readme.md) + [README assets](references/readme-assets.md) for scannable human docs, badges, and visuals; apply [AGENTS guidance](references/agents.md) for concise, literal agent rules and layout; put reusable procedures in skills.
+1. **Route by audience**: apply [humanize](../../../humanize/SKILL.md) + [README guidance](references/readme.md) for scannable human docs, badges, assets, and policy links; apply [AGENTS guidance](references/agents.md) for concise, literal agent rules and layout; put reusable procedures in skills.
 1. **Gate & review adversarially**: run repo doc checks, `vale` on external user-facing docs, `typos`, `dot context --check` after instruction/skill edits, `lychee --no-progress --include-fragments=full <files>` (checks anchors + `#:~:text=`; add `--include-verbatim` when code-block URLs carry claims), `dprint check`, and any site build; visually inspect rendered diagrams/pages and run `fmind-review-docs` / `fmind-review-factcheck` ([subagent](../../../subagent/SKILL.md)) on substantive doc rewrites.
 1. **Report**: changed files, verification evidence, and unverified external claims.
 

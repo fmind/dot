@@ -87,8 +87,10 @@ def audit(root: Path, files: list[Path]) -> dict[str, Any]:
     global_file = global_excludes(root)
     global_patterns = {line for _, line in patterns(global_file)} if global_file and global_file.is_file() else set()
     # --exclude-standard skips tool-written .gitignore files inside ignored caches and environments.
-    listed = split(git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.gitignore"))
-    targets = [path.resolve() for path in files] or [
+    listed = split(
+        git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ":(glob)**/.gitignore")
+    )
+    targets = [((start / path) if not path.is_absolute() else path).resolve() for path in files] or [
         resolved for item in listed if (resolved := (root / item).resolve()).is_file()
     ]
     gitignore_hits = attribute(root, paths, None) if any(t.name == ".gitignore" for t in targets) else {}
@@ -154,8 +156,9 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         allow_abbrev=False,
-        suggest_on_error=True,
     )
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument("files", nargs="*", type=Path, help="ignore files to audit (default: every .gitignore)")
     parser.add_argument("--root", type=Path, default=Path(), help="any path inside the repository")
     parser.add_argument("--json", action="store_true", help="emit structured JSON")

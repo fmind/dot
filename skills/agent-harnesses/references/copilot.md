@@ -5,17 +5,17 @@ description: "Copilot CLI sessions, non-interactive flags, folder trust, and ext
 
 # GitHub Copilot CLI
 
-Operate Copilot CLI; [gh-aw](../../github/references/gh-aw.md) owns GitHub Agentic Workflows.
+Operate Copilot CLI; [ci-cd](../../github/references/ci-cd/GUIDE.md) owns GitHub Agentic Workflows.
 
 ## Workflow
 
 Follow the shared [workflow](../SKILL.md#workflow); host specifics:
 
-- **Headless and parallel runs**: pass `copilot -p "<task>" -s --output-format json` (`-s` drops banners/chrome), `--fleet` for parallel subagent execution, or `copilot acp` / `--acp` for ACP editors.
+- **Headless and parallel runs**: pass `copilot -p "<task>" -s --output-format json` (`-s` drops banners/chrome), `--fleet` for parallel subagent execution, or `copilot --acp` for ACP editors.
 - **Scopes differ**: keep CLI, IDE, and cloud agent configurations separate.
-- **Keep secrets out of argv/output**: pass secret names via `--secret-env-vars=KEY1,KEY2` so Copilot redacts their values from outputs, JSON logs, and tool captures.
+- **Keep secrets out of argv/output**: pass secret names via `--secret-env-vars=KEY1,KEY2` to strip them from shell and MCP environments and mask values in select formats (such as `--output-format json`), but note its limit—any value reaching a tool result another way still enters model context and session history.
 - **Separate tool approval from folder trust**: `--allow-all-tools` (without it, `-p` denies unapproved tools) and `COPILOT_ALLOW_ALL=1` only approve tools; setting `COPILOT_ALLOW_ALL=true` also trusts cwd and loads its skills, plugins, MCP servers, and hooks. Prefer `--trust-folder` per reviewed run; `--share-gist` publishes data and requires approval.
-- **Managed keys (`fmind/dot`)**: `private_dot_copilot/modify_private_settings.json` merges `~/.copilot/settings.json` (seeding `effortLevel`/`planEffortLevel: "high"`, with managed `askUser: true`, `autoUpdate: false`, `customAgents.defaultLocalOnly: true`, `defaultMode: "autopilot"`, `editorMode: "vim"`, `ide.autoConnect: false`, `memory: false`, `notifications: true`, `respectGitignore: false`, and disabled `connectors`/`remoteExport`/`remoteSessions`/`storeTokenPlaintext`) and `modify_lsp-config.json` merges `~/.copilot/lsp-config.json`; `~/.copilot/config.json` holds `"trustedFolders"`. Edit sources before `chezmoi apply`.
+- **Managed keys (`fmind/dot`)**: `private_dot_copilot/modify_private_settings.json` merges `~/.copilot/settings.json` (seeding `effortLevel: "medium"` and `planEffortLevel: "high"`, with managed `askUser: true`, `autoUpdate: false`, `customAgents.defaultLocalOnly: true`, `defaultMode: "autopilot"`, `defaultPermissionMode: "allow-all"`, `editorMode: "vim"`, `ide.autoConnect: false`, `memory: false`, `notifications: true`, `respectGitignore: false`, and disabled `connectors`/`remoteExport`/`remoteSessions`/`storeTokenPlaintext`) and `modify_lsp-config.json` merges `~/.copilot/lsp-config.json`; `~/.copilot/config.json` holds `"trustedFolders"`. Edit sources before `chezmoi apply`.
 
 ## Official Skills
 

@@ -19,9 +19,10 @@ Existing public contracts govern shape, streams, exit codes, and formats; side-e
 ## Workflow
 
 1. **Bootstrap**: follow [bootstrap](references/bootstrap.md) for packaged CLIs, or [script](../script/GUIDE.md) for single-file scripts.
-1. **Isolate `Namespace` at the boundary**: build parsers in `build_parser()`, bind subparsers via `set_defaults(handler=...)`, and unpack untyped `args` into typed handler arguments (`lambda args: greet(name=args.name)`) or a dataclass so `ty check` verifies call sites. Pass `allow_abbrev=False` and `suggest_on_error=True` (`3.14+`) on every parser.
+1. **Isolate `Namespace` at the boundary**: build parsers in `build_parser()`, bind subparsers via `set_defaults(handler=...)`, and unpack untyped `args` into typed handler arguments (`lambda args: greet(name=args.name)`) or a dataclass so `ty check` verifies call sites. Pass `allow_abbrev=False` and `suggest_on_error=True` (`3.14+`) on every parser; when supporting Python `3.10–3.13` under `py314` Ruff/`ty`, set `if hasattr(parser, "suggest_on_error"): parser.suggest_on_error = True` (avoids `ty` dict-unpack errors and Ruff `UP036`).
 1. **Fail invalid input with exit `2`**: use `choices`, `type`, `nargs`, `required`, and `parser.error(...)` (exits `2` with stderr usage, never `1`).
 1. **Test streams & exit codes**: assert stdout, stderr, and exits (`0`/`1`/`2`) across `-h`/`--help` (including broken config / no credentials), `--version`, happy paths, usage errors, non-TTY/`--no-input`, piped/`NO_COLOR`, and JSON schemas via in-process `main([...])` + `capsys` + `pytest.raises(SystemExit)`, plus one `python -m <package>` subprocess smoke test (and fresh-shell completions when shipped).
+1. **Lock CLI contracts & audit**: for multi-command CLIs, snapshot the rendered root + subcommand `--help` tree under `NO_COLOR=1` and `COLUMNS=80` against a committed golden file so flag, default, and subcommand changes surface in PR diffs; audit CLI contracts with `fmind-review-cli` ([subagent](../../../subagent/SKILL.md)).
 
 ## Gotchas
 

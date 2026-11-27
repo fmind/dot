@@ -55,6 +55,23 @@ def test_cors_is_closed_by_default() -> None:
 
     assert app.cors_config
     assert app.cors_config.allow_origins == []
+    assert app.request_max_body_size == 1_048_576
+
+
+@pytest.mark.anyio
+async def test_http_error_returns_problem_details() -> None:
+    async with AsyncTestClient(app=create_app(Settings(environment="test"))) as client:
+        response = await client.get("/missing")
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/problem+json")
+    body = response.json()
+    assert body["type"] == "about:blank"
+    assert body["title"] == "Not Found"
+    assert body["status"] == 404
+    assert body["instance"] == "/missing"
+    assert isinstance(body["detail"], str)
+    assert body["detail"]
 
 
 @pytest.mark.anyio

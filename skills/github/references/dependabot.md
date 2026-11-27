@@ -17,7 +17,7 @@ Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`
    gh api "repos/$repository/automated-security-fixes" --jq .enabled   # expect true
    ```
 
-1. **Write `.github/dependabot.yml`**: copy [dependabot.yml](../templates/dependabot.yml) and add one entry per advisory-backed manifest root (`github-actions` for `.github/workflows`, `uv`, `npm`, `gomod`; use `directory` for one root or `directories` for multiple). Keeping `open-pull-requests-limit: 0` disables noisy version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping (`schedule` is schema-required only).
+1. **Write `.github/dependabot.yml`**: copy [dependabot.yml](../templates/dependabot.yml) and add one entry per advisory-backed manifest root (`github-actions`, `uv`, `npm`, `gomod`; use `directory: /` for `.github/workflows` alone, or `directories: ["/", "/.github/actions/**/*"]` whenever local composite actions such as `setup-mise/action.yml` exist). Keeping `open-pull-requests-limit: 0` disables noisy version PRs while preserving `fix(deps)` prefixes and single-PR `security-updates` grouping (`schedule` is schema-required only).
 
 1. **Validate**: run [jactionlint](jactionlint.md) (`--profile pedantic` flags `open-pull-requests-limit: 0` as `dependabot-missing-actions-update`, so set `dependabot-missing-actions-update: off` in `.github/jactionlint.yaml`); GitHub re-validates on push under Insights → Dependency graph → Dependabot.
 1. **Verify security PRs locally before merge** (never enable auto-merge):
@@ -36,9 +36,9 @@ Use Dependabot strictly for vulnerability alerts and grouped security fix PRs (`
 - **Avoid `allow` and `ignore`**: both filter security updates too and can silently block vulnerability fixes.
 - **Check remaining open alerts after merging**: grouped PRs skip conflicting bumps; inspect `gh api --paginate 'repos/OWNER/REPO/dependabot/alerts?state=open&per_page=100'` (omit `-f`, which switches to POST) and bump leftovers manually.
 - **Set `directory` per manifest**: Dependabot does not recurse (`dot/` needs `directory: /dot`).
-- **Only `.github/workflows` is graphed for Actions**: workflow templates elsewhere get no alerts; update them via [upgrade-tools](../../mise/references/upgrade-tools/GUIDE.md).
-- **Enable account-level grouping for unconfigured repos**: toggle "Grouped security updates" in `https://github.com/settings/security_analysis` or org security settings; configure alert delivery separately under account notification settings.
-- **Clear alerts on removed manifests**: if a deleted lockfile path keeps failing Dependabot jobs (`<directories> not found`), verify the active lock has a patched version and dismiss: `gh api -X PATCH repos/OWNER/REPO/dependabot/alerts/N -f state=dismissed -f dismissed_reason=not_used -f dismissed_comment="Manifest removed; current lock resolves PACKAGE VERSION"`. If the dependency graph reopens them, cycle `gh api -X DELETE repos/OWNER/REPO/vulnerability-alerts` (requires admin authority; briefly disables the graph) followed by `PUT` on `vulnerability-alerts` and `automated-security-fixes`, then confirm `.enabled == true`.
+- **Actions coverage scope**: `directory: /` covers only `.github/workflows`; use `directories: ["/", "/.github/actions/**/*"]` whenever local composite actions (like `setup-mise/action.yml`) exist. Workflow templates outside `.github/` get no alerts; update them via [upgrade-tools](../../mise/references/upgrade-tools/GUIDE.md).
+- **Enable account-level grouping for unconfigured repos**: toggle "Grouped security updates" in GitHub account/org `security_analysis` settings; configure alert delivery in notification settings.
+- **Clear alerts on removed manifests**: if a deleted lockfile fails Dependabot jobs (`<directories> not found`), confirm the active lock is patched and dismiss: `gh api -X PATCH repos/OWNER/REPO/dependabot/alerts/N -f state=dismissed -f dismissed_reason=not_used -f dismissed_comment="Manifest removed; active lock resolves PACKAGE VERSION"`. If reopened, cycle `DELETE` then `PUT` on `vulnerability-alerts` (admin authority) and `PUT` `automated-security-fixes`, confirming `.enabled == true`.
 - **Manual re-checks are web-only**: trigger under Insights → Dependency graph → Dependabot.
 
 ## Documentation

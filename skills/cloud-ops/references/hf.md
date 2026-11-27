@@ -10,7 +10,7 @@ Operate Hugging Face Hub with `hf` (`pypi:huggingface_hub`): auth, bounded trans
 ## Workflow
 
 1. **Verify account**: `hf auth whoami` (`hf auth login` or env `HF_TOKEN`; never run `hf auth token`).
-1. **Inspect before downloading**: use `hf models|datasets|spaces info|card|ls --limit 10`, or query remote Parquet in place with `hf datasets sql`.
+1. **Inspect before downloading**: use `hf models|datasets|spaces info|card <repo-id>` or `ls --limit 10` (`--limit` applies to `ls` only), or query remote Parquet in place with `hf datasets sql`.
 1. **Download into gitignored paths** (gated repos require prior web license acceptance):
 
    ```bash
@@ -20,7 +20,7 @@ Operate Hugging Face Hub with `hf` (`pypi:huggingface_hub`): auth, bounded trans
 
 1. **Clean only task-owned cache** (`HF_HOME` relocates future caches): inspect `hf cache ls`, preview `hf cache prune --dry-run` / `hf cache rm <repo-or-rev> --dry-run`, then pass `--yes`—broad pruning requires explicit approval.
 1. **Upload privately with authority**: confirm repo, visibility, and license first. Always pass `--private` on `repos create`, `upload`, and `buckets create` (missing targets inherit org/account public defaults), preview `hf sync --dry-run` (`--delete` needs explicit approval), and verify via `hf models info` or `hf repos ls`.
-1. **Gate paid compute and public ports**: preview `hf jobs [uv] run --dry-run` before billing, pass secrets by name (`--secrets HF_TOKEN`, never `NAME=value`), never pass unauthenticated `--expose-public` unapproved, apply the same spend gate to `hf sandbox` and hourly `hf endpoints deploy`, and tear down with `hf jobs cancel`, `hf sandbox kill`, or `hf endpoints pause`.
+1. **Gate paid compute and public exposure**: preview `hf jobs [uv] run --dry-run` before billing, pass secrets by name (`--secrets HF_TOKEN`, never `NAME=value`), and never expose public services (`--expose-public`, `hf jobs expose <job_id> --public <port>`, or `hf endpoints deploy --type public`) without approval. Apply the same spend gate to `hf sandbox` and hourly `hf endpoints deploy`, and tear down with `hf jobs cancel`, `hf sandbox kill`, or `hf endpoints pause`.
 
 ## Gotchas
 

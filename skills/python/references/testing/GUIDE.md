@@ -5,7 +5,7 @@ description: "Write Python tests with pytest, fixtures, property, mutation, and 
 
 # Python Testing
 
-Prove behavior changes with tests that fail before the fix and pass with it (for test-only maintenance, read [pytest mechanics](references/pytest.md) directly; opt into [BDD & stakeholder reports](references/bdd.md) when stakeholders review specs or need acceptance reports). Approved [ty baselines](../foundation/GUIDE.md#ty) only ever shrink.
+Prove behavior changes with tests that fail before the fix and pass with it (for test-only maintenance, read [pytest mechanics](references/pytest.md) directly; opt into [BDD & stakeholder reports](references/bdd.md) when stakeholders review specs or need acceptance reports). Approved [ty baselines](../foundation/GUIDE.md#ty) only ever shrink. Audit non-trivial test suites and diffs with `fmind-review-test` ([subagent](../../../subagent/SKILL.md)).
 
 ## Workflow
 
@@ -15,11 +15,13 @@ Prove behavior changes with tests that fail before the fix and pass with it (for
    ```bash
    git diff -U0 <base> -- '*.py' '*.toml' | rg -s \
      -e '^-\s*assert\b' -e '^-.*match=' \
-     -e '^\+.*(\bskip(if)?\b|xfail|mark\.wip\b|pragma: no cover|noqa|ignore\[|type: ignore|fail_under|filterwarnings|deselect|omit|exclude_also|baseline)'
+     -e '^\+.*(\bskip(if)?\b|xfail|mark\.wip\b|pragma: no cover|noqa|ignore\[|type: ignore|fail_under|filterwarnings|deselect|omit|exclude_also|ty-baseline\.json|--update-baseline)'
    git diff -U0 <base> -- '*.feature' | rg -s -e '^-[^-]' -e '^\+.*@(skip|xfail|wip)\b'
-   git ls-files -o --exclude-standard -- '*.py' '*.feature' \
-     | xargs -r rg -s -nH '\bskip(if)?\b|xfail|@wip\b|mark\.wip\b|pragma: no cover|noqa|ignore\['
+   git ls-files -z -o --exclude-standard -- '*.py' '*.feature' \
+     | xargs -0 -r rg -s -nH '\bskip(if)?\b|xfail|@wip\b|mark\.wip\b|pragma: no cover|noqa|ignore\['
    ```
+
+   (`xargs -0 -r` requires GNU xargs or macOS 14+; on older BSD hosts inspect untracked files with `python3 -I`.)
 
 1. **Changed-line coverage (`diff-cover`, opt-in PR summary or gate)** and deep probes: overall `fail_under = 85` can mask large untested AI deltas in mature repos. Add `diff-cover` to `dev` (`UV_MALWARE_CHECK=1 uv add --preview-features malware-check --dev diff-cover`) for CI/PR gates, generate Cobertura XML, and run `diff-cover` with `--branch-coverage` (matching `[tool.coverage.run] branch = true`):
 
@@ -37,6 +39,7 @@ Prove behavior changes with tests that fail before the fix and pass with it (for
 - **Separate holdout validation on autonomous runs**: tests inside a coding agent's writable tree can be overfit even without weakening diffs. For high-autonomy or client-critical builds, keep black-box acceptance/holdout suites outside the generator workspace (separate private repo, CI-only checkout, or an OS-level read-only mount / isolated evaluator workdir) and feed only structured failure summaries (for example `allure agent query` JSON) back for fixes ([holdout scenarios](references/bdd.md#holdout-scenarios)).
 - **Hand-checked expectations**: use literal expected values (never recomputed by the system under test), assert observable behavior rather than source text or wording constants, and type-check mocks via `create_autospec(..., spec_set=True)` or `AsyncMock` for `async def` collaborators (never un-specced `MagicMock()`).
 - **Real collaborators first**: use real parsers, temp dirs, SQLite/in-memory stores, and `MockTransport`; fake only paid, destructive, slow, or flaky external systems behind narrow owned interfaces.
+- **Hermetic modes, caches, & concurrency**: explicitly `chmod` temp dirs/files in permission-sensitive tests (never assume `umask 0022` over `0002`), keep non-flocked caches (`DPRINT_CACHE_DIR`) under per-worker `tmp_path_factory.getbasetemp()` while sharing flock-safe caches (`UV_CACHE_DIR`) under `getbasetemp().parent` when `PYTEST_XDIST_WORKER` is set, and synchronize concurrency/async tests on explicit barriers or ready events (`threading`/`asyncio` `Barrier`/`Event`) rather than racy `start()` + `set()` sequences.
 - **Sub-minute suites**: avoid sleeps, live network calls, and repeated cold subprocesses in unit tests.
 
 ## References & Docs

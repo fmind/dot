@@ -8,9 +8,11 @@ import shlex
 import shutil
 import subprocess
 import sys
+import urllib.parse
 from dataclasses import dataclass
+from typing import Any
 
-type Record = dict[str, object]
+Record = dict[str, object]
 
 TIMEOUT = 120
 FEATURES = ("issues", "wiki", "projects", "discussions")
@@ -44,7 +46,7 @@ MERGE_POLICY: Record = {
     "squash_merge_commit_title": "PR_TITLE",
     "squash_merge_commit_message": "PR_BODY",
 }
-REPOSITORY = re.compile(r"[A-Za-z0-9-]+/[A-Za-z0-9._-]+")
+REPOSITORY = re.compile(r"[A-Za-z0-9_-]+/[A-Za-z0-9._-]+")
 
 
 class BaselineError(Exception):
@@ -230,7 +232,8 @@ def inspect(repository: str) -> State:
         if not isinstance(branch, str) or not branch:
             raise BaselineError(f"{base}: missing default_branch")
         # Effective rules merge organization and repository rulesets.
-        rules = get_all(f"{base}/rules/branches/{branch}?per_page=100")
+        encoded_branch = urllib.parse.quote(branch, safe="")
+        rules = get_all(f"{base}/rules/branches/{encoded_branch}?per_page=100")
         report["default_branch_protected"] = {"deletion", "non_fast_forward"} <= {rule.get("type") for rule in rules}
     return State(
         repository=repository,
@@ -373,7 +376,8 @@ def repository_name(value: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser_kwargs: dict[str, Any] = {"suggest_on_error": True} if sys.version_info >= (3, 14) else {}
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, **parser_kwargs)
     parser.add_argument("repository", metavar="OWNER/REPO", type=repository_name)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(

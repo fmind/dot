@@ -1,6 +1,6 @@
 # Charts, Diagrams, Branded Images, and Typst Escaping
 
-Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without `@preview/...` packages or a headless browser. Keep each slide to **one focal visual** with explicit units, baselines, and sample sizes (`n=...`), adding as many dedicated evidence slides as the narrative requires rather than crowding two charts onto one slide.
+Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without `@preview/...` packages or a headless browser. Keep each slide to **one focal visual**, zero prose paragraphs, and concise micro-phrases (`~40–90` visible words live, `~60–110`w async; mark closing `Annex · Sources` slides `appendix: true`) with explicit units, baselines, and sample sizes (`n=...`), adding dedicated evidence slides rather than crowding two charts onto one slide.
 
 ## Reusable Slide & Brand Card Helpers ([fmind-slides.typ](../templates/fmind-slides.typ))
 
@@ -13,11 +13,11 @@ Pure-Typst graphics compile to 2x Retina PNG (`--ppi 192`) or vector SVG without
 
 ## Standalone Branded Images (`render` & `figures/*.typ`)
 
-Start from [figure-card.typ](../templates/figure-card.typ) or place reusable visuals in `figures/*.typ` and render directly:
+Start from [figure-card.typ](../templates/figure-card.typ) or place reusable visuals in `figures/*.typ` using root-relative `#import "/fmind-slides.typ": *` (works seamlessly in both `check --render-figures` and standalone `render figures/fig.typ`, which auto-walks up one level for `--root` when the parent contains `fmind-slides.typ`):
 
 ```bash
-# Single standalone card (PNG at 192 PPI by default, or --format svg)
-python3 -I ~/.agents/skills/draft/references/typst-deck/scripts/build_typst_deck.py render figure-card.typ --json
+# Single standalone card or figures/*.typ (PNG at 192 PPI by default, or --format svg)
+python3 -I ~/.agents/skills/draft/references/typst-deck/scripts/build_typst_deck.py render figures/fig.typ --json
 
 # Render all figures/*.typ alongside a deck check
 python3 -I ~/.agents/skills/draft/references/typst-deck/scripts/build_typst_deck.py check deck.typ \

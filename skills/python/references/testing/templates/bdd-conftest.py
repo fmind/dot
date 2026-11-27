@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from typing import Any, Protocol
 
 import allure
 import pytest
@@ -9,7 +11,19 @@ import pytest
 _ISSUE_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
-def pytest_bdd_apply_tag(tag, function):
+class _Rule(Protocol):
+    name: str
+
+
+class _Scenario(Protocol):
+    rule: _Rule | None
+
+
+class _Step(Protocol):
+    name: str
+
+
+def pytest_bdd_apply_tag(tag: str, function: Callable[..., Any]) -> bool | None:
     if tag.startswith("issue_"):
         issue_id = tag.removeprefix("issue_")
         if not _ISSUE_ID_RE.fullmatch(issue_id):
@@ -26,11 +40,11 @@ def pytest_bdd_apply_tag(tag, function):
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_bdd_before_scenario(scenario):
+def pytest_bdd_before_scenario(scenario: _Scenario) -> None:
     if scenario.rule:
         allure.dynamic.story(scenario.rule.name)
 
 
-def pytest_bdd_step_func_lookup_error(request, step):
+def pytest_bdd_step_func_lookup_error(request: pytest.FixtureRequest, step: _Step) -> None:
     if request.node.get_closest_marker("wip"):
         pytest.skip(f"WIP step not yet implemented: {step.name}")

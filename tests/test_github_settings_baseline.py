@@ -9,9 +9,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any
 
-from repo_helpers import load_script
+from repo_helpers import ROOT, load_script
 
-ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills/github/references/repository/scripts/settings_baseline.py"
 _BASELINE: Any = load_script("settings_baseline", SCRIPT)
 BASE = "repos/owner/repo"
@@ -363,3 +362,15 @@ def test_environment_preserves_false_admin_bypass_and_flags_missing_vulnerabilit
     assert bodies(calls)[f"{BASE}/environments/pypi"]["can_admins_bypass"] is False
     report = json.loads(result.stdout)
     assert "vulnerability_alerts: expected true, found false" in report["drift"]
+
+
+def test_default_branch_with_slash_is_url_encoded(tmp_path: Path) -> None:
+    before = public_before()
+    before[f"GET {BASE}"] = repository("public", default_branch="release/v1", **MERGED)
+    del before[f"GET {BASE}/rules/branches/main?per_page=100"]
+    before[f"GET {BASE}/rules/branches/release%2Fv1?per_page=100"] = [
+        [{"type": "deletion"}, {"type": "non_fast_forward"}]
+    ]
+    result, calls = run(tmp_path, {"before": before}, "--check")
+    assert any(call["args"][-1] == f"{BASE}/rules/branches/release%2Fv1?per_page=100" for call in calls)
+    assert json.loads(result.stdout)["state"]["default_branch_protected"] is True

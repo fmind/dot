@@ -35,12 +35,19 @@ None of these tools (or `k3d`) are installed globally: pin required ones in the 
    stern <pod-query> --context <context> -n <namespace> --since 15m --tail 50 --no-follow
    ```
 
+## Manifest Defaults
+
+- **Pod Security `restricted`**: set `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`, `seccompProfile.type: RuntimeDefault`, `readOnlyRootFilesystem: true`, and `automountServiceAccountToken: false` (mount emptyDir for writable scratch).
+- **Probes & graceful drain**: separate `readinessProbe`, `livenessProbe`, and `startupProbe`, and add a `lifecycle.preStop` drain delay with `terminationGracePeriodSeconds` exceeding drain + in-flight request timeouts.
+- **Resources**: declare CPU and memory `requests` plus memory and `ephemeral-storage` `limits` (omit CPU limits unless strict throttling is required).
+- **Secrets & RBAC**: keep plaintext `Secret` YAML out of Git (use External Secrets, SOPS, or KMS) and scope permissions with namespace `RoleBinding` instead of `ClusterRoleBinding`.
+
 ## Gotchas
 
 - **Never mutate persistent kubeconfig context** unless explicitly asked; pass `--context` per command.
 - **Never dump raw Secret values**: inspect keys/sizes via `kubectl describe secret <name>` instead of `kubectl get secret -o yaml`.
 
-## Task guides
+## References
 
 - [k3d](references/k3d.md): Create, budget, and tear down disposable local k3d clusters for runtime tests.
 

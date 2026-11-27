@@ -1,25 +1,25 @@
 ---
 name: github
-description: "Operate GitHub via gh (issues, PRs, repos, Actions logs) and configure CI/CD, Dependabot, Lefthook."
+description: "Operate GitHub via gh (issues, PRs, repos, Actions logs), bootstrap repos, pick LICENSE, and configure CI/CD & Dependabot."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/github
   created: "2026-11-21"
-  updated: "2026-11-24"
+  updated: "2026-11-27"
 ---
 
 # GitHub & Actions
 
-Use `gh` for authenticated GitHub reads and writes, and configure pinned GitHub Actions CI/CD, Dependabot, Lefthook, and `jactionlint`. [git-delivery](../git-delivery/SKILL.md) owns local commits, branches, pushes, and releases.
+Use `gh` for authenticated GitHub reads and writes, bootstrap repositories, select licenses, and configure pinned GitHub Actions CI/CD, Dependabot, and `jactionlint`. [git-delivery](../git-delivery/SKILL.md) owns local commits, branches, pushes, Lefthook hooks, and releases.
 
 ## Workflow (`gh` CLI)
 
 1. **Resolve host and repository**: confirm from `gh repo view --json nameWithOwner` (never print raw remote URLs); pass `-R <owner>/<repo>` (`--hostname <host>` on `gh api`) explicitly.
 1. **Verify auth**: run `gh auth status --active --hostname <host>` (`gh auth status --json` can exit 0 on failed auth); never print tokens or pass `--show-token`. Account switches and extra scopes follow [dot-cli authentication](../dot-cli/references/authentication.md).
-1. **Use bounded native reads**: pass `--limit` and `--json` fields; read remote files via `gh repo read-file <path> -R <owner>/<repo> --ref <sha>` or `gh repo read-dir` (`""`, not `.`, for root) instead of cloning; inspect failed Actions logs via `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed`.
-1. **Write humanized text from files, then read back**: shape copy with [humanize](../humanize/SKILL.md), scan payloads with `betterleaks stdin --redact`, pass `--body-file` or `gh api --input <file>`, and re-read modified fields before retrying.
+1. **Use bounded native reads**: pass `--limit` and `--json` fields; read remote files via `gh repo read-file <path> -R <owner>/<repo> --ref <sha>` or `gh repo read-dir -R <owner>/<repo>` (omit path for root) instead of cloning; inspect failed Actions logs via `gh run view <run-id> -R <owner>/<repo> --job <job-id> --log-failed`.
+1. **Write humanized text from files, review, then read back**: shape external copy with [humanize](../humanize/SKILL.md) (`fmind-review-human` on substantive PRs/issues), scan payloads with `betterleaks stdin --redact`, audit non-trivial workflow or security changes with `fmind-review-cicd` / `fmind-review-security`, pass `--body-file` or `gh api --input <file>`, and re-read modified fields before retrying.
 
 ## Task guides
 
@@ -28,10 +28,8 @@ Use `gh` for authenticated GitHub reads and writes, and configure pinned GitHub 
 - [bootstrap](references/bootstrap.md): Create a new repository: location, visibility, stack composition, shared layer, checks, and first push.
 - [ci-cd](references/ci-cd/GUIDE.md): Wire Python CI, scheduled security scans, and OIDC PyPI/OCI CD.
 - [dependabot](references/dependabot.md): Configure security-only Dependabot alerts and grouped fix PRs.
-- [gh-aw](references/gh-aw.md): Configure and bound gh-aw agentic workflows with safe outputs.
 - [issues](references/issues/GUIDE.md): Plan, draft, deduplicate, update, link, and close GitHub issues.
 - [jactionlint](references/jactionlint.md): Lint and audit GitHub Actions workflows and Dependabot with jactionlint.
-- [lefthook](references/lefthook.md): Configure local Lefthook Git hooks via mise tasks.
 - [project-license](references/project-license/GUIDE.md): Choose, write, and declare a repository LICENSE (MIT, CC-BY-4.0, or proprietary) by namespace and content.
 - [pull-request](references/pull-request.md): Open, update, verify, comment on, and merge GitHub pull requests.
 - [repository](references/repository/GUIDE.md): Set GitHub repo description, homepage, topics, merge policy, and security settings.

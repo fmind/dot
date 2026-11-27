@@ -8,12 +8,14 @@ pre-commit:
   jobs:
     - name: format docs and config
       glob: "**/*.{json,jsonc,md,toml,yaml,yml}"
-      run: mise run format:dprint {staged_files}
+      run: mise run format:dprint -- {staged_files}
       stage_fixed: true
     - name: format OpenTofu
       glob: "**/*.{tf,tofu,tfvars,tftest.hcl,tofutest.hcl}"
-      run: mise run format:tofu {staged_files}
+      run: mise run format:tofu -- {staged_files}
       stage_fixed: true
+    - name: check leaks (staged)
+      run: mise run check:leaks:staged
     - name: check
       run: mise run check:local
 pre-push:

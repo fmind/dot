@@ -10,6 +10,10 @@ lockfile = true
 lockfile_platforms = ["linux-arm64", "linux-x64", "macos-arm64"]
 minimum_release_age = "0d"
 
+# Uncomment after running `mise lock` to enforce locked tool installs:
+# [tool_config]
+# locked = true
+
 [settings.task]
 run_auto_install = false
 # Keep build warnings and errors; MISE_TASK_QUIET=false restores command echoes.
@@ -17,6 +21,10 @@ quiet = true
 
 [task_config]
 dir = "{{config_root}}"
+
+[env]
+# Opt out of OpenSpec's PostHog usage telemetry (remove if opting out of OpenSpec).
+OPENSPEC_TELEMETRY = "0"
 
 [tools]
 # Scaffold selectors: replace with exact pins; CI installs only what this table declares.
@@ -29,6 +37,15 @@ lychee = "latest"
 shellcheck = "latest"
 typos = "latest"
 uv = "latest"
+
+[tools."github:Fission-AI/OpenSpec"]
+# Standalone OpenSpec CLI (glibc on Linux; remove with check:specs if opting out).
+version = "latest"
+
+[tools."github:Fission-AI/OpenSpec".platforms]
+linux-arm64 = { asset_pattern = "openspec-linux-arm64.tar.gz" }
+linux-x64 = { asset_pattern = "openspec-linux-x64.tar.gz" }
+macos-arm64 = { asset_pattern = "openspec-darwin-arm64.tar.gz" }
 
 [tasks.all]
 alias = "a"
@@ -62,13 +79,17 @@ description = "Scan working-tree files, including untracked files, for leaked se
 # betterleaks 1.10+ loads .betterleaks.toml only when named explicitly.
 run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
+[tasks."check:leaks:staged"]
+description = "Scan staged Git changes for leaked secrets"
+run = "betterleaks git --staged --config .betterleaks.toml --redact=100 --verbose --no-banner"
+
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
 run = "betterleaks git --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:links"]
 description = "Check offline Markdown links and fragments (lychee)"
-run = "lychee --offline --include-fragments --no-progress --extensions md ."
+run = "lychee --offline --include-fragments --no-progress --exclude-path openspec/changes/archive --extensions md ."
 
 [tasks."check:actions"]
 alias = "ca"
@@ -78,6 +99,13 @@ run = "jactionlint --profile pedantic"
 [tasks."check:actions:online"]
 description = "Audit GitHub Actions workflows with online checks"
 run = "jactionlint --online=strict --strict-exit"
+
+[tasks."check:specs"]
+description = "Validate OpenSpec specs, active changes, and archived tasks strictly"
+run = [
+  "openspec validate --all --strict --no-interactive",
+  "openspec validate --archived --strict --no-interactive",
+]
 
 [tasks."check:tasks"]
 description = "Validate repository task and Git hook definitions"
@@ -115,7 +143,7 @@ depends = ["check:local", "check:network"]
 
 [tasks."check:local"]
 description = "Run offline checks (pre-commit)"
-depends = ["check:actions", "check:format", "check:leaks", "check:links", "check:tasks", "check:typos"]
+depends = ["check:actions", "check:format", "check:leaks", "check:links", "check:specs", "check:tasks", "check:typos"]
 
 [tasks."check:network"]
 description = "Audit locked dependencies and build the site with vendored font/Mermaid assets (pre-push)"

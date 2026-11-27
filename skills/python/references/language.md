@@ -5,7 +5,7 @@ description: "Apply Python 3.14+ idioms, strict ty typing, exception chaining, s
 
 # Python Language, Typing, & Boundaries
 
-High-leverage Python `3.14+` invariants and safety boundaries; [foundation](foundation/GUIDE.md) owns packaging and tooling, and [async](async.md) owns concurrency.
+High-impact Python `3.14+` invariants and safety boundaries; [foundation](foundation/GUIDE.md) owns packaging and tooling, and [async](async.md) owns concurrency.
 
 ## Strict Typing (`ty`)
 
@@ -22,9 +22,12 @@ High-leverage Python `3.14+` invariants and safety boundaries; [foundation](foun
 ## Exceptions, Subprocesses, & Filesystem I/O
 
 - **Chain and preserve cancellation**: catch narrow exception types, never swallow `asyncio.CancelledError` or `KeyboardInterrupt`, always chain `raise DomainError(...) from err` (or explicit `from None` when hiding internals), attach structured attributes to domain errors, and never use `assert` for runtime validation (`python -O` strips it).
-- **Bound subprocesses**: invoke `subprocess.run([cmd, ...], check=True, timeout=..., stdin=subprocess.DEVNULL)` with explicit list argv (never `shell=True` on untrusted inputs) and validate exit codes when `check=False`.
+- **Bound `subprocess.run`**: invoke `subprocess.run([cmd, ...], check=True, timeout=..., stdin=subprocess.DEVNULL)` with explicit list argv (never `shell=True` on untrusted inputs), and validate exit codes when `check=False`.
+- **Process groups (`Popen`)**: `subprocess.run` kills only the direct child PID on timeout; launch child-spawning tools via `subprocess.Popen(..., start_new_session=True)` with `os.killpg` `SIGTERM -> SIGKILL` cleanup on timeout or `BaseException` (and poll the PGID if the leader exits early).
+- **Streaming subprocess pipes**: drain `stderr` concurrently with a byte cap, close `stdout` immediately on early return to prevent pipe deadlocks, and never close reader-owned pipes from a timer thread (signal the process group only so the reader unblocks via EOF and owns cleanup).
+- **Stdlib `http.client` / `urllib` bounded reads**: `HTTPResponse.read(limit + 1)` silently returns a truncated prefix on premature TCP EOF without raising `IncompleteRead`; after rejecting `len(body) > limit`, check `isinstance(rem := getattr(resp, "length", None), int) and rem > 0` (`resp.length` is `None` on chunked/close-delimited responses) so truncated bodies retry or fail closed instead of poisoning checksums. Bypass raw `HTTPSConnection` pools when `urllib.request.getproxies()` is non-empty, and reset keep-alive sockets on redirects, non-200 responses, and oversize bodies.
 - **Encoding, timezones, & iteration**: pass `encoding="utf-8"` on every `open()` / `Path.read_text()` / `Path.write_text()`, `strict=True` on parallel `zip(...)`, and `datetime.now(UTC)` (never naive `datetime.now()` / `utcnow()`).
-- **Atomic writes & path containment**: write durable files to a same-directory temp file (`tempfile.NamedTemporaryFile(dir=target.parent, delete=False)`), fsync when durability matters, and swap via `os.replace(...)`; verify derived write/delete paths with `resolved.is_relative_to(allowed_root)` and `resolved != allowed_root`.
+- **Atomic writes & path trust**: write durable files to a same-directory temp file (`tempfile.NamedTemporaryFile(dir=target.parent, delete=False)`), fsync when durability matters, and swap via `os.replace(...)`; verify derived write/delete paths with `resolved.is_relative_to(allowed_root)` and `resolved != allowed_root`. When validating untrusted executable/config paths, walk every symlink hop and ancestor directory and always re-stat the final resolved target after traversal (so trailing `..`, `/`, or symlink-to-`.` cannot skip leaf type/mode checks).
 
 ## Documentation
 

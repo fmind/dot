@@ -1,3 +1,8 @@
+---
+name: tailwind
+description: "Compile standalone Tailwind CSS in Python web apps via mise without Node."
+---
+
 # Standalone Tailwind for Python Web Applications
 
 Compile Tailwind via the standalone `tailwindcss` binary in `mise.toml` without adding a Node dependency graph ([web-frontend](../SKILL.md) owns CSS authoring; Django/Litestar owns static serving).
@@ -33,13 +38,13 @@ Compile Tailwind via the standalone `tailwindcss` binary in `mise.toml` without 
    [tasks."watch:css"]
    run = "tailwindcss -i assets/styles.css -o src/<package>/static/css/app.css --watch"
    ```
-   Mount compiled files via `create_static_files_router(path="/static", directories=[...], cache_control=CacheControlHeader(max_age=31_536_000, immutable=True, public=True))` and link via `url_for("static", file_path=...)`.
+   In Litestar: mount compiled files via `create_static_files_router(path="/static", directories=[...], cache_control=CacheControlHeader(max_age=31_536_000, immutable=True, public=True))` and link via `url_for("static", file_path=...)`. In Django: place output under `STATICFILES_DIRS` (or app `static/`) and link via `{% static 'css/app.css' %}`.
 1. **Verify source scanning and live CSS**: confirm clean `--minify` output includes classes from nested templates, conditionals, and Python strings (and drops a removed fixture class), then inspect styles and responsive/keyboard states with [chrome-devtools](chrome-devtools.md).
 
 ## Gotchas
 
 - **Explicit roots prevent cwd drift**: `source(none)` + `@source` keeps root and CI invocations identical; register gitignored or external template paths explicitly since Tailwind scans raw text, not Python/Jinja ASTs.
-- **Apply brand tokens**: for Fmind apps, import `~/.agents/themes/tailwind/fmind.css` after `tailwindcss` (and `daisyui/fmind.css` after the plugin with `themes: false`), and follow [diagrams-as-code](../../diagrams-as-code/SKILL.md) for published visual assets.
+- **Apply brand tokens**: for Fmind apps, copy `~/.agents/themes/tailwind/fmind.css` into project `assets/fmind.css` and `@import "./fmind.css";` after `tailwindcss` (never import a `~/` path in CSS; likewise copy `daisyui/fmind.css` after the plugin with `themes: false`), and follow [diagrams-as-code](../../diagrams-as-code/SKILL.md) for published visual assets.
 
 ## Documentation
 

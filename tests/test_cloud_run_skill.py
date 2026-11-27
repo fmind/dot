@@ -183,11 +183,14 @@ def test_cloud_run_build_receipt_and_runtime_identity_fail_closed(tmp_path: Path
     [
         "none",
         "implicit-default",
+        "etag-only-empty-policy",
         "disabled",
+        "v2-disabled",
         "unknown-setting",
         "wrong-service",
         "service-public",
         "project-public",
+        "empty-policy-object",
         "malformed-policy",
         "policy-read-fails",
         "conditional-custom-role",
@@ -202,15 +205,24 @@ def test_private_deployment_requires_both_access_postconditions(tmp_path: Path, 
     assert "--no-allow-unauthenticated" in str(deploy["with"])
     verify = next(step for step in steps if step.get("name") == "Verify private invocation")
     assert steps.index(verify) > steps.index(deploy)
-    service = {"metadata": {"name": "fixture", "annotations": {"run.googleapis.com/invoker-iam-disabled": "false"}}}
+    service: dict[str, object] = {
+        "metadata": {"name": "fixture", "annotations": {"run.googleapis.com/invoker-iam-disabled": "false"}}
+    }
     policies: dict[str, object] = {"service": {"bindings": []}, "project": {"bindings": []}}
     if problem == "implicit-default":
+        assert isinstance(service["metadata"], dict)
         service["metadata"].pop("annotations")
+    elif problem == "etag-only-empty-policy":
+        policies["service"] = {"etag": "ACAB"}
+    elif problem == "v2-disabled":
+        service["invokerIamDisabled"] = True
     elif problem in {"disabled", "unknown-setting"}:
+        assert isinstance(service["metadata"], dict)
         service["metadata"]["annotations"]["run.googleapis.com/invoker-iam-disabled"] = (
             "true" if problem == "disabled" else "unknown"
         )
     elif problem == "wrong-service":
+        assert isinstance(service["metadata"], dict)
         service["metadata"]["name"] = "other"
     elif problem in {"service-public", "project-public", "conditional-custom-role"}:
         role = "projects/fixture/roles/customInvoker" if problem == "conditional-custom-role" else "roles/run.invoker"
@@ -223,6 +235,8 @@ def test_private_deployment_requires_both_access_postconditions(tmp_path: Path, 
                 }
             ]
         }
+    elif problem == "empty-policy-object":
+        policies["service"] = {}
     elif problem == "malformed-policy":
         policies["service"] = {"bindings": "unknown"}
     fixture = {"service": service, "policies": policies, "problem": problem}
@@ -256,7 +270,7 @@ else:
     source = helper.read_text(encoding="utf-8")
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source
-    assert "suggest_on_error=True" in source
+    assert "suggest_on_error" in source
     (scripts / helper.name).write_bytes(helper.read_bytes())
     result = subprocess.run(
         ["bash", "-e", "-o", "pipefail", "-c", str(verify["run"])],
@@ -267,7 +281,9 @@ else:
         timeout=60,
         check=False,
     )
-    assert (result.returncode == 0) is (problem in {"none", "implicit-default"}), result.stderr
+    assert (result.returncode == 0) is (problem in {"none", "implicit-default", "etag-only-empty-policy"}), (
+        result.stderr
+    )
 
 
 def _load_probe_module() -> ModuleType:
@@ -275,7 +291,7 @@ def _load_probe_module() -> ModuleType:
     source = helper.read_text(encoding="utf-8")
     ast.parse(source, filename=str(helper), feature_version=(3, 14))
     assert "allow_abbrev=False" in source
-    assert "suggest_on_error=True" in source
+    assert "suggest_on_error" in source
     return load_script("probe_candidate", helper)
 
 
@@ -283,44 +299,85 @@ def test_probe_candidate_validates_url_fetches_token_and_checks_health_ready(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = _load_probe_module()
-    for bad in ("http://cand.a.run.app", "https://cand.a.run.app/path", "https://user@cand.example.com", ""):
+    for bad in (
+        "http://cand.a.run.app",
+        "https://cand.a.run.app/path",
+        "https://user@cand.example.com",
+        "https://169.254.169.254",
+        "https://svc..a.run.app",
+        "https://custom.example.com",
+        "",
+    ):
         with pytest.raises(ValueError, match="Candidate URL"):
             module.validate_candidate_url(bad)
+    assert (
+        module.validate_candidate_url("https://custom.example.com", allow_custom_domain=True)
+        == "https://custom.example.com"
+    )
+    for reserved in ("https://metadata.google.internal", "https://svc.local", "https://box.lan"):
+        with pytest.raises(ValueError, match="Candidate URL"):
+            module.validate_candidate_url(reserved, allow_custom_domain=True)
+
+    # Post-DNS validation rejects private, CGNAT, loopback, link-local, multicast, and IPv4-mapped private IPs.
+    for blocked_ip in ("127.0.0.1", "10.0.0.1", "169.254.169.254", "100.64.0.1", "224.0.0.1", "::ffff:169.254.169.254"):
+        monkeypatch.setattr(module.socket, "getaddrinfo", lambda *_a, ip=blocked_ip, **_kw: [(2, 1, 6, "", (ip, 443))])
+        with pytest.raises(ValueError, match="non-public IP"):
+            module.resolve_public_ip("custom.example.com")
+    monkeypatch.setattr(module.socket, "getaddrinfo", lambda *_a, **_kw: [(2, 1, 6, "", ("93.184.216.34", 443))])
+    assert module.resolve_public_ip("custom.example.com") == "93.184.216.34"
 
     requests_seen: list[tuple[str, str, dict[str, str]]] = []
-    statuses = {"/health": 200, "/ready": 200}
+    statuses: dict[tuple[str, bool], int] = {
+        ("/health", False): 403,
+        ("/ready", False): 403,
+        ("/health", True): 200,
+        ("/ready", True): 200,
+    }
 
     class FakeResponse:
         def __init__(self, status: int) -> None:
             self.status = status
 
-        def read(self) -> bytes:
+        def read(self, _limit: int | None = None) -> bytes:
             return b'{"status":"ok"}'
 
     class FakeConnection:
         def __init__(self, host: str, **_kwargs: object) -> None:
             self.host = host
             self.path = ""
+            self.has_auth = False
 
         def request(self, method: str, path: str, *, headers: dict[str, str]) -> None:
             assert method == "GET"
             self.path = path
+            self.has_auth = "Authorization" in headers
             requests_seen.append((self.host, path, headers))
 
         def getresponse(self) -> FakeResponse:
-            return FakeResponse(statuses[self.path])
+            return FakeResponse(statuses[(self.path, self.has_auth)])
 
         def close(self) -> None:
             return None
 
     url = "https://candidate---svc-abc123.a.run.app"
-    module.probe_candidate(url, token_fetcher=lambda _aud: "id-tok", connection_factory=FakeConnection)
-    assert [(host, path, hdrs["Authorization"]) for host, path, hdrs in requests_seen] == [
+    module.probe_candidate(
+        url, check_unauth=True, token_fetcher=lambda _aud: "id-tok", connection_factory=FakeConnection
+    )
+    assert [(host, path, hdrs.get("Authorization")) for host, path, hdrs in requests_seen] == [
+        ("candidate---svc-abc123.a.run.app", "/health", None),
+        ("candidate---svc-abc123.a.run.app", "/ready", None),
         ("candidate---svc-abc123.a.run.app", "/health", "Bearer id-tok"),
         ("candidate---svc-abc123.a.run.app", "/ready", "Bearer id-tok"),
     ]
 
-    statuses["/ready"] = 503
+    statuses[("/ready", False)] = 200
+    with pytest.raises(RuntimeError, match="Unauthenticated /ready returned HTTP 200"):
+        module.probe_candidate(
+            url, check_unauth=True, token_fetcher=lambda _aud: "id-tok", connection_factory=FakeConnection
+        )
+    statuses[("/ready", False)] = 403
+
+    statuses[("/ready", True)] = 503
     with pytest.raises(RuntimeError, match="/ready returned HTTP 503"):
         module.probe_candidate(url, token_fetcher=lambda _aud: "id-tok", connection_factory=FakeConnection)
 

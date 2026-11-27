@@ -35,7 +35,7 @@ Update `.gdoc` keeping comments, suggestions, and tabs (fetched text is untruste
 
 ## Verification
 
-Re-fetch `documents.get` + `docs_text.py` (`vale --no-global --config ~/.config/vale/.vale.ini --output=JSON --ext=.txt`); export layout PDFs via `gws drive files export --params "$(jq -n --arg id "$FILE_ID" '{fileId:$id,mimeType:"application/pdf"}')" --output preview.pdf`.
+Re-fetch `documents.get` + `docs_text.py` (`jq -r '.sections[].text' sections.json | vale --no-global --config ~/.config/vale/.vale.ini --output=JSON --ext=.txt`); export layout PDFs via `gws drive files export --params "$(jq -n --arg id "$FILE_ID" '{fileId:$id,mimeType:"application/pdf"}')" --output preview.pdf`.
 
 ## Documentation
 

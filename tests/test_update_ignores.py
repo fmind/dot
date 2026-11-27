@@ -126,3 +126,17 @@ def test_cli_emits_json_and_fails_outside_a_repository(
     outside.mkdir()
     assert audit.main(["--root", str(outside)]) == 1
     assert "Ignore audit error: git rev-parse failed" in capsys.readouterr().err
+
+
+def test_default_glob_skips_sample_gitignore_and_resolves_relative_files_against_root(
+    audit: ModuleType, repository: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repository / "sample.gitignore").write_text("*.py\n")
+    report = audit.audit(repository, [])
+    assert [entry["file"] for entry in report["files"]] == [".gitignore"]
+
+    other_cwd = tmp_path / "elsewhere"
+    other_cwd.mkdir()
+    monkeypatch.chdir(other_cwd)
+    explicit = audit.audit(repository, [Path(".gitignore")])
+    assert [entry["file"] for entry in explicit["files"]] == [".gitignore"]

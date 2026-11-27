@@ -35,7 +35,7 @@ Google Docs plumbing via [gws](../../../gws/SKILL.md) and [`drive_upload.py`](..
 
    For existing `.gdoc` files with comments/suggestions, patch via `documents.batchUpdate` instead of `drive.files.update` ([gdoc.md](references/gdoc.md#documentsbatchupdate)).
 
-1. **Read back & review**: confirm content via `gws docs documents get` (`includeTabsContent: true`) + [`docs_text.py`](../../../gws/scripts/docs_text.py), export a layout PDF on substantive `.gdoc` reports (`drive.files.export`), run the [humanize pre-send gate](../../../humanize/SKILL.md#pre-send-gate) (`fmind-review-human` + `fmind-review-docs` / `factcheck`), and return `[<Title>](https://docs.google.com/document/d/<FILE_ID>/edit)`.
+1. **Read back & review**: confirm content via `gws docs documents get` (`includeTabsContent: true`) + [`docs_text.py`](../../../gws/scripts/docs_text.py), export a layout PDF on substantive `.gdoc` reports (`drive.files.export`), run the [humanize pre-send gate](../../../humanize/SKILL.md#pre-send-gate) (`fmind-review-human` + `fmind-review-docs` / `fmind-review-factcheck`), and return `[<Title>](https://docs.google.com/document/d/<FILE_ID>/edit)`.
 
 ## Gotchas
 

@@ -2,7 +2,7 @@
 
 ## 1. Compile, Font, Word-Cap, & Visual Gate
 
-1. Always pass `--expected-slides <N>` (plus `--max-words 30` on standard slides, or up to `--max-words 45` on data-dense comparative charts, and `--pptx` when exporting `.pptx`) to [build_typst_deck.py](../scripts/build_typst_deck.py) `check`.
+1. Always pass `--expected-slides <N>` (plus `--max-words 60` on sparse KPI/chart slides or up to `--max-words 90` on multi-card/diagram live slides, `110` async, marking closing `Annex · Sources` slides `appendix: true`; for a `1–3`w/cell verdict matrix over the cap, either split across slides or raise `--max-words` explicitly while relying on `fmind-review-visuals` to block prose bloat; and `--pptx` when exporting `.pptx`) to [build_typst_deck.py](../scripts/build_typst_deck.py) `check`.
 1. Standalone cards via `render` and deck figures (`--render-figures`) fail closed on `unknown font family` and empty `*...*` warnings unless `--allow-font-warnings` is explicitly set. Theme fonts (`Google Sans`, `Google Sans Code`) are auto-discovered from `assets/fonts/`, `~/.local/share/fonts`, or `~/Library/Fonts`.
 1. Visually inspect every rendered `_preview/<stem>-*.png` frame before sharing: confirm open whitespace, unclipped labels, one focal visual, and scannable hierarchy.
 1. Fan out `fmind-review-visuals` + `fmind-review-human` per [humanize](../../../../humanize/SKILL.md#pre-send-gate) (add `fmind-review-factcheck` when needed) before publishing.

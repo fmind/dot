@@ -20,5 +20,5 @@ Give agents only what differs from global defaults, keeping one body in `AGENTS.
    - _Regulated / infra platform_: `Security > Stability > Simplicity > Cost > UX`
    - _Prototype / spike_: `Speed >= UX > Simplicity > Stability`
 1. **List verified commands**: install, focused check/test, full gate, build, and watch (`mise` task names), separating local gates from deploy/release commands.
-1. **Capture local invariants**: architecture seams, generated files/locks, source vs deployed paths, privacy rules, and top-level layout (linking workflows to `.agents/skills/` or global skills).
+1. **Capture local invariants**: architecture seams, generated files/locks, source vs deployed paths, privacy rules, and top-level layout (linking workflows to `.agents/skills/` or global skills, and keeping living capability specs and active change plans in `openspec/` via `openspec` rather than growing `AGENTS.md`).
 1. **Verify & prune**: test safe commands, run link/format checks, and delete copied global rules or nonexistent tasks.

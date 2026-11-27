@@ -3,6 +3,9 @@
 A load is a file-read tool call touching a catalog skill's SKILL.md, references/, scripts/, assets/, or templates/;
 catalog text injected at startup and quoted prompts are not tool calls, so they never count. Only names and counts
 leave the transcripts: no prompt, path, or message text is printed.
+
+Limits: path matching also counts repo edits reading `skills/<name>/...` inside a dotfiles checkout (not only
+`~/.agents/skills/`), and only local `agy` transcripts are scanned (Copilot CLI sessions are not counted).
 """
 
 import argparse
@@ -14,7 +17,7 @@ import time
 from collections import Counter
 from collections.abc import Iterator
 from contextlib import closing
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -31,9 +34,9 @@ def _loads_line(line: bytes) -> dict[str, object] | None:
     except UnicodeDecodeError:
         try:
             record = json.loads(line.decode("utf-8", errors="replace"))
-        except ValueError, RecursionError:
+        except (ValueError, RecursionError):  # fmt: skip
             return None
-    except ValueError, RecursionError:
+    except (ValueError, RecursionError):  # fmt: skip
         return None
     return record if isinstance(record, dict) else None
 
@@ -80,7 +83,7 @@ def _agy_parents(db_path: Path) -> dict[str, str]:
                 "SELECT conversation_id, parent_conversation_id FROM conversation_summaries "
                 "WHERE parent_conversation_id IS NOT NULL AND parent_conversation_id != ''"
             ).fetchall()
-    except sqlite3.Error, OSError:
+    except (sqlite3.Error, OSError):  # fmt: skip
         return {}
     return {
         cid: pid for cid, pid in rows if isinstance(cid, str) and isinstance(pid, str) and cid and pid and cid != pid
@@ -130,10 +133,11 @@ def count(home: Path, catalog: set[str], *, since: float, audit: int) -> tuple[i
     return sessions, audits, rows
 
 
-def _recent_created_dates(skills_dir: Path, days: int) -> dict[str, str]:
-    """Return `{skill_name: YYYY-MM-DD}` for skills created within the last `days` days."""
-    today = datetime.now(tz=UTC).date()
-    recent: dict[str, str] = {}
+def _created_dates(skills_dir: Path, days: int) -> tuple[dict[str, str], set[str]]:
+    """Return all `{skill_name: YYYY-MM-DD}` created dates and the subset created within `days` days."""
+    today = datetime.now(tz=timezone.utc).date()  # noqa: UP017 - keep Python 3.10 runtime compatibility
+    all_dates: dict[str, str] = {}
+    recent: set[str] = set()
     for skill_md in skills_dir.glob("*/SKILL.md"):
         if not skill_md.is_file():
             continue
@@ -151,13 +155,21 @@ def _recent_created_dates(skills_dir: Path, days: int) -> dict[str, str]:
             created = date.fromisoformat(match.group(1))
         except ValueError:
             continue
+        name = skill_md.parent.name
+        all_dates[name] = match.group(1)
         if (today - created).days <= days:
-            recent[skill_md.parent.name] = match.group(1)
-    return recent
+            recent.add(name)
+    return all_dates, recent
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
+    )
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument("--days", type=int, default=30, metavar="N", help="Observation window in days (default: 30)")
     parser.add_argument(
         "--skills",
@@ -181,13 +193,17 @@ def main() -> int:
     if not catalog:
         parser.error(f"no skills found under {args.skills}")
     sessions, audits, rows = count(Path.home(), catalog, since=time.time() - args.days * 86400, audit=args.audit)
+    all_created, recent = _created_dates(args.skills, args.days)
     if args.json:
         document = {
             "schema": "skillify.skill-loads/v2",
             "days": args.days,
             "sessions": sessions,
             "audit_sessions_excluded": audits,
-            "skills": [{"skill": name, "loads": total} for name, total in rows],
+            "skills": [
+                {"skill": name, "loads": total, "created": all_created.get(name), "is_new": name in recent}
+                for name, total in rows
+            ],
         }
         sys.stdout.write(json.dumps(document, separators=(",", ":")) + "\n")
         return 0
@@ -198,8 +214,7 @@ def main() -> int:
     for name, total in loaded:
         sys.stdout.write(f"{name:<{width}}  {total}\n")
     unloaded = [name for name, total in rows if not total]
-    recent = _recent_created_dates(args.skills, args.days)
-    unloaded_labels = [f"{name}(new:{recent[name]})" if name in recent else name for name in unloaded]
+    unloaded_labels = [f"{name}(new:{all_created[name]})" if name in recent else name for name in unloaded]
     sys.stdout.write(f"No observed load ({len(unloaded)}): {' '.join(unloaded_labels) or '-'}\n")
     return 0
 

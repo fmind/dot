@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Copy UTF-8 stdin to the local system clipboard and verify its bytes."""
 
 import argparse
@@ -7,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 LIMIT = 1024 * 1024  # Clipboard deliverables are short; larger content belongs in a file.
 TIMEOUT = 5
@@ -89,7 +90,8 @@ def copy_text(payload: bytes, *, keep_final_newline: bool = False) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser_kwargs: dict[str, Any] = {"suggest_on_error": True} if sys.version_info >= (3, 14) else {}
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, **parser_kwargs)
     parser.add_argument(
         "--keep-final-newline", action="store_true", help="keep one trailing newline instead of stripping it"
     )

@@ -13,7 +13,10 @@ Run `agents-cli --version && agents-cli create --help && cd "$(mktemp -d)"`, the
 1. **Check session selection**: `--session-type` does not apply to `agent_runtime` (warns, records `session_type: none`); `services.py` selects `VertexAiSessionService` under injected runtime identity, in-memory locally, or `SESSION_SERVICE_URI`.
 1. **Install and lint**: unset `UV_PROJECT`, `VIRTUAL_ENV`, and `COVERAGE_FILE`, run `agents-cli install --locked && agents-cli lint`, record the Terraform pin, and apply [generated Python profile](#generated-python-profile).
 1. **Check import side effects**: `app/agent.py` calls `bigquery.Client` and `create_dataset(..., exists_ok=True)` at import when a project is set; verify offline via static inspection and mocks.
-1. **Enhance in place carefully**: `agents-cli scaffold enhance` mutates `cwd` (its positional arg is a template name, not a path) from a clean Git tree. Pass override flags + `--skip-checks --yes --dry-run` (exits 2 without overrides or `agents-cli-manifest.yaml`). Real runs back up files to `.agents-cli-original/` (blocking reruns until removed), and standard fallback copies the project—`.env` included—to `~/.agents-cli/backups/` even on `--dry-run` (delete rehearsal backups). Re-pass analytics/gateway flags absent from the manifest, inspect diffs, and never pass `--force` or `--prefer-new`.
+1. **Enhance in place carefully**:
+   - Run `agents-cli scaffold enhance` from a clean Git tree (mutates `cwd`; its positional arg is a template name, not a path) with override flags + `--skip-checks --yes --dry-run` (exits 2 without overrides or `agents-cli-manifest.yaml`).
+   - Real runs write `.agents-cli-original/` (blocking reruns until removed), and standard fallback copies the project—`.env` included—to `~/.agents-cli/backups/` even on `--dry-run` (delete rehearsal backups).
+   - Re-pass analytics/gateway flags absent from the manifest, inspect diffs, and never pass `--force` or `--prefer-new`.
 
 Verify provider calls, managed sessions, gateway egress, BigQuery delivery, IAM, CI, and deployment separately with authorization.
 

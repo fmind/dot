@@ -28,20 +28,20 @@ run = "jactionlint --online=strict --strict-exit"
 
 ## Common Findings and Fixes
 
-| Finding                 | Fix                                                    |
-| ----------------------- | ------------------------------------------------------ |
-| `template-injection`    | Pass `${{ ... }}` values through `env:`.               |
-| `artipacked`            | `persist-credentials: false` unless a step pushes.     |
-| `excessive-permissions` | Top-level `contents: read`; widen per job.             |
-| `unpinned-uses`         | Full commit SHA plus a release comment.                |
-| `cache-poisoning`       | `cache: false` in release and deploy jobs.             |
-| `dangerous-triggers`    | No PR code under `pull_request_target`/`workflow_run`. |
+| Finding                 | Fix                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `template-injection`    | Pass `${{ ... }}` values through `env:`.                                            |
+| `artipacked`            | `persist-credentials: false` unless a step pushes.                                  |
+| `excessive-permissions` | Top-level `permissions: {}`; grant minimal scopes per job (e.g., `contents: read`). |
+| `unpinned-uses`         | Full commit SHA plus a release comment.                                             |
+| `cache-poisoning`       | `cache: false` in release and deploy jobs.                                          |
+| `dangerous-triggers`    | No PR code under `pull_request_target`/`workflow_run`.                              |
 
 ## Gotchas
 
 - **Scope rule overrides narrowly**: copy [jactionlint.yaml](../templates/jactionlint.yaml) to `.github/jactionlint.yaml` (`rules:` for deliberate repository-policy conflicts such as `dependabot-missing-actions-update: off` under security-only Dependabot or `action-release-cooldown: off` when [upgrade-tools](../../mise/references/upgrade-tools/GUIDE.md) owns upgrades; `ignores:` with `rule`, `file`, `reason` for one-offs) or `# jactionlint ignore=RULE`; never disable `unpinned-uses` globally.
 - **`pull_request_target` default block**: starting 2026-12-02, GitHub blocks it by default on public repos; scope any exception to the single workflow file via [event policy](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
-- **Keep `--online` out of local/PR gates**: it calls the GitHub API and hits rate limits; reserve for manual audits or scheduled jobs.
+- **Keep `--online` out of local/PR gates**: it calls the GitHub API and hits rate limits; reserve for manual audits or scheduled jobs, and set `GH_TOKEN` for `--online=strict` to avoid the 60 req/hr unauthenticated limit.
 
 ## Documentation
 

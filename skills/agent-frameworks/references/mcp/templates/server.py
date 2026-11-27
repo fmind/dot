@@ -49,14 +49,27 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> None:
     """Entrypoint invoked by the `<slug>` console script or `uv run`."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.port is not None and not 1 <= args.port <= 65535:
+        parser.error("--port must be between 1 and 65535")
     if args.transport == "streamable-http":
-        host = args.host or os.environ.get("HOST") or "127.0.0.1"
+        host = (args.host or os.environ.get("HOST") or "127.0.0.1").strip().lower()
+        if host not in {"127.0.0.1", "localhost", "::1"}:
+            sys.stderr.write("Error: refusing non-loopback bind without auth and explicit TransportSecuritySettings.\n")
+            raise SystemExit(1)
         try:
             port = args.port if args.port is not None else int(os.environ.get("PORT") or "8000")
         except ValueError as error:
             sys.stderr.write("Error: invalid PORT environment variable.\n")
             raise SystemExit(1) from error
+        if not 1 <= port <= 65535:
+            sys.stderr.write("Error: invalid PORT environment variable (must be 1-65535).\n")
+            raise SystemExit(1)
+        # mcp>=2.3.0 enables loopback TransportSecuritySettings Host/Origin DNS-rebinding checks for
+        # 127.0.0.1, localhost, and ::1. Before removing the loopback guard above for hosted deploys,
+        # configure TransportSecuritySettings(enable_dns_rebinding_protection=True, allowed_hosts=[...],
+        # allowed_origins=[...]) and enforce OAuth or workload identity.
         server.run(transport="streamable-http", host=host, port=port, stateless_http=True)
     else:
         server.run(transport="stdio")

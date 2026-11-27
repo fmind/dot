@@ -10,7 +10,7 @@ Default framework for Python web apps and APIs, paired with [foundation](../foun
 ## Workflow
 
 1. **Bootstrap**: follow [bootstrap](references/bootstrap.md) (templates, settings, tests) on top of the Python foundation, adding DB integration only when needed.
-1. **Inspect via CLI & source**: run `uv run --locked litestar --app <package>:create_default_app info|routes|schema openapi` (needs no server or extra; pass `--app` explicitly with `.env` / `DATABASE_URL` present since `src/<package>/__init__.py` is not autodiscovered).
+1. **Inspect via CLI & lock OpenAPI contract (opt-in)**: run `uv run --locked litestar --app <package>:create_default_app info|routes|schema openapi` (needs no server or extra; pass `--app` explicitly with `.env` / `DATABASE_URL` present since `src/<package>/__init__.py` is not autodiscovered). For APIs where external clients or human reviewers track surface changes, check in `openapi.json` (exported from `app.openapi_schema.to_schema()`) and assert exact equality in an offline pytest test so every route, DTO, and status-code change surfaces in PR diffs.
 1. **Use installed references**: consult `litestar` (routing, DI, DTO/OpenAPI, auth, middleware), `litestar-htmx`, and `litestar-testing` when installed, else read `.venv/` source and docs.
 1. **Styles**: preserve existing pipelines or compile standalone Tailwind per [tailwind](../../../web-frontend/references/tailwind.md).
 

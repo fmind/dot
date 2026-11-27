@@ -6,6 +6,7 @@ import argparse
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Sequence
 from contextlib import asynccontextmanager
+from http import HTTPStatus
 from importlib.metadata import version
 from typing import Any, Literal, Protocol
 
@@ -17,6 +18,7 @@ from litestar import Litestar, Request, Response, get
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import MutableScopeHeaders
 from litestar.di import NamedDependency, Provide
+from litestar.exceptions import HTTPException
 from litestar.middleware import ASGIMiddleware
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 from litestar.types import ASGIApp, Message, Receive, Scope, Send
@@ -114,6 +116,29 @@ class SecurityHeadersMiddleware(ASGIMiddleware):
         await next_app(scope, receive, send_with_headers)
 
 
+def handle_http_error(request: Request[Any, Any, Any], exc: HTTPException) -> Response[dict[str, object]]:
+    """Return RFC 9457 Problem Details for HTTP errors while redacting 5xx details."""
+    try:
+        title = HTTPStatus(exc.status_code).phrase
+    except ValueError:
+        title = "HTTP Error"
+    detail = exc.detail if exc.status_code < HTTP_500_INTERNAL_SERVER_ERROR and exc.detail else title
+    if exc.status_code >= HTTP_500_INTERNAL_SERVER_ERROR:
+        logger.error("Unhandled HTTP server error", status_code=exc.status_code, path=request.url.path)
+    return Response(
+        {
+            "type": "about:blank",
+            "title": title,
+            "status": exc.status_code,
+            "detail": detail,
+            "instance": request.url.path,
+        },
+        status_code=exc.status_code,
+        headers=exc.headers,
+        media_type="application/problem+json",
+    )
+
+
 def handle_internal_error(request: Request[Any, Any, Any], exc: Exception) -> Response[dict[str, object]]:
     """Return RFC 9457 Problem Details and log only exception type and path on 500s."""
     logger.error("Unhandled internal error", error=type(exc).__name__, path=request.url.path)
@@ -139,6 +164,7 @@ def create_app(config: Settings) -> Litestar:
         pool_size=5,
         max_overflow=10,
         pool_recycle=1800,
+        # asyncpg syntax; psycopg uses {"options": "-c statement_timeout=10000"}.
         connect_args={"server_settings": {"statement_timeout": "10000"}},
     )
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -166,7 +192,11 @@ def create_app(config: Settings) -> Litestar:
         middleware=[SecurityHeadersMiddleware(hsts=config.environment == "production")],
         dependencies={"db_session": Provide(provide_db_session)},
         cors_config=CORSConfig(allow_origins=config.cors_origins),
-        exception_handlers={HTTP_500_INTERNAL_SERVER_ERROR: handle_internal_error},
+        exception_handlers={
+            HTTPException: handle_http_error,
+            HTTP_500_INTERNAL_SERVER_ERROR: handle_internal_error,
+        },
+        request_max_body_size=1_048_576,
         lifespan=[app_lifespan],
         logging_config=None,
     )

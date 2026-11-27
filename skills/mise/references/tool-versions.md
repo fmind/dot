@@ -5,7 +5,8 @@
 ## Workstation and projects
 
 - **Workstation vs project scope**: `fmind/dot` `dot_config/mise/config.toml` tracks `latest` (with inline comments explaining holds like `python`) and resolves into `dot_config/mise/mise.lock`. Standalone projects pin fixed versions in their own `mise.toml` + `mise.lock`, never importing workstation config or moving when `fmind/dot` or sibling repos upgrade.
-- **Use lockfile revision 4** (mise 2026.11.1+, recording npm provenance repos; run `mise lock --upgrade` once on older locks) alongside referenced lock graphs, and install with `--locked`. In repositories where every pinned tool carries upstream provenance, enable `aqua.cosign = true`, `github_attestations = true`, `locked_verify_provenance = true`, and `slsa = true` under `[settings]`.
+- **Use lockfile revision 4** (mise 2026.11.1+, recording npm provenance repos; run `mise lock --upgrade` once on older locks) alongside referenced lock graphs, and install with `--locked`.
+- **Provenance checks**: in repos where every tool carries upstream provenance, enable `aqua.cosign`, `github_attestations`, `locked_verify_provenance`, and `slsa` under `[settings]`. When a global workstation config relaxes them, run provenance-strict repos with `MISE_IGNORED_CONFIG_PATHS` pointing at the global mise dir or explicit repo `[settings]` overrides.
 - **Keep Python pin separate from `requires-python`**: align `.python-version` with the mise Python pin inside `requires-python`, and never add upper caps like `<3.15` to `requires-python` without a proven incompatibility (`uv` treats project `>=3.14,<3.15` as `==3.14.*` and ignores dependency upper caps; PEP 723 scripts may cap ranges to pick a compatible interpreter).
 - **Replace template `latest` placeholders** with exact versions before installing or delivering a scaffolded project.
 
@@ -16,11 +17,12 @@
 1. **Match full backend identity**: tool, backend, install options, and platform (normalize duplicate aliases deliberately).
 1. **Audit every declaration**: root, nested, env, and task tool pins plus CI/runtime version files, keeping compatibility holds as exact pins with documented failure evidence.
 
-Record pins via mise (review and run `mise trust -y mise.toml` first if untrusted):
+Record pins via mise (review and run `mise trust -y mise.toml` first if untrusted), then add `[tool_config]` with `locked = true` in `mise.toml` after generating `mise.lock` so local and CI installs stay locked:
 
 ```bash
 mise use --path mise.toml --pin <tool>@<exact-version>
 mise lock
+mise lock --check
 mise tasks validate
 mise run all
 ```

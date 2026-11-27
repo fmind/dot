@@ -1,5 +1,6 @@
 // Standalone branded visual card (renders safely at width: 640pt for docs, slides, or web).
-#import "fmind-slides.typ": *
+// Root-relative import works both beside fmind-slides.typ and inside figures/*.typ.
+#import "/fmind-slides.typ": *
 
 #show: brand-card.with(width: 640pt)
 

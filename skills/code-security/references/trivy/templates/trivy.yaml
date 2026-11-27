@@ -34,7 +34,9 @@ scan:
     - .claude
     - .gemini
     - .git
-    - dist
+    - "**/dist"
     - site
+  skip-files:
+    - "**/.coverage*"
 vulnerability:
   ignore-unfixed: true

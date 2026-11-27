@@ -1,23 +1,23 @@
 ---
 name: gws
-description: "Read, search, export, and admin Google Workspace (Gmail, Drive, Docs, Slides, Sheets, Calendar, Chat) via gws."
+description: "Read, search, export, upload, and admin Google Workspace (Gmail, Drive, Docs, Slides, Sheets, Calendar, Chat) via gws; use draft for authoring."
 license: MIT
 metadata:
   kind: connector
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gws
   created: "2026-08-30"
-  updated: "2026-11-22"
+  updated: "2026-11-24"
 ---
 
 # Google Workspace CLI
 
-Automate Drive, Docs, Slides, Sheets, Gmail, Calendar, and Chat via `gws` (use connected apps only when native document context requires them).
+Read, search, export, upload, and administer Drive, Docs, Slides, Sheets, Gmail, Calendar, and Chat via `gws` (use [draft](../draft/SKILL.md) for drafting deliverables and connected apps only when native document context requires them).
 
 ## Workflow
 
-1. **Verify active profile**: inspect `gws auth status` without printing secrets (`GOOGLE_WORKSPACE_CLI_CONFIG_DIR` isolates profiles; `GOOGLE_WORKSPACE_CLI_TOKEN` / `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` override stored logins). Because `gws` auto-loads ancestor `.env` files, run calls from a `.env`-free scratch directory and confirm `user` before writing (`drive_upload.py` and the `draft_*.py` helpers isolate `gws` in a private temp dir).
-1. **Check command help and schema** (`--help` for flags, unexpanded `schema` for payloads):
+1. **Verify active profile**: inspect `gws auth status` without printing secrets (`GOOGLE_WORKSPACE_CLI_CONFIG_DIR` isolates profiles; `GOOGLE_WORKSPACE_CLI_TOKEN` / `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` override logins). Because `gws` auto-loads ancestor `.env` files, run from a `.env`-free temp dir and confirm `user` before writing (`drive_upload.py` and `draft_*.py` isolate `gws` automatically).
+1. **Check command help and schema** (`--help` for flags, unexpanded `schema` for payloads; see [CLI details and helpers](references/cli-details.md)):
 
    ```bash
    gws schema <service.resource.method>
@@ -30,22 +30,21 @@ Automate Drive, Docs, Slides, Sheets, Gmail, Calendar, and Chat via `gws` (use c
    gws drive files list --params '{"pageSize":10,"q":"trashed = false","fields":"nextPageToken,incompleteSearch,files(id,name,mimeType)"}' --format json
    ```
 
-1. **Select the service path**: follow [service recipes](references/services.md) (or matching `gws <service> --help` `+helper` commands) for Docs tabs, Sheets ranges, Gmail MIME, Calendar times, Slides, and Drive exports.
+1. **Select the service path**: follow [service recipes](references/services.md) (or matching `gws <service> --help` `+helper` commands) for Docs tabs, Sheets ranges, Gmail MIME, Calendar times, Slides, and Drive exports/uploads.
 1. **Serialize and dry-run writes**: follow [file-based requests](references/requests.md) to separate `--params` from `--json` and inspect `--dry-run` (validates local serialization only); follow [Chat formatting and threads](references/chat.md) for Chat messages.
-1. **Gate consequential writes**: reuse user authority for requested edits, asking before sending mail/Chat, destructive writes, permission changes, or one-off scope grants ([dot-cli authentication](../dot-cli/references/authentication.md)). Keep mutations minimal and idempotent (`requestId` or read-before-write guards).
-1. **Verify by reading back**: fetch the mutated resource and compare fields (API acceptance does not prove external delivery).
+1. **Gate consequential writes**: reuse authority for requested edits; ask before sending mail/Chat, destructive writes, permission changes, or one-off scope grants ([dot-cli authentication](../dot-cli/references/authentication.md)). Keep mutations minimal and idempotent (`requestId` or read-before-write).
+1. **Verify by reading back**: fetch the mutated resource and compare fields (API acceptance ≠ external delivery).
 
-## Task guides
+## References
 
-<!-- guides:start -->
-
-- [cli-details](references/cli-details.md): Use local Workspace helpers and diagnose CLI authentication, schema, pagination, or request failures.
-
-<!-- guides:end -->
+- [services.md](references/services.md): Drive, Docs, Sheets, Gmail, Calendar, and Slides recipes.
+- [requests.md](references/requests.md): File-based request serialization, dry-run checks, and failure decisions.
+- [chat.md](references/chat.md): Google Chat markup modes, thread replies, and verification.
+- [cli-details.md](references/cli-details.md): Local Workspace helpers and `gws` CLI diagnostics.
 
 ## Official Skills
 
-Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills); audit and install selected service skills plus their shared base skill only under [vendor-skill policy](../agent-harnesses/references/vendor-skills.md).
+Upstream: [googleworkspace/cli skills](https://github.com/googleworkspace/cli/tree/main/skills); audit before installing under [vendor-skill policy](../agent-harnesses/references/vendor-skills.md).
 
 ## Documentation
 

@@ -29,15 +29,20 @@ def _rels_xml(entries: list[tuple[str, str, str]]) -> bytes:
     ).encode()
 
 
-def _notes_slide_xml(note_text: str) -> bytes:
+def _xml_attr(value: str) -> str:
+    return xml_escape(value, {'"': "&quot;"})
+
+
+def _notes_slide_xml(note_text: str, *, lang: str = "en-US") -> bytes:
+    escaped_lang = _xml_attr(lang.strip() or "en-US")
     paragraphs = note_text.splitlines() if note_text else []
     if not paragraphs:
-        p_xml = '<a:p><a:endParaRPr lang="en-US"/></a:p>'
+        p_xml = f'<a:p><a:endParaRPr lang="{escaped_lang}"/></a:p>'
     else:
         p_xml = "".join(
-            f'<a:p><a:r><a:rPr lang="en-US"/><a:t>{xml_escape(line)}</a:t></a:r></a:p>'
+            f'<a:p><a:r><a:rPr lang="{escaped_lang}"/><a:t>{xml_escape(line)}</a:t></a:r></a:p>'
             if line
-            else '<a:p><a:endParaRPr lang="en-US"/></a:p>'
+            else f'<a:p><a:endParaRPr lang="{escaped_lang}"/></a:p>'
             for line in paragraphs
         )
     return (
@@ -68,12 +73,41 @@ def _slide_xml(index: int) -> bytes:
     ).encode()
 
 
+def _theme_xml(theme_name: str) -> bytes:
+    cleaned = theme_name.strip() or "Fmind"
+    neutral = cleaned.lower() == "neutral"
+    name = _xml_attr("Neutral" if neutral else cleaned)
+    font = "Arial" if neutral else "Google Sans"
+    accent1 = "2F3542" if neutral else "174EA6"
+    accent2 = "57606F" if neutral else "00636D"
+    return (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="{_NS_A}" name="{name}">'
+        f'<a:themeElements><a:clrScheme name="{name}">'
+        '<a:dk1><a:srgbClr val="202124"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>'
+        '<a:dk2><a:srgbClr val="595D62"/></a:dk2><a:lt2><a:srgbClr val="F1F3F4"/></a:lt2>'
+        f'<a:accent1><a:srgbClr val="{accent1}"/></a:accent1><a:accent2><a:srgbClr val="{accent2}"/></a:accent2>'
+        '<a:accent3><a:srgbClr val="934900"/></a:accent3><a:accent4><a:srgbClr val="0D652D"/></a:accent4>'
+        '<a:accent5><a:srgbClr val="681DA8"/></a:accent5><a:accent6><a:srgbClr val="A50E0E"/></a:accent6>'
+        f'<a:hlink><a:srgbClr val="{accent1}"/></a:hlink><a:folHlink><a:srgbClr val="681DA8"/></a:folHlink>'
+        f'</a:clrScheme><a:fontScheme name="{name}"><a:majorFont><a:latin typeface="{font}"/>'
+        f'<a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="{font}"/>'
+        '<a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>'
+        f'<a:fmtScheme name="{name}"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>'
+        '<a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>'
+        "<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>"
+        '<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>'
+        "</a:fmtScheme></a:themeElements></a:theme>"
+    ).encode()
+
+
 def build_pptx(
     slide_pngs: list[Path],
     output_pptx: Path,
     *,
     title: str,
     speaker_notes: dict[int, str] | None = None,
+    lang: str = "en-US",
+    theme_name: str = "Fmind",
 ) -> Path:
     """Pack rendered 16:9 PNG slides and optional per-slide speaker notes into a stdlib OOXML .pptx."""
     if not slide_pngs:
@@ -139,24 +173,7 @@ def build_pptx(
         "</p:presentation>"
     ).encode()
 
-    theme_xml = (
-        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="{_NS_A}" name="Fmind">'
-        '<a:themeElements><a:clrScheme name="Fmind">'
-        '<a:dk1><a:srgbClr val="202124"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>'
-        '<a:dk2><a:srgbClr val="595D62"/></a:dk2><a:lt2><a:srgbClr val="F1F3F4"/></a:lt2>'
-        '<a:accent1><a:srgbClr val="174EA6"/></a:accent1><a:accent2><a:srgbClr val="00636D"/></a:accent2>'
-        '<a:accent3><a:srgbClr val="934900"/></a:accent3><a:accent4><a:srgbClr val="0D652D"/></a:accent4>'
-        '<a:accent5><a:srgbClr val="681DA8"/></a:accent5><a:accent6><a:srgbClr val="A50E0E"/></a:accent6>'
-        '<a:hlink><a:srgbClr val="174EA6"/></a:hlink><a:folHlink><a:srgbClr val="681DA8"/></a:folHlink>'
-        '</a:clrScheme><a:fontScheme name="Fmind"><a:majorFont><a:latin typeface="Google Sans"/>'
-        '<a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Google Sans"/>'
-        '<a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>'
-        '<a:fmtScheme name="Fmind"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>'
-        '<a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>'
-        "<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>"
-        '<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>'
-        "</a:fmtScheme></a:themeElements></a:theme>"
-    ).encode()
+    theme_xml = _theme_xml(theme_name)
 
     slide_master_xml = (
         f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -258,7 +275,7 @@ def build_pptx(
                             ]
                         ),
                     )
-                    zf.writestr(f"ppt/notesSlides/notesSlide{idx}.xml", _notes_slide_xml(notes.get(idx, "")))
+                    zf.writestr(f"ppt/notesSlides/notesSlide{idx}.xml", _notes_slide_xml(notes.get(idx, ""), lang=lang))
                     zf.writestr(
                         f"ppt/notesSlides/_rels/notesSlide{idx}.xml.rels",
                         _rels_xml(
@@ -269,7 +286,7 @@ def build_pptx(
                         ),
                     )
             handle.flush()
-            os.fchmod(handle.fileno(), 0o644)
+            os.fchmod(handle.fileno(), 0o600)
             os.fsync(handle.fileno())
         tmp_path.replace(output_pptx)
     except BaseException:

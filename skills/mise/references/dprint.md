@@ -37,4 +37,4 @@ run = "dprint check"
 ## Documentation
 
 - [dprint](https://dprint.dev) · [Configuration](https://dprint.dev/config/) · [CLI](https://dprint.dev/cli/) · [releases](https://github.com/dprint/dprint/releases)
-- Companion skills: [mise](../SKILL.md), [lefthook](../../github/references/lefthook.md).
+- Companion skills: [mise](../SKILL.md), [lefthook](../../git-delivery/references/lefthook.md).

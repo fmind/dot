@@ -5,16 +5,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from email.utils import getaddresses
 from pathlib import Path
 from typing import Any
 
 # Support `python3 -I` and direct `importlib.util.spec_from_file_location` loads without scripts/ on sys.path.
+sys.dont_write_bytecode = True
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
@@ -229,7 +232,12 @@ def _clean_identifier(value: str | None, flag: str, description: str) -> str | N
 
 def _build_parser() -> argparse.ArgumentParser:
     """Create the CLI argument parser for Gmail draft composition."""
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        allow_abbrev=False,
+    )
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument("input", help="Path to UTF-8 HTML body fragment file, or - for stdin")
     parser.add_argument("--to", action="append", default=[], help="To recipient(s), comma-separated")
     parser.add_argument("--cc", action="append", default=[], help="CC recipient(s), comma-separated")
@@ -247,6 +255,31 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _is_valid_email_addr(addr: str) -> bool:
+    local_part, sep, domain = addr.partition("@")
+    return bool(
+        sep
+        and local_part
+        and domain
+        and "@" not in domain
+        and not any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in addr)
+    )
+
+
+def _validate_recipient_flags(values: list[str], flag: str) -> None:
+    if not values:
+        return
+    pairs = getaddresses(values)
+    if not pairs:
+        raise ValueError(f"{flag} contains an invalid email address.")
+    for name, raw_addr in pairs:
+        if any(ord(ch) < 32 or ord(ch) == 127 for ch in name):
+            raise ValueError(f"{flag} contains a control character in recipient display name: {name!r}")
+        addr = raw_addr.strip()
+        if not _is_valid_email_addr(addr):
+            raise ValueError(f"{flag} contains an invalid email address: {addr!r}")
+
+
 def _validate_inputs(args: argparse.Namespace) -> str:
     """Read and validate the HTML body, IDs, sender, new-thread fields, and attachments before calling gws."""
     body_html = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
@@ -255,9 +288,11 @@ def _validate_inputs(args: argparse.Namespace) -> str:
     args.reply_to_id = _clean_identifier(args.reply_to_id, "--reply-to", "Gmail message ID")
     if args.from_email is not None:
         cleaned_from = args.from_email.strip()
-        if not cleaned_from or "@" not in cleaned_from or any(ch.isspace() for ch in cleaned_from):
+        if not _is_valid_email_addr(cleaned_from):
             raise ValueError("--from must be a valid email address.")
         args.from_email = cleaned_from
+    for flag, values in (("--to", args.to), ("--cc", args.cc), ("--bcc", args.bcc), ("--remove", args.remove)):
+        _validate_recipient_flags(values, flag)
     if not args.reply_to_id:
         if not (args.subject or "").strip():
             raise ValueError("--subject is required when creating a new thread.")
@@ -358,6 +393,8 @@ def main(argv: list[str] | None = None) -> int:
         # upload, and the read-back resolve the same account, and the message stays out of the caller's checkout.
         with tempfile.TemporaryDirectory(prefix="draft-mail-") as tmp:
             gws_dir = Path(tmp)
+            # Sentinel stops gws from walking upward into /tmp/.env or $TMPDIR/.env.
+            os.close(os.open(gws_dir / ".env", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
             send_as = resolve_send_as(args.from_email, cwd=gws_dir)
 
             parent_msg: dict[str, Any] | None = None

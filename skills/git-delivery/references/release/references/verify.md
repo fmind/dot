@@ -1,6 +1,6 @@
 # Verify a Published Release
 
-Read-only post-publication audit (never edits releases, moves tags, or re-uploads assets).
+Read-only post-publication audit via [github](../../../../github/SKILL.md) (never edits releases, moves tags, or re-uploads assets).
 
 1. **Pin expected identity** from the approved candidate (not current `main`):
 
@@ -35,10 +35,10 @@ Read-only post-publication audit (never edits releases, moves tags, or re-upload
    gh release download "$tag" -R "$repo" --dir "$release_dir"
    gh release verify "$tag" -R "$repo"
    gh release verify-asset "$tag" "$release_dir/checksums.txt" -R "$repo"
-   (cd "$release_dir" && shasum -a 256 -c checksums.txt)
+   (cd "$release_dir" && shasum -a 256 -c checksums.txt)   # Linux: sha256sum -c checksums.txt
    asset=project_vX.Y.Z_linux_amd64.tar.gz
    gh release verify-asset "$tag" "$release_dir/$asset" -R "$repo"
-   gh attestation verify "$release_dir/$asset" --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" --source-ref "refs/tags/$tag" --source-digest "$release_sha"
+   gh attestation verify "$release_dir/$asset" --repo "$repo" --signer-workflow "$repo/.github/workflows/cd.yml" --source-ref "refs/tags/$tag" --source-digest "$release_sha"
    ```
 1. **Smoke-test the shipped artifact** and its reported version ([containerize](../../../../containers/references/containerize/GUIDE.md) for `@sha256:` OCI, Cosign, and SBOM checks).
 1. **Report receipt**: highest proven rung on the [proof ladder](../../../../full-review/SKILL.md#proof-ladder), `release_sha`, tag object + peeled SHA, workflow URLs, release URL/state, asset/checksum/attestation results, and verified artifact version.

@@ -13,6 +13,17 @@ from pathlib import Path
 __version__ = version("<slug>")
 
 
+class CLIError(Exception):
+    """Operational failure carrying a safe, redacted recovery message."""
+
+
+def _non_empty_name(value: str) -> str:
+    """Reject blank names at parse time so argparse exits 2 with a clear message."""
+    if not value.strip():
+        raise argparse.ArgumentTypeError("must not be empty")
+    return value
+
+
 def greet(name: str = "world", *, as_json: bool = False) -> None:
     """Print a greeting in plain text or machine-readable JSON."""
     if not name.strip():
@@ -32,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     command = commands.add_parser(
         "greet", help="Print a greeting", description="Print a greeting.", allow_abbrev=False, suggest_on_error=True
     )
-    command.add_argument("--name", default="world", metavar="NAME", help="Name to greet")
+    command.add_argument("--name", default="world", type=_non_empty_name, metavar="NAME", help="Name to greet")
     command.add_argument("--json", action="store_true", dest="as_json", help="Emit JSON output on stdout")
     command.set_defaults(handler=lambda args: greet(name=args.name, as_json=args.as_json))
     return parser
@@ -51,6 +62,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
     except KeyboardInterrupt as error:
         raise SystemExit(130) from error
-    except (OSError, ValueError) as error:
-        sys.stderr.write(f"Error: {type(error).__name__}. Check the input and retry.\n")
+    except CLIError as error:
+        sys.stderr.write(f"Error: {error}\n")
+        raise SystemExit(1) from error
+    except OSError as error:
+        sys.stderr.write(f"Error: {type(error).__name__}. Check permissions or paths and retry.\n")
         raise SystemExit(1) from error

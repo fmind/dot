@@ -20,7 +20,7 @@ PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=10000 -c loc
 - **`-X`**: skips `~/.psqlrc` so personal aliases/settings never alter output.
 - **`-v ON_ERROR_STOP=1 --pset=pager=off`**: exits non-zero on the first SQL error and avoids interactive pager hangs.
 - **`PGOPTIONS`**: enforces read-only transactions plus bounded statement (`10s`) and lock (`2s`) timeouts so queries cannot stall pools or mutate data.
-- **Credentials**: never pass passwords via `PGPASSWORD` or `postgresql://user:pass@...` on `argv` or shell history; use IAM auth (`cloud-sql-proxy --auto-iam-authn` on `127.0.0.1`), `0600` `~/.pgpass` (`PGPASSFILE`), or `with-secret` ([authentication](../../dot-cli/references/authentication.md)).
+- **Credentials**: never pass passwords via `PGPASSWORD` or `postgresql://user:pass@...` on `argv` or shell history; prefer IAM auth (`cloud-sql-proxy --auto-iam-authn` on `127.0.0.1`) or a `0600` `PGPASSFILE` (`~/.pgpass`) over `PGPASSWORD` env even under `with-secret` ([authentication](../../dot-cli/references/authentication.md)).
 
 ## Diagnostics Workflow
 

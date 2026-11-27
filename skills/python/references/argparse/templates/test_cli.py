@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from <package> import __version__, main
+from <package> import CLIError, __version__, greet, main
 
 
 @pytest.fixture(autouse=True)
@@ -38,12 +38,29 @@ def test_greet_json(capsys: pytest.CaptureFixture[str]) -> None:
     assert err == ""
 
 
-def test_operational_failure_boundary(capsys: pytest.CaptureFixture[str]) -> None:
-    code, out, err = run(capsys, "greet", "--name", " ")
+def test_operational_failure_boundary(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def raise_cli_error(*_args: object, **_kwargs: object) -> None:
+        raise CLIError("target unavailable; retry later.")
+
+    def raise_os_error(*_args: object, **_kwargs: object) -> None:
+        raise OSError("SYNTHETIC_INTERNAL_PATH")
+
+    monkeypatch.setattr("<package>.greet", raise_cli_error)
+    code, out, err = run(capsys, "greet", "--name", "Ada")
+    assert (code, out, err) == (1, "", "Error: target unavailable; retry later.\n")
+
+    monkeypatch.setattr("<package>.greet", raise_os_error)
+    code, out, err = run(capsys, "greet", "--name", "Ada")
     assert code == 1
     assert out == ""
-    assert err == "Error: ValueError. Check the input and retry.\n"
+    assert err == "Error: OSError. Check permissions or paths and retry.\n"
+    assert "SYNTHETIC_INTERNAL_PATH" not in err
     assert "Traceback" not in err
+
+
+def test_greet_rejects_blank_direct_call() -> None:
+    with pytest.raises(ValueError, match="must not be empty"):
+        greet(" ")
 
 
 @pytest.mark.parametrize("command", [[], ["greet"]])
@@ -66,6 +83,8 @@ def test_version(capsys: pytest.CaptureFixture[str]) -> None:
         [],
         ["--unknown-option"],
         ["greet", "--name"],
+        ["greet", "--name", " "],
+        ["greet", "--name", ""],
         ["greetx"],
         ["greet", "--na", "Ada"],
     ],

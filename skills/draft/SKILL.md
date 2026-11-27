@@ -1,13 +1,13 @@
 ---
 name: draft
-description: "Draft Google Docs, Sheets, Slides, Gmail emails/replies, and 16:9 Typst PDF/PPTX decks via gws and Typst."
+description: "Draft and author Google Docs, Sheets, Slides, Gmail emails/replies, and 16:9 Typst PDF/PPTX decks via gws and Typst."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/draft
   created: "2026-11-21"
-  updated: "2026-11-24"
+  updated: "2026-11-25"
 ---
 
 # Draft Deliverables

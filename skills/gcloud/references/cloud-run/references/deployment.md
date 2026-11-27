@@ -1,6 +1,6 @@
 # Cloud Run Deployment Commands
 
-1. **Pin and install image tools**: pin exact stable versions in `mise.toml`, lock, and install before scanning or pushing ([upgrade-tools](../../../../mise/references/upgrade-tools/GUIDE.md) owns upgrades).
+1. **Pin and install image tools** in `mise.toml` ([upgrade-tools](../../../../mise/references/upgrade-tools/GUIDE.md)):
 
    ```bash
    mise use --pin cosign trivy
@@ -8,15 +8,9 @@
    mise install --locked cosign trivy
    ```
 
-1. **Validate locally**: set `build:image` to `--platform linux/amd64` (even on ARM hosts), then run the full gate and local archive scan:
+1. **Validate locally**: target `--platform linux/amd64` in `build:image`, then run `uv sync --locked && mise run all && mise run check:image`.
 
-   ```bash
-   uv sync --locked
-   mise run all
-   mise run check:image
-   ```
-
-1. **Build and push after authorization**: pass tagless `IMAGE_REPOSITORY` and capture BuildKit's validated `@sha256:` digest:
+1. **Build and push after authorization**: capture BuildKit's validated `@sha256:` digest:
 
    ```bash
    set -euo pipefail
@@ -30,14 +24,14 @@
    IMAGE="$IMAGE_REPOSITORY@$DIGEST"
    ```
 
-1. **Scan, sign, and attest `$IMAGE`**: run the [cosign release sequence](../../../../containers/references/docker/references/cosign.md#release-sequence) (public transparency-log disclosure applies even to private registries):
+1. **Scan, sign, and attest `$IMAGE`**: run the [cosign release sequence](../../../../containers/references/docker/references/cosign.md#release-sequence) after Trivy scan and SBOM generation:
 
    ```bash
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 "$IMAGE"
    trivy --config trivy.yaml image --skip-dirs '' --platform linux/amd64 --format cyclonedx --output tmp/sbom.cdx.json "$IMAGE"
    ```
 
-1. **Deploy privately**: pass `HOST=0.0.0.0`, `ENVIRONMENT=production`, and pinned [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) (`PORT` is injected by Cloud Run; never `latest`; mount secret volumes only for rotation without redeploy):
+1. **Deploy privately**: pin [secret versions](https://docs.cloud.google.com/run/docs/configuring/services/secrets) (never `latest`; Cloud Run injects `PORT`):
 
    ```bash
    gcloud run deploy <slug> --project=<project> --image="$IMAGE" --region=<region> \
@@ -46,7 +40,7 @@
      --invoker-iam-check --no-allow-unauthenticated
    ```
 
-   Run `Verify private invocation` ([deploy.yml](../templates/deploy.yml) + [verify-private.py](../templates/verify-private.py)) as a postcondition to reject `allUsers`/`allAuthenticatedUsers` bindings (including conditional/custom roles) and confirm unauthenticated requests fail.
+   Verify both privacy postconditions: run `python3 -I .github/scripts/verify-private.py "$RUNNER_TEMP" "$CLOUDRUN_SERVICE"` ([verify-private.py](../templates/verify-private.py)) to confirm `invoker-iam-disabled` is not `"true"` and reject `allUsers`/`allAuthenticatedUsers` in service and project IAM policies (including conditional/custom roles), then run `python3 -I .github/scripts/probe-candidate.py --check-unauth "$CANDIDATE_URL"` ([probe-candidate.py](../templates/probe-candidate.py)) to confirm unauthenticated `GET /health` returns `401`/`403` and authenticated `/health` and `/ready` return `200`.
 
 1. **Seed a runtime secret when authorized**: validate `API_KEY` in memory before piping to `gcloud`; pin the new version on next deploy.
 
@@ -60,7 +54,4 @@
    )
    ```
 
-1. **Expose `deploy` as an on-demand task** (never in hooks): validate `IMAGE_REF` (`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`), deploy `--service-account ... --invoker-iam-check --no-allow-unauthenticated`, and run the private-invocation postcondition before reporting success.
-
-1. **Wire CD**: copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` (merge with [github/ci-cd CD](../../../../github/references/ci-cd/templates/cd.yml) if sharing `cd.yml@`), plus [verify-private.py](../templates/verify-private.py) and [probe-candidate.py](../templates/probe-candidate.py) to `.github/scripts/`. Pin `<version>`, configure the `GCP_*`/`CLOUDRUN_SERVICE`/`ENABLE_DEPLOY_CLOUDRUN=true` vars required by `deploy.yml`, and keep `validate` uncredentialed ([github/ci-cd](../../../../github/references/ci-cd/GUIDE.md)).
-1. **Roll out through a candidate**: create the service once manually (`--no-traffic` fails on new services), keep `gcloud_version` equal to `setup-gcloud` `version`, and wire `test:candidate` (`python3 .github/scripts/probe-candidate.py "$CANDIDATE_URL"`) before `update-traffic` promotes the revision.
+1. **Wire on-demand deploy & CD**: keep `deploy` out of hooks (validate `IMAGE_REF` matches `@sha256:[0-9a-f]{64}$`). Copy [deploy.yml](../templates/deploy.yml) to `.github/workflows/cd.yml` (merging with [github/ci-cd CD](../../../../github/references/ci-cd/templates/cd.yml) if sharing `cd.yml@`), plus `verify-private.py` and `probe-candidate.py` to `.github/scripts/`. Create the service once manually (`--no-traffic` fails on new services), set `GCP_*`/`CLOUDRUN_SERVICE`/`ENABLE_DEPLOY_CLOUDRUN=true`, keep `gcloud_version` equal to `setup-gcloud` `version`, and keep `validate` uncredentialed ([github/ci-cd](../../../../github/references/ci-cd/GUIDE.md)).

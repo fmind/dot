@@ -25,7 +25,7 @@ Create rich HTML Gmail drafts for user review. **Never send**: even "send" yield
 
 1. **Match language & register**: follow the thread or recipient's last language (ask if unknown). Check `<=3` sent emails (`q: "to:<address> in:sent"`) for greeting/sign-off; in French, preserve `tu`/`vous` (default `vous` for clients/first contact) and punctuation spacing (`"Bonjour Alice,"`, space before `?` and `!`).
 1. **Author clean HTML**: delegate audience framing, brevity, formatting, and tone to [humanize](../../../humanize/SKILL.md) ([email outline](../../../humanize/references/outlines.md#email-or-chat-message), [Gmail primitives](../../../humanize/references/primitives.md#channel-primitives)). Emit clean HTML (never raw Markdown) and never invent commitments, prices, or availability (list open choices in handoff).
-1. **Preview, create, & verify** from `$SCRATCH/body.html` (`SCRATCH`: host scratchpad, else `SCRATCH="$(mktemp -d)"`) via [`draft_email.py`](scripts/draft_email.py) (runs Vale; `--dry-run` first):
+1. **Preview, create, & verify** from `$SCRATCH/body.html` (`SCRATCH`: host scratchpad, else `umask 077; SCRATCH="$(mktemp -d)"`) via [`draft_email.py`](scripts/draft_email.py) (runs Vale; `--dry-run` first):
 
    ```bash
    # Reply (optional: --reply-all / --remove bob@example.com / --cc carol@example.com / -a report.pdf)

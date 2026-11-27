@@ -234,6 +234,8 @@ def test_check_cli_compiles_template_deck_to_pptx_and_extracts_notes(
 ) -> None:
     typst_bin = native_binary("typst")
     if typst_bin is None:
+        if os.environ.get("CI"):
+            pytest.fail("typst CLI must be installed in CI via mise.toml")
         pytest.skip("typst CLI unavailable")
     monkeypatch.setenv("PATH", f"{typst_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
 
@@ -277,6 +279,8 @@ def test_render_cli_compiles_figure_card_and_fails_on_warnings(
 ) -> None:
     typst_bin = native_binary("typst")
     if typst_bin is None:
+        if os.environ.get("CI"):
+            pytest.fail("typst CLI must be installed in CI via mise.toml")
         pytest.skip("typst CLI unavailable")
     monkeypatch.setenv("PATH", f"{typst_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
 
@@ -322,6 +326,8 @@ def test_check_max_words_rejects_crowded_slide(
 ) -> None:
     typst_bin = native_binary("typst")
     if typst_bin is None:
+        if os.environ.get("CI"):
+            pytest.fail("typst CLI must be installed in CI via mise.toml")
         pytest.skip("typst CLI unavailable")
     monkeypatch.setenv("PATH", f"{typst_bin.parent}{os.pathsep}{os.environ.get('PATH', '')}")
 
@@ -336,6 +342,24 @@ def test_check_max_words_rejects_crowded_slide(
     )
     assert mod.main(["check", str(deck_dir / "deck.typ"), "--max-words", "30", "--allow-font-warnings"]) == 1
     assert "Slide word limit exceeded" in capsys.readouterr().err
+
+    # Closing appendix slides (`appendix: true`) are counted and reported without tripping `--max-words`.
+    (deck_dir / "with_appendix.typ").write_text(
+        '#import "fmind-slides.typ": *\n'
+        '#show: fmind-deck.with(title: "Test")\n'
+        '#slide(title: "Main")[Short visual anchor.]\n'
+        f'#slide(title: "Annex", appendix: true)[{words}]\n',
+        encoding="utf-8",
+    )
+    assert (
+        mod.main(["check", str(deck_dir / "with_appendix.typ"), "--max-words", "30", "--allow-font-warnings", "--json"])
+        == 0
+    )
+    appendix_payload = json.loads(capsys.readouterr().out)
+    assert appendix_payload["ok"] is True
+    assert appendix_payload["appendix_slides"] == [2]
+    assert appendix_payload["slide_words"]["2"] > 30
+    assert appendix_payload["word_violations"] == {}
 
 
 def test_unexpected_typst_warnings_fail_even_with_allow_font_warnings(
@@ -370,3 +394,104 @@ def test_unexpected_typst_warnings_fail_even_with_allow_font_warnings(
     assert check_payload["ok"] is False
     assert len(check_payload["warnings"]) == 2
     assert "unexpected warnings" in check_err.err
+
+
+def test_failed_check_gates_preserve_existing_pptx_and_literal_auto_name(
+    mod: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-home")
+    deck = tmp_path / "deck.typ"
+    deck.write_text("#text[Slide]\n", encoding="utf-8")
+    existing_pptx = tmp_path / "deck.pptx"
+    existing_pptx.write_bytes(b"KEEP-EXISTING-PPTX")
+
+    def fake_run(command: list[str], **_kwargs: object) -> object:
+        if command[1] == "eval":
+            payload = {"notes": [], "meta": [{"title": "Deck"}], "words": [{"page": 1, "words": 50}]}
+            return subprocess.CompletedProcess(command, 0, json.dumps(payload), "")
+        target = command[-1]
+        if "{p}.png" in target:
+            Path(target.replace("{p}", "1")).write_bytes(b"\x89PNG\r\n\x1a\nimg")
+            return subprocess.CompletedProcess(command, 0, "", "")
+        Path(target).write_bytes(b"%PDF-1.7\n")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(shutil, "which", lambda name: "/bin/typst" if name == "typst" else None)
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    # Overflow and word-cap failures must never clobber existing .pptx.
+    assert mod.main(["check", str(deck), "--pptx", "--expected-slides", "2", "--json"]) == 1
+    assert existing_pptx.read_bytes() == b"KEEP-EXISTING-PPTX"
+    assert "pptx" not in json.loads(capsys.readouterr().out)
+
+    assert mod.main(["check", str(deck), "--pptx", "--max-words", "30", "--json"]) == 1
+    assert existing_pptx.read_bytes() == b"KEEP-EXISTING-PPTX"
+    assert "pptx" not in json.loads(capsys.readouterr().out)
+
+    # Explicit `--pptx __AUTO__` resolves to a literal file path instead of triggering the default sentinel.
+    monkeypatch.chdir(tmp_path)
+    assert mod.main(["check", str(deck), "--pptx", "__AUTO__", "--expected-slides", "1", "--json"]) == 0
+    out_payload = json.loads(capsys.readouterr().out)
+    assert Path(out_payload["pptx"]) == (tmp_path / "__AUTO__").resolve()
+    assert (tmp_path / "__AUTO__").is_file()
+    assert (Path(out_payload["pptx"]).stat().st_mode & 0o777) == 0o600
+
+
+def test_fmind_typ_template_matches_pinned_theme_checksum(tmp_path: Path) -> None:
+    import hashlib
+    import tomllib
+
+    from repo_helpers import chezmoi
+
+    template = (ROOT / ".chezmoiexternal.toml.tmpl").read_text(encoding="utf-8")
+    rendered = tomllib.loads(chezmoi(tmp_path, "execute-template", stdin=template))
+    expected_sha = rendered[".agents/themes/typst/fmind.typ"]["checksum"]["sha256"]
+    bundled = ROOT / "skills/draft/references/typst-deck/templates/fmind.typ"
+    actual_sha = hashlib.sha256(bundled.read_bytes()).hexdigest()
+    assert actual_sha == expected_sha, "skills/draft/.../templates/fmind.typ drifted from .chezmoiexternal.toml.tmpl"
+
+
+def test_render_figures_fails_closed_when_figures_empty(
+    mod: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    deck = tmp_path / "deck.typ"
+    deck.write_text("#text[Slide]\n", encoding="utf-8")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-home")
+    _install_fake_typst(mod, monkeypatch, slides=1)
+    assert mod.main(["check", str(deck), "--expected-slides", "1", "--render-figures", "--json"]) == 1
+    err = capsys.readouterr().err
+    assert "no .typ files" in err.lower() or "figures" in err.lower()
+
+
+def test_fmind_slides_word_count_handles_callout_terms_and_unicode(tmp_path: Path) -> None:
+    typst = native_binary("typst")
+    if typst is None:
+        pytest.skip("typst not installed")
+    tpl_dir = ROOT / "skills/draft/references/typst-deck/templates"
+    for name in ("fmind.typ", "fmind-slides.typ"):
+        shutil.copy2(tpl_dir / name, tmp_path / name)
+    probe = tmp_path / "probe.typ"
+    probe.write_text(
+        '#import "fmind-slides.typ": *\n'
+        '#show: fmind-deck.with(title: "Test", context-label: "Eng", date: "2026")\n'
+        '#slide(title: "Probe")[\n'
+        '  #callout(title: "Note")[three more words]\n'
+        "  / Key: value word\n"
+        "  à à à\n"
+        "]\n",
+        encoding="utf-8",
+    )
+    res = subprocess.run(
+        [str(typst), "eval", "--root", str(tmp_path), "--in", str(probe), "query(<fmind-slide-words>)"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert res.returncode == 0, res.stderr
+    entries = json.loads(res.stdout)
+    # "Probe" (1) + "Note" (1) + "three more words" (3) + "Key" (1) + "value word" (2) + "à à à" (3) = 11 words
+    assert entries[0]["value"]["words"] == 11

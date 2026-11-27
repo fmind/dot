@@ -30,7 +30,7 @@ Pass `--profile <profile>` and `--target <target>` before mutations or billable 
 1. **Inspect Unity Catalog, compute, runs, and Genie** (`--limit` on `list`, CLI 1.25+, avoids full scans):
 
    ```bash
-   databricks catalogs|schemas|tables|clusters get <name-or-id> -p <profile> -o json
+   databricks catalogs|schemas|tables|clusters get <full-name-or-id> -p <profile> -o json
    databricks jobs list-runs --job-id <job-id> --limit 10 -p <profile>
    databricks genie list-spaces -p <profile> -o json
    databricks genie ask "QUESTION" -p <profile> -o json
@@ -46,7 +46,7 @@ See [genie](references/genie.md) for local `genie` CLI sandbox, profile, layout,
 
 - **Direct bundle engine (CLI 1.20+)**: `bundle.engine: terraform` errors and first deploy migrates state (pin 1.19.x if needed; align local/CI versions).
 - **Keyless CI first**: use [workload identity federation](https://docs.databricks.com/aws/en/dev-tools/auth/provider-github) (`DATABRICKS_AUTH_TYPE: github-oidc`, `DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, `id-token: write`), else OAuth M2M (`DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`); never commit `DATABRICKS_TOKEN`.
-- **Ignore `databricks aitools install` hints** (CLI 1.23.0 under Claude Code): preview into a non-discovery `<dir>` via `databricks aitools install --path <dir> --skills <name>` per [vendor-skill policy](../../../agent-harnesses/references/vendor-skills.md).
+- **Ignore `databricks aitools` auto-install hints** (CLI `1.28.0+`: `databricks aitools auto-install` and bare non-interactive `aitools install` default to `--scope global` across all detected agents): always preview into a non-discovery `<dir>` via `databricks aitools install --path <dir> --skills <name>` per [vendor-skill policy](../../../agent-harnesses/references/vendor-skills.md).
 - **Check cluster autotermination** before starting compute.
 
 ## Official Skills

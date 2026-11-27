@@ -14,6 +14,8 @@ pre-commit:
       glob: "**/*.py"
       run: mise run format:python -- {staged_files}
       stage_fixed: true
+    - name: check leaks (staged)
+      run: mise run check:leaks:staged
     - name: check
       run: mise run check:local
 pre-push:

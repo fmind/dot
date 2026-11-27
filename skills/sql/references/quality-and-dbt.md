@@ -27,7 +27,7 @@ Run `sqruff lint <paths>` (pass `--format json` for structured CI diagnostics) a
 
 - **When Jinja/dbt templating applies**: add project-scoped `sqlfluff` (`sqlfluff-templater-dbt` for `dbt`) via `uv add --dev`, pin exact `.sqlfluff` dialect/templater config, and run `uv run --locked sqlfluff lint`.
 - **`dbt-core` warehouse adapters**: install `dbt-bigquery`, `dbt-postgres`, or `dbt-duckdb` in a dedicated project env.
-- **Strict gates & data contracts**: enforce `--warn-error` in CI (`dbt build --warn-error`), define model `contracts` (`enforced: true` + column `data_type`) alongside `not_null`, `unique`, and `relationships` schema tests on boundary models, and pass `--state <prod-manifest-dir> --defer` for slim PR builds so unchanged upstream models are not re-materialized.
+- **Strict gates & data contracts**: enforce `--warn-error` in CI (`dbt build --warn-error`), define model `contracts` (`enforced: true` + column `data_type`) alongside `not_null`, `unique`, and `relationships` schema tests on boundary models, and pass `--state <prod-manifest-dir> --defer` for slim PR builds so unchanged upstream models are not re-materialized. Audit SQL/dbt changes with `fmind-review-data` ([subagent](../../subagent/SKILL.md)).
 
 ## Documentation
 

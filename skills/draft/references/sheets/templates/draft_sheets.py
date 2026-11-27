@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 SHEET_ERRORS = frozenset({"#REF!", "#NAME?", "#VALUE!", "#DIV/0!", "#N/A", "#NUM!", "#ERROR!"})
+DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{4,128}$")
 
 
 def _run_gws(args: list[str], *, cwd: Path) -> dict[str, Any]:
@@ -22,6 +25,7 @@ def _run_gws(args: list[str], *, cwd: Path) -> dict[str, Any]:
     proc = subprocess.run(  # noqa: S603
         [gws, *args, "--format", "json"],
         cwd=cwd,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         check=False,
@@ -37,7 +41,28 @@ def _run_gws(args: list[str], *, cwd: Path) -> dict[str, Any]:
     parsed = json.loads(raw[idx:])
     if not isinstance(parsed, dict):
         raise RuntimeError("gws returned non-object JSON.")
+    if "error" in parsed:
+        detail = json.dumps(parsed["error"], ensure_ascii=False)[:300]
+        raise RuntimeError(f"gws {' '.join(args[:3])} API error: {detail}")
     return parsed
+
+
+def _move_to_folder(file_id: str, folder_id: str, *, cwd: Path) -> None:
+    meta = _run_gws(
+        [
+            "drive",
+            "files",
+            "get",
+            "--params",
+            json.dumps({"fileId": file_id, "fields": "parents", "supportsAllDrives": True}),
+        ],
+        cwd=cwd,
+    )
+    params: dict[str, Any] = {"fileId": file_id, "addParents": folder_id, "supportsAllDrives": True}
+    previous_parents = [str(p) for p in (meta.get("parents") or []) if str(p) != folder_id]
+    if previous_parents:
+        params["removeParents"] = ",".join(previous_parents)
+    _run_gws(["drive", "files", "update", "--params", json.dumps(params)], cwd=cwd)
 
 
 def col_label(col_count: int) -> str:
@@ -110,52 +135,79 @@ def _format_requests(sheet_id: int, col_count: int) -> list[dict[str, Any]]:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        allow_abbrev=False,
+    )
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument(
         "spec",
         type=Path,
         help="JSON file with {'title', 'sheet', 'rows': [[...]], 'formulas'?: [{'range', 'values'}], 'locale'?}.",
     )
     parser.add_argument("--spreadsheet-id", default=None, help="Existing spreadsheet ID to update.")
+    parser.add_argument("--drive-folder", default=None, help="Target Drive folder ID when creating a new spreadsheet.")
     parser.add_argument("--dry-run", action="store_true", help="Validate spec and print payload without writing.")
     return parser
+
+
+def _validate_drive_id(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not DRIVE_ID_RE.fullmatch(value.strip()):
+        raise ValueError(f"Invalid {label}: {value!r}")
+    return value.strip()
+
+
+def _require_str(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Spec field {field!r} must be a non-empty string.")
+    return value.strip()
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
+        spreadsheet_id = (
+            _validate_drive_id(args.spreadsheet_id, "--spreadsheet-id") if args.spreadsheet_id is not None else None
+        )
+        drive_folder = None
+        if args.drive_folder is not None:
+            if spreadsheet_id is not None:
+                raise ValueError("--drive-folder cannot be combined with --spreadsheet-id.")
+            drive_folder = _validate_drive_id(args.drive_folder, "--drive-folder")
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
         if not isinstance(spec, dict):
             raise ValueError("Spec must be a JSON object.")
-        title = str(spec.get("title", "")).strip()
-        sheet_name = str(spec.get("sheet", "Summary")).strip()
-        locale = str(spec.get("locale", "en_US")).strip()
+        title = _require_str(spec.get("title"), "title")
+        sheet_name = _require_str(spec.get("sheet", "Summary"), "sheet")
+        locale = _require_str(spec.get("locale", "en_US"), "locale")
         rows = spec.get("rows")
         if (
-            not title
-            or not sheet_name
-            or not isinstance(rows, list)
+            not isinstance(rows, list)
             or not rows
             or not all(isinstance(row, list) and len(row) == len(rows[0]) for row in rows)
             or not rows[0]
         ):
-            raise ValueError("Spec must include non-empty 'title', 'sheet', and rectangular 'rows'.")
-        formulas = spec.get("formulas") or []
+            raise ValueError("Spec must include non-empty rectangular 'rows'.")
+        raw_formulas = spec.get("formulas")
+        formulas = [] if raw_formulas is None else raw_formulas
         if not isinstance(formulas, list) or not all(
             isinstance(entry, dict)
             and isinstance(entry.get("range"), str)
             and entry["range"].strip()
             and isinstance(entry.get("values"), list)
+            and bool(entry["values"])
+            and all(isinstance(row, list) for row in entry["values"])
             for entry in formulas
         ):
-            raise ValueError("'formulas' must be a list of {'range', 'values'} entries.")
+            raise ValueError("'formulas' must be a list of {'range', 'values': [[...]]} entries.")
         col_count = len(rows[0])
         end_col = col_label(col_count)
         quoted_sheet = "'" + sheet_name.replace("'", "''") + "'"
         write_range = f"{quoted_sheet}!A1:{end_col}{len(rows)}"
 
         if args.dry_run:
-            plan = {
+            plan: dict[str, Any] = {
                 "ok": True,
                 "dry_run": True,
                 "title": title,
@@ -166,12 +218,15 @@ def main(argv: list[str] | None = None) -> int:
                 "data_value_input": "RAW",
                 "formula_ranges": len(formulas),
             }
+            if drive_folder:
+                plan["drive_folder"] = drive_folder
             sys.stdout.write(json.dumps(plan, indent=2) + "\n")
             return 0
 
         with tempfile.TemporaryDirectory(prefix="draft-sheets-") as tmp:
             tmp_dir = Path(tmp)
-            spreadsheet_id = args.spreadsheet_id
+            # Sentinel stops gws from walking upward into /tmp/.env or $TMPDIR/.env.
+            os.close(os.open(tmp_dir / ".env", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
             if spreadsheet_id:
                 sheet_id = _resolve_sheet_id(spreadsheet_id, sheet_name, cwd=tmp_dir)
             else:
@@ -190,8 +245,17 @@ def main(argv: list[str] | None = None) -> int:
                     ],
                     cwd=tmp_dir,
                 )
-                spreadsheet_id = str(created["spreadsheetId"])
-                sheet_id = int(created["sheets"][0]["properties"]["sheetId"])
+                spreadsheet_id = _validate_drive_id(created.get("spreadsheetId"), "API spreadsheetId")
+                created_sheets = created.get("sheets")
+                if (
+                    not isinstance(created_sheets, list)
+                    or not created_sheets
+                    or not isinstance(created_sheets[0], dict)
+                ):
+                    raise RuntimeError("Create response missing sheet metadata.")
+                sheet_id = int(created_sheets[0]["properties"]["sheetId"])
+                if drive_folder:
+                    _move_to_folder(spreadsheet_id, drive_folder, cwd=tmp_dir)
 
             # Write data cells with RAW to prevent formula injection from untrusted text.
             _run_gws(
@@ -251,21 +315,33 @@ def main(argv: list[str] | None = None) -> int:
                 ],
                 cwd=tmp_dir,
             )
-            value_ranges = read_back.get("valueRanges") or []
-            returned_rows = [
+            value_ranges = read_back.get("valueRanges")
+            if not isinstance(value_ranges, list) or len(value_ranges) != len(verify_ranges):
+                raise RuntimeError(
+                    f"Read-back returned {len(value_ranges) if isinstance(value_ranges, list) else 'invalid'} "
+                    f"valueRanges, expected {len(verify_ranges)}."
+                )
+            all_returned_rows = [
                 row
                 for vr in value_ranges
                 if isinstance(vr, dict)
                 for row in (vr.get("values") or [])
                 if isinstance(row, list)
             ]
-            if errors := find_formula_errors(returned_rows):
+            if errors := find_formula_errors(all_returned_rows):
                 raise RuntimeError(f"Read-back detected spreadsheet formula errors: {', '.join(errors)}")
+            primary_rows = (
+                [row for row in (value_ranges[0].get("values") or []) if isinstance(row, list)]
+                if isinstance(value_ranges[0], dict)
+                else []
+            )
+            if len(primary_rows) != len(rows):
+                raise RuntimeError(f"Read-back row count mismatch: expected {len(rows)}, got {len(primary_rows)}.")
             payload = {
                 "ok": True,
                 "spreadsheetId": spreadsheet_id,
                 "title": title,
-                "rows_verified": len(returned_rows),
+                "rows_verified": len(primary_rows),
                 "url": f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit",
             }
             sys.stdout.write(json.dumps(payload, indent=2) + "\n")

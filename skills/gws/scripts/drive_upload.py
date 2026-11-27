@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import mimetypes
+import os
 import re
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ from typing import Any
 GOOGLE_DOC_MIME = "application/vnd.google-apps.document"
 
 _DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+_MIME_TYPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}$")
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -26,6 +28,14 @@ def validate_drive_id(value: str, label: str = "Drive ID") -> str:
     cleaned = value.strip()
     if not cleaned or not _DRIVE_ID_RE.fullmatch(cleaned):
         raise ValueError(f"Invalid {label}: expected 8-128 characters from [A-Za-z0-9_-].")
+    return cleaned
+
+
+def validate_mime_type(value: str, label: str = "MIME type") -> str:
+    """Validate an RFC 6838 type/subtype string before sending to Drive."""
+    cleaned = value.strip()
+    if not cleaned or not _MIME_TYPE_RE.fullmatch(cleaned):
+        raise ValueError(f"Invalid {label}: expected a valid RFC 6838 type/subtype.")
     return cleaned
 
 
@@ -45,15 +55,23 @@ def _parse_json(raw: str) -> dict[str, Any]:
     text = raw.strip()
     if not text:
         raise RuntimeError("gws returned empty output.")
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        idx = text.find("{")
-        if idx == -1:
-            raise RuntimeError("gws did not return a JSON object.") from None
-        parsed = json.loads(text[idx:])
-    if not isinstance(parsed, dict):
-        raise RuntimeError("gws returned non-object JSON.")
+    decoder = json.JSONDecoder()
+    parsed: Any = None
+    found = False
+    for pos, ch in enumerate(text):
+        if (pos == 0 or text[pos - 1] == "\n") and ch == "{":
+            try:
+                parsed, end = decoder.raw_decode(text, pos)
+            except json.JSONDecodeError:
+                break
+            if end == len(text) and isinstance(parsed, dict):
+                found = True
+            break
+    if not found:
+        raise RuntimeError("gws did not return a JSON object.")
+    if "error" in parsed:
+        detail = json.dumps(parsed["error"], ensure_ascii=False)[:300]
+        raise RuntimeError(f"Google API error: {detail}")
     return parsed
 
 
@@ -65,6 +83,7 @@ def run_gws(args: list[str], *, cwd: Path) -> dict[str, Any]:
     proc = subprocess.run(  # noqa: S603
         [gws_bin, *args, "--format", "json"],
         cwd=cwd,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         check=False,
@@ -87,7 +106,7 @@ def find_existing(folder_id: str, name: str, *, target_mime: str | None, cwd: Pa
     while True:
         params: dict[str, Any] = {
             "q": query,
-            "fields": "nextPageToken,files(id,name,mimeType,webViewLink)",
+            "fields": "nextPageToken,incompleteSearch,files(id,name,mimeType,webViewLink)",
             "pageSize": 20,
             "supportsAllDrives": True,
             "includeItemsFromAllDrives": True,
@@ -95,6 +114,10 @@ def find_existing(folder_id: str, name: str, *, target_mime: str | None, cwd: Pa
         if page_token:
             params["pageToken"] = page_token
         data = run_gws(["drive", "files", "list", "--params", json.dumps(params)], cwd=cwd)
+        if data.get("incompleteSearch") is True:
+            raise RuntimeError(
+                f"Drive search for {name!r} in folder {folder_id} was incomplete; retry or specify --file-id."
+            )
         files = data.get("files") or []
         matches.extend(item for item in files if isinstance(item, dict))
         if len(matches) > 1:
@@ -156,8 +179,10 @@ def upload_file(
 
     folder_id = validate_drive_id(drive_folder, "--drive-folder") if drive_folder else None
     existing_id = validate_drive_id(file_id, "--file-id") if file_id else None
-    upload_mime = _upload_content_type(src, content_type)
-    final_mime = target_mime or upload_mime
+    validated_content_type = validate_mime_type(content_type, "--content-type") if content_type else None
+    validated_target_mime = validate_mime_type(target_mime, "--target-mime") if target_mime else None
+    upload_mime = _upload_content_type(src, validated_content_type)
+    final_mime = validated_target_mime or upload_mime
     is_google_native = final_mime.startswith("application/vnd.google-apps.")
     explicit_name = validate_name(name, "--name") if name is not None else None
     derived_name = explicit_name or validate_name(src.stem if is_google_native else src.name, "--name")
@@ -185,6 +210,8 @@ def upload_file(
 
     with tempfile.TemporaryDirectory(prefix="gws-upload-") as tmp:
         tmp_dir = Path(tmp)
+        # Sentinel stops gws from walking upward into /tmp/.env or $TMPDIR/.env.
+        os.close(os.open(tmp_dir / ".env", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
         staged_suffix = src.suffix if re.fullmatch(r"\.[A-Za-z0-9]{1,10}", src.suffix) else ""
         staged = tmp_dir / f"upload{staged_suffix}"
         shutil.copy2(src, staged)
@@ -212,12 +239,12 @@ def upload_file(
                     f"Refusing drive.files.update on existing Google Doc {target_id} (drops comments/suggestions); "
                     "patch via documents.batchUpdate or create a new sibling file."
                 )
-            if target_mime and current_mime != target_mime:
+            if validated_target_mime and current_mime != validated_target_mime:
                 raise ValueError(
-                    f"Existing file {target_id} has mimeType {current_mime!r}, expected {target_mime!r}; "
+                    f"Existing file {target_id} has mimeType {current_mime!r}, expected {validated_target_mime!r}; "
                     "create a new sibling file to change MIME types."
                 )
-            if not target_mime and current_mime.startswith("application/vnd.google-apps."):
+            if not validated_target_mime and current_mime.startswith("application/vnd.google-apps."):
                 raise ValueError(
                     f"Existing file {target_id} is Google-native ({current_mime!r}); "
                     "pass matching --target-mime or create a new sibling file."
@@ -237,14 +264,16 @@ def upload_file(
         if target_id is None:
             metadata["name"] = derived_name
             metadata["parents"] = [folder_id]
-            if target_mime:
-                metadata["mimeType"] = target_mime
+            if validated_target_mime:
+                metadata["mimeType"] = validated_target_mime
         elif explicit_name is not None:
             metadata["name"] = explicit_name
         if protect_copy:
             metadata["copyRequiresWriterPermission"] = True
 
         fields = "id,name,mimeType,webViewLink,trashed,md5Checksum,size"
+        if protect_copy:
+            fields += ",copyRequiresWriterPermission"
         if target_id:
             params: dict[str, Any] = {"fileId": target_id, "supportsAllDrives": True, "fields": fields}
             cmd = ["drive", "files", "update", "--params", json.dumps(params)]
@@ -289,14 +318,24 @@ def upload_file(
         )
         if verified.get("trashed") is True:
             raise RuntimeError(f"Read-back failed: file {uploaded_id} is trashed.")
-        if target_mime and verified.get("mimeType") != target_mime:
-            raise RuntimeError(f"Read-back mimeType mismatch: expected {target_mime}, got {verified.get('mimeType')}.")
+        if validated_target_mime and verified.get("mimeType") != validated_target_mime:
+            raise RuntimeError(
+                f"Read-back mimeType mismatch: expected {validated_target_mime}, got {verified.get('mimeType')}."
+            )
+        if protect_copy and verified.get("copyRequiresWriterPermission") is not True:
+            raise RuntimeError(f"Read-back failed: copyRequiresWriterPermission not enabled for {uploaded_id}.")
         if not is_google_native:
             remote_md5 = verified.get("md5Checksum")
             remote_size = verified.get("size")
-            if remote_md5 and remote_md5 != local_md5:
-                raise RuntimeError(f"Read-back MD5 mismatch for {uploaded_id}.")
-            if remote_size is not None and int(remote_size) != local_size:
+            if not isinstance(remote_md5, str) or remote_md5 != local_md5:
+                raise RuntimeError(f"Read-back MD5 missing or mismatch for {uploaded_id}.")
+            if isinstance(remote_size, bool) or not isinstance(remote_size, (int, str)):
+                raise RuntimeError(f"Read-back size missing or invalid for {uploaded_id}.")
+            try:
+                parsed_remote_size = int(remote_size)
+            except ValueError as err:
+                raise RuntimeError(f"Read-back size invalid for {uploaded_id}.") from err
+            if parsed_remote_size != local_size:
                 raise RuntimeError(f"Read-back size mismatch for {uploaded_id}.")
 
         return {
@@ -310,7 +349,9 @@ def upload_file(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument("source", type=Path, help="Local file to upload.")
     parser.add_argument("--drive-folder", default=None, help="Target Drive folder ID (upserts matching name + MIME).")
     parser.add_argument("--file-id", default=None, help="Existing Drive file ID to update in place.")
@@ -337,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
             protect_copy=args.protect_copy,
             dry_run=args.dry_run,
         )
-    except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
+    except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
         if args.json_output:
             sys.stderr.write(json.dumps({"error": str(exc)}) + "\n")
         else:

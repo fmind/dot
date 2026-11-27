@@ -17,4 +17,14 @@ resource "google_storage_bucket" "assets" {
   versioning {
     enabled = true
   }
+
+  lifecycle_rule {
+    condition {
+      num_newer_versions         = 5
+      days_since_noncurrent_time = 30
+    }
+    action {
+      type = "Delete"
+    }
+  }
 }

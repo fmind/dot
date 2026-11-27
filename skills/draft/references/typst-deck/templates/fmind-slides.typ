@@ -10,7 +10,8 @@
   let f = it.func()
   if f == metadata { return "" }
   if f == smartquote { return "'" }
-  if it == [ ] or f == parbreak or f == linebreak { return " " }
+  if it == [ ] or f == parbreak or f == linebreak or f == h or f == v { return " " }
+  if f == terms.item { return _plain-text(it.term) + " " + _plain-text(it.description) }
   if it.has("text") { return str(it.text) }
   if it.has("child") { return _plain-text(it.child) }
   if it.has("body") { return _plain-text(it.body) }
@@ -21,7 +22,7 @@
   ""
 }
 
-#let _word-count(it) = _plain-text(it).trim().split(regex("\\s+")).filter(w => w.contains(regex("[A-Za-z0-9]"))).len()
+#let _word-count(it) = _plain-text(it).trim().split(regex("\\s+")).filter(w => w.contains(regex("[\\p{L}\\p{N}]"))).len()
 
 #let fmind-deck(title: "", context-label: "", date: "", body) = {
   set document(title: title)
@@ -127,7 +128,7 @@
   if note != none { speaker-note(note) }
 }
 
-#let slide(kicker: none, title: "", takeaway: none, note: none, body) = {
+#let slide(kicker: none, title: "", takeaway: none, note: none, appendix: false, body) = {
   pagebreak(weak: true)
   if kicker != none {
     pill(role: "selection", kicker)
@@ -142,7 +143,7 @@
   line(length: 100%, stroke: 1pt + colors.border)
   v(14pt)
   body
-  context [#metadata((page: here().page(), title: title, words: _word-count([#kicker #title #takeaway #body]))) <fmind-slide-words>]
+  context [#metadata((page: here().page(), title: title, words: _word-count([#kicker #title #takeaway #body]), appendix: appendix)) <fmind-slide-words>]
   if note != none { speaker-note(note) }
 }
 

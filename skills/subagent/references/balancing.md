@@ -22,12 +22,13 @@ Read ranked `Priorities` from project `AGENTS.md` (e.g., `UX >= Security > Stabi
 - **Simplicity**: `simplicity`, `skill`, `supagent`.
 - **Performance**: `sre`, `frontend` (CWV), `mlops`.
 - **Cost**: `finops`, `mlops`, `analytics`.
-- **Speed**: iteration/scope velocity (governs deferrals under rule 3 rather than a dedicated reviewer lens).
+- **Speed**: iteration/scope velocity (governs deferrals under rule 4 rather than a dedicated reviewer lens).
 
 ## Coordinator Arbitration Rules
 
 1. **Verify `P0` severity**: if a lens-local `P0` is over-calibrated for the repo's risk tier (e.g., cold-path timeout on a spike) and carries no severe harm in the table above, downgrade it to `P1` with rationale in `Trade-Offs`; never downgrade genuine security, leak, data-loss, or fabrication `P0`s.
 1. **Resolve conflicting `P1`s**: when `A > B`, higher priority wins (keep a cheap mitigation for `B` if possible, else defer `B` with its cited `rule:`); when tied (`A >= B`), seek a minimal both-and fix first or escalate under `## Decisions`.
+1. **Resolve rigor-vs-brevity collisions via two-layer disclosure**: on human-facing deliverables (docs, decks, emails, memos, proposals), when `fmind-review-human` collides with depth/provenance reviewers (`proposal`, `spec`, `architecture`, `factcheck`, `analytics`, `docs`), **never satisfy both by compressing details into dense jargon**. Keep the main surface crisp, plain, and short (2–3 decision points, mental model, and one global date/assumption line) and place caveats, pricing tiers, edge cases, formulas, and source ledgers in **Speaker Notes**, a closing **`Annex · Sources`**, a **thread reply**, or a **linked doc**.
 1. **Handle lower-priority `P1`s**: fix when cheap and reversible; if a fix degrades a higher priority or expands scope materially, defer explicitly under `## Decisions` or `## Suggestions`.
 1. **Prevent round-2 oscillation & log trade-offs**: on round 2, re-run only reviewers verifying fixed `P0`/`P1`s (never re-block on adjudicated overrides). Whenever `>= 2` reviewers collide or a verified `P0`/`P1` is downgraded, overruled, or deferred, include a compact `Trade-Offs` table in `## Context`:
 

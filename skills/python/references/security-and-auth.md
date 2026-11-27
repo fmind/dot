@@ -5,7 +5,7 @@ description: "Implement OIDC/OAuth2, JWT, Argon2id, webhook HMAC, CSRF, and HTTP
 
 # Web Security, Auth, & Boundaries
 
-Fail-closed defaults for Python HTTP services and browser apps ([code-review](../../code-security/references/code-review/GUIDE.md) owns threat modeling and audit checks).
+Fail-closed defaults for Python HTTP services and browser apps ([code-review](../../code-security/references/code-review/GUIDE.md) owns threat modeling and audit checks; audit non-trivial auth or header changes with `fmind-review-security` per [subagent](../../subagent/SKILL.md)).
 
 ## OIDC, OAuth2 Login, & Password Hashing
 
@@ -28,7 +28,7 @@ Fail-closed defaults for Python HTTP services and browser apps ([code-review](..
   - `Referrer-Policy: strict-origin-when-cross-origin`
   - `X-Frame-Options: DENY`
   - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'` (add explicit hashes/nonces instead of `'unsafe-inline'`)
+  - `Content-Security-Policy`: use `default-src 'none'; frame-ancestors 'none'; base-uri 'none'` for JSON/API-only services; for HTML/HTMX browser apps use `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'` (add explicit hashes/nonces instead of `'unsafe-inline'`)
   - `Strict-Transport-Security: max-age=31536000; includeSubDomains` when `environment == "production"` over HTTPS.
 
 ## SSRF & Upload Boundaries

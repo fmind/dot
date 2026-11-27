@@ -14,7 +14,7 @@ Keep 4-space indentation inside admonition, tab, and annotation bodies ([primiti
 
 - **Highlight, callouts & tabs**: use `==mark==` sparingly for key phrases, `!!! note|tip|warning|danger` or collapsible `???` admonitions for takeaways, `=== "Tab"` for alternatives, and `<div class="grid cards" markdown>` for scan cards (configure Zensical list indentation in [dprint](../../../../mise/references/dprint.md#gotchas)).
 - **Include tested source**: `--8<-- "src/pkg/module.py"` or `--8<-- "file.py:name"` (`# --8<-- [start:name]` .. `[end:name]`); `check_paths` fails strict builds on missing files.
-- **Diagrams**: inline ` ```mermaid ` (set `config.flowchart.wrappingWidth: 280` or `320` in Mermaid frontmatter and bound on-page SVG `max-width` by `viewBox` aspect ratio via [`extra_javascript`](configuration.md#customization)), or [Typst](../../../../diagrams-as-code/references/typst.md) / [D2](../../../../diagrams-as-code/references/d2.md) / [SVG](../../../../diagrams-as-code/references/svg/GUIDE.md) assets in `docs/assets/`.
+- **Diagrams**: inline ` ```mermaid ` (matching [index.md](../templates/index.md) frontmatter; set `config.flowchart.wrappingWidth: 280` or `320` for long node labels), or [Typst](../../../../diagrams-as-code/references/typst.md) / [D2](../../../../diagrams-as-code/references/d2.md) / [SVG](../../../../diagrams-as-code/references/svg/GUIDE.md) assets in `docs/assets/`.
 - **Glossary & tooltips**: `*[CLI]: Command-Line Interface` in `includes/abbreviations.md` separated by blank lines; `[link](page.md "Tooltip")`.
 - **Page frontmatter**: `hide: [navigation, toc, footer, path, tags]`, `icon: lucide/rocket`, `status: new`, `search: {exclude: true}`, `template: custom.html`.
 

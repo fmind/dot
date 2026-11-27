@@ -6,9 +6,12 @@ import base64
 import html
 import json
 import mimetypes
+import os
 import re
 import shutil
+import stat
 import subprocess
+import sys
 from email.message import EmailMessage
 from email.policy import SMTP
 from email.utils import getaddresses, parseaddr
@@ -50,9 +53,15 @@ class _HTMLToTextParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.chunks: list[str] = []
         self._href_stack: list[tuple[str | None, int]] = []
+        self._skip_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
+        if tag in {"script", "style"}:
+            self._skip_depth += 1
+            return
+        if self._skip_depth > 0:
+            return
         if tag == "br":
             self.chunks.append("\n")
         elif tag == "hr":
@@ -68,6 +77,12 @@ class _HTMLToTextParser(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
+        if tag in {"script", "style"}:
+            if self._skip_depth > 0:
+                self._skip_depth -= 1
+            return
+        if self._skip_depth > 0:
+            return
         if tag in {"p", "blockquote", "pre", "ul", "ol", "table", "h1", "h2", "h3", "h4", "h5", "h6"}:
             self.chunks.append("\n\n")
         elif tag in {"div", "tr", "li"}:
@@ -81,6 +96,8 @@ class _HTMLToTextParser(HTMLParser):
                 self.chunks.append(f" ({href})")
 
     def handle_data(self, data: str) -> None:
+        if self._skip_depth > 0:
+            return
         self.chunks.append(data)
 
     def get_text(self) -> str:
@@ -89,6 +106,128 @@ class _HTMLToTextParser(HTMLParser):
         collapsed = "\n".join(lines)
         collapsed = re.sub(r"\n{3,}", "\n\n", collapsed)
         return collapsed.strip()
+
+
+_SAFE_QUOTE_TAGS = frozenset(
+    {
+        "a",
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "div",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "li",
+        "mark",
+        "ol",
+        "p",
+        "pre",
+        "span",
+        "strong",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "u",
+        "ul",
+    }
+)
+_VOID_QUOTE_TAGS = frozenset({"br", "hr"})
+_DROP_CONTENT_TAGS = frozenset({"script", "style", "iframe", "object", "embed", "noscript", "template"})
+_SAFE_DIR_VALUES = frozenset({"ltr", "rtl", "auto"})
+
+
+class _QuotedHTMLSanitizer(HTMLParser):
+    """Allowlist HTML sanitizer that strips active markup and balances tags for quoted replies."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._out: list[str] = []
+        self._open_tags: list[str] = []
+        self._drop_depth = 0
+
+    def _safe_attrs(self, tag: str, attrs: list[tuple[str, str | None]]) -> str:
+        kept: list[str] = []
+        for raw_name, raw_val in attrs:
+            name = raw_name.lower()
+            if raw_val is None:
+                continue
+            val = raw_val.strip()
+            if name == "dir" and val.lower() in _SAFE_DIR_VALUES:
+                kept.append(f' dir="{val.lower()}"')
+            elif (
+                tag == "a"
+                and name == "href"
+                and val.lower().startswith(("http://", "https://", "mailto:"))
+                and not any(ord(ch) < 32 or ord(ch) == 127 for ch in val)
+            ):
+                kept.append(f' href="{html.escape(val, quote=True)}"')
+            elif tag in {"td", "th"} and name in {"colspan", "rowspan"} and val.isdigit():
+                kept.append(f' {name}="{val}"')
+        return "".join(kept)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if tag in _DROP_CONTENT_TAGS:
+            self._drop_depth += 1
+            return
+        if self._drop_depth > 0 or tag not in _SAFE_QUOTE_TAGS:
+            return
+        attr_str = self._safe_attrs(tag, attrs)
+        self._out.append(f"<{tag}{attr_str}>")
+        if tag not in _VOID_QUOTE_TAGS:
+            self._open_tags.append(tag)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if self._drop_depth > 0 or tag not in _SAFE_QUOTE_TAGS:
+            return
+        attr_str = self._safe_attrs(tag, attrs)
+        self._out.append(f"<{tag}{attr_str}>")
+        if tag not in _VOID_QUOTE_TAGS:
+            self._out.append(f"</{tag}>")
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in _DROP_CONTENT_TAGS:
+            if self._drop_depth > 0:
+                self._drop_depth -= 1
+            return
+        if self._drop_depth > 0 or tag not in self._open_tags:
+            return
+        while self._open_tags:
+            popped = self._open_tags.pop()
+            self._out.append(f"</{popped}>")
+            if popped == tag:
+                break
+
+    def handle_data(self, data: str) -> None:
+        if self._drop_depth > 0:
+            return
+        self._out.append(html.escape(data, quote=False))
+
+    def finish(self) -> str:
+        while self._open_tags:
+            self._out.append(f"</{self._open_tags.pop()}>")
+        return "".join(self._out)
+
+
+def _sanitize_quoted_html(fragment: str) -> str:
+    """Strip active content and balance tags in untrusted parent HTML before embedding in replies."""
+    sanitizer = _QuotedHTMLSanitizer()
+    sanitizer.feed(fragment)
+    sanitizer.close()
+    return sanitizer.finish()
 
 
 def html_to_text(fragment: str) -> str:
@@ -107,6 +246,8 @@ def validate_html_fragment(fragment: str) -> str:
     body_match = BODY_INNER_RE.search(cleaned)
     if body_match:
         cleaned = body_match.group(1).strip()
+    if re.search(r"<\s*(?:script|style)\b", cleaned, re.IGNORECASE):
+        raise ValueError("Unsupported <script> or <style> tag found in HTML body; use inline styles only.")
     if not HTML_TAG_RE.search(cleaned):
         raise ValueError(
             'Plain-text body rejected: write an HTML fragment (<p>, <ul><li>, <strong>, <a href="...">) '
@@ -126,6 +267,11 @@ def validate_html_fragment(fragment: str) -> str:
         raise ValueError(
             "Raw Markdown `inline code` found in HTML body; write plain prose or use <code>...</code> strictly for copyable commands."
         )
+    if re.search(
+        r"(?m)^\s*\|?[^\n|]+\|[^\n]*\n\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$",
+        text_only,
+    ):
+        raise ValueError("Raw Markdown table found in HTML body; use <table><tr><th>...</th></tr>...</table> instead.")
     return cleaned
 
 
@@ -181,7 +327,7 @@ def _format_recipient(name: str, addr: str) -> str:
     clean_name = " ".join(name.split())
     if not clean_name:
         return addr
-    if any(ch in clean_name for ch in ',;<>@"():\\'):
+    if any(ch in clean_name for ch in ',;<>@"():\\.[]'):
         escaped = clean_name.replace("\\", "\\\\").replace('"', '\\"')
         return f'"{escaped}" <{addr}>'
     return f"{clean_name} <{addr}>"
@@ -244,9 +390,11 @@ def extract_reply_context(parent_msg: dict[str, Any]) -> dict[str, str]:
         parent_html = inner.group(1).strip() if inner else parent_html.strip()
         if parent_text is None:
             parent_text = html_to_text(parent_html)
+        parent_html = _sanitize_quoted_html(parent_html)
     elif parent_text is not None:
         parent_text = parent_text.strip()
-        parent_html = f'<div dir="ltr">{html.escape(parent_text).replace(chr(10), "<br>")}</div>'
+        normalized = parent_text.replace("\r\n", "\n").replace("\r", "\n")
+        parent_html = f'<div dir="ltr">{html.escape(normalized).replace(chr(10), "<br>")}</div>'
     else:
         snippet = str(parent_msg.get("snippet") or "").strip()
         parent_text = snippet
@@ -283,12 +431,13 @@ def build_signature_blocks(signature_html: str) -> tuple[str, str]:
 def build_quote_blocks(reply_ctx: dict[str, str]) -> tuple[str, str]:
     """Render Gmail collapsible HTML and plain-text quote blocks from reply context."""
     attr_html = _format_gmail_attr(reply_ctx["date"], reply_ctx["from"])
+    safe_quoted_html = _sanitize_quoted_html(reply_ctx["quotedHtml"])
     quote_block_html = (
         '<br><div class="gmail_quote gmail_quote_container">'
         f'<div dir="ltr" class="gmail_attr">{attr_html}</div>'
         '<blockquote class="gmail_quote" '
         'style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">'
-        f"{reply_ctx['quotedHtml']}"
+        f"{safe_quoted_html}"
         "</blockquote></div>"
     )
     when_prefix = f"On {reply_ctx['date']}, " if reply_ctx["date"] else ""
@@ -410,15 +559,35 @@ def resolve_recipients(
     return to_recipients, cc_recipients, bcc_recipients
 
 
+def _is_trusted_vale_config(path: Path) -> bool:
+    try:
+        uid = os.getuid()
+        st = path.lstat()
+        if not (stat.S_ISREG(st.st_mode) and st.st_uid in (0, uid) and stat.S_IMODE(st.st_mode) & 0o022 == 0):
+            return False
+        for idx, directory in enumerate((path.parent, *path.parent.parents)):
+            dst = directory.lstat()
+            if not stat.S_ISDIR(dst.st_mode) or dst.st_uid not in (0, uid):
+                return False
+            # Allow sticky root-owned temp roots (e.g. /tmp) above the immediate parent only.
+            if stat.S_IMODE(dst.st_mode) & 0o022 != 0 and (
+                idx == 0 or dst.st_uid != 0 or not (dst.st_mode & stat.S_ISVTX)
+            ):
+                return False
+    except OSError:
+        return False
+    return True
+
+
 def _resolve_vale_config(cwd: Path | None = None) -> Path | None:
-    """Return the nearest project .vale.ini or the global ~/.config/vale/.vale.ini if present."""
+    """Return the nearest trusted project .vale.ini or the global ~/.config/vale/.vale.ini if present."""
     start = (cwd or Path.cwd()).resolve()
     for parent in (start, *start.parents):
         candidate = parent / ".vale.ini"
-        if candidate.is_file():
+        if _is_trusted_vale_config(candidate):
             return candidate
     global_cfg = Path.home() / ".config/vale/.vale.ini"
-    return global_cfg if global_cfg.is_file() else None
+    return global_cfg if _is_trusted_vale_config(global_cfg) else None
 
 
 def check_prose_with_vale(
@@ -431,25 +600,38 @@ def check_prose_with_vale(
     """Run Vale prose checks on text when Vale and a config file are available, returning (errors, warnings)."""
     vale_bin = shutil.which("vale")
     if not vale_bin:
+        sys.stderr.write("draft_email warning: vale not found on PATH; skipping prose lint.\n")
         return [], []
     config = _resolve_vale_config(cwd)
     if config is None:
+        sys.stderr.write("draft_email warning: no trusted .vale.ini found; skipping prose lint.\n")
         return [], []
-    proc = subprocess.run(  # noqa: S603 - fixed Vale binary and resolved config path
-        [vale_bin, "--no-global", "--config", str(config), "--output=JSON", f"--ext={ext}"],
-        input=text,
-        capture_output=True,
-        text=True,
-        timeout=20,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(  # noqa: S603 - fixed Vale binary and resolved config path
+            [vale_bin, "--no-global", "--config", str(config), "--output=JSON", f"--ext={ext}"],
+            input=text,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"vale timed out on {label}") from exc
     if proc.returncode not in {0, 1}:
         detail = (proc.stderr or proc.stdout).strip()
         raise RuntimeError(f"vale failed on {label}: {detail}")
     raw = proc.stdout.strip()
     if not raw:
+        if proc.returncode == 1:
+            detail = proc.stderr.strip() or "exit status 1 with empty JSON output"
+            raise RuntimeError(f"vale failed on {label}: {detail}")
         return [], []
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"vale returned invalid JSON on {label}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"vale returned non-object JSON on {label}")
     errors: list[str] = []
     warnings: list[str] = []
     for findings in data.values():
@@ -464,4 +646,7 @@ def check_prose_with_vale(
                 errors.append(formatted)
             else:
                 warnings.append(formatted)
+    if proc.returncode == 1 and not errors:
+        detail = (proc.stderr or raw).strip()[:200]
+        raise RuntimeError(f"vale failed on {label} without error findings: {detail}")
     return errors, warnings

@@ -21,12 +21,15 @@ Stage, commit, and push authorized changes while preserving unrelated work and h
 ## Gotchas
 
 - **Keep hooks enabled**: never pass `--no-verify` or `LEFTHOOK=0`; if a Lefthook config exists, verify `lefthook check-install` exits 0 (run `mise run install` on fresh clones), and note commit-only workflows still require running affected test/review gates explicitly because `pre-commit` hooks only run fast format/lint checks while full suites live in `pre-push`.
-- **Split mixed dirty trees in a detached worktree**: partial staging hides unstaged hunks during Lefthook runs, testing a tree no commit holds. Save any unrelated staged diff (`git diff --cached -- <unrelated>`), capture `snap=$(git stash create)` (plus untracked files), build commits sequentially in a detached [worktree](git-worktree/GUIDE.md) at `HEAD` with hooks active using `git checkout "$snap" -- <paths>` or context patches from `git diff HEAD "$snap" -- <path>` (never `git apply --unidiff-zero`, which misplaces insertions after skipped hunks), then `git reset <tip>` in the source checkout, restore unrelated staged hunks (`git apply --cached`), and verify `git diff` holds only unrelated edits.
+- **Split mixed dirty trees in a detached worktree**: partial staging hides unstaged hunks during Lefthook runs, testing a tree no commit holds.
+  1. **Snapshot state**: save unrelated staged hunks (`git diff --cached -- <unrelated> > "$tmp/unrelated.patch"`), run `snap=$(git stash create)`, and guard `[ -n "$snap" ]` because `git stash create` returns empty when only untracked files changed; copy intended untracked files separately.
+  1. **Commit in isolation**: open a detached [worktree](git-worktree/GUIDE.md) at `HEAD` with hooks active, apply tracked files via `git checkout "$snap" -- <paths>` or context patches from `git diff HEAD "$snap" -- <path>` (never `git apply --unidiff-zero`, which misplaces insertions after skipped hunks), copy intended untracked files, and commit sequentially to `<tip>`.
+  1. **Reconcile safely**: verify clean hunk separation (diffing `<tip>` against `"$snap"` when non-empty confirms only unrelated tracked edits remain) before running `git reset <tip>` in the source checkout, restore unrelated staged hunks (`git apply --cached`), and verify `git diff` holds only unrelated edits.
 - **Preserve commit/tag signing**: never pass `--no-gpg-sign` or override `commit.gpgSign`, create signed tags via `git tag NAME -m MSG` (explicit `-a` skips signing), and report signing errors directly.
 - **Never amend user or published commits** during hook recovery.
 - **Classify rejected pushes**: separate branch protection (open a PR), non-fast-forward races (preserve both histories), and auth failures.
 
 ## Documentation
 
-- [Git push](https://git-scm.com/docs/git-push) · [lefthook](../../github/references/lefthook.md)
+- [Git push](https://git-scm.com/docs/git-push) · [lefthook](lefthook.md)
 - Companion skills: [git-worktree](git-worktree/GUIDE.md), [pull-request](../../github/references/pull-request.md), [resolve-conflicts](resolve-conflicts.md).

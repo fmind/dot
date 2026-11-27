@@ -1,13 +1,13 @@
 ---
 name: mise
-description: "Configure mise.toml tasks, pins, locks, and env; format with dprint; upgrade repo tools and deps."
+description: "Configure mise.toml tasks, pins, mise.lock, and env; format with dprint; upgrade repo tools and deps."
 license: MIT
 metadata:
   kind: task
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/mise
   created: "2026-07-04"
-  updated: "2026-11-24"
+  updated: "2026-11-25"
 ---
 
 # Mise
@@ -19,7 +19,7 @@ One project `mise.toml` owns tool pins and task commands; hooks and CI only choo
 1. **Pin exact versions** per [tool-versions.md](references/tool-versions.md) before installing copied scaffolds; never commit tool binaries.
 1. **Keep tasks simple**: use direct commands, short `run` arrays, native CLI flags, and `depends`; never wrap commands in `bash -c`/`sh -c`, nest conditionals, cram scripts onto one line, or embed large shell blocks in TOML (put branching, retries, and response parsing in a small Python script).
 1. **Follow the shared vocabulary** in [task-conventions.md](references/task-conventions.md#task-vocabulary) (`install`, `format`, `check`, `test`, `build`, `watch`, `doctor`, `all`) plus subtask naming, concise output, and argument forwarding.
-1. **Lock and validate**: install pinned tools, run `mise tasks validate`, and invoke `mise run <task>` in automation.
+1. **Lock and validate**: install pinned tools, run `mise tasks validate` and `mise lock --check`, and invoke `mise run <task>` in automation.
 1. **Verify** modified tasks and their callers, documenting any held-back pin.
 
 ## Task guides
@@ -42,4 +42,4 @@ One project `mise.toml` owns tool pins and task commands; hooks and CI only choo
 ## Documentation
 
 - [mise](https://mise.jdx.dev) · [Tasks](https://mise.jdx.dev/tasks/) · [Settings](https://mise.jdx.dev/configuration/settings.html) · [dprint](https://dprint.dev/) · [mise releases](https://github.com/jdx/mise/releases) · [changelog](https://github.com/jdx/mise/blob/main/CHANGELOG.md)
-- Companions: [lefthook](../github/references/lefthook.md), [github/ci-cd](../github/references/ci-cd/GUIDE.md).
+- Companions: [lefthook](../git-delivery/references/lefthook.md), [github/ci-cd](../github/references/ci-cd/GUIDE.md).

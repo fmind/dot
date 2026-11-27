@@ -27,6 +27,7 @@ LIMIT = 15 * 1024 * 1024  # Keep the sheet small enough to send or open anywhere
 NUMBER = re.compile(r"^v(\d+)", re.IGNORECASE)
 COLUMNS = 3
 STYLE = """
+* { box-sizing: border-box; }
 body { margin: 0; padding: 24px; background: #F1F3F4; color: #202124;
   font-family: "Google Sans", Roboto, "Segoe UI", Helvetica, Arial, sans-serif; }
 h1 { margin: 0 0 16px; font-size: 20px; }
@@ -105,12 +106,17 @@ def svg_checker() -> ModuleType:
 
 def screenshot(page: Path, count: int) -> Path:
     """Screenshot the sheet with headless Chrome, scripts and network blocked; a failed run keeps the old PNG."""
-    height = 80 + math.ceil(count / COLUMNS) * 240
+    height = 96 + math.ceil(count / COLUMNS) * 260
     return svg_checker().screenshot(page, page.with_suffix(".png"), 1440, height)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        allow_abbrev=False,
+    )
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
     parser.add_argument("folder", type=Path, help="folder holding the variant files")
     parser.add_argument("--title", default="Variants", help="sheet heading")
     parser.add_argument("--png", action="store_true", help="also screenshot the sheet with Chrome or Chromium")

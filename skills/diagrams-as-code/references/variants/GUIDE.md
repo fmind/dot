@@ -1,6 +1,6 @@
 ---
 name: variants
-description: "Numbered logo, cover, or illustration variants with light/dark sheets."
+description: "Generate numbered logo, cover, or illustration variants with light/dark contact sheets."
 ---
 
 # Visual Variants

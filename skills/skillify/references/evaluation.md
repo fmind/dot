@@ -10,7 +10,8 @@ Run the local transcript counter ([skill_loads.py](../scripts/skill_loads.py)) a
 python3 -I ~/.agents/skills/skillify/scripts/skill_loads.py --days 30 --json
 ```
 
-Check text output too: recently created skills within the window with zero observed loads are annotated `name(new:YYYY-MM-DD)` so new capabilities are not mistakenly pruned as unused.
+- **New-skill annotation**: `--json` sets `"created"` (`YYYY-MM-DD` or `null`) and `"is_new"` (`true`/`false`) per skill entry (text mode appends `name(new:YYYY-MM-DD)` to unloaded recent skills) so newly created skills are not pruned as unused.
+- **Measurement limits**: path matching also counts repo-editing reads under `skills/<name>/...` in a dotfiles checkout (not only `~/.agents/skills/`), and only local `agy` transcripts are scanned (Copilot CLI sessions are a blind spot).
 
 Run startup token budget checks on every catalog edit:
 
@@ -20,9 +21,9 @@ dot context --source . --project . --details --check
 
 ## 2. Decide Whether to Trim, Merge, or Retire
 
-- **High-load core tasks (`humanize`, `python`, `full-review`)**: trim model-known basics aggressively, tighten visual/security defaults, and ensure examples match current tool versions.
-- **Zero-load mature skills (`>30` days since creation)**: inspect discovery description, missing triggers, or overlap with a neighboring owner (`package-rules.md`). Merge thin siblings or demote to `.agents/skills/` or a plain `references/` note instead of keeping unused global discovery overhead.
-- **Overloaded collections (`SKILL.md` >100 lines)**: keep routing tables crisp and move deep edge cases into `references/`.
+- **Top-quartile loaded skills**: trim model-known basics aggressively, tighten visual/security defaults, and ensure examples match current tool versions.
+- **Zero-load mature skills (`>30` days since creation)**: inspect discovery description, missing triggers, or overlap with a neighboring owner ([package-rules.md](package-rules.md)). Merge thin siblings or demote to `.agents/skills/` or a plain `references/` note instead of keeping unused global discovery overhead.
+- **Over-budget skills**: keep collection routers within `~200–500` tokens excluding the generated guide index (`< 1,000` total), procedures `< 1,200` tokens, and every non-template Markdown file strictly `< 1,500` tokens by moving deep edge cases into `references/`.
 
 ## 3. Probe Adoption and Trigger Fit
 

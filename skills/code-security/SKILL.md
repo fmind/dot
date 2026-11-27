@@ -1,13 +1,13 @@
 ---
 name: code-security
-description: "Review security, terms/licenses, threat-model, vet skills, PyRIT red-team, Betterleaks, Opengrep, Trivy, SonarQube."
+description: "Review security, GDPR/EU AI Act/licenses, threat-model, vet skills, PyRIT red-team, Betterleaks, Opengrep, Trivy, CodeQL, SonarQube."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/code-security
   created: "2026-07-04"
-  updated: "2026-11-24"
+  updated: "2026-11-25"
 ---
 
 # Code Security
@@ -16,7 +16,9 @@ Investigate and fix security defects with verified evidence—scanners inform re
 
 ## Workflow
 
-Load the matching guide(s) below for every active surface and pair non-trivial changes with clean-context `fmind-review-security` review ([subagent](../subagent/SKILL.md)).
+Load the matching guide(s) below for every active surface and pair non-trivial changes with clean-context `fmind-review-security` and `fmind-review-compliance` reviews ([subagent](../subagent/SKILL.md)).
+
+- **File encryption (`age`)**: generate identities with `age-keygen -o <key>` (`0600`), encrypt files to public recipients via `age -r <recipient>` / `age -R <recipients-file>`, and decrypt with `age -d -i <key>` into a scoped target or pipe—never print, log, or commit plaintext or private keys.
 
 ## Task guides
 
@@ -28,7 +30,7 @@ Load the matching guide(s) below for every active surface and pair non-trivial c
 - [opengrep](references/opengrep.md): Run local intrafile and cross-file taint SAST scans with opengrep.
 - [skill-security-review](references/skill-security-review/GUIDE.md): Review third-party skills and agent extensions for supply-chain risk.
 - [sonarqube](references/sonarqube.md): SonarQube quality gates, issues, local scans, and server AI gates via sonar.
-- [terms-review](references/terms-review.md): Review ToS, licenses, DPAs for intended use.
+- [terms-review](references/terms-review.md): Review ToS, GDPR/EU AI Act, SPDX licenses, and DPAs for intended use.
 - [threat-model](references/threat-model.md): Model attack paths, trust boundaries, abuse cases, and controls.
 - [trivy](references/trivy/GUIDE.md): Scan dependencies, IaC, images, and licenses; generate SBOMs.
 

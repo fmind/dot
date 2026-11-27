@@ -1,6 +1,6 @@
 ---
 name: upgrade-tools
-description: Upgrade one repo's mise tools, uv deps, Actions, images.
+description: "Upgrade one repo's mise tools, uv deps, Actions, images."
 ---
 
 # Upgrade Tools
@@ -13,7 +13,7 @@ Upgrade a single repository's tools and dependencies to latest stable releases i
 1. **Separate read-only audits from upgrades**: disk/drift audits inspect declarations, locks, backends, and installed versions (including `.git`-less restored folders) without resolving or installing anything.
 1. **Require a green baseline**: pass `mise run check` and `mise run test` before bumping (isolate dirty trees via [git-worktree](../../../git-delivery/references/git-worktree/GUIDE.md); stop and report if baseline is red).
 1. **Upgrade in layer order**, stopping to diagnose on any failure and restoring prior pins if unqualified:
-   - **mise**: `mise run upgrade` (or `mise run lock:tool TOOL...`) in `fmind/dot`; exact stable pins per [tool-versions.md](../tool-versions.md) elsewhere.
+   - **mise**: `mise run upgrade` (or `mise run lock:tool TOOL...`) in `fmind/dot`; exact stable pins per [tool-versions.md](../tool-versions.md) elsewhere. On `mise 2026.11.14+`, check tool CVEs via `mise audit` and patch vulnerable pins via `mise upgrade --vulnerable` (then re-lock with `mise lock`).
    - **Python**: `pyproject.toml` and `uv.lock` per [playbook.md](playbook.md).
    - **Infra & images**: OpenTofu providers and OCI base/fixture digests.
    - **CI & formatters**: GitHub Actions SHAs and `dprint` plugins.

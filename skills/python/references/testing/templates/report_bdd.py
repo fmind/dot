@@ -31,8 +31,21 @@ _LEAK_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 
+_PYTEST_TIMEOUT_SECONDS = 600
+_ALLURE_TIMEOUT_SECONDS = 120
+
+
 def _exit_code(returncode: int) -> int:
     return 128 - returncode if returncode < 0 else returncode
+
+
+def _run_step(cmd: list[str], *, timeout: int) -> int:
+    try:
+        completed = subprocess.run(cmd, check=False, stdin=subprocess.DEVNULL, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(f"ERROR: command timed out after {timeout}s: {cmd[0]}\n")
+        return 124
+    return completed.returncode
 
 
 def _path_patterns(cwd: Path, home: Path) -> list[tuple[re.Pattern[str], str]]:
@@ -133,6 +146,18 @@ def assert_no_leaks(results_dir: Path) -> list[tuple[str, str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    extra_args = sys.argv[1:] if argv is None else argv
+    before_sep = extra_args[: extra_args.index("--")] if "--" in extra_args else extra_args
+    if "-h" in before_sep or "--help" in before_sep:
+        sys.stdout.write(
+            "usage: report_bdd.py [PYTEST_ARGS...]\n\n"
+            "Run BDD specs, sanitize Allure 3 results, generate HTML, and enforce Quality Gates.\n"
+        )
+        return 0
+    if shutil.which("allure") is None:
+        sys.stderr.write("ERROR: 'allure' CLI not found on PATH; install npm:allure via mise and retry.\n")
+        return 1
+
     results_dir = Path(".cache/allure-results")
     report_dir = Path(".cache/allure-report")
     for directory in (results_dir, report_dir):
@@ -140,23 +165,22 @@ def main(argv: list[str] | None = None) -> int:
             shutil.rmtree(directory)
     results_dir.parent.mkdir(parents=True, exist_ok=True)
 
-    extra_args = sys.argv[1:] if argv is None else argv
     pytest_cmd = ["uv", "run", "--locked", "pytest", "-q", "--tb=line", "tests/bdd", f"--alluredir={results_dir}"]
-    pytest_rc = subprocess.run([*pytest_cmd, *extra_args], check=False).returncode
+    pytest_rc = _run_step([*pytest_cmd, *extra_args], timeout=_PYTEST_TIMEOUT_SECONDS)
     if pytest_rc not in (0, 1):
         return _exit_code(pytest_rc)
 
     sanitize_results(results_dir)
     if leaks := assert_no_leaks(results_dir):
         for filename, rule in leaks:
-            print(f"ERROR: redacted {rule} match in {filename}; aborting report generation", file=sys.stderr)
+            sys.stderr.write(f"ERROR: redacted {rule} match in {filename}; aborting report generation\n")
         return 1
-    qg_rc = _exit_code(subprocess.run(["allure", "generate", str(results_dir), "--clean"], check=False).returncode)
+    qg_rc = _exit_code(_run_step(["allure", "generate", str(results_dir), "--clean"], timeout=_ALLURE_TIMEOUT_SECONDS))
     log_rc = _exit_code(
-        subprocess.run(
+        _run_step(
             ["allure", "log", str(results_dir), "--group-by", "feature", "--all-quality-gate-results"],
-            check=False,
-        ).returncode
+            timeout=_ALLURE_TIMEOUT_SECONDS,
+        )
     )
     return qg_rc or log_rc
 

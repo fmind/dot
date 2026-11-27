@@ -5,21 +5,30 @@ description: "Write lightweight ADRs and architecture RFCs with scale bounds, al
 
 # Architecture Decision Records & RFCs
 
-Write concise ADRs (`docs/decisions/NNNN-<slug>.md`, MADR style) for single irreversible or cross-cutting choices, and short RFCs for multi-component designs. Match ceremony to scale (local CLI vs single-node service vs distributed multi-tenant platform) and pair prose with [humanize](../../humanize/SKILL.md) and diagrams with [diagrams-as-code](../../diagrams-as-code/SKILL.md).
+Write concise ADRs (`docs/decisions/NNNN-<slug>.md`, MADR style) for single irreversible or cross-cutting choices, and full RFCs only for multi-service, stateful, or high-risk designs. Pair prose with [humanize](../../humanize/SKILL.md) (select the 2–3 trade-offs that drive the choice in plain language; park extra detail in an optional `Annex`) and diagrams with [diagrams-as-code](../../diagrams-as-code/SKILL.md).
 
-## Required Sections
+## Default Lightweight ADR (`~1` Page)
 
-1. **Context, Goals & Non-Goals**: state the concrete trigger, explicit non-goals, tenancy/data-residency bounds, trust boundaries, and quantitative scale envelope (users, QPS, payload/dataset size, latency SLO, RPO/RTO).
-1. **Decision & Bounded Contexts**: name the chosen architecture and component seams (acyclic module/service boundaries, narrow contracts, zero shared mutable databases across independent services). Prefer boring, proven primitives and modular monoliths unless the scale envelope proves distributed splits pay off.
-1. **Alternatives Considered (`>= 2`)**: compare the chosen option against **Do nothing** (or a simpler single-process/relational baseline) and at least one serious peer across complexity, latency, TCO, Day-2 operations, and exit/reversal cost. State the exact constraint each rejected option fails.
-1. **Failure Modes & Graceful Degradation**: trace partial dependency failures, hangs, rate limits, blast-radius bulkheads, and dual-write consistency (outbox or idempotent sagas). State what degrades cleanly vs fails closed.
-1. **Migration & Minute-Scale Rollback**: specify expand-contract steps for schema/wire changes, N-1 compatibility, pre-migration snapshots, verification gates, and an exact rollback procedure before mutating state.
-1. **Sources & Review**: cite primary benchmarks, docs, and constraints with dates/versions; audit substantive ADRs/RFCs via `fmind-review-architecture`, `fmind-review-security`, and `fmind-review-finops` ([subagent](../../subagent/SKILL.md)).
+Use by default unless asked for a full RFC or introducing new distributed/multi-tenant boundaries:
+
+1. **Trigger, Decision & Non-Goals**: concrete problem, chosen design, and what stays out of scope.
+1. **Options (`2`–`3`) & Key Trade-Off**: compare against **Do nothing** (or a simpler single-process baseline) on the 2–3 dimensions that matter most.
+1. **Top Risk, Rollback & What Would Reverse It**: main failure mode, how to undo safely, and the clear threshold that reverses the choice.
+
+## Full Architecture RFC (Opt-In)
+
+Add these sections only for distributed, stateful, or high-risk platform designs:
+
+1. **Scale Envelope & Trust Boundaries**: tenancy/data-residency bounds and quantitative targets (users, QPS, dataset size, latency SLO, RPO/RTO).
+1. **Bounded Contexts**: acyclic module/service seams, narrow contracts, zero shared mutable databases; prefer boring primitives and modular monoliths unless scale proves a split pays off.
+1. **Failure Modes & Graceful Degradation**: partial dependency hangs/rate limits, blast-radius bulkheads, dual-write consistency (outbox/idempotency), degrade-vs-fail-closed behavior.
+1. **Expand-Contract Migration & Minute-Scale Rollback**: N-1 compatibility, pre-migration snapshots, verification gates, and an exact rollback procedure before mutating state.
+1. **Sources & Review**: cite primary benchmarks/docs with dates; audit substantive ADRs/RFCs with `1`–`2` targeted reviewers (`fmind-review-architecture` + `fmind-review-human`; add `fmind-review-security` or `fmind-review-finops` only when trust boundaries or infra spend are in scope; [subagent](../../subagent/SKILL.md)).
 
 ## Gotchas
 
 - **Avoid premature microservices or custom queues**: justify every new runtime component against its Day-2 operational tax.
-- **Never skip flip conditions**: state the exact threshold (load, cost, compliance, or vendor change) that would reverse the decision.
+- **State what would reverse the decision**: name the exact threshold (load, cost, compliance, or vendor change) in plain words instead of calling it a "flip condition".
 - **Model-check distributed designs before coding**: for multi-step sagas, consensus, or concurrency/locking protocols, specify and check invariants in **Quint** (TLA+) during the RFC phase; keep implementation-level checks on Python's [4-tier verification ladder](../../python/references/testing/references/property-tests.md#verification-ladder) and skip Lean 4 unless building crypto primitives or prover-compiled policy kernels.
 
 ## Documentation

@@ -9,7 +9,7 @@ Use native Gemini 4 multimodal understanding before adding chunking/vector infra
 
 ## Prefer Native Multimodal Before RAG
 
-- **Skip unnecessary chunking**: Gemini 4 accepts PDFs, audio, video, Office (`.docx`, `.pptx`, `.xlsx`), and OpenDocument files natively inside 1M-token windows; pair with durable implicit prefix caching (`>= 4,096` tokens) when querying fixed document sets repeatedly ([gcp-agent-platform](gcp-agent-platform.md)).
+- **Skip unnecessary chunking**: Gemini 4 accepts PDFs, audio, video, Office (`.docx`, `.pptx`, `.xlsx`), and OpenDocument files natively inside 1M-token windows; pair with durable implicit prefix caching (`>= 4,096` tokens) when querying fixed document sets repeatedly ([google-genai](google-genai.md)).
 
 ## Hybrid Retrieval (`pgvector>=0.8.0` + PyPI `pgvector>=0.5.1` + FTS + RRF)
 
@@ -32,7 +32,8 @@ Use native Gemini 4 multimodal understanding before adding chunking/vector infra
   FROM vec FULL OUTER JOIN fts ON vec.id = fts.id
   ORDER BY rrf_score DESC LIMIT 10;
   ```
-- **Index & ground retrieval**: add `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)` plus `GIN` on generated `tsvector`; delete stale chunks and resync ACL metadata on source updates, return `(source_id, updated_at)` provenance on every hit for citation grounding, and evaluate retrieval recall independently from final generation ([evaluation](evaluation/GUIDE.md)).
+- **Index & re-index atomically**: add `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)` plus `GIN` on generated `tsvector`. Track per-document content hashes to skip unchanged re-embeddings, tombstone or delete removed and access-revoked chunks alongside ACL metadata resyncs, and return `(source_id, updated_at)` provenance on every hit.
+- **Delimit untrusted chunks & evaluate recall**: wrap retrieved passages in explicit data delimiters (e.g., `<retrieved_chunk source_id="...">...</retrieved_chunk>`) treated strictly as untrusted data—never instructions—to mitigate indirect prompt injection, and evaluate retrieval recall independently from generation ([evaluation](evaluation/GUIDE.md)).
 
 ## Local Embedded Corpora (`duckdb>=2.0`)
 

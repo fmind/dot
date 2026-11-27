@@ -54,15 +54,24 @@ def test_draft_slides_starter_builds_unique_ids_and_write_control(
 
     # Appending to an existing presentation passes writeControl.requiredRevisionId.
     mod = load_script("draft_slides", DRAFT_SLIDES)
-    batch_payloads: list[dict[str, object]] = []
+    batch_payloads: list[dict[str, Any]] = []
 
     def fake_gws(args: list[str], *, cwd: Path) -> dict[str, object]:
         assert cwd.is_dir()
         if args[:3] == ["slides", "presentations", "get"]:
             params = json.loads(args[args.index("--params") + 1])
             if "revisionId" in params["fields"]:
-                return {"presentationId": "pres_1", "revisionId": "rev_42"}
-            return {"presentationId": "pres_1", "title": "Existing Deck", "slides": [{"objectId": "p1"}]}
+                return {"presentationId": "pres_1", "revisionId": "rev_42", "slides": [{"objectId": "p1"}]}
+            created_ids = [
+                req["createSlide"]["objectId"]
+                for req in batch_payloads[-1]["requests"]
+                if isinstance(req, dict) and "createSlide" in req
+            ]
+            return {
+                "presentationId": "pres_1",
+                "title": "Existing Deck",
+                "slides": [{"objectId": "p1"}, *({"objectId": oid} for oid in created_ids)],
+            }
         if args[:3] == ["slides", "presentations", "batchUpdate"]:
             batch_payloads.append(json.loads(args[args.index("--json") + 1]))
             return {"presentationId": "pres_1"}

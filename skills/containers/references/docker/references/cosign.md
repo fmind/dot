@@ -1,6 +1,6 @@
 # Cosign
 
-Sign and verify OCI `@sha256:` digests keylessly via Sigstore OIDC ([containerize](../../containerize/GUIDE.md) builds images; [ci-cd](../../../../github/references/ci-cd/GUIDE.md) wires CD).
+Sign and verify OCI `@sha256:` digests keylessly via Sigstore OIDC (`cosign` is project-pinned via `mise use --pin cosign`, not globally installed in `fmind/dot`; [containerize](../../containerize/GUIDE.md) builds images and [ci-cd](../../../../github/references/ci-cd/GUIDE.md) wires CD).
 
 ## Release sequence
 

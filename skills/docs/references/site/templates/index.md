@@ -74,6 +74,8 @@ $ <slug> --version
 ```mermaid
 ---
 config:
+  flowchart:
+    wrappingWidth: 320
   fontFamily: '"Google Sans", sans-serif'
   layout: dagre
   look: classic

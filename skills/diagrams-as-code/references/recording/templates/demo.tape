@@ -1,6 +1,6 @@
 # Docs: https://github.com/charmbracelet/vhs
 # Copy ~/.agents/themes/vhs/fmind.tape as theme.tape before validation.
-Require python
+Require python3
 Require ttyd
 Require ffmpeg
 Output demo.gif
@@ -13,7 +13,7 @@ Set TypingSpeed 35ms
 Set Framerate 15
 Set CursorBlink false
 Source theme.tape
-Type `python -c 'print("Hello, Ada!")'`
+Type `python3 -c 'print("Hello, Ada!")'`
 Enter
 Sleep 2s
 Screenshot final.png

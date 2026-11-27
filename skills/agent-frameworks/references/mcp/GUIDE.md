@@ -9,11 +9,11 @@ Build typed MCP tools, resources, prompts, and clients with the official `mcp` P
 
 ## Workflow
 
-1. **Initialize and lock**: start from [Python foundation](../../../python/references/foundation/references/bootstrap.md), install the lean SDK (includes `uvicorn`, `starlette`, `httpx2`, `pyjwt[crypto]`), and inspect installed APIs beyond quickstart:
+1. **Initialize and lock**: start from [Python foundation](../../../python/references/foundation/references/bootstrap.md), install the lean SDK per [agent-frameworks](../../SKILL.md#workflow) (includes `uvicorn`, `starlette`, `httpx2`, `pyjwt[crypto]`), and inspect installed APIs beyond quickstart:
    ```bash
    UV_MALWARE_CHECK=1 uv add --preview-features malware-check "mcp>=2.3.0"
    ```
-   Copy [server.py](templates/server.py) to `src/<package>/server.py` (re-export `main` in `__init__.py`, add `patch = ["subprocess"]` under `[tool.coverage.run]`, and declare `[project.scripts]` `<slug> = "<package>:main"`).
+   Copy [server.py](templates/server.py) to `src/<package>/server.py` and [main.py](../../../python/references/argparse/templates/main.py) to `src/<package>/__main__.py`, re-export `__version__, main, server` in `src/<package>/__init__.py`, add `patch = ["subprocess"]` under `[tool.coverage.run]`, and declare `[project.scripts]` `<slug> = "<package>:main"`.
 1. **Define `MCPServer`** (`mcp.server`): type-hint and document every handler to generate accurate JSON Schemas. Prefix tool names by service (`<package>_<tool>`), set `ToolAnnotations` (`read_only_hint`, `destructive_hint`, `idempotent_hint`, `open_world_hint`—hints never replace authz), paginate lists with cursor + total, and return actionable errors.
 1. **Select transport**: stdio for local child processes (stdout protocol-only, logs to stderr) or stateless Streamable HTTP at `/mcp` for hosted services (`HOST`/`PORT` or `--host`/`--port`):
    ```bash

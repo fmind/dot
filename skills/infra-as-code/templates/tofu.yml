@@ -1,5 +1,6 @@
 # Docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
-# Uncredentialed pull-request offline validation, plus WIF-authenticated main plan/apply.
+# Uncredentialed pull-request offline validation, read-only WIF plan on main, and
+# explicit manual workflow_dispatch apply behind the protected production environment.
 name: OpenTofu
 on:
   push:
@@ -7,6 +8,11 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply reviewed changes after plan succeeds on main"
+        type: boolean
+        default: false
 permissions: {}
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -36,16 +42,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          tofu init -backend=false -input=false
+          tofu init -backend=false -input=false -lockfile=readonly
           tflint --init
       - name: Run full offline gate
         run: mise run all
+      - name: Verify no changes
+        run: git status --short && [ -z "$(git status --porcelain)" ]
   plan:
     name: Plan Remote
     if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.GCP_WIF_PROVIDER != '' && vars.GCP_PLAN_SA != '' }}
     needs: validate
     runs-on: ubuntu-26.04
     timeout-minutes: 20
+    outputs:
+      plan_sha256: ${{ steps.plan.outputs.plan_sha256 }}
     permissions:
       contents: read
       id-token: write # Authenticate to Google Cloud via Workload Identity Federation.
@@ -66,12 +76,26 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_PLAN_SA }}
       - name: Preview infrastructure plan
+        id: plan
+        env:
+          TF_VAR_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_region: ${{ vars.GCP_REGION }}
         run: |
-          tofu init -input=false
-          tofu plan -input=false -no-color
+          : "${TF_VAR_project:?Set GCP_PROJECT repository variable}"
+          : "${TF_VAR_region:?Set GCP_REGION repository variable}"
+          mkdir -p tmp
+          cleanup() { rm -f tmp/plan.tfplan; }
+          trap cleanup EXIT
+          trap 'trap - EXIT; cleanup; trap - INT; kill -INT $$' INT
+          trap 'trap - EXIT; cleanup; trap - TERM; kill -TERM $$' TERM
+          tofu init -input=false -lockfile=readonly
+          tofu plan -input=false -no-color -out=tmp/plan.tfplan
+          plan_sha256="$(tofu show -no-color tmp/plan.tfplan | sha256sum | awk '{print $1}')"
+          printf 'plan_sha256=%s\n' "$plan_sha256" >>"$GITHUB_OUTPUT"
   apply:
     name: Apply Main
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_TOFU_APPLY == 'true' }}
+    # Never auto-apply on push: trigger only via explicit workflow_dispatch (apply=true) on main after reviewing plan.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.apply == true && github.ref == 'refs/heads/main' && vars.ENABLE_TOFU_APPLY == 'true' && vars.GCP_WIF_PROVIDER != '' && vars.GCP_APPLY_SA != '' }}
     needs: plan
     runs-on: ubuntu-26.04
     timeout-minutes: 30
@@ -95,7 +119,25 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_APPLY_SA }}
-      - name: Initialize and apply
+      - name: Verify plan digest and apply reviewed change
+        env:
+          TF_VAR_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_region: ${{ vars.GCP_REGION }}
+          EXPECTED_PLAN_SHA256: ${{ needs.plan.outputs.plan_sha256 }}
         run: |
-          tofu init -input=false
-          tofu apply -auto-approve -input=false -no-color
+          : "${TF_VAR_project:?Set GCP_PROJECT repository variable}"
+          : "${TF_VAR_region:?Set GCP_REGION repository variable}"
+          : "${EXPECTED_PLAN_SHA256:?Missing reviewed plan digest from plan job}"
+          mkdir -p tmp
+          cleanup() { rm -f tmp/plan.tfplan; }
+          trap cleanup EXIT
+          trap 'trap - EXIT; cleanup; trap - INT; kill -INT $$' INT
+          trap 'trap - EXIT; cleanup; trap - TERM; kill -TERM $$' TERM
+          tofu init -input=false -lockfile=readonly
+          tofu plan -input=false -no-color -out=tmp/plan.tfplan
+          actual_sha256="$(tofu show -no-color tmp/plan.tfplan | sha256sum | awk '{print $1}')"
+          if [ "$actual_sha256" != "$EXPECTED_PLAN_SHA256" ]; then
+            printf 'Refusing apply: plan drifted since review (%s != %s)\n' "$actual_sha256" "$EXPECTED_PLAN_SHA256" >&2
+            exit 1
+          fi
+          tofu apply -input=false -no-color tmp/plan.tfplan

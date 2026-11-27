@@ -1,18 +1,18 @@
 ---
 name: agent-harnesses
-description: "Operate Antigravity (agy CLI, Remote Control, SDK) and Copilot: project setup, vendor skills, MCP, headless reviews."
+description: "Configure Antigravity (agy CLI, Remote Control, SDK), Copilot, AgentsView: host/MCP setup, AGENTS.md, vendor skills, handoff prompts, headless review, session search/usage."
 license: MIT
 metadata:
   kind: collection
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/agent-harnesses
   created: "2026-09-16"
-  updated: "2026-11-25"
+  updated: "2026-11-27"
 ---
 
 # Agent Harnesses & Project Setup
 
-Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared repository `AGENTS.md`, `.agents/skills/`, host overrides, and vendor skills without mixing settings or lifecycles.
+Operate Antigravity (`agy`), Copilot, and AgentsView, register MCP servers, and set up shared repository `AGENTS.md`, `.agents/skills/`, host overrides, and vendor skills without mixing settings or lifecycles.
 
 ## Workflow
 
@@ -24,7 +24,8 @@ Operate Antigravity (`agy`) and Copilot, register MCP servers, and set up shared
 
 <!-- guides:start -->
 
-- [agy-cli](references/agy-cli/GUIDE.md): CLI sessions, managed settings, auth, and custom agents.
+- [agentsview](references/agentsview.md): Search past coding sessions, trace file provenance, and audit usage, friction, and secrets via AgentsView.
+- [agy-cli](references/agy-cli/GUIDE.md): Operate agy CLI sessions, managed settings, auth, hooks, and custom agents.
 - [antigravity-sdk](references/antigravity-sdk/GUIDE.md): Python SDK orchestration, policy, subagents, and lifecycle.
 - [copilot](references/copilot.md): Copilot CLI sessions, non-interactive flags, folder trust, and extensions.
 - [cross-harness-agents](references/cross-harness-agents.md): Decide when a custom agent role pays off, write per-host definitions, and verify discovery.

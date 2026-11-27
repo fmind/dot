@@ -1,9 +1,9 @@
 <!--
-  Humanized Markdown template for GitHub and Zensical briefs.
-  Replace {placeholders}, keep plain prose (zero backticks except copyable commands or paths), and delete unused sections.
+  Humanized Markdown decision-memo starter for GitHub and Zensical briefs.
+  Replace {placeholders}, keep plain prose (zero backticks except copyable commands or paths), and delete unused blocks (on simple colleague notes, drop Options, Mermaid, and Details).
   Dialect notes:
   - Google Docs (.md): strip HTML comments and details blocks, replace [!IMPORTANT] with **Decision needed by DATE:**, and compile figures via draft/doc.
-  - Zensical docs: replace [!IMPORTANT] with !!! important "Decision needed" and details with ??? info "Methodology and assumptions" (bodies indented 4 spaces), and use ==highlight== around the core metric.
+  - Zensical docs: replace [!IMPORTANT] with !!! important "Decision needed" and details with ??? info "Details and assumptions" (bodies indented 4 spaces), and use ==highlight== around the core metric.
 -->
 
 # {Clear title naming the subject}
@@ -48,7 +48,7 @@ flowchart LR
 
 ## Risks & next steps
 
-**Top risk:** {risk}, mitigated by {control}; revisit only if {flip condition}.
+**Top risk:** {risk}, mitigated by {control}; revisit only if {clear trigger changes}.
 
 - [ ] **{First action}**: {Owner}, by {Date}.
 - [ ] **{Follow-up action}**: {Owner}, by {Date}.
@@ -57,11 +57,11 @@ flowchart LR
 
 ## Sources
 
-- [{Primary source title}]({https://primary.source/page}) ({date or version}): grounds {the baseline metric or architectural constraint}.
+- [{Primary source title}]({https://primary.source/page}) ({date or version}): grounds {the baseline metric or constraint}.
 
 <details>
-<summary>Methodology and assumptions</summary>
+<summary>Details and assumptions</summary>
 
-- **Method**: {Formula, sample size, and sensitivity range.}
+- **Assumptions**: {Formula, sample size, and sensitivity range.}
 
 </details>

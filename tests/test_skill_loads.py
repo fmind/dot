@@ -63,8 +63,8 @@ def test_counts_agy_loads_excludes_audits_and_keeps_transcript_private(tmp_path:
     assert report["schema"] == "skillify.skill-loads/v2"
     assert report["sessions"] == 2
     assert report["audit_sessions_excluded"] == 1
-    assert report["skills"][0] == {"skill": "alpha", "loads": 1}
-    assert all(row["loads"] == 0 for row in report["skills"][1:])
+    assert report["skills"][0] == {"skill": "alpha", "loads": 1, "created": None, "is_new": False}
+    assert all(row["loads"] == 0 and row["is_new"] is False for row in report["skills"][1:])
 
     res_text = _run(home)
     assert res_text.returncode == 0, res_text.stderr
@@ -93,6 +93,9 @@ def test_subagent_rollups_compact_preference_and_resource_reads(tmp_path: Path) 
     today = datetime.now(tz=UTC).date().isoformat()
     (home / ".agents/skills/bulk-6/SKILL.md").write_text(
         f'---\nname: bulk-6\nmetadata:\n  created: "{today}"\n---\n', encoding="utf-8"
+    )
+    (home / ".agents/skills/bulk-3/SKILL.md").write_text(
+        '---\nname: bulk-3\nmetadata:\n  created: "2025-01-15"\n---\n', encoding="utf-8"
     )
     # Child subagent rolls into root `task` (including cycle guard in DB).
     _jsonl(
@@ -134,6 +137,11 @@ def test_subagent_rollups_compact_preference_and_resource_reads(tmp_path: Path) 
     assert by_skill["bulk-2"] == 1
     assert by_skill["bulk-4"] == 1
     assert by_skill["bulk-5"] == 0
+    rows_by_skill = {row["skill"]: row for row in report["skills"]}
+    assert rows_by_skill["bulk-6"]["created"] == today
+    assert rows_by_skill["bulk-6"]["is_new"] is True
+    assert rows_by_skill["bulk-3"]["created"] == "2025-01-15"
+    assert rows_by_skill["bulk-3"]["is_new"] is False
     assert f"bulk-6(new:{today})" in _run(home).stdout
 
 

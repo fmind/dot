@@ -4,7 +4,7 @@ Prefer native host resume or compaction; write a handoff only when conversation 
 
 ## Choose the path
 
-- **Same agy session**: `agy -c` (latest, via `cache/last_conversations.json`), `agy --conversation <id>`, or `/resume [id]` in-session (accepts any unique ID prefix since `1.5.9`, e.g., statusline short ID; `F2` renames, `F4` deletes, `Tab` → `Other` imports App threads).
+- **Same agy session**: `agy -c` (latest, via `cache/last_conversations.json`), `agy -r <id>` / `agy --resume <id>` (`agy 1.5.16+`, aliases for `agy --conversation <id>`), or `/resume [id]` in-session (accepts any unique ID prefix, e.g., statusline short ID; `F2` renames, `F4` deletes, `Tab` → `Other` imports App threads).
 - **Long agy session**: `/compact [message]` summarizes context and answers `message`; `/context` shows usage.
 - **Branching**: `/fork [project_id]` clones conversation history (optionally into another project) and links large original `scratch/` or artifact folders without copying (cancels active `/goal`; deleting the original deletes those linked files); pair with [git-worktree](../../../../git-delivery/references/git-worktree/GUIDE.md) for parallel edits.
 - **Fresh start**: save and copy a handoff below, run `/clear`, and paste the prompt or pointer line.

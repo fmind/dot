@@ -25,7 +25,7 @@ Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, s
    ```
 
 1. **Expand selectively**: fetch `description` or `comment` only when needed. Treat results hitting `--limit` as partial: check `--count`, then tighten JQL or pass `--paginate` before claiming completeness.
-1. **Write cleanly with authority**: apply [humanize](../../humanize/SKILL.md) (reader-calibrated inline code, native [ADF panels & tables](../../humanize/references/primitives.md#channel-primitives)) and check outbound text with `betterleaks stdin --redact` before posting. Reuse user authority for the target scope (ask when missing), use `--generate-json` / `--from-json` when sending rich ADF payloads (`--description-file` / `--body-file` send plain text; `--edit-last` updates the latest comment):
+1. **Write cleanly with authority**: apply [humanize](../../humanize/SKILL.md) (reader-calibrated inline code, native [ADF panels & tables](../../humanize/references/primitives.md#channel-primitives)) and check outbound text with `betterleaks stdin --redact --no-banner` before posting. Reuse user authority for the target scope (ask when missing): in `acli 1.3.41+`, `--description-file` and `--body-file` accept plain text or ADF JSON (reserve `--generate-json` / `--from-json` for multi-field workitems; `--edit-last` updates the latest comment):
 
    ```bash
    acli jira workitem create --project TEAM --type Task --summary "<summary>" --description-file description.txt --json
@@ -38,7 +38,7 @@ Operate Jira and Confluence Cloud via `acli`. Atlassian ships no `acli` skill, s
 ## Gotchas
 
 - **Bulk flags hit every match**: `--jql` and `--filter` on `transition`, `edit`, or `comment` mutate all matches; `--yes` skips prompts, never authority.
-- **Confluence pages are read-only in `acli` 1.3.40**: no Confluence search, and `confluence page` supports only `view` (blogs/spaces support create); use Rovo MCP under the same authority to search or edit pages.
+- **Confluence pages are read-only in `acli`**: no Confluence search, and `confluence page` supports only `view` (blogs/spaces support create); use Rovo MCP under the same authority to search or edit pages.
 - **Rovo Dev & MCP**: `acli rovodev` reads `~/.agents/skills`; configure `atlassian/atlassian-mcp-server` via [mcp-setup](../../agent-harnesses/references/mcp-setup.md) (`--list` before any write tool).
 
 ## Documentation

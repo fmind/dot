@@ -3,7 +3,7 @@ name: http-probing
 description: "Probe HTTP with xh, run hurl smoke checks, query DNS with doggo."
 ---
 
-# xh HTTP Inspection
+# HTTP & DNS Probing
 
 Bounded read-only HTTP probing with `xh` and repeatable smoke checks with `hurl` (POST, PUT, PATCH, DELETE, uploads, and state-changing calls require explicit target/effect approval).
 
@@ -15,7 +15,10 @@ Bounded read-only HTTP probing with `xh` and repeatable smoke checks with `hurl`
    xh --ignore-stdin --ignore-netrc --check-status --timeout 10 --print=h HEAD https://example.com/health
    ```
 
-1. **Bound response bodies to 64 KiB**: pass `--print=hb` so status and headers stay visible when piped, cap output even if `Range` is ignored (save to a temp file when JSON parsing requires an un-truncated document), check `Location` before `--follow` (which can forward credentials cross-origin), and inspect `${PIPESTATUS[0]}` (bash) or `$pipestatus[1]` (zsh/fish) immediately since `head` masks `xh`'s 4xx/5xx exit code (note exit `141` `SIGPIPE` is expected when `head -c` truncates a `> 64 KiB` `200 OK` body):
+1. **Bound response bodies to 64 KiB**:
+   - Pass `--print=hb` so status and headers stay visible when piped, and cap output even if `Range` is ignored (write to a temp file when JSON parsing needs an un-truncated body).
+   - Check `Location` before `--follow` (which can forward credentials cross-origin).
+   - Inspect `${PIPESTATUS[0]}` (bash) or `$pipestatus[1]` (zsh/fish) immediately because `head` masks `xh`'s 4xx/5xx exit code (exit `141` `SIGPIPE` is expected when `head -c` truncates a `> 64 KiB` `200 OK` body):
 
    ```bash
    xh --ignore-stdin --ignore-netrc --check-status --timeout 10 --print=hb GET https://example.com/api Range:bytes=0-65535 | head -c 65536

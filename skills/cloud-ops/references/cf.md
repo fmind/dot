@@ -5,7 +5,7 @@ description: "Manage Cloudflare DNS, zones, Workers, Pages, R2, D1, Zero Trust: 
 
 # Cloudflare (`cf`)
 
-Manage Cloudflare accounts, DNS, Workers, Pages, R2, D1, and Zero Trust via `cf` (not globally installed in `fmind/dot`; pin per project via `mise use --pin npm:cf` or run `npx`). `CF_SEND_TELEMETRY=0` is set globally in `fmind/dot`; run `cf cli telemetry disable` on unconfigured hosts.
+Manage Cloudflare accounts, DNS, Workers, Pages, R2, D1, and Zero Trust via `cf` (`v1.0.0-rc.*` pre-release; not globally installed in `fmind/dot`—pin per project via `mise use --pin npm:cf` or run `npx`). `CF_SEND_TELEMETRY=0` is set globally in `fmind/dot`; run `cf cli telemetry disable` on unconfigured hosts.
 
 ## Commands
 
@@ -24,8 +24,8 @@ cf -q schema workers secrets update
 
 ## Secrets and Guardrails
 
-- **Keep secrets out of argv**: avoid `--text ...`; write a `0600` temp JSON file (or use `with-secret`) and apply `cf -q workers secrets bulk --worker <script> --secrets @<tmpfile>`, then shred/remove the temp file.
-- **Piped `cf deploy` skips prompts**: never pipe stdin accidentally into `cf deploy`; require explicit approval before DNS, Workers/Pages deploys, cache purges, R2/KV/D1 writes, Zero Trust/WAF rules, billing reads/writes, `api` writes, or `-y`.
+- **Keep secrets out of argv**: avoid `--text ...`; write a `0600` temp JSON file (or use `with-secret`) and apply `cf -q workers secrets bulk-edit --worker <script> --secrets @<tmpfile>`, then shred/remove the temp file. For `cf deploy --secrets-file`, prefer JSON over `.env` files because dotenv parsing expands ambient `$VAR` references.
+- **Piped `cf deploy` skips prompts**: never pipe stdin accidentally into `cf deploy`; require explicit approval before DNS, Workers/Pages deploys, cache purges, R2/KV/D1 writes, Zero Trust/WAF rules, billing reads/writes, or `-f`/`--force`.
 
 ## Documentation
 

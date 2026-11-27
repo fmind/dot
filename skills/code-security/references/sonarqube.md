@@ -5,7 +5,7 @@ description: "SonarQube quality gates, issues, local scans, and server AI gates 
 
 # SonarQube CLI (`sonar`)
 
-Inspect quality gates, triage code and dependency findings, and run local diff scans with `sonar` (`sonarqube-cli`); [code-review](code-review/GUIDE.md) orders the full repository security review.
+Inspect quality gates, triage code and dependency findings, and run local diff scans with `sonar` (`sonarqube-cli` is project-pinned via `mise use --pin sonarqube-cli`, not globally installed in `fmind/dot`); [code-review](code-review/GUIDE.md) orders the full repository security review.
 
 ## Workstation Auth & Privacy
 
@@ -23,7 +23,7 @@ Inspect quality gates, triage code and dependency findings, and run local diff s
    sonar list issues --project <project-key> --new-code --page-size 100 --format json
    ```
 
-   Add `--pull-request <id>` or `--branch <name>` (mutually exclusive) and `--file <path>` to narrow scope; filter `--severities HIGH,BLOCKER` (Multi-Quality Rule mode) or `CRITICAL,BLOCKER` (Standard mode).
+   Add `--pull-request <id>` or `--branch <name>` (mutually exclusive); scope to a file with positional `[file]` on `sonar quality-gate status` vs `--file <path>` on `sonar list issues`, and filter `--severities HIGH,BLOCKER` (Multi-Quality Rule mode) or `CRITICAL,BLOCKER` (Standard mode).
 
 1. **Scan local diffs before pushing**:
 
@@ -38,7 +38,7 @@ Inspect quality gates, triage code and dependency findings, and run local diff s
 
 ## Hard Boundaries
 
-- **Gate server-side AI commands**: `sonar analyze agentic` uploads source to server-side Vortex analysis, and `sonar remediate` triggers SonarQube Cloud AI code edits—both require explicit user approval and customer data-residency clearance.
+- **Gate server-side AI & upload commands**: `sonar analyze agentic` uploads source to server-side Vortex analysis, `sonar analyze dependency-risks` uploads dependency manifests/lockfiles to the SonarQube server, and `sonar remediate` triggers SonarQube Cloud AI code edits—all require explicit user approval and customer data-residency clearance.
 - **Never run `sonar integrate`**: `fmind/dot` manages Antigravity, Copilot, and Git hooks centrally; `sonar integrate` rewrites host settings and hooks.
 - **Treat secret findings as incidents**: never silence a real credential with `sonar allowlist secrets`; contain and rotate per [betterleaks](betterleaks.md).
 

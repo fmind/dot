@@ -7,7 +7,7 @@ metadata:
   author: Médéric HURIER (Fmind)
   source: github.com/fmind/dot/tree/main/skills/gcloud
   created: "2026-08-30"
-  updated: "2026-11-24"
+  updated: "2026-11-25"
 ---
 
 # Google Cloud CLI

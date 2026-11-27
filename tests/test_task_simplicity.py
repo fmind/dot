@@ -83,12 +83,28 @@ def test_starter_task_graph_validates(tmp_path: Path, starter: str) -> None:
     # The whole template, not a task subset: mise checks every task, dependency, and setting.
     starter_path = ROOT / STARTERS[starter]
     config = tomllib.loads(starter_path.read_text(encoding="utf-8"))
-    baseline_tools = {"betterleaks", "dprint", "git-cliff", "jactionlint", "lefthook", "lychee", "shellcheck", "typos"}
+    baseline_tools = {
+        "betterleaks",
+        "dprint",
+        "git-cliff",
+        "github:Fission-AI/OpenSpec",
+        "jactionlint",
+        "lefthook",
+        "lychee",
+        "shellcheck",
+        "typos",
+    }
     assert baseline_tools <= set(config["tools"]), f"{starter} missing baseline tools"
-    assert {"check:links", "check:typos"} <= set(config["tasks"]["check:local"]["depends"])
+    assert config["env"]["OPENSPEC_TELEMETRY"] == "0"
+    assert {"check:links", "check:specs", "check:typos"} <= set(config["tasks"]["check:local"]["depends"])
     assert (
-        config["tasks"]["check:links"]["run"] == "lychee --offline --include-fragments --no-progress --extensions md ."
+        config["tasks"]["check:links"]["run"]
+        == "lychee --offline --include-fragments --no-progress --exclude-path openspec/changes/archive --extensions md ."
     )
+    assert config["tasks"]["check:specs"]["run"] == [
+        "openspec validate --all --strict --no-interactive",
+        "openspec validate --archived --strict --no-interactive",
+    ]
     assert config["tasks"]["check:typos"]["run"] == "typos"
     assert config["tasks"]["check:tasks"]["run"] == ["mise tasks validate", "lefthook validate"]
     shutil.copy2(starter_path, tmp_path / "mise.toml")
@@ -337,8 +353,13 @@ def test_report_bdd_main_orchestration(
     monkeypatch.chdir(tmp_path)
     events: list[str] = []
 
-    def fake_run(cmd: list[str], *, check: bool = False) -> SimpleNamespace:
+    def fake_run(
+        cmd: list[str], *, check: bool = False, stdin: object = None, timeout: int | None = None
+    ) -> SimpleNamespace:
         assert check is False
+        assert stdin is subprocess.DEVNULL
+        assert isinstance(timeout, int)
+        assert timeout > 0
         if cmd[0] == "uv":
             events.append("pytest")
             results_dir = tmp_path / ".cache/allure-results"
@@ -370,8 +391,13 @@ def test_report_bdd_main_aborts_on_leaks(
     monkeypatch.chdir(tmp_path)
     events: list[str] = []
 
-    def fake_run(cmd: list[str], *, check: bool = False) -> SimpleNamespace:
+    def fake_run(
+        cmd: list[str], *, check: bool = False, stdin: object = None, timeout: int | None = None
+    ) -> SimpleNamespace:
         assert check is False
+        assert stdin is subprocess.DEVNULL
+        assert isinstance(timeout, int)
+        assert timeout > 0
         events.append(cmd[0])
         if cmd[0] == "uv":
             results_dir = tmp_path / ".cache/allure-results"

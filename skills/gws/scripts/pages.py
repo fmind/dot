@@ -26,10 +26,12 @@ def collect(text: str, field: str, allow_incomplete: bool = False) -> dict[str, 
         items = page.get(field, [])  # Google omits empty repeated fields.
         if not isinstance(items, list):
             raise TypeError("The requested top-level items field must contain an array.")
-        if not isinstance(page.get("nextPageToken", ""), str):
-            raise TypeError("nextPageToken must be a string.")
-        if not isinstance(page.get("incompleteSearch", False), bool):
-            raise TypeError("incompleteSearch must be a boolean.")
+        next_page_token = page.get("nextPageToken")
+        if next_page_token is not None and not isinstance(next_page_token, str):
+            raise TypeError("nextPageToken must be a string or null.")
+        incomplete_flag = page.get("incompleteSearch")
+        if incomplete_flag is not None and not isinstance(incomplete_flag, bool):
+            raise TypeError("incompleteSearch must be a boolean or null.")
         if pages and not pages[-1].get("nextPageToken"):
             raise ValueError("Page after a terminal page; do not concatenate separate queries.")
         pages.append(page)
@@ -52,7 +54,8 @@ def collect(text: str, field: str, allow_incomplete: bool = False) -> dict[str, 
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser_kwargs: dict[str, Any] = {"suggest_on_error": True} if sys.version_info >= (3, 14) else {}
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, **parser_kwargs)
     parser.add_argument("input", help="Saved JSON/NDJSON file, or - for stdin")
     parser.add_argument("--items", required=True, help="Top-level array key, e.g. files, messages, spaces, items")
     parser.add_argument("--allow-incomplete", action="store_true", help="Emit partial data with complete=false")

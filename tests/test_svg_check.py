@@ -1,5 +1,6 @@
 """Exercise the SVG illustration checker against the template and broken variants."""
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -95,6 +96,21 @@ def test_title_and_description_cannot_share_an_id(svg: ModuleType, tmp_path: Pat
     assert "duplicate id 'title'" in svg.check(path, 960)
 
 
+def test_xml_processing_instructions_and_doctype_fail_before_rendering(
+    svg: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(svg, "render", lambda *_a, **_kw: pytest.fail("must not render"))
+    base = TEMPLATE.read_text(encoding="utf-8")
+    for prefix, expected in (
+        ('<?xml-stylesheet type="text/xsl" href="data:application/xml,x"?>\n', "processing instruction"),
+        ('<!DOCTYPE svg [<!ENTITY xxe "bad">]>\n', "DOCTYPE"),
+    ):
+        target = tmp_path / f"case_{len(expected)}.svg"
+        target.write_text(prefix + base, encoding="utf-8")
+        assert svg.main([str(target), "--render", str(tmp_path / "shots")]) == 1
+        assert expected in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     ("markup", "expected"),
     [
@@ -109,6 +125,23 @@ def test_title_and_description_cannot_share_an_id(svg: ModuleType, tmp_path: Pat
             '<a xmlns:xlink="http://www.w3.org/1999/xlink" href="#card" xlink:href="javascript:void(0)"/>',
             "javascript: URL",
         ),
+        ('<x:script xmlns:x="http://www.w3.org/1999/xhtml">alert(1)</x:script>', "non-SVG namespace"),
+        ('<a href="vbscript:msgbox(1)"/>', "vbscript: URL"),
+        ('<a href="data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;"/>', "data: URL"),
+        ('<rect><animate attributeName="href" to="javascript:alert(1)"/></rect>', "<animate>"),
+        ('<rect><set attributeName="onmouseover" to="alert(1)"/></rect>', "<set>"),
+        ('<rect style="background:url(https://evil.example/a.png)"/>', "style attribute"),
+        ('<rect style="background:url(//evil.example/a.png)"/>', "style attribute"),
+        ('<rect style="background:url(file:///etc/passwd)"/>', "style attribute"),
+        ('<rect style="fill:\\75rl(https://evil.example/x.svg#g)"/>', "style attribute"),
+        ("<rect style=\"background:image-set('https://evil.example/x.png' 1x)\"/>", "style attribute"),
+        ('<rect fill="url(https://evil.example/x.svg#g)"/>', "non-fragment URL"),
+        (
+            '<image xmlns:xlink="http://www.w3.org/1999/xlink" href="#a" xlink:href="https://evil.example/x.png"/>',
+            "loads 'https://evil.example/x.png'",
+        ),
+        ('<pattern href="https://evil.example/p.svg#p"/>', "loads 'https://evil.example/p.svg#p'"),
+        ('<a href="file:///etc/passwd"/>', "file: URL"),
     ],
 )
 def test_executable_attributes_fail_before_rendering(
@@ -203,6 +236,8 @@ def test_browser_blocks_scripts_and_network_without_changing_clean_pixels(svg: M
     try:
         binary = svg.chrome()
     except RuntimeError:
+        if os.environ.get("CI"):
+            pytest.fail("Chrome/Chromium must be available on Linux CI for direct-SVG browser checks")
         pytest.skip("Chrome/Chromium is required for the direct-SVG browser regression")
 
     clean = tmp_path / "clean.svg"

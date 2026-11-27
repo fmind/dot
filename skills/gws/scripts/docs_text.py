@@ -24,7 +24,9 @@ def structural_text(elements: list[dict[str, Any]]) -> str:
         if "paragraph" in element:
             for run in (element["paragraph"] or {}).get("elements") or []:
                 if "textRun" in run:
-                    result.append(run["textRun"]["content"])
+                    content = (run["textRun"] or {}).get("content")
+                    if isinstance(content, str):
+                        result.append(content)
                 elif "inlineObjectElement" in run:
                     result.append("[inline object]")
                 elif "person" in run:
@@ -40,6 +42,9 @@ def structural_text(elements: list[dict[str, Any]]) -> str:
                 elif "dropdown" in run:
                     dropdown = (run["dropdown"] or {}).get("dropdownProperties") or {}
                     result.append(chip("dropdown", dropdown.get("displayValue")))
+                elif "footnoteReference" in run:
+                    footnote = run["footnoteReference"] or {}
+                    result.append(chip("footnote", footnote.get("footnoteNumber")))
         elif "table" in element:
             for row in (element["table"] or {}).get("tableRows") or []:
                 cells = [
@@ -96,7 +101,8 @@ def extract(document: Any) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, suggest_on_error=True)
+    parser_kwargs: dict[str, Any] = {"suggest_on_error": True} if sys.version_info >= (3, 14) else {}
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, **parser_kwargs)
     parser.add_argument("input", help="Saved documents.get JSON file, or - for stdin")
     args = parser.parse_args()
     try:

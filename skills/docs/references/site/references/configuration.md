@@ -48,6 +48,14 @@ Built into `0.1.1` unless noted (`gen-files`/`hooks` Python plugins never execut
 - Pair `[project.extra.analytics]` with `[project.extra.consent]` and `<a href="#__consent">` in `copyright`; audit Google Fonts, unpkg Mermaid, and custom MathJax/KaTeX against [`privacy`](#native-plugins).
 - **Snippets / macros / Spark**: `--8<-- "path/file.py"` (`base_path`, `check_paths = true`), Jinja `extra`/YAML macros (`on_undefined = "strict"`), and `@if`/`@var`/`@use` (`catalog.toml`/`ZENSICAL_VARIANT`, Spark early access).
 
+## Mounted portals
+
+Mount self-contained interactive sub-apps under `site/` **after** `zensical build --clean --strict` (which wipes `site/`) inside `build:docs`, keeping generated HTML out of `docs/` so `docs.yml` deploys one unified GitHub Pages site (in Python/polyglot repos where `all` does not run `build:docs`, either invoke `mise run build:docs` in `docs.yml` or wire `build:docs` into `all`):
+
+- **LikeC4 C4 explorer** ([likec4](../../../../diagrams-as-code/references/likec4.md)): `likec4 build --base /<slug>/architecture/ --use-hash-history --output-single-file -o site/architecture architecture`.
+- **Allure 3 BDD acceptance report** ([testing/bdd](../../../../python/references/testing/references/bdd.md)): run `mise run report:bdd` (sanitized `singleFile: true` HTML) then `mkdir -p site/bdd && cp .cache/allure-report/index.html site/bdd/index.html` (never publish private or internal test data to public GitHub Pages).
+- **Navigation under `--strict`**: link mounted portals via full `site_url`-rooted `nav` entries (`{ "Architecture (C4)" = "https://<owner>.github.io/<slug>/architecture/" }`, `{ "Acceptance (BDD)" = "https://<owner>.github.io/<slug>/bdd/" }`) so `zensical build --strict` never fails on missing `docs/` files and `navigation.instant` never hijacks SPA routing.
+
 ## Documentation
 
 - [Basics](https://zensical.org/docs/setup/basics/) · [Navigation](https://zensical.org/docs/setup/navigation/) · [Data privacy](https://zensical.org/docs/setup/data-privacy/) · [Redirects](https://zensical.org/docs/setup/redirects/) · [Customization](https://zensical.org/docs/customization/)
