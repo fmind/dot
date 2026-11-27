@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [18.5.1] - 2026-11-27
+
+### 🐛 Bug Fixes
+
+- _(tests)_ Mock allure lookup in report_bdd tests and forward GITHUB_TOKEN to tflint init
+
 ## [18.5.0] - 2026-11-27
 
 ### 🚀 Features
