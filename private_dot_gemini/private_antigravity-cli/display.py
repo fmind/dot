@@ -176,7 +176,8 @@ def render(payload: Mapping[str, object], mode: str, *, color: bool = False) -> 
     window = record(payload.get("context_window"))
     context = number(window.get("used_percentage"), 100)
     if context is not None:
-        shade = "31" if context >= 95 else "33" if context >= 80 else "36"
+        # Warn early (~180k/256k on 512k windows) so long sessions compact before context bloat.
+        shade = "31" if context >= 50 else "33" if context >= 35 else "36"
         text = f"{ICONS['context']} context {context:.0f}%"
         size = number(window.get("context_window_size"), 10**9)
         if size:

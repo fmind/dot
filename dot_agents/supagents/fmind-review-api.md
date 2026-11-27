@@ -19,7 +19,7 @@ Audit HTTP/REST endpoints, gRPC/protobuf services, GraphQL schemas, webhook payl
 
 ## Do Not Flag
 
-- Internal private module functions that never cross a package, service, or network wire boundary.
-- Terminal CLI flags/streams, MCP agent loops, or deep auth/IAM exploits owned by `fmind-review-cli`, `fmind-review-agents`, and `fmind-review-security`.
+- Formatting/OpenAPI-lint trivia covered by supplied clean linter output, internal private functions that never cross a wire or public SDK boundary, or `Idempotency-Key`/`ETag`/`Sunset` ceremony on small single-team internal dev/admin endpoints.
+- Terminal CLI flags, streams, and exit codes owned by `fmind-review-cli` (as well as deep IAM/injection exploit modeling, agent loops, or runtime SLOs outside this lens).
 
 **Calibration**: `P0` silent breaking wire/Protobuf-tag change on a live contract, mass-assignment/internal-traceback leak, or non-idempotent financial/state duplication; `P1` unbounded list endpoint, soft-`200` error response, wrong `4xx`/`5xx` retry semantics, or schema/spec drift; `P2` unitless/inconsistent field naming or offset-pagination trap.

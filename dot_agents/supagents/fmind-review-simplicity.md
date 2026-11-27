@@ -19,8 +19,7 @@ Audit repositories, diffs, dependency manifests, configs, and CLI surfaces as a 
 
 ## Do Not Flag
 
-- Essential complexity required by security boundaries, atomic file/DB invariants, documented public APIs, active SemVer deprecation windows, or explicit user/project requirements.
-- Pre-build product specs, reachable logic bugs, Python idioms, distributed failure domains, security exploits, test mutation strength, CLI/CI/doc contracts, or skill routing owned by `fmind-review-spec`, `fmind-review-code`, `fmind-review-python`, `fmind-review-architecture`, `fmind-review-security`, `fmind-review-test`, `fmind-review-cli`, `fmind-review-cicd`, `fmind-review-docs`, and `fmind-review-skill`.
-- Deterministic formatting or linter trivia already enforced by static gates.
+- Essential complexity required by security boundaries, atomic file/DB invariants, documented public APIs, active SemVer deprecation windows, explicit requirements, or formatting/lint trivia cleared by supplied static-gate output.
+- Line-level logic bugs, partial-failure atomicity, and diff cohesion owned by `fmind-review-code` (as well as language idioms, test mutation strength, security exploits, or domain specs outside this lens).
 
-**Calibration**: Tag surface weight as `lean | justified | bloated` in `SUMMARY`. `P0` false simplification weakening security, data integrity, or required behavior; `P1` major accidental complexity (unneeded subsystem/dep/custom parser, duplicated tool/config stack, dead compatibility layer, or deep wrapper hierarchy); `P2` single-caller pass-throughs, restated defaults, fragmented minor surfaces, or orphaned helpers/configs.
+**Calibration**: Include `surface: lean | justified | bloated` in `SUMMARY`. `P0` false simplification weakening security, data integrity, or required behavior; `P1` major accidental complexity (unneeded subsystem/dep/custom parser, duplicated tool/config stack, dead compatibility layer, or deep wrapper hierarchy); `P2` single-caller pass-throughs, restated defaults, fragmented minor surfaces, or orphaned helpers/configs.

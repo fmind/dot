@@ -1,12 +1,11 @@
 # chezmoi:modify-template
 {{- /* Docs: https://antigravity.google/docs/remote-control/
        Remote Control reads protobuf JSON, not the CLI settings schema; the daemon reads it
-       only at start. autoContinueOnMaxGeneratorInvocations is undocumented (verified in
-       agy 1.5.5–1.5.14): it skips the "continue?" prompt after the step budget. */ -}}
+       only at start. Strip legacy autoContinueOnMaxGeneratorInvocations so marathon sessions
+       pause before hitting 500k context. */ -}}
 {{- $managed := fromJson `
 {
   "userSettings": {
-    "autoContinueOnMaxGeneratorInvocations": "AUTO_CONTINUE_ON_MAX_GENERATOR_INVOCATIONS_ENABLED",
     "autoExecutionPolicy": "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER",
     "artifactReviewMode": "ARTIFACT_REVIEW_MODE_TURBO",
     "permissionPreset": "AGENT_PERMISSION_PRESET_TURBO",
@@ -37,4 +36,10 @@
 {{- $grants := list "read_file(*)" "write_file(*)" "command(*)" "read_url(*)" "execute_url(*)" "mcp(*)" -}}
 {{- $managedDeny := fromJson (includeTemplate "agy-secret-denies.tmpl" .) -}}
 {{- $_ := set (get $managed "userSettings") "globalPermissionGrants" (dict "allow" (concat $allow $grants | uniq) "deny" (concat $deny $managedDeny | uniq)) -}}
-{{- includeTemplate "config-merge.tmpl" (dict "stdin" .chezmoi.stdin "managed" $managed) -}}
+{{- $stdin := .chezmoi.stdin -}}
+{{- if hasKey $userSettings "autoContinueOnMaxGeneratorInvocations" -}}
+{{- $cleaned := deepCopy $current -}}
+{{- $_ := unset (get $cleaned "userSettings") "autoContinueOnMaxGeneratorInvocations" -}}
+{{- $stdin = $cleaned | toPrettyJson -}}
+{{- end -}}
+{{- includeTemplate "config-merge.tmpl" (dict "stdin" $stdin "managed" $managed) -}}

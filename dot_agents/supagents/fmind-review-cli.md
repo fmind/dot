@@ -19,7 +19,7 @@ Audit CLI entrypoints, subcommands, argument parsers, output formatters, and com
 
 ## Do Not Flag
 
-- Internal private helpers that never parse CLI args, write to process streams, or set exit codes.
-- HTTP/gRPC wire APIs, shell-script quoting internals, or full doc sites owned by `fmind-review-api`, `fmind-review-shell`, and `fmind-review-docs`.
+- Formatting/lint trivia covered by supplied clean linter output, internal helpers that never parse CLI args or touch process streams, or `--version`/XDG/completion ceremony on small single-file internal helper scripts.
+- HTTP/gRPC/SDK wire contracts owned by `fmind-review-api` (as well as shell-script quoting internals or full doc sites outside this lens).
 
 **Calibration**: `P0` secret required on plain argv, silent exit `0` on failed mutation/security check, or `--force` deleting out-of-scope paths; `P1` corrupted `--json`/`stdout` stream, non-TTY prompt hang, swapped/missing exit codes, or silent breaking flag/JSON change; `P2` missing `--dry-run` on mutating command, `$HOME` dotfile sprawl over XDG, or stale `--help`/completions.

@@ -8,7 +8,7 @@
 {
   "banner": "never",
   "contextTier": "long_context",
-  "effortLevel": "high",
+  "effortLevel": "medium",
   "keepAlive": "busy",
   "model": "auto",
   "planEffortLevel": "high"

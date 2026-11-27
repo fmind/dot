@@ -7,11 +7,11 @@ import runpy
 import subprocess
 import sys
 import unicodedata
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from repo_helpers import ROOT
+
 SCRIPT = ROOT / "private_dot_gemini/private_antigravity-cli/display.py"
 display = runpy.run_path(str(SCRIPT))
 render = display["render"]
@@ -218,6 +218,13 @@ def test_location_tokens_reset_and_sandbox_details() -> None:
     assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
     payload.update(workspace={"project_dir": "/private/owner/dot", "current_dir": "/private/owner/dot/x/../../other"})
     assert render(payload, "statusline").startswith("\uf07b dot \ue0b1")
+
+
+@pytest.mark.parametrize(("percent", "shade"), [(34.9, "36"), (35.0, "33"), (49.9, "33"), (50.0, "31")])
+def test_context_warning_shades_alert_early(percent: float, shade: str) -> None:
+    payload = state()
+    payload.update(context_window={"used_percentage": percent, "context_window_size": 524288}, terminal_width=400)
+    assert f"\x1b[{shade}m\uf0e4 context {percent:.0f}%" in render(payload, "statusline", color=True)
 
 
 @pytest.mark.parametrize(

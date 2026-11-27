@@ -137,7 +137,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))
         assert fresh["model"] == "auto"
-        assert fresh["effortLevel"] == "high"
+        assert fresh["effortLevel"] == "medium"
         assert fresh["planEffortLevel"] == "high"
         assert fresh["customAgents"] == {"defaultLocalOnly": True}
         assert fresh["ide"] == {"autoConnect": False}
@@ -149,21 +149,67 @@ class HarnessConfigTests(unittest.TestCase):
         assert {
             f"read_file({self.home / '.private.fish'})",
             f"read_file({self.home / '.local/share/atuin'})",
+            f"read_file({self.home / '.local/share/fish/fish_history'})",
+            f"read_file({self.home / '.bash_history'})",
+            f"read_file({self.home / '.zsh_history'})",
+            f"read_file({self.home / '.local/share/keyrings'})",
+            f"read_file({self.home / '.config/dot.yaml'})",
+            f"read_file({self.home / '.config/git/config.local'})",
+            f"read_file({self.home / '.config/chezmoi/chezmoi.toml'})",
+            f"read_file({self.home / '.config/chezmoi/chezmoistate.boltdb'})",
+            f"read_file({self.home / '.config/opencode'})",
+            f"read_file({self.home / '.agentsview'})",
             f"read_file({self.home / '.cache/huggingface/stored_tokens'})",
             f"read_file({self.home / '.claude/projects'})",
             f"read_file({self.home / '.databrickscfg'})",
             f"read_file({self.home / '.databricks'})",
             f"read_file({self.home / '.genie'})",
+            f"read_file({self.home / '.config/gws'})",
             f"read_file({self.home / '.config/acli'})",
             f"read_file({self.home / '.config/cf'})",
             f"read_file({self.home / '.gemini/config/mcp_config.json'})",
             f"read_file({self.home / '.copilot/mcp-config.json'})",
             f"read_file({self.home / '.pgpass'})",
             f"read_file({self.home / '.vault-token'})",
+            "read_file(.env)",
+            "read_file(.env.local)",
+            "read_file(.env.production)",
+            "read_file(id_ed25519)",
+            "read_file(application_default_credentials.json)",
+            "read_url(169.254.169.254)",
+            "execute_url(169.254.169.254)",
+            "read_url(metadata.google.internal)",
+            "execute_url(metadata.google.internal)",
         } <= set(expected)
-        assert {"read_file(*.env*)", "read_file(*.pem)", "read_file(*.key)"} <= set(expected)
+        # Antigravity read_file() silently ignores filename globs; keep rules exact paths/dirs only.
+        assert not any("*" in rule for rule in expected), f"wildcard globs are no-ops in agy: {expected}"
+        assert not any(".config/gws-" in rule for rule in expected), (
+            f"keep profile-specific gws-* denies in host-local chezmoi data: {expected}"
+        )
         assert "read_file(*.age)" not in expected
         return expected
+
+    def test_antigravity_secret_denies_merges_host_local_extra_denies(self):
+        self.config.write_text('[data]\nextra_secret_denies = [".config/gws-client", "/opt/private-creds"]\n')
+        rendered = json.loads(self.render(".chezmoitemplates/agy-secret-denies.tmpl", ""))
+        assert f"read_file({self.home / '.config/gws-client'})" in rendered
+        assert "read_file(/opt/private-creds)" in rendered
+
+        for bad_toml in (
+            "[data]\nextra_secret_denies = false\n",
+            '[data]\nextra_secret_denies = { a = ".config/gws-client" }\n',
+            "[data]\nextra_secret_denies = [123]\n",
+            '[data]\nextra_secret_denies = ["~/.config/gws-client"]\n',
+            '[data]\nextra_secret_denies = [".config/gws-*"]\n',
+            '[data]\nextra_secret_denies = ["../secret"]\n',
+            '[data]\nextra_secret_denies = [""]\n',
+            '[data]\nextra_secret_denies = ["."]\n',
+            '[data]\nextra_secret_denies = ["/"]\n',
+            '[data]\nextra_secret_denies = [".config/bad)rule"]\n',
+        ):
+            self.config.write_text(bad_toml)
+            with pytest.raises(RuntimeError, match="extra_secret_denies"):
+                self.render(".chezmoitemplates/agy-secret-denies.tmpl", "")
 
     def test_antigravity_merge_preserves_account_and_explicit_empty_trust(self):
         template = "private_dot_gemini/private_antigravity-cli/modify_private_settings.json"
@@ -229,6 +275,7 @@ class HarnessConfigTests(unittest.TestCase):
                     "ask": ["execute_url(example.com)"],
                     "deny": ["command(rm *)"],
                 },
+                "autoContinueOnMaxGeneratorInvocations": "AUTO_CONTINUE_ON_MAX_GENERATOR_INVOCATIONS_ENABLED",
                 "autoExecutionPolicy": "CASCADE_COMMANDS_AUTO_EXECUTION_OFF",
             },
             "customState": {"keep": True},
@@ -236,6 +283,7 @@ class HarnessConfigTests(unittest.TestCase):
         rendered = self.render(template, json.dumps(original))
         data = json.loads(rendered)
         settings = data["userSettings"]
+        assert "autoContinueOnMaxGeneratorInvocations" not in settings
         assert settings["cliRemoteControlHostname"] == "fixture-host"
         assert settings["themeMode"] == "THEME_MODE_DARK"
         grants = settings["globalPermissionGrants"]
@@ -256,6 +304,7 @@ class HarnessConfigTests(unittest.TestCase):
         assert settings["artifactReviewMode"] == "ARTIFACT_REVIEW_MODE_TURBO"
         assert self.render(template, rendered) == rendered
         fresh = json.loads(self.render(template, ""))["userSettings"]
+        assert "autoContinueOnMaxGeneratorInvocations" not in fresh
         assert "cliRemoteControlHostname" not in fresh
         assert "themeMode" not in fresh
         assert fresh["globalPermissionGrants"] == {"allow": managed, "deny": expected_agy_denies}
@@ -450,6 +499,8 @@ class HarnessConfigTests(unittest.TestCase):
         assert 'bind "Alt Shift i" { ToggleSessionCard; }' in active
         zellij = native_binary("zellij")
         if zellij is None:
+            if os.environ.get("CI"):
+                pytest.fail("Zellij must be installed in CI via mise.toml")
             pytest.skip("Zellij native validation requires the workstation tool")
         result = subprocess.run(
             [str(zellij), "-c", str(config_path), "setup", "--check"],
