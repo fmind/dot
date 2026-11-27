@@ -35,12 +35,15 @@ def _write(root: Path, relative: str, content: str) -> None:
 
 
 _SHARED_CACHE_ENV: dict[str, str] = {}
+_STARTER_TFLINT_ENV: dict[str, str] = {}
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _starter_caches(tmp_path_factory: pytest.TempPathFactory) -> None:
     # Share uv's flock-protected cache across xdist workers, keep dprint strictly per-worker under pytest's temp dir
     # to avoid concurrent manifest races, and stay isolated from real HOME.
+    if token := os.environ.get("GITHUB_TOKEN"):
+        _STARTER_TFLINT_ENV["GITHUB_TOKEN"] = token
     base = tmp_path_factory.getbasetemp()
     shared_root = (base.parent if os.environ.get("PYTEST_XDIST_WORKER") else base) / "dot-starter-cache"
     uv_env = os.environ.get("UV_CACHE_DIR")
@@ -68,11 +71,14 @@ def _starter_env() -> dict[str, str]:
     return environment
 
 
-def _run(root: Path, *command: str, expected_code: int = 0) -> str:
+def _run(root: Path, *command: str, expected_code: int = 0, extra_env: dict[str, str] | None = None) -> str:
+    env = _starter_env()
+    if extra_env:
+        env.update(extra_env)
     result = subprocess.run(
         list(command),
         cwd=str(root),
-        env=_starter_env(),
+        env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
@@ -598,7 +604,8 @@ def test_opentofu_starter_validates(tmp_path: Path) -> None:
     )
     _run(iac, "tofu", "init", "-backend=false", "-input=false")
     _run(iac, "tofu", "validate")
-    _run(iac, "tflint", "--init")
+    # Pass runner GITHUB_TOKEN narrowly to tflint --init (isolated_terminal strips it globally) to avoid GitHub API 403s.
+    _run(iac, "tflint", "--init", extra_env=_STARTER_TFLINT_ENV or None)
     _run(iac, "tflint", "--recursive")
     _run(iac, "tofu", "test")
 

@@ -379,6 +379,7 @@ def test_report_bdd_main_orchestration(
             return SimpleNamespace(returncode=log_rc)
         raise AssertionError(f"unexpected command: {cmd}")
 
+    monkeypatch.setattr(report_bdd.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(report_bdd.subprocess, "run", fake_run)
     assert report_bdd.main([]) == expected_rc
     assert events == (["pytest", "generate", "log"] if expect_allure else ["pytest"])
@@ -406,12 +407,17 @@ def test_report_bdd_main_aborts_on_leaks(
             return SimpleNamespace(returncode=0)
         raise AssertionError(f"allure must not run when leaks exist: {cmd}")
 
+    monkeypatch.setattr(report_bdd.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(report_bdd.subprocess, "run", fake_run)
     assert report_bdd.main([]) == 1
     assert events == ["uv"]
     err = capsys.readouterr().err
     assert "redacted secret_token match in 1-attachment.txt" in err
     assert "secret1234567890abcdef" not in err
+
+    monkeypatch.setattr(report_bdd.shutil, "which", lambda _name: None)
+    assert report_bdd.main([]) == 1
+    assert "'allure' CLI not found on PATH" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("starter", STARTERS)
