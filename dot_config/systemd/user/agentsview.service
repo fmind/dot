@@ -1,0 +1,16 @@
+# Docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html
+[Unit]
+Description=AgentsView local coding-agent session viewer and sync daemon
+After=default.target
+ConditionFileIsExecutable=%h/.local/share/mise/installs/github-kenn-io-agentsview/latest/agentsview
+
+[Service]
+Type=simple
+Environment=AGENTSVIEW_TELEMETRY_ENABLED=0
+ExecStart=%h/.local/share/mise/installs/github-kenn-io-agentsview/latest/agentsview serve --no-browser --no-update-check --replace --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+
+[Install]
+WantedBy=default.target

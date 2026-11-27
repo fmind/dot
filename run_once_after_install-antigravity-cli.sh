@@ -15,5 +15,5 @@ trap 'cleanup; trap - INT; kill -INT $$' INT
 trap 'cleanup; trap - TERM; kill -TERM $$' TERM
 installer="$(mktemp)"
 scratch="$(mktemp -d)"
-curl -fsSL --proto '=https' --tlsv1.2 -o "${installer}" https://antigravity.google/cli/install.sh
+curl -fsSL --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 120 -o "${installer}" https://antigravity.google/cli/install.sh
 HOME="${scratch}" bash "${installer}" --dir "${real_home}/.local/bin"

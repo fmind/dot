@@ -7,9 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from repo_helpers import chezmoi
+from repo_helpers import ROOT, chezmoi
 
-ROOT = Path(__file__).resolve().parents[1]
 MODIFIERS = {
     "modify_dot_bashrc": ("# chezmoi: mise-bash-path", "mise activate bash"),
     "modify_dot_profile": ("# chezmoi: mise-bash-integration", "export PATH="),

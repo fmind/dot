@@ -1,7 +1,7 @@
 # Docs: https://vale.sh/docs/topics/styles/
 extends: occurrence
-message: "Keep prose paragraphs scannable (<= 65 words); split or use bullets."
+message: "Keep prose paragraphs scannable (<= 55 words); split or use bullets."
 level: warning
 scope: paragraph
-max: 65
+max: 55
 token: "[\\p{L}\\p{N}]+(?:['’.-][\\p{L}\\p{N}]+)*"

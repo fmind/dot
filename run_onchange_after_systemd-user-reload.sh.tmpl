@@ -1,6 +1,7 @@
 #!/bin/sh
 # Docs: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#daemon-reload
 # systemd reads units and drop-ins only on daemon-reload; these hashes rerun this hook when one changes.
+# agentsview.service: {{ include "dot_config/systemd/user/agentsview.service" | sha256sum }}
 # antigravity-cli-daemon: {{ include "dot_config/systemd/user/antigravity-cli-daemon.service.d/path.conf" | sha256sum }}
 # antigravity-cli-daemon-update.timer: {{ include "dot_config/systemd/user/antigravity-cli-daemon-update.timer" | sha256sum }}
 # antigravity-cli-daemon-update.service: {{ include "dot_config/systemd/user/antigravity-cli-daemon-update.service" | sha256sum }}
@@ -9,6 +10,9 @@ command -v systemctl >/dev/null 2>&1 || exit 0
 # No user manager (containers, CI, SSH without lingering): the next login loads the drop-ins
 # and starts the nightly update check through its managed timers.target.wants link.
 systemctl --user daemon-reload 2>/dev/null || exit 0
+if [ -x "${HOME}/.local/share/mise/installs/github-kenn-io-agentsview/latest/agentsview" ]; then
+  systemctl --user restart agentsview.service
+fi
 systemctl --user start antigravity-cli-daemon-update.timer
 # Never restart from apply: the agy daemon hosts remote-control sessions, possibly this one.
 if systemctl --user is-active --quiet antigravity-cli-daemon.service; then

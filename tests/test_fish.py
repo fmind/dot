@@ -55,31 +55,49 @@ def _fish() -> str:
     return str(native_binary("fish") or "fish")
 
 
-def test_fish_aliases_load_without_errors() -> None:
-    result = subprocess.run(
-        [
-            _fish(),
-            "--no-config",
-            "--interactive",
-            "--command",
-            # abbr --query succeeds when any name exists, so check each one.
-            (
-                "source dot_config/fish/conf.d/aliases.fish; or exit 1; "
-                "for name in a b c d e f g h i j k l m n o p q r s t u v w x y "
-                "ac ai ap gl hd hh hp hs la ll lt mr uf ur ux vd vi; "
-                "abbr --query $name; or echo missing $name >&2; end; "
-                "for name in ss z; "
-                "abbr --query $name; and echo unexpected $name >&2; end; "
-                "true"
-            ),
-        ],
-        cwd=ROOT,
+def _run_fish(
+    command: str,
+    *,
+    cwd: Path = ROOT,
+    env: dict[str, str] | None = None,
+    interactive: bool = False,
+    no_config: bool = True,
+    timeout: int = 15,
+    check: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    argv = [_fish()]
+    if no_config:
+        argv.append("--no-config")
+    if interactive:
+        argv.append("--interactive")
+    argv.extend(["--command", command])
+    return subprocess.run(
+        argv,
+        cwd=cwd,
+        env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",
+        timeout=timeout,
+        check=check,
+    )
+
+
+def test_fish_aliases_load_without_errors() -> None:
+    result = _run_fish(
+        # abbr --query succeeds when any name exists, so check each one.
+        (
+            "source dot_config/fish/conf.d/aliases.fish; or exit 1; "
+            "for name in a b c d e f g h i j k l m n o p q r s t u v w x y "
+            "ac ai ap av avs avu gl hd hh hp hs la ll lt mr uf ur ux vd vi; "
+            "abbr --query $name; or echo missing $name >&2; end; "
+            "for name in ss z; "
+            "abbr --query $name; and echo unexpected $name >&2; end; "
+            "true"
+        ),
+        interactive=True,
         timeout=10,
-        check=False,
     )
     # Fish can return success after an invalid abbr option in a sourced file.
     assert result.stderr == "", result.stderr
@@ -91,19 +109,12 @@ def test_fish_paths_keep_homebrew_ahead_of_usr_local(tmp_path: Path) -> None:
     homebrew, usr_local = "/opt/homebrew/bin", "/usr/local/bin"
     if not (Path(homebrew).is_dir() and Path(usr_local).is_dir()):
         pytest.skip("both Homebrew and /usr/local bin directories are required")
-    # Resolve fish before the test replaces PATH with the system directories under test.
-    fish = _fish()
-    result = subprocess.run(
-        # Fish rebuilds PATH from fish_user_paths in its shared config, so isolate only user configuration.
-        [fish, "--command", "source dot_config/fish/conf.d/paths.fish; string join \\n -- $PATH"],
-        cwd=ROOT,
+    # Fish rebuilds PATH from fish_user_paths in its shared config, so isolate only user configuration.
+    result = _run_fish(
+        "source dot_config/fish/conf.d/paths.fish; string join \\n -- $PATH",
         env={**os.environ, "PATH": f"{usr_local}:/usr/bin:/bin:{homebrew}", "XDG_CONFIG_HOME": str(tmp_path)},
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
+        no_config=False,
         timeout=10,
-        check=False,
     )
     assert result.returncode == 0, result.stderr
     paths = result.stdout.splitlines()
@@ -267,22 +278,10 @@ def test_auto_zellij_skips_non_tty_and_attaches_when_term_program_unset_on_pty(t
         ZELLIJ_TEST_CALLS=str(calls),
         ZELLIJ_TEST_STATUS="0",
     )
-    non_tty = subprocess.run(
-        [
-            _fish(),
-            "--no-config",
-            "--interactive",
-            "--command",
-            f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo ok',
-        ],
-        cwd=ROOT,
+    non_tty = _run_fish(
+        f'set -gx PATH "{bin_dir}" $PATH; source dot_config/fish/conf.d/plugins.fish; emit fish_prompt; echo ok',
         env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
+        interactive=True,
     )
     assert non_tty.returncode == 0, non_tty.stderr
     assert non_tty.stderr == "", non_tty.stderr
@@ -320,17 +319,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
         'printf "mise=%s atuin=%s fzf=%s starship=%s zoxide=%s\\n" '
         '"$stub_mise" "$stub_atuin" "$stub_fzf" "$stub_starship" "$stub_zoxide"'
     )
-    result = subprocess.run(
-        [_fish(), "--no-config", "--interactive", "--command", cmd],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    result = _run_fish(cmd, env=env, interactive=True)
     assert result.returncode == 0, result.stderr
     assert result.stderr == "", result.stderr
     assert result.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
@@ -344,17 +333,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
 
     # A second interactive shell reuses the cached init scripts without respawning the 5 tools.
     calls.unlink()
-    cached = subprocess.run(
-        [_fish(), "--no-config", "--interactive", "--command", cmd],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    cached = _run_fish(cmd, env=env, interactive=True)
     assert cached.returncode == 0, cached.stderr
     assert cached.stderr == "", cached.stderr
     assert cached.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
@@ -363,17 +342,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
     # Touching a binary invalidates only its cached init script.
     future = time.time() + 10
     os.utime(bin_dir / "fzf", (future, future))
-    refreshed = subprocess.run(
-        [_fish(), "--no-config", "--interactive", "--command", cmd],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    refreshed = _run_fish(cmd, env=env, interactive=True)
     assert refreshed.returncode == 0, refreshed.stderr
     assert refreshed.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
     assert calls.read_text(encoding="utf-8").splitlines() == ["fzf --fish"]
@@ -382,17 +351,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
     calls.unlink()
     older = time.time() - 3600
     os.utime(bin_dir / "zoxide", (older, older))
-    older_refresh = subprocess.run(
-        [_fish(), "--no-config", "--interactive", "--command", cmd],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    older_refresh = _run_fish(cmd, env=env, interactive=True)
     assert older_refresh.returncode == 0, older_refresh.stderr
     assert calls.read_text(encoding="utf-8").splitlines() == ["zoxide init fish"]
 
@@ -404,22 +363,10 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
         exe = empty_bin / name
         exe.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         exe.chmod(0o755)
-    empty_run = subprocess.run(
-        [
-            _fish(),
-            "--no-config",
-            "--interactive",
-            "--command",
-            f'set -gx PATH "{empty_bin}" $PATH; source dot_config/fish/conf.d/plugins.fish',
-        ],
-        cwd=ROOT,
+    empty_run = _run_fish(
+        f'set -gx PATH "{empty_bin}" $PATH; source dot_config/fish/conf.d/plugins.fish',
         env=empty_env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
+        interactive=True,
     )
     assert empty_run.returncode == 0, empty_run.stderr
     assert not list((tmp_path / "empty/.cache/fish/init").glob("*.fish"))
@@ -434,17 +381,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
         rel_home, XDG_CACHE_HOME="relcache", PLUGIN_TEST_CALLS=str(tmp_path / "rel-calls"), ZELLIJ="0"
     )
     rel_cmd = cmd.replace("dot_config/fish/conf.d/plugins.fish", f'"{ROOT / "dot_config/fish/conf.d/plugins.fish"}"')
-    rel_run = subprocess.run(
-        [_fish(), "--no-config", "--interactive", "--command", rel_cmd],
-        cwd=rel_cwd,
-        env=rel_env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    rel_run = _run_fish(rel_cmd, cwd=rel_cwd, env=rel_env, interactive=True)
     assert rel_run.returncode == 0, rel_run.stderr
     assert rel_run.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
     assert (rel_home / ".cache/fish/init/mise.fish").is_file()
@@ -456,17 +393,7 @@ def test_plugins_runs_live_interactive_init(tmp_path: Path) -> None:
         cache_dir = rel_home / ".cache/fish/init"
         cache_dir.chmod(0o500)
         try:
-            fallback_run = subprocess.run(
-                [_fish(), "--no-config", "--interactive", "--command", rel_cmd],
-                cwd=rel_cwd,
-                env=rel_env,
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=15,
-                check=False,
-            )
+            fallback_run = _run_fish(rel_cmd, cwd=rel_cwd, env=rel_env, interactive=True)
             assert fallback_run.returncode == 0, fallback_run.stderr
             assert fallback_run.stderr == "", fallback_run.stderr
             assert fallback_run.stdout.strip() == "mise=live atuin=live fzf=live starship=live zoxide=live"
@@ -500,6 +427,16 @@ def test_config_fish_skips_unsafe_private_fish_without_errors(tmp_path: Path) ->
     assert rc_dir == 0
     assert stderr_dir == "", stderr_dir
     private_fish.rmdir()
+
+    # A regular 0600 ~/.private.fish IS sourced cleanly.
+    private_fish.write_text("set -gx PRIVATE_OK loaded\n", encoding="utf-8")
+    private_fish.chmod(0o600)
+    rc_ok, stdout_ok, stderr_ok = _run_fish_pty(f'{base_cmd}; printf "OK=%s\\n" "$PRIVATE_OK"', cwd=ROOT, env=env)
+    assert rc_ok == 0
+    assert stderr_ok == "", stderr_ok
+    assert stdout_ok.splitlines() == ["OK=loaded"]
+    private_fish.unlink()
+
     if os.geteuid() != 0:
         private_fish.write_text("set -gx SECRET_STUFF 1\n", encoding="utf-8")
         private_fish.chmod(0o000)
@@ -526,55 +463,19 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     env = _clean_fish_env(tmp_path, XDG_CONFIG_HOME=str(tmp_path / ".config"))
-    result = subprocess.run(
-        [
-            _fish(),
-            "--no-config",
-            "--interactive",
-            "--command",
-            (
-                "source dot_config/fish/conf.d/theme.fish; "
-                'printf "cmd=%s\\nkw=%s\\n" '
-                "(string join , -- $fish_color_command) "
-                "(string join , -- $fish_color_keyword)"
-            ),
-        ],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
+    theme_cmd = (
+        "source dot_config/fish/conf.d/theme.fish; "
+        'printf "cmd=%s\\nkw=%s\\n" '
+        "(string join , -- $fish_color_command) "
+        "(string join , -- $fish_color_keyword)"
     )
+    result = _run_fish(theme_cmd, env=env, interactive=True)
     assert result.returncode == 0, result.stderr
     assert result.stderr == "", result.stderr
     assert result.stdout.splitlines() == ["cmd=174ea6,--theme=fmind", "kw=174ea6,--bold,--theme=fmind"]
 
     # A second interactive shell reuses the cached theme script and preserves the exact colors.
-    cached_theme = subprocess.run(
-        [
-            _fish(),
-            "--no-config",
-            "--interactive",
-            "--command",
-            (
-                "source dot_config/fish/conf.d/theme.fish; "
-                'printf "cmd=%s\\nkw=%s\\n" '
-                "(string join , -- $fish_color_command) "
-                "(string join , -- $fish_color_keyword)"
-            ),
-        ],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    cached_theme = _run_fish(theme_cmd, env=env, interactive=True)
     assert cached_theme.returncode == 0, cached_theme.stderr
     assert cached_theme.stderr == "", cached_theme.stderr
     assert cached_theme.stdout.splitlines() == ["cmd=174ea6,--theme=fmind", "kw=174ea6,--bold,--theme=fmind"]
@@ -584,35 +485,19 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
     if os.geteuid() != 0:
         theme_cache.chmod(0o000)
         try:
-            unreadable_cache_run = subprocess.run(
-                [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
-                cwd=ROOT,
-                env=env,
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=15,
-                check=False,
-            )
+            unreadable_cache_run = _run_fish(theme_cmd, env=env, interactive=True)
             assert unreadable_cache_run.returncode == 0, unreadable_cache_run.stderr
             assert unreadable_cache_run.stderr == "", unreadable_cache_run.stderr
+            assert unreadable_cache_run.stdout.splitlines() == [
+                "cmd=174ea6,--theme=fmind",
+                "kw=174ea6,--bold,--theme=fmind",
+            ]
         finally:
             theme_cache.chmod(0o600)
 
     # Missing or unreadable fmind.theme is skipped cleanly without stderr errors.
     theme_file.unlink()
-    missing_run = subprocess.run(
-        [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
-        cwd=ROOT,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=15,
-        check=False,
-    )
+    missing_run = _run_fish("source dot_config/fish/conf.d/theme.fish", env=env, interactive=True)
     assert missing_run.returncode == 0, missing_run.stderr
     assert missing_run.stderr == "", missing_run.stderr
 
@@ -620,17 +505,7 @@ def test_theme_fish_loads_fmind_colors_without_errors(tmp_path: Path) -> None:
         theme_file.write_text("fish_color_command 174ea6\n", encoding="utf-8")
         theme_file.chmod(0o000)
         try:
-            perm_run = subprocess.run(
-                [_fish(), "--no-config", "--interactive", "--command", "source dot_config/fish/conf.d/theme.fish"],
-                cwd=ROOT,
-                env=env,
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=15,
-                check=False,
-            )
+            perm_run = _run_fish("source dot_config/fish/conf.d/theme.fish", env=env, interactive=True)
             assert perm_run.returncode == 0, perm_run.stderr
             assert perm_run.stderr == "", perm_run.stderr
         finally:
@@ -654,32 +529,10 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
     assert macos_mise_env == {"GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND": "file"}
     assert ".config/mise/conf.d/macos.toml" in (ROOT / ".chezmoiignore").read_text(encoding="utf-8")
 
-    fish = _fish()
-
     def _exported(path_env: str) -> dict[str, str]:
         base_env = {"HOME": str(tmp_path), "PATH": path_env}
-        baseline = subprocess.run(
-            [fish, "--no-config", "--command", "env -0"],
-            cwd=ROOT,
-            env=base_env,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=10,
-            check=True,
-        )
-        sourced = subprocess.run(
-            [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; env -0"],
-            cwd=ROOT,
-            env=base_env,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=10,
-            check=True,
-        )
+        baseline = _run_fish("env -0", env=base_env, timeout=10, check=True)
+        sourced = _run_fish("source dot_config/fish/conf.d/env.fish; env -0", env=base_env, timeout=10, check=True)
         before = dict(entry.split("=", 1) for entry in baseline.stdout.split("\0") if "=" in entry)
         after = dict(entry.split("=", 1) for entry in sourced.stdout.split("\0") if "=" in entry)
         return {key: value for key, value in after.items() if before.get(key) != value and key not in SHELL_ONLY_ENV}
@@ -698,29 +551,18 @@ def test_fish_env_exports_stay_mirrored_in_mise_config(tmp_path: Path) -> None:
 
 
 def test_fish_env_repairs_broken_shell_and_preserves_valid_login_shell(tmp_path: Path) -> None:
-    fish = _fish()
-    repaired = subprocess.run(
-        [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL"],
-        cwd=ROOT,
+    repaired = _run_fish(
+        "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL",
         env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "SHELL": str(tmp_path / "missing-fish")},
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
         timeout=10,
         check=True,
     )
     assert Path(repaired.stdout).is_file()
     assert os.access(repaired.stdout, os.X_OK)
 
-    preserved = subprocess.run(
-        [fish, "--no-config", "--command", "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL"],
-        cwd=ROOT,
+    preserved = _run_fish(
+        "source dot_config/fish/conf.d/env.fish; printf '%s' $SHELL",
         env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin", "SHELL": "/bin/sh"},
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
         timeout=10,
         check=True,
     )
@@ -755,15 +597,10 @@ def test_agy_wrapper_isolates_mise_installs_and_preserves_parent_shell(tmp_path:
         'printf "AFTER_PATH=%s\\n" (string join : -- $PATH); '
         'printf "AFTER_MISE_SHELL=%s\\n" "$MISE_SHELL"\n'
     )
-    fish = _fish()
-    result = subprocess.run(
-        [fish, "--no-config", "--interactive", "--command", script],
-        cwd=ROOT,
+    result = _run_fish(
+        script,
         env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"},
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
+        interactive=True,
         timeout=10,
         check=True,
     )
@@ -793,7 +630,6 @@ def test_shell_secret_exports_are_retired() -> None:
 
 
 def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path) -> None:
-    fish = _fish()
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     wrapper = bin_dir / "with-secret"
@@ -820,24 +656,12 @@ def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path)
         if k not in {"TEST_API_KEY", "OTHER_API_KEY", "UV_PUBLISH_TOKEN", "DOT_CONFIG_PATH"}
     } | {"HOME": str(tmp_path), "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
 
-    def run_fish(cmd: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [fish, "--no-config", "--command", cmd],
-            cwd=ROOT,
-            env=base_env | (extra_env or {}),
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=15,
-            check=False,
-        )
-
     py = sys.executable
-    nested = run_fish(
+    nested = _run_fish(
         f"with-secret TEST_API_KEY -- with-secret OTHER_API_KEY -- {py} -c "
         '\'import os,sys; print(os.environ["TEST_API_KEY"]); print(os.environ["OTHER_API_KEY"]); print(sys.argv[1:])\' '
-        "'a b' '$(touch nope)'; not set -q TEST_API_KEY; and not set -q OTHER_API_KEY"
+        "'a b' '$(touch nope)'; not set -q TEST_API_KEY; and not set -q OTHER_API_KEY",
+        env=base_env,
     )
     assert nested.returncode == 0, nested.stderr
     assert nested.stdout.splitlines() == ["synthetic-personal", "other-secret", "['a b', '$(touch nope)']"]
@@ -856,24 +680,3 @@ def test_with_secret_injects_only_child_process_and_fails_closed(tmp_path: Path)
     )
     assert posix_shell.returncode == 0, posix_shell.stderr
     assert posix_shell.stdout.strip() == "synthetic-personal"
-
-    override = run_fish(
-        f"with-secret TEST_API_KEY -- {py} -c 'import os; print(os.environ[\"TEST_API_KEY\"])'",
-        {"TEST_API_KEY": "synthetic-customer"},
-    )
-    assert override.returncode == 0, override.stderr
-    assert override.stdout.strip() == "synthetic-customer"
-
-    empty_env = run_fish(f"with-secret TEST_API_KEY -- {py} -V", {"TEST_API_KEY": ""})
-    assert empty_env.returncode == 1
-    assert "empty" in empty_env.stderr
-    assert "synthetic-personal" not in empty_env.stderr
-
-    assert run_fish(f"with-secret UV_PUBLISH_TOKEN -- {py} -V").returncode == 2
-    assert run_fish(f"with-secret bad-name -- {py} -V").returncode == 2
-    assert run_fish("with-secret TEST_API_KEY -- nonexistent-with-secret-cmd").returncode == 1
-
-    secret.chmod(0o644)
-    public = run_fish(f"with-secret TEST_API_KEY -- {py} -V")
-    assert public.returncode == 1
-    assert "chmod 600" in public.stderr

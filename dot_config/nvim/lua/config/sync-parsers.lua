@@ -2,6 +2,7 @@
 -- Lazy's build callbacks start asynchronous parser work; headless tasks must wait.
 local ok, err = pcall(function()
   local timeout = 15 * 60 * 1000
+  local poll_ms = 1000
   local ts = require("nvim-treesitter")
   local languages = LazyVim.opts("nvim-treesitter").ensure_installed
   local info = require("nvim-treesitter.config").get_install_dir("parser-info")
@@ -15,7 +16,7 @@ local ok, err = pcall(function()
         return vim.list_contains(installed, language)
           and vim.uv.fs_stat(vim.fs.joinpath(info, language .. ".revision")) ~= nil
       end)
-    end),
+    end, poll_ms),
     "Tree-sitter parsers are still missing after installation"
   )
   assert(ts.update(languages, { summary = true }):wait(timeout), "Tree-sitter parser update failed")

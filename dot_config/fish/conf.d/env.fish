@@ -23,6 +23,7 @@ set -gx PAGER bat
 
 # Mirror dot_config/mise/config.toml [env] so non-mise Fish sessions keep identical tool guards.
 set -gx AGENTS_CLI_TELEMETRY 0
+set -gx AGENTSVIEW_TELEMETRY_ENABLED 0
 set -gx AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED true
 set -gx BRAIN_LOCATION "$HOME/fmind/brain"
 set -gx CF_SEND_TELEMETRY 0
@@ -37,6 +38,7 @@ if test (uname -s) = Darwin
 end
 set -gx HF_HUB_DISABLE_TELEMETRY 1
 set -gx HF_HUB_DISABLE_UPDATE_CHECK 1
+set -gx OPENSPEC_TELEMETRY 0
 if test -r "$HOME/.config/glamour/fmind.json"
     set -gx GLAMOUR_STYLE "$HOME/.config/glamour/fmind.json"
 end

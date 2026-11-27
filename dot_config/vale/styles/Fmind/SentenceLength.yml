@@ -1,7 +1,7 @@
 # Docs: https://vale.sh/docs/topics/styles/
 extends: occurrence
-message: "Split long sentence (> 40 words) for easier scanning."
+message: "Split long sentence (> 30 words) for easier scanning."
 level: warning
 scope: sentence
-max: 40
+max: 30
 token: "[\\p{L}\\p{N}]+(?:['’.-][\\p{L}\\p{N}]+)*"

@@ -4,8 +4,7 @@ on:
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:
-permissions:
-  contents: read
+permissions: {}
 concurrency:
   group: security
   cancel-in-progress: true
@@ -19,6 +18,8 @@ jobs:
     name: Full-history scan
     runs-on: ubuntu-26.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - name: Checkout complete history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,6 +31,8 @@ jobs:
         uses: ./.github/actions/setup-mise
       - name: Scan complete Git history
         run: mise run check:leaks:full
+      - name: Scan full checkout and commits for privacy findings
+        run: mise run check:privacy
       - name: Scan full checkout and audit locked dependencies
         # Delegate to the task so this never drifts from `mise run check:network` (Trivy and uv audit).
         run: mise run check:network
@@ -40,3 +43,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: mise run check:actions:online
+      - name: Check external documentation links online
+        # CI stays offline for determinism; this weekly pass catches external URL and fragment drift.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: mise run check:skills:links:online

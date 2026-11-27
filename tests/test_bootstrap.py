@@ -13,9 +13,8 @@ from typing import TypedDict, cast
 import pytest
 import yaml
 
-from repo_helpers import ACTIONS, WORKFLOWS
+from repo_helpers import ACTIONS, ROOT, WORKFLOWS
 
-ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "install.sh"
 # A hung bootstrap must fail its own test instead of consuming the CI job limit.
 TIMEOUT_SECONDS = 60
@@ -468,3 +467,18 @@ def test_repository_install_can_repair_a_broken_global_tool_config(tmp_path: Pat
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert not (tmp_path / ".local/share/mise/installs").exists()
+
+
+def test_ci_workflow_keeps_full_history_for_skill_freshness_and_checks_completions() -> None:
+    ci = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    steps = ci["jobs"]["ci"]["steps"]
+    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout@"))
+    depth = checkout.get("with", {}).get("fetch-depth")
+    assert type(depth) is int
+    assert depth == 0
+    assert any(
+        "if" not in step
+        and not step.get("continue-on-error")
+        and any(line.strip() == "mise run check:completions" for line in str(step.get("run", "")).splitlines())
+        for step in steps
+    )

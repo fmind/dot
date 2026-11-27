@@ -86,13 +86,23 @@ def isolated_git(monkeypatch: pytest.MonkeyPatch) -> None:
 def isolated_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     """Drop desktop, multiplexer, and XDG variables during isolated tests."""
     for key in (
+        "CLOUDSDK_AUTH_ACCESS_TOKEN",
+        "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE",
+        "CLOUDSDK_CONFIG",
         "DBUS_SESSION_BUS_ADDRESS",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "GOOGLE_APPLICATION_CREDENTIALS",
         "GOOGLE_WORKSPACE_CLI_CONFIG_DIR",
+        "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE",
+        "GOOGLE_WORKSPACE_CLI_TOKEN",
         "GWS_PROJECT",
         "HF_HOME",
         "HF_HUB_CACHE",
         "HUGGINGFACE_HUB_CACHE",
         "MISE_STATE_DIR",
+        "SSH_CONNECTION",
+        "SSH_TTY",
         "XDG_CACHE_HOME",
         "XDG_CONFIG_HOME",
         "XDG_RUNTIME_DIR",

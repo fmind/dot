@@ -37,6 +37,8 @@ neovim = "aqua:neovim/neovim"
 # agents-cli 1.9.0 turned usage telemetry on by default; keep pypi:google-agents-cli out of global
 # [tools] while 1.14.0 caps pyopenssl<26.2 (cryptography<48, 4 HIGH CVEs).
 AGENTS_CLI_TELEMETRY = "0"
+# Opt out of AgentsView's PostHog usage telemetry.
+AGENTSVIEW_TELEMETRY_ENABLED = "0"
 # The AWS CLI otherwise prompts detected agents to install its Agent Toolkit skills;
 # vendor skills go through the vendor-skill policy instead.
 AWS_CLI_AGENT_TOOLKIT_HINT_DISABLED = "true"
@@ -54,6 +56,8 @@ COPILOT_TELEMETRY_DISABLED = "true"
 HF_HUB_DISABLE_TELEMETRY = "1"
 # Skip hf's PyPI/extension update checks, /api/agent-harnesses fetch, and hf-cli skill hint.
 HF_HUB_DISABLE_UPDATE_CHECK = "1"
+# Opt out of OpenSpec's PostHog usage telemetry (edge.openspec.dev).
+OPENSPEC_TELEMETRY = "0"
 RIPGREP_CONFIG_PATH = "{{env.HOME}}/.config/ripgrep/config"
 # Keep sonarqube-cli off the macOS Keychain (whose partition ACL blocks background probes and prompts repeatedly).
 # Its file store writes with default permissions, so chezmoi seeds a private tokens.json it then keeps.
@@ -80,8 +84,7 @@ ast-grep = "latest" # Structural code search and custom AST invariant linting ac
 atuin = "latest"
 bat = "latest"
 betterleaks = "latest"
-# Upstream cli-v2026.11.0 renamed release assets from bw-* to bw-bit-*/bw-oss-*; unpin once mise's registry catches up.
-bitwarden = "2026.10.1"
+bitwarden = "latest"
 chezmoi = "latest"
 # macOS container runtime (Linux uses native Docker Engine); ~/.docker/config.json resolves Compose/Buildx via shims.
 colima = { version = "latest", os = ["macos"] }
@@ -126,6 +129,15 @@ yq = "latest"
 zellij = "latest"
 zoxide = "latest"
 
+[tools."github:Fission-AI/OpenSpec"]
+# Standalone binaries need no Node.js runtime; upstream `-musl` tarballs require ld-musl (Alpine), so select glibc builds.
+version = "latest" # Spec-driven specs/ and changes/ workflows across projects; adopting repos pin it too
+
+[tools."github:Fission-AI/OpenSpec".platforms]
+linux-arm64 = { asset_pattern = "openspec-linux-arm64.tar.gz" }
+linux-x64 = { asset_pattern = "openspec-linux-x64.tar.gz" }
+macos-arm64 = { asset_pattern = "openspec-darwin-arm64.tar.gz" }
+
 [tools."github:databricks/genie-code-cli"]
 # Upstream ships .sha256 sidecars and Windows archives; select target tarballs explicitly.
 version = "latest" # Databricks Genie Code CLI (genie)
@@ -143,6 +155,15 @@ version = "latest" # Google Workspace CLI (gws)
 linux-arm64 = { asset_pattern = "*aarch64-unknown-linux-musl*" }
 linux-x64 = { asset_pattern = "*x86_64-unknown-linux-musl*" }
 macos-arm64 = { asset_pattern = "*aarch64-apple-darwin*" }
+
+[tools."github:kenn-io/agentsview"]
+# Upstream ships Homebrew tarballs, desktop installers, and provenance sidecars; select standalone CLI tarballs.
+version = "latest" # Local-first coding agent session search and usage analytics (Antigravity, Copilot)
+
+[tools."github:kenn-io/agentsview".platforms]
+linux-arm64 = { asset_pattern = "agentsview_*[0-9]_linux_arm64.tar.gz" }
+linux-x64 = { asset_pattern = "agentsview_*[0-9]_linux_amd64.tar.gz" }
+macos-arm64 = { asset_pattern = "agentsview_*[0-9]_darwin_arm64.tar.gz" }
 
 [tools."github:opengrep/opengrep"]
 # aqua's registry misses v2.0.0's renamed Linux binaries (`opengrep_linux_*`); exclude `.cert`/`.sig` sidecars.

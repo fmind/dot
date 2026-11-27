@@ -66,6 +66,7 @@ typos = "latest"
 typst = "latest"
 uv = "latest"
 vale = "latest"
+zellij = "latest"
 
 # Canonical project tasks.
 
@@ -137,8 +138,8 @@ cleanup() {
   if [ -n "$render_config" ]; then rm -rf -- "$render_config"; fi
 }
 trap cleanup EXIT
-trap 'cleanup; trap - INT; kill -INT $$' INT
-trap 'cleanup; trap - TERM; kill -TERM $$' TERM
+trap 'trap - EXIT; cleanup; trap - INT; kill -INT $$' INT
+trap 'trap - EXIT; cleanup; trap - TERM; kill -TERM $$' TERM
 render_config="$(mktemp -d)"
 render_destination="$(mktemp -d)"
 # Separate state also prevents parallel validation from locking the live workstation.
@@ -167,6 +168,10 @@ description = "Scan working-tree files, including untracked files, for leaked se
 # The pre-commit hook runs this directly; check:leaks:full covers the history weekly.
 # betterleaks 1.10+ loads .betterleaks.toml only when named, so pass it explicitly.
 run = "betterleaks dir . --config .betterleaks.toml --redact=100 --verbose --no-banner"
+
+[tasks."check:leaks:staged"]
+description = "Scan staged Git changes for leaked secrets"
+run = "betterleaks git --staged --config .betterleaks.toml --redact=100 --verbose --no-banner"
 
 [tasks."check:leaks:full"]
 description = "Scan the complete Git history (weekly in security.yml; needs a full clone)"
@@ -248,8 +253,8 @@ cleanup() {
   if [ -n "$rendered" ]; then rm -rf -- "$rendered"; fi
 }
 trap cleanup EXIT
-trap 'cleanup; trap - INT; kill -INT $$' INT
-trap 'cleanup; trap - TERM; kill -TERM $$' TERM
+trap 'trap - EXIT; cleanup; trap - INT; kill -INT $$' INT
+trap 'trap - EXIT; cleanup; trap - TERM; kill -TERM $$' TERM
 rendered="$(mktemp -d)"
 for template in run_*.sh.tmpl modify_dot_*; do
   chezmoi execute-template --source "$PWD" --with-stdin --file "$template" </dev/null >"$rendered/${template%.tmpl}.bash"
@@ -275,6 +280,10 @@ run = "uv run --locked --directory dot python -m dot_tasks.skill_contracts"
 hide = true
 # Generated-project templates link relative to their future repository.
 run = "lychee --offline --include-fragments --no-progress --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md'"
+
+[tasks."check:skills:links:online"]
+description = "Audit external documentation and skill URLs (including fragments) online (weekly in security.yml)"
+run = "lychee --include-fragments --no-progress --max-concurrency 4 --retry-wait-time 3 --timeout 20 --max-retries 3 --exclude-path 'skills/.*/templates' README.md AGENTS.md dot_agents/AGENTS.md SECURITY.md 'skills/**/*.md' '.agents/skills/**/*.md' 'dot_agents/supagents/*.md'"
 
 [tasks."check:supagents"]
 description = "Validate cross-harness subagent sources and generated configurations"
@@ -398,7 +407,11 @@ run = "uv run --locked --project dot pytest -c dot/pyproject.toml -q -n auto --m
 [tasks."test:starters"]
 description = "Materialize and execute Python, MCP, ML, script, docs, OpenTofu, and deck starter contracts"
 env = { DOT_STARTER_SMOKE = "1" }
-run = "uv run --locked --project dot pytest -c dot/pyproject.toml -q --force-enable-socket --timeout=600 tests/test_python_starter.py"
+run = "uv run --locked --project dot pytest -c dot/pyproject.toml -q -n auto --maxprocesses 4 --dist worksteal --force-enable-socket --timeout=600 tests/test_python_starter.py"
+
+[tasks."test:supagents:live"]
+description = "Run on-demand live seeded-defect, clean-control, and fail-closed calibration probes via agy"
+run = "uv run --locked --directory dot python -m dot_tasks.calibrate_supagents"
 
 # Project management tasks. Every alias begins with m.
 
@@ -490,8 +503,7 @@ run = [
   # Publish the complete bundle before installation; rerun full after a failed install.
   "mise run full",
   "dprint config update --yes",
-  "nvim --headless '+Lazy! update' +qa",
-  "mise run vim",
+  "nvim --headless '+Lazy! update' '+Lazy! clean' '+lua require(\"config.sync-parsers\")' +qa",
   # Physical path: installed skill links record it, and the catalog check rejects a symlinked checkout path.
   'chezmoi re-add --source "$(pwd -P)" ~/.config/nvim/lazy-lock.json',
 ]

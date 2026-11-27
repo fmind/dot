@@ -5,5 +5,6 @@ Description=Restart agy's remote-control daemon if it runs an outdated binary
 
 [Service]
 Type=oneshot
+TimeoutStartSec=2min
 # stat -L follows /proc/PID/exe even if unlinked; compare device:inode (`$$` and `%%` escape systemd).
-ExecStart=/bin/sh -c 'pid=$$(systemctl --user show -p MainPID --value antigravity-cli-daemon.service); [ "$${pid:-0}" -gt 0 ] || exit 0; proc_id=$$(stat -Lc %%d:%%i "/proc/$$pid/exe" 2>/dev/null) && [ -n "$$proc_id" ] || exit 0; bin_id=$$(stat -Lc %%d:%%i "$$HOME/.local/bin/agy" 2>/dev/null) && [ -n "$$bin_id" ] || exit 0; [ "$$proc_id" = "$$bin_id" ] || exec systemctl --user try-restart antigravity-cli-daemon.service'
+ExecStart=/bin/sh -c 'pid=$$(systemctl --user show -p MainPID --value antigravity-cli-daemon.service); [ "$${pid:-0}" -gt 0 ] || exit 0; [ -x "$$HOME/.local/bin/agy" ] || exit 0; proc_id=$$(stat -Lc %%d:%%i "/proc/$$pid/exe" 2>/dev/null) && [ -n "$$proc_id" ] || exit 0; bin_id=$$(stat -Lc %%d:%%i "$$HOME/.local/bin/agy" 2>/dev/null) && [ -n "$$bin_id" ] || exit 0; [ "$$proc_id" = "$$bin_id" ] || exec systemctl --user try-restart antigravity-cli-daemon.service'

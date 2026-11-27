@@ -33,9 +33,12 @@ pre-commit:
         jobs:
           - name: check leaks
             run: mise run check:leaks
+          - name: check leaks (staged)
+            run: mise run check:leaks:staged
           - name: check privacy
             run: mise run check:privacy:staged
           - name: check Python lint
+            glob: "{**/*.py,ruff.toml,dot/pyproject.toml}"
             run: mise run check:python:lint
 
 pre-push:

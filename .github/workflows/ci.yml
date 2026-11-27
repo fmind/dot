@@ -31,14 +31,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Install toolchain
         # jactionlint ignore=self-repository
         uses: ./.github/actions/setup-mise
         with:
           cache: ${{ inputs.cache || 'true' }}
+      - name: Sync dot environment
+        run: uv sync --locked --project dot
       - name: Run canonical gate
         run: mise run all
+      - name: Check Fish completion generators
+        run: mise run check:completions
       - name: Verify clean tree
         run: git status --short && [ -z "$(git status --porcelain)" ]
   starters:
@@ -82,6 +87,8 @@ jobs:
         run: |
           mise run check:chezmoi
           mise run check:shell
+      - name: Sync dot environment
+        run: uv sync --locked --project dot
       - name: Run repository tests
         run: mise run test
       - name: Verify clean tree

@@ -5,6 +5,9 @@ if status is-interactive
     abbr -a ac "agy --continue"
     abbr -a ai "agy --prompt-interactive"
     abbr -a ap "agy --print"
+    abbr -a av agentsview
+    abbr -a avs "agentsview serve"
+    abbr -a avu "agentsview report usage daily"
     # b:bat
     abbr -a b bat
     # c:gcloud

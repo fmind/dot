@@ -4,7 +4,8 @@ Description=Nightly check that agy's remote-control daemon runs the current bina
 
 [Timer]
 OnCalendar=*-*-* 04:30:00
-Persistent=true
+# Non-persistent: never fire mid-workday after wake/reboot (restarts abort active tasks).
+Persistent=false
 
 [Install]
 WantedBy=timers.target

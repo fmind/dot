@@ -20,7 +20,7 @@ command -v mise >/dev/null || {
   trap 'cleanup_mise; trap - INT; kill -INT $$' INT
   trap 'cleanup_mise; trap - TERM; kill -TERM $$' TERM
   mise_installer="$(mktemp)"
-  curl -fsSL --proto '=https' --tlsv1.2 -o "${mise_installer}" https://mise.run
+  curl -fsSL --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 120 -o "${mise_installer}" https://mise.run
   MISE_VERSION="v${MINIMUM_MISE_VERSION}" bash "${mise_installer}"
 }
 
